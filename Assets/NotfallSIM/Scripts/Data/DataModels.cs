@@ -66,5 +66,23 @@ namespace NotfallSIM.Data
         public string[] learningGoals;
         public string expectedCourse;
         public double defaultTimeScale = 1;
+        public AssessmentCriterion[] assessment;
+    }
+
+    /// <summary>
+    /// Ein Bewertungskriterium fürs Debriefing. Bezieht sich auf Ereignis-Tags
+    /// (Präfix-Vergleich, z. B. "intervention:FluidInfusion:Blood" oder "exam:Becken").
+    /// </summary>
+    [Serializable]
+    public class AssessmentCriterion
+    {
+        public string id;
+        public string description;
+        /// <summary>"deadline": eines der Tags muss bis limit Sekunden auftreten. "maxCount": höchstens limit Mal.</summary>
+        public string type;
+        public string[] tags;
+        public double limit;
+        public bool critical;
+        public string rationale;
     }
 }

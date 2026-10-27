@@ -31,8 +31,11 @@ namespace NotfallSIM.Simulation
         public InjuryDatabase Database { get; private set; }
         public VitalSigns Vitals => Engine?.Current ?? default(VitalSigns);
 
-        /// <summary>Für Logging/Debriefing: jede Verletzung und Intervention mit Zeitstempel.</summary>
-        public event Action<double, string> OnLogEntry;
+        /// <summary>
+        /// Für Logging/Debriefing: Zeit, lesbarer Text und maschinenlesbarer Tag
+        /// (z. B. "intervention:HemorrhageControl:Pelvis", "exam:Becken"), auf den sich Bewertungskriterien beziehen.
+        /// </summary>
+        public event Action<double, string, string> OnLogEntry;
         public event Action OnScenarioEnded;
         public bool Ended { get; private set; }
 
@@ -79,7 +82,7 @@ namespace NotfallSIM.Simulation
                 Engine.Advance(stepSize_s);
                 _accumulator -= stepSize_s;
             }
-            if (Engine.Current.CardiacArrest) Log("Kreislaufstillstand");
+            if (Engine.Current.CardiacArrest) Log("Kreislaufstillstand", "arrest");
         }
 
         void TriggerDueInjuries()
@@ -89,7 +92,7 @@ namespace NotfallSIM.Simulation
             {
                 if (_pending[i].onsetTime_s > t) continue;
                 foreach (var ev in Database.ToEvents(_pending[i])) Engine.ApplyInjury(ev);
-                Log($"Verletzung aktiv: {_pending[i].injuryId} (Schweregrad {_pending[i].severity:F1})");
+                Log($"Verletzung aktiv: {_pending[i].injuryId} (Schweregrad {_pending[i].severity:F1})", "injury:" + _pending[i].injuryId);
                 _pending.RemoveAt(i);
             }
         }
@@ -98,18 +101,18 @@ namespace NotfallSIM.Simulation
         {
             if (Engine == null || Ended || Engine.Current.CardiacArrest) return;
             Engine.ApplyIntervention(iv);
-            Log($"Maßnahme: {label}");
+            Log($"Maßnahme: {label}", $"intervention:{iv.Type}:{iv.TargetCompartment ?? iv.Compound ?? ""}");
         }
 
-        /// <summary>Freier Protokolleintrag, z. B. für Untersuchungen.</summary>
-        public void Note(string message) => Log(message);
+        /// <summary>Freier Protokolleintrag, z. B. für Untersuchungen (Tag "exam:&lt;Region&gt;").</summary>
+        public void Note(string message, string tag = null) => Log(message, tag);
 
         /// <summary>Stoppt die Simulation endgültig und löst das Debriefing aus.</summary>
         public void EndScenario()
         {
             if (Ended) return;
             Ended = true;
-            Log("Szenario beendet");
+            Log("Szenario beendet", "end");
             OnScenarioEnded?.Invoke();
         }
 
@@ -120,11 +123,11 @@ namespace NotfallSIM.Simulation
             Log($"Zeitraffer {timeScale:0.#}x");
         }
 
-        void Log(string msg)
+        void Log(string msg, string tag = null)
         {
             double t = Engine?.Current.SimTime_s ?? 0;
             Debug.Log($"[Sim {t:F0}s] {msg}");
-            OnLogEntry?.Invoke(t, msg);
+            OnLogEntry?.Invoke(t, msg, tag);
         }
     }
 }

@@ -47,7 +47,7 @@ namespace NotfallSIM.Interaction
                 .SelectMany(def => def.clinicalFindings ?? new string[0])
                 .ToList();
 
-            sim.Note($"Untersuchung: {regionName}" + (findings.Count == 0 ? " (unauffällig)" : ""));
+            sim.Note($"Untersuchung: {regionName}" + (findings.Count == 0 ? " (unauffällig)" : ""), "exam:" + regionName);
             OnExamined?.Invoke(regionName, findings);
         }
     }

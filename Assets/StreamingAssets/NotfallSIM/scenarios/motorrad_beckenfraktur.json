@@ -10,8 +10,16 @@
     "height_cm": 182
   },
   "injuries": [
-    { "injuryId": "becken_instabil", "onsetTime_s": 0, "severity": 0.8 },
-    { "injuryId": "femur_schaft_rechts", "onsetTime_s": 0, "severity": 0.6 }
+    {
+      "injuryId": "becken_instabil",
+      "onsetTime_s": 0,
+      "severity": 0.8
+    },
+    {
+      "injuryId": "femur_schaft_rechts",
+      "onsetTime_s": 0,
+      "severity": 0.6
+    }
   ],
   "learningGoals": [
     "Hämorrhagischen Schock anhand der Vitalparameter erkennen und einer Schockklasse zuordnen",
@@ -20,5 +28,74 @@
     "Femurfraktur als zusätzliche Blutungsquelle mitbedenken"
   ],
   "expectedCourse": "Ohne Maßnahmen progredienter hämorrhagischer Schock: zunehmende Tachykardie innerhalb weniger Minuten, Blutdruckabfall ab ca. 30 % Volumenverlust, unbehandelt Kreislaufstillstand. Beckengurt und Blutprodukte verlangsamen bzw. stabilisieren den Verlauf.",
-  "defaultTimeScale": 1
+  "defaultTimeScale": 1,
+  "assessment": [
+    {
+      "id": "o2",
+      "description": "Sauerstoff gegeben",
+      "type": "deadline",
+      "tags": [
+        "intervention:Oxygen"
+      ],
+      "limit": 120,
+      "critical": false,
+      "rationale": "Basismaßnahme im Primary Survey (B). [Zeitziel: didaktische Setzung, Entwurf]"
+    },
+    {
+      "id": "becken_untersucht",
+      "description": "Becken untersucht",
+      "type": "deadline",
+      "tags": [
+        "exam:Becken"
+      ],
+      "limit": 180,
+      "critical": false,
+      "rationale": "Im C-Teil nach Blutungsquellen suchen; Beckeninstabilität nur einmal vorsichtig prüfen. [Zeitziel: didaktische Setzung, Entwurf]"
+    },
+    {
+      "id": "oberschenkel_untersucht",
+      "description": "Oberschenkel untersucht",
+      "type": "deadline",
+      "tags": [
+        "exam:Oberschenkel rechts",
+        "exam:Oberschenkel links"
+      ],
+      "limit": 300,
+      "critical": false,
+      "rationale": "Femurfraktur als zusätzliche Blutungsquelle erkennen. [Zeitziel: didaktische Setzung, Entwurf]"
+    },
+    {
+      "id": "beckengurt",
+      "description": "Beckengurt angelegt",
+      "type": "deadline",
+      "tags": [
+        "intervention:HemorrhageControl:Pelvis"
+      ],
+      "limit": 300,
+      "critical": true,
+      "rationale": "Bei Verdacht auf instabile Beckenverletzung mit Schockzeichen früh stabilisieren. Wirksamkeit nur schwach belegt (s. docs/LITERATUR.md). [Zeitziel: didaktische Setzung, Entwurf]"
+    },
+    {
+      "id": "blut",
+      "description": "Blutprodukte begonnen",
+      "type": "deadline",
+      "tags": [
+        "intervention:FluidInfusion:Blood"
+      ],
+      "limit": 600,
+      "critical": true,
+      "rationale": "Ab Schockklasse III Blutprodukte statt weiterer Kristalloide. [Zeitziel: didaktische Setzung, Entwurf]"
+    },
+    {
+      "id": "kristalloid_restriktiv",
+      "description": "Kristalloide restriktiv (max. 1000 mL)",
+      "type": "maxCount",
+      "tags": [
+        "intervention:FluidInfusion:Saline"
+      ],
+      "limit": 2,
+      "critical": false,
+      "rationale": "Restriktive Volumentherapie bei unkontrollierter Blutung; Grenzwert mit S3-Leitlinie abgleichen. [Zeitziel: didaktische Setzung, Entwurf]"
+    }
+  ]
 }

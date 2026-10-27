@@ -10,6 +10,7 @@ namespace NotfallSIM.Core
     {
         public double Time_s;
         public string Message;
+        public string Tag;   // maschinenlesbar, Grundlage der Bewertung
     }
 
     /// <summary>
@@ -24,7 +25,8 @@ namespace NotfallSIM.Core
         static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
         public void AddSample(VitalSigns v) => Samples.Add(v);
-        public void AddEvent(double t, string msg) => Events.Add(new LogEntry { Time_s = t, Message = msg });
+        public void AddEvent(double t, string msg, string tag = null) =>
+            Events.Add(new LogEntry { Time_s = t, Message = msg, Tag = tag });
 
         /// <summary>Semikolon-getrennt, ganze Zahlen — öffnet sich in deutschem Excel direkt korrekt.</summary>
         public string ToVitalsCsv()
@@ -47,14 +49,14 @@ namespace NotfallSIM.Core
         public string ToEventsCsv()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("Zeit_s;Ereignis");
+            sb.AppendLine("Zeit_s;Ereignis;Tag");
             foreach (var e in Events)
-                sb.AppendLine($"{F(e.Time_s)};{e.Message.Replace(";", ",")}");
+                sb.AppendLine($"{F(e.Time_s)};{e.Message.Replace(";", ",")};{e.Tag}");
             return sb.ToString();
         }
 
-        /// <summary>Kurzes Debriefing mit TextMeshPro-Rich-Text (&lt;b&gt;).</summary>
-        public string BuildDebrief(string scenarioTitle)
+        /// <summary>Kurzes Debriefing mit TextMeshPro-Rich-Text. Mit Kriterien zusätzlich eine Bewertung.</summary>
+        public string BuildDebrief(string scenarioTitle, IEnumerable<NotfallSIM.Data.AssessmentCriterion> criteria = null)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"<b>Debriefing: {scenarioTitle}</b>");
@@ -74,13 +76,44 @@ namespace NotfallSIM.Core
                 : $"Ausgang: Patient lebt, HF {F(last.HeartRate_bpm)}, RR {F(last.SystolicBP_mmHg)}/{F(last.DiastolicBP_mmHg)}");
             sb.AppendLine($"Maximaler Blutverlust: {F(maxLoss * 100)} % (ATLS-Schockklasse {ShockClass(maxLoss)})");
             if (alive.Count > 0)
-                sb.AppendLine($"Max. HF: {F(alive.Max(s => s.HeartRate_bpm))} · Min. RRsys: {F(alive.Min(s => s.SystolicBP_mmHg))} mmHg");
+                sb.AppendLine($"Max. HF: {F(alive.Max(s => s.HeartRate_bpm))} · Min. RRsys: {F(alive.Min(s => s.SystolicBP_mmHg))} mmHg" +
+                              $" · Min. SpO2: {F(alive.Min(s => s.SpO2_percent))} %");
+
+            var results = Assessment.Evaluate(criteria, Events);
+            if (results.Count > 0)
+            {
+                int passed = results.Count(r => r.Passed);
+                sb.AppendLine();
+                sb.AppendLine($"<b>Bewertung: {passed} von {results.Count} Zielen erreicht</b>");
+                foreach (var r in results) sb.AppendLine(FormatResult(r));
+                if (results.Any(r => r.Criterion.critical && !r.Passed))
+                    sb.AppendLine("<color=#FF6060>Mindestens ein kritisches Ziel wurde verfehlt.</color>");
+            }
 
             sb.AppendLine();
             sb.AppendLine("<b>Zeitleiste</b>");
             foreach (var e in Events)
                 sb.AppendLine($"{Clock(e.Time_s)}  {e.Message}");
             return sb.ToString();
+        }
+
+        static string FormatResult(CriterionResult r)
+        {
+            var c = r.Criterion;
+            string star = c.critical ? " (kritisch)" : "";
+            switch (r.Outcome)
+            {
+                case CriterionOutcome.Met:
+                    return c.type == "maxCount"
+                        ? $"<color=#5CDB6E>erfüllt</color>  {c.description}{star} ({r.Count}x)"
+                        : $"<color=#5CDB6E>erfüllt</color>  {c.description}{star} bei {Clock(r.Time_s.Value)} (Ziel {Clock(c.limit)})";
+                case CriterionOutcome.Late:
+                    return $"<color=#F2C14E>verspätet</color>  {c.description}{star} bei {Clock(r.Time_s.Value)} (Ziel {Clock(c.limit)})";
+                case CriterionOutcome.Exceeded:
+                    return $"<color=#FF6060>überschritten</color>  {c.description}{star} ({r.Count}x, max. {F(c.limit)}x)";
+                default:
+                    return $"<color=#FF6060>fehlt</color>  {c.description}{star} (Ziel {Clock(c.limit)})";
+            }
         }
 
         /// <summary>Schockklasse nach relativem Blutverlust (ATLS: &lt;15 / 15–30 / 30–40 / &gt;40 %).</summary>

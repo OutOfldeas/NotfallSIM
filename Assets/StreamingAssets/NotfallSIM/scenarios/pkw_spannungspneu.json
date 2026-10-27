@@ -28,5 +28,52 @@
     "Nach Nadeldekompression den Erfolg prüfen und die Thoraxdrainage als definitive Versorgung anlegen"
   ],
   "expectedCourse": "Ab ca. 1,5 Minuten entwickelt sich links ein Spannungspneumothorax. Zuerst fallen SpO2 und steigen Atem- und Herzfrequenz, der Blutdruck bleibt lange stabil. Unbehandelt fällt der Blutdruck etwa 14 Minuten nach Szenariostart, nach rund 22 Minuten folgt ein obstruktiver Kreislaufstillstand. Die Nadeldekompression versagt in etwa 4 von 10 Fällen; die Thoraxdrainage entlastet definitiv.",
-  "defaultTimeScale": 1
+  "defaultTimeScale": 1,
+  "assessment": [
+    {
+      "id": "o2",
+      "description": "Sauerstoff gegeben",
+      "type": "deadline",
+      "tags": [
+        "intervention:Oxygen"
+      ],
+      "limit": 120,
+      "critical": false,
+      "rationale": "Basismaßnahme im Primary Survey (B). [Zeitziel: didaktische Setzung, Entwurf]"
+    },
+    {
+      "id": "thorax_untersucht",
+      "description": "Thorax untersucht",
+      "type": "deadline",
+      "tags": [
+        "exam:Thorax"
+      ],
+      "limit": 240,
+      "critical": false,
+      "rationale": "Bei Thoraxtrauma und fallender SpO2 Thorax gezielt untersuchen (Auskultation, Perkussion). [Zeitziel: didaktische Setzung, Entwurf]"
+    },
+    {
+      "id": "entlastung",
+      "description": "Thorax entlastet (Nadel oder Drainage)",
+      "type": "deadline",
+      "tags": [
+        "intervention:NeedleDecompression:LeftLung",
+        "intervention:ChestDrain:LeftLung"
+      ],
+      "limit": 480,
+      "critical": true,
+      "rationale": "Spannungspneumothorax klinisch diagnostizieren und sofort entlasten, nicht auf Bildgebung warten. [Zeitziel: didaktische Setzung, Entwurf]"
+    },
+    {
+      "id": "drainage",
+      "description": "Thoraxdrainage angelegt",
+      "type": "deadline",
+      "tags": [
+        "intervention:ChestDrain:LeftLung"
+      ],
+      "limit": 900,
+      "critical": true,
+      "rationale": "Nadeldekompression ist nur überbrückend und versagt häufig; definitive Versorgung mit Drainage. [Zeitziel: didaktische Setzung, Entwurf]"
+    }
+  ]
 }

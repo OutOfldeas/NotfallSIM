@@ -28,7 +28,7 @@ namespace NotfallSIM.UI
             if (sim.Ended) { Show(); return; }
             sim.EndScenario();
             string dir = recorder.ExportCsv();
-            text.text = recorder.Log.BuildDebrief(sim.Scenario?.title ?? "Szenario")
+            text.text = recorder.Log.BuildDebrief(sim.Scenario?.title ?? "Szenario", sim.Scenario?.assessment)
                         + $"\n<size=70%>Verlaufsdaten (CSV): {dir}</size>";
             Show();
         }

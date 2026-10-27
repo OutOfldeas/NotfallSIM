@@ -55,6 +55,23 @@ Eine Meta-Analyse (Ahmad et al. 2025) fand eine kombinierte Versagerrate von etw
 ATLS empfiehlt den 4./5. ICR zwischen vorderer und mittlerer Axillarlinie, das ETC weiterhin den 2. ICR medioklavikulär.
 Im Spiel versagt die Punktion daher zufällig in etwa 4 von 10 Fällen. Lernziel: Erfolg prüfen und die Thoraxdrainage anlegen.
 
+## Bewertungskriterien im Debriefing (Entwurf)
+
+Die Zeitziele sind didaktische Setzungen und stehen im Feld `assessment` der Szenario-Dateien. Gezählt wird ab Szenariostart.
+
+| Szenario | Ziel | Zeit | Kritisch |
+|---|---|---|---|
+| Beckenfraktur | Sauerstoff gegeben | 2 min | nein |
+| Beckenfraktur | Becken untersucht | 3 min | nein |
+| Beckenfraktur | Oberschenkel untersucht | 5 min | nein |
+| Beckenfraktur | Beckengurt angelegt | 5 min | ja |
+| Beckenfraktur | Blutprodukte begonnen | 10 min | ja |
+| Beckenfraktur | Kristalloide max. 1000 mL | — | nein |
+| Spannungspneu | Sauerstoff gegeben | 2 min | nein |
+| Spannungspneu | Thorax untersucht | 4 min | nein |
+| Spannungspneu | Thorax entlastet (Nadel oder Drainage) | 8 min | ja |
+| Spannungspneu | Thoraxdrainage angelegt | 15 min | ja |
+
 ## Offene Punkte zum Prüfen
 
 - [ ] Empfehlungen und Empfehlungsgrade zu Beckengurt, Volumentherapie und permissiver Hypotension in der S3-Leitlinie (MAGICapp) nachlesen
@@ -64,6 +81,7 @@ Im Spiel versagt die Punktion daher zufällig in etwa 4 von 10 Fällen. Lernziel
 - [x] Literatur zum Spannungspneumothorax (Verlauf bei Spontanatmung vs. Beatmung)
 - [ ] Zeitverlauf des Spannungspneus im Mock (ca. 20 Minuten bis Stillstand) klinisch plausibilisieren
 - [ ] Empfehlung der S3-Leitlinie zu Ort und Technik der Entlastung nachlesen
+- [ ] Zeitziele und „kritisch“-Markierungen der Bewertung prüfen (Tabelle oben)
 
 ## Quellen
 
