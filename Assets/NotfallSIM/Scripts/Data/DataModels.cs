@@ -69,6 +69,49 @@ namespace NotfallSIM.Data
         public AssessmentCriterion[] assessment;
     }
 
+    /// <summary>Eine Maßnahme, wie sie als Button erscheint und an die Engine geht.</summary>
+    [Serializable]
+    public class InterventionDefinition
+    {
+        public string id;
+        public string label;        // Text auf dem Button
+        public string logLabel;     // Text im Protokoll
+        public string type;         // muss einem InterventionType entsprechen
+        public string target;       // Blutungsort bzw. Lunge
+        public string compound;     // Infusion oder Medikament
+        public double volume_mL;
+        public double rate_mL_min;
+        public double rateMultiplier = 1;
+        public double successProbability = 1;
+        public bool once;           // nur einmal pro Durchlauf möglich
+        public SourceRef[] sources;
+        public string evidenceStatus;
+        public string reviewNotes;
+
+        /// <summary>Übersetzt in ein Engine-Ereignis; null bei unbekanntem Typ.</summary>
+        public InterventionEvent ToEvent()
+        {
+            if (!Enum.TryParse(type, out InterventionType t)) return null;
+            return new InterventionEvent
+            {
+                Type = t,
+                TargetCompartment = string.IsNullOrEmpty(target) ? null : target,
+                Compound = string.IsNullOrEmpty(compound) ? null : compound,
+                Volume_mL = volume_mL,
+                Rate_mL_min = rate_mL_min,
+                RateMultiplier = rateMultiplier,
+                SuccessProbability = successProbability
+            };
+        }
+    }
+
+    [Serializable]
+    public class InterventionDatabaseFile
+    {
+        public string version;
+        public InterventionDefinition[] interventions;
+    }
+
     /// <summary>
     /// Ein Bewertungskriterium fürs Debriefing. Bezieht sich auf Ereignis-Tags
     /// (Präfix-Vergleich, z. B. "intervention:FluidInfusion:Blood" oder "exam:Becken").

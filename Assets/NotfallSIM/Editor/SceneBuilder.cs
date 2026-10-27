@@ -1,4 +1,5 @@
 using System.Linq;
+using NotfallSIM.Data;
 using NotfallSIM.Interaction;
 using NotfallSIM.Simulation;
 using NotfallSIM.UI;
@@ -169,13 +170,12 @@ namespace NotfallSIM.EditorTools
             Place(actions.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(20, 20), new Vector2(340, 0));
             Vertical(actions.gameObject, 8, fit: true);
             Label("Titel", actions.transform, "MASSNAHMEN", 18, Dim);
-            MakeButton(actions.transform, "Beckengurt anlegen", ButtonColor, iv.ApplyPelvicBinder);
-            MakeButton(actions.transform, "500 mL VEL", ButtonColor, iv.GiveCrystalloid);
-            MakeButton(actions.transform, "1 EK transfundieren", ButtonColor, iv.GiveBloodUnit);
-            MakeButton(actions.transform, "Tranexamsäure 1 g", ButtonColor, iv.GiveTranexamicAcid);
-            MakeButton(actions.transform, "O2 über Maske", ButtonColor, iv.GiveOxygen);
-            MakeButton(actions.transform, "Nadeldekompression li.", ButtonColor, iv.NeedleDecompressionLeft);
-            MakeButton(actions.transform, "Thoraxdrainage li.", ButtonColor, iv.ChestDrainLeft);
+            // Buttons kommen aus interventions.json — neue Maßnahmen dort eintragen und Szene neu erzeugen.
+            foreach (var def in InjuryDatabase.LoadInterventions().interventions)
+            {
+                var b = MakeButton(actions.transform, def.label, ButtonColor, null);
+                UnityEventTools.AddStringPersistentListener(b.onClick, iv.Apply, def.id);
+            }
             Label("Zeit", actions.transform, "ZEITRAFFER", 18, Dim);
             var speedRow = new GameObject("Zeitraffer", typeof(RectTransform));
             speedRow.transform.SetParent(actions.transform, false);

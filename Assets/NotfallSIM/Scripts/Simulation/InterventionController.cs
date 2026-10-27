@@ -1,90 +1,46 @@
-using NotfallSIM.Core;
+using System.Collections.Generic;
+using NotfallSIM.Data;
 using UnityEngine;
 
 namespace NotfallSIM.Simulation
 {
     /// <summary>
-    /// Öffentliche Methoden für UI-Buttons (Button > OnClick im Inspector verknüpfen).
-    /// Die Effektstärken sind Platzhalter und gehören mittelfristig in die Datenbank
-    /// (eigene interventions.json mit Quellen), nicht in den Code.
+    /// Führt Maßnahmen aus StreamingAssets/NotfallSIM/interventions.json aus.
+    /// Buttons rufen <see cref="Apply"/> mit der Maßnahmen-ID auf — alle Zahlenwerte
+    /// (Volumen, Laufraten, Effektstärken) stehen mit Quellen in der JSON-Datei, nicht im Code.
     /// </summary>
     public class InterventionController : MonoBehaviour
     {
         [SerializeField] SimulationManager sim;
 
-        [Header("Beckengurt")]
-        [Tooltip("Faktor auf die Beckenblutungsrate. PLATZHALTER: Die Evidenz zur Effektgröße ist schwach " +
-                 "und widersprüchlich (nur kleine Beobachtungsstudien), siehe docs/LITERATUR.md.")]
-        [SerializeField] float pelvicBinderRateMultiplier = 0.5f;
-
-        [Header("Infusion")]
-        [SerializeField] float crystalloidVolume_mL = 500;
-        [SerializeField] float crystalloidRate_mL_min = 100;  // ca. Druckinfusion
-        [SerializeField] float bloodUnitVolume_mL = 300;      // grobe EK-Größe, prüfen
-        [SerializeField] float bloodRate_mL_min = 50;
-
-        [Header("Thoraxentlastung")]
-        [Tooltip("Erfolgswahrscheinlichkeit der Nadeldekompression. Meta-Analyse: kombinierte Versagerrate ca. 43 % " +
-                 "(Ahmad et al., World J Emerg Surg 2025) — stark heterogene, überwiegend retrospektive Daten.")]
-        [SerializeField, Range(0, 1)] float needleSuccessProbability = 0.57f;
-
-        bool _binderApplied;
+        readonly Dictionary<string, InterventionDefinition> _byId = new Dictionary<string, InterventionDefinition>();
+        readonly HashSet<string> _used = new HashSet<string>();
 
         public void Configure(SimulationManager simulation) => sim = simulation;
 
-        public void ApplyPelvicBinder()
+        void Awake()
         {
-            if (_binderApplied) return;
-            _binderApplied = true;
-            sim.ApplyIntervention(new InterventionEvent
-            {
-                Type = InterventionType.HemorrhageControl,
-                TargetCompartment = "Pelvis",
-                RateMultiplier = pelvicBinderRateMultiplier
-            }, "Beckengurt angelegt");
+            foreach (var d in InjuryDatabase.LoadInterventions().interventions) _byId[d.id] = d;
         }
 
-        // Balancierte Vollelektrolytlösung: S3-Leitlinie empfiehlt balancierte Kristalloide, keine isotone NaCl-Lösung.
-        public void GiveCrystalloid() => sim.ApplyIntervention(new InterventionEvent
+        /// <summary>Für Buttons: OnClick mit String-Parameter, z. B. "beckengurt".</summary>
+        public void Apply(string interventionId)
         {
-            Type = InterventionType.FluidInfusion,
-            Compound = "BalancedCrystalloid",
-            Volume_mL = crystalloidVolume_mL,
-            Rate_mL_min = crystalloidRate_mL_min
-        }, $"{crystalloidVolume_mL:F0} mL Vollelektrolytlösung");
+            if (!_byId.TryGetValue(interventionId, out var def))
+            {
+                Debug.LogWarning($"[Maßnahmen] Unbekannte ID '{interventionId}'");
+                return;
+            }
+            if (def.once && _used.Contains(def.id)) return;
 
-        // S3-Leitlinie: bei massiver Blutung früh 1 g über 10 min, nicht später als 3 h nach Trauma.
-        public void GiveTranexamicAcid() => sim.ApplyIntervention(new InterventionEvent
-        {
-            Type = InterventionType.Medication,
-            Compound = "TXA"
-        }, "Tranexamsäure 1 g i. v.");
-
-        public void GiveBloodUnit() => sim.ApplyIntervention(new InterventionEvent
-        {
-            Type = InterventionType.FluidInfusion,
-            Compound = "Blood",
-            Volume_mL = bloodUnitVolume_mL,
-            Rate_mL_min = bloodRate_mL_min
-        }, "1 Erythrozytenkonzentrat");
-
-        public void GiveOxygen() => sim.ApplyIntervention(new InterventionEvent
-        {
-            Type = InterventionType.Oxygen
-        }, "O2 über Maske");
-
-        // Vorerst nur links; später Auswahl der Seite über die angeklickte Körperregion.
-        public void NeedleDecompressionLeft() => sim.ApplyIntervention(new InterventionEvent
-        {
-            Type = InterventionType.NeedleDecompression,
-            TargetCompartment = "LeftLung",
-            SuccessProbability = needleSuccessProbability
-        }, "Nadeldekompression links");
-
-        public void ChestDrainLeft() => sim.ApplyIntervention(new InterventionEvent
-        {
-            Type = InterventionType.ChestDrain,
-            TargetCompartment = "LeftLung"
-        }, "Thoraxdrainage links");
+            var ev = def.ToEvent();
+            if (ev == null)
+            {
+                Debug.LogWarning($"[Maßnahmen] Unbekannter Typ '{def.type}' bei '{def.id}'");
+                return;
+            }
+            _used.Add(def.id);
+            sim.ApplyIntervention(ev, string.IsNullOrEmpty(def.logLabel) ? def.label : def.logLabel);
+        }
     }
 }

@@ -1,5 +1,7 @@
 # NotfallSIM
 
+![Tests](https://github.com/OutOfldeas/NotfallSIM/actions/workflows/tests.yml/badge.svg)
+
 Experimenteller Simulator für Schockraum- und Polytrauma-Szenarien.
 Unity-Frontend, austauschbare Physiologie-Engine (eigener Mock oder Pulse Physiology Engine),
 medizinisches Wissen in versionierten JSON-Dateien mit Quellenangaben.
@@ -41,6 +43,7 @@ Assets/
     SceneBuilder.cs              Menü „NotfallSIM › Schockraum-Szene erstellen“
   StreamingAssets/NotfallSIM/
     injuries.json                Verletzungsdatenbank
+    interventions.json           Maßnahmen (Buttons, Volumina, Effektstärken, Quellen)
     scenarios/*.json             Szenarien
 ```
 
@@ -64,6 +67,14 @@ Assets/
    (Ordner: `Application.persistentDataPath/Sessions`, wird im Debriefing angezeigt).
 6. **Szenario wechseln:** im Inspector des Objekts `Simulation` das Feld *Scenario Id* setzen
    (`motorrad_beckenfraktur` oder `pkw_spannungspneu`).
+
+## Tests
+
+`Tests/run_tests.sh` prüft ohne Unity die Datenkonsistenz (z. B. ob jedes Bewertungskriterium im Spiel
+erreichbar ist), die Verläufe des Mock-Modells und die Bewertungslogik. Braucht `mono-mcs` und
+`libmono-system-runtime-serialization4.0-cil`. Die Tests laufen bei jedem Push automatisch auf GitHub (Reiter *Actions*).
+
+Neue Maßnahme: Eintrag in `interventions.json`, danach Szene über das Menü neu erzeugen — der Button entsteht automatisch.
 
 ## Pulse anbinden
 

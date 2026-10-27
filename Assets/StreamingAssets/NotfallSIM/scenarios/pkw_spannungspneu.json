@@ -38,6 +38,7 @@
         "intervention:Oxygen"
       ],
       "limit": 120,
+      "relativeTo": "",
       "critical": false,
       "rationale": "Basismaßnahme im Primary Survey (B). Kein belegtes Zeitziel — didaktische Setzung."
     },
@@ -49,9 +50,9 @@
         "exam:Thorax"
       ],
       "limit": 150,
+      "relativeTo": "injury:spannungspneu_links",
       "critical": false,
-      "rationale": "S3-Leitlinie (GoR B): Diagnose klinisch (einseitig fehlendes Atemgeräusch plus typische Symptome). Zeitziel didaktisch, gezählt ab Beginn des Spannungspneus.",
-      "relativeTo": "injury:spannungspneu_links"
+      "rationale": "S3-Leitlinie (GoR B): Diagnose klinisch (einseitig fehlendes Atemgeräusch plus typische Symptome). Zeitziel didaktisch, gezählt ab Beginn des Spannungspneus."
     },
     {
       "id": "entlastung",
@@ -62,9 +63,9 @@
         "intervention:ChestDrain:LeftLung"
       ],
       "limit": 360,
+      "relativeTo": "injury:spannungspneu_links",
       "critical": true,
-      "rationale": "Nach klinischer Diagnose sofort entlasten, nicht auf Bildgebung warten (ATLS). Im Modell fällt die SpO2 etwa 6 min nach Beginn unter 90 %; Ziel: vorher entlasten (didaktische Setzung).",
-      "relativeTo": "injury:spannungspneu_links"
+      "rationale": "Nach klinischer Diagnose sofort entlasten, nicht auf Bildgebung warten (ATLS). Im Modell fällt die SpO2 etwa 6 min nach Beginn unter 90 %; Ziel: vorher entlasten (didaktische Setzung)."
     },
     {
       "id": "drainage",
@@ -74,9 +75,9 @@
         "intervention:ChestDrain:LeftLung"
       ],
       "limit": 900,
+      "relativeTo": "injury:spannungspneu_links",
       "critical": true,
-      "rationale": "Nadeldekompression versagt in ca. 43 % (Ahmad 2025) und überbrückt nur; Drainage als definitive Versorgung. 15 min ab Beginn = didaktische Setzung.",
-      "relativeTo": "injury:spannungspneu_links"
+      "rationale": "Nadeldekompression versagt in ca. 43 % (Ahmad 2025) und überbrückt nur; Drainage als definitive Versorgung. 15 min ab Beginn = didaktische Setzung."
     }
   ]
 }

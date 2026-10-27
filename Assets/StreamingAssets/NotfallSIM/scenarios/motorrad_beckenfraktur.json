@@ -38,6 +38,7 @@
         "intervention:Oxygen"
       ],
       "limit": 120,
+      "relativeTo": "",
       "critical": false,
       "rationale": "Basismaßnahme im Primary Survey (B). Kein belegtes Zeitziel — didaktische Setzung."
     },
@@ -49,6 +50,7 @@
         "exam:Becken"
       ],
       "limit": 180,
+      "relativeTo": "",
       "critical": false,
       "rationale": "Teil der C-Untersuchung im Primary Survey; Instabilität nur einmal vorsichtig prüfen. Zeitziel didaktisch."
     },
@@ -61,6 +63,7 @@
         "exam:Oberschenkel links"
       ],
       "limit": 300,
+      "relativeTo": "",
       "critical": false,
       "rationale": "Femurfraktur als zusätzliche Blutungsquelle erkennen. Zeitziel didaktisch."
     },
@@ -72,6 +75,7 @@
         "intervention:HemorrhageControl:Pelvis"
       ],
       "limit": 300,
+      "relativeTo": "",
       "critical": true,
       "rationale": "S3-Leitlinie (GoR A): bei instabilem Beckenring mit hämodynamischer Instabilität mechanische Notfallstabilisierung. Muss im Primary Survey und vor der CT erfolgen (Ganzkörper-CT laut TR-DGU 2016 im Mittel 22 min nach Aufnahme). 5 min = didaktische Konkretisierung."
     },
@@ -83,6 +87,7 @@
         "intervention:FluidInfusion:Blood"
       ],
       "limit": 600,
+      "relativeTo": "",
       "critical": true,
       "rationale": "Jede Minute Verzögerung bis zur ersten Transfusion ist in Beobachtungsstudien mit höherer Letalität assoziiert (u. a. Duchesne 2024: OR 1,11 pro Minute, penetrierendes Trauma; frühere Studien ca. 2 % pro Minute). 10 min = didaktische Setzung."
     },
@@ -94,6 +99,7 @@
         "intervention:Medication:TXA"
       ],
       "limit": 600,
+      "relativeTo": "",
       "critical": false,
       "rationale": "S3-Leitlinie (GoR A): bei massiver Blutung früh 1 g über 10 min; nicht später als 3 h nach Trauma (GoR B). Präklinisch kann sie bereits gegeben sein. 10 min = didaktische Setzung."
     },
@@ -105,6 +111,7 @@
         "intervention:FluidInfusion:BalancedCrystalloid"
       ],
       "limit": 2,
+      "relativeTo": "",
       "critical": false,
       "rationale": "S3-Leitlinie (GoR B): Volumentherapie bei unkontrollierter Blutung reduzieren, Ziel RRsys ca. 90 mmHg bzw. MAD 65 mmHg bis zur Blutstillung. 1000 mL entspricht dem initialen Bolus nach ATLS 10th ed.; als Obergrenze didaktische Setzung."
     }

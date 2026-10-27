@@ -1,0 +1,141 @@
+{
+  "version": "0.1.0",
+  "interventions": [
+    {
+      "id": "o2",
+      "label": "O2 über Maske",
+      "logLabel": "O2 über Maske",
+      "type": "Oxygen",
+      "target": "",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": true,
+      "sources": [],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Im Mock pauschal +3 Prozentpunkte SpO2."
+    },
+    {
+      "id": "beckengurt",
+      "label": "Beckengurt anlegen",
+      "logLabel": "Beckengurt angelegt",
+      "type": "HemorrhageControl",
+      "target": "Pelvis",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 0.5,
+      "successProbability": 1,
+      "once": true,
+      "sources": [
+        {
+          "citation": "BestBETs. Pelvic compression devices: Panacea or myth?",
+          "url": "https://www.bestbets.org/bets/pelvic-compression-devices-panacea-or-myth/",
+          "note": "Nur kleine Beobachtungsstudien mit widersprüchlichen Ergebnissen; kein belastbarer Effekt auf Blutung oder Letalität"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "rateMultiplier 0,5 ist eine didaktische Setzung, keine Messgröße."
+    },
+    {
+      "id": "vel_500",
+      "label": "500 mL VEL",
+      "logLabel": "500 mL Vollelektrolytlösung",
+      "type": "FluidInfusion",
+      "target": "",
+      "compound": "BalancedCrystalloid",
+      "volume_mL": 500,
+      "rate_mL_min": 100,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": false,
+      "sources": [
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "Balancierte isotone Vollelektrolytlösungen (GoR B), keine isotone NaCl-Lösung (GoR A)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Laufrate 100 mL/min entspricht grob einer Druckinfusion; prüfen."
+    },
+    {
+      "id": "ek",
+      "label": "1 EK transfundieren",
+      "logLabel": "1 Erythrozytenkonzentrat",
+      "type": "FluidInfusion",
+      "target": "",
+      "compound": "Blood",
+      "volume_mL": 300,
+      "rate_mL_min": 50,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": false,
+      "sources": [],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Volumen eines EK (ca. 250–350 mL) und Laufrate gegen Querschnitts-Leitlinie Hämotherapie prüfen. Im Mock vollständig intravasal wirksam, Hämoglobin wird nicht modelliert."
+    },
+    {
+      "id": "txa",
+      "label": "Tranexamsäure 1 g",
+      "logLabel": "Tranexamsäure 1 g i. v.",
+      "type": "Medication",
+      "target": "",
+      "compound": "TXA",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": true,
+      "sources": [
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "Bei massiver Blutung früh 1 g über 10 min (GoR A), nicht später als 3 h nach Trauma (GoR B)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Im Mock ohne physiologischen Effekt (Fibrinolyse nicht modelliert); zählt für die Bewertung."
+    },
+    {
+      "id": "nadel_li",
+      "label": "Nadeldekompression li.",
+      "logLabel": "Nadeldekompression links",
+      "type": "NeedleDecompression",
+      "target": "LeftLung",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 0.57,
+      "once": false,
+      "sources": [
+        {
+          "citation": "Ahmad SJS, et al. Meta-analysis of the optimal needle length and decompression site for tension pneumothorax and consensus recommendations on current ATLS and ETC guidelines. World J Emerg Surg. 2025;20:39.",
+          "url": "https://doi.org/10.1186/s13017-025-00613-7",
+          "note": "Kombinierte Versagerrate ca. 43 % (sehr heterogene, überwiegend retrospektive Daten)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Bei Erfolg sinkt die Spannung auf 15 % und steigt danach mit 20 % der Rate weiter (Re-Spannung möglich)."
+    },
+    {
+      "id": "drainage_li",
+      "label": "Thoraxdrainage li.",
+      "logLabel": "Thoraxdrainage links",
+      "type": "ChestDrain",
+      "target": "LeftLung",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": true,
+      "sources": [],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Im Mock sofortige und vollständige Entlastung; Anlagezeit wird noch nicht simuliert."
+    }
+  ]
+}
