@@ -33,7 +33,8 @@ namespace NotfallSIM.UI
 
         void OnLog(double time, string message, string tag)
         {
-            if (text && tag != null && tag.StartsWith("result:")) text.text = "<b>Labor</b>\n" + message;
+            if (text && tag != null && tag.StartsWith("result:"))
+                text.text = (tag.StartsWith("result:Imaging") ? "<b>Bildgebung</b>\n" : "<b>Labor</b>\n") + message;
         }
 
         void Show(string region, IReadOnlyList<string> findings)

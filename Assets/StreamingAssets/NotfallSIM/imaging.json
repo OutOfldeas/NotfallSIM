@@ -1,0 +1,116 @@
+{
+  "version": "0.1.0",
+  "modalities": [
+    {
+      "id": "efast",
+      "label": "eFAST",
+      "logLabel": "eFAST-Sonographie",
+      "covers": [
+        "eFAST"
+      ],
+      "duration_s": 60,
+      "transport_s": 0,
+      "isCT": false,
+      "normalFinding": "Keine freie Flüssigkeit perihepatisch, perisplenisch und im kleinen Becken; kein Perikarderguss; Lungengleiten beidseits erhalten.",
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "eFAST als Adjunct zum Primary Survey; retroperitoneale Blutungen werden sonographisch nicht zuverlässig erfasst"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Dauer 1 min am Bett: didaktische Setzung."
+    },
+    {
+      "id": "rx_thorax",
+      "label": "Röntgen Thorax",
+      "logLabel": "Röntgen Thorax a.-p. im Liegen",
+      "covers": [
+        "XrayChest"
+      ],
+      "duration_s": 180,
+      "transport_s": 0,
+      "isCT": false,
+      "normalFinding": "Kein Pneumothorax, keine Rippenfrakturen abgrenzbar, Mediastinum nicht verbreitert, Zwerchfelle glatt begrenzt.",
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Röntgen Thorax als Adjunct zum Primary Survey"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Dauer 3 min im Schockraum: didaktische Setzung."
+    },
+    {
+      "id": "rx_becken",
+      "label": "Röntgen Becken",
+      "logLabel": "Röntgen Becken a.-p.",
+      "covers": [
+        "XrayPelvis"
+      ],
+      "duration_s": 180,
+      "transport_s": 0,
+      "isCT": false,
+      "normalFinding": "Beckenring geschlossen, Symphyse und Iliosakralgelenke regelrecht, keine Fraktur abgrenzbar.",
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Röntgen Becken als Adjunct zum Primary Survey"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Dauer 3 min im Schockraum: didaktische Setzung."
+    },
+    {
+      "id": "cct",
+      "label": "CCT",
+      "logLabel": "Natives CT des Schädels",
+      "covers": [
+        "CCT"
+      ],
+      "duration_s": 240,
+      "transport_s": 300,
+      "isCT": true,
+      "normalFinding": "Keine intrakranielle Blutung, keine Raumforderung, Mittellinie nicht verlagert, Kalotte intakt.",
+      "sources": [
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "CT-Standort möglichst nah am Schockraum (< 50 m, GoR B)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Scan und vorläufiger Befund 4 min; Transport hin und zurück 5 min, entfällt bei CT im Schockraum. Didaktische Setzungen."
+    },
+    {
+      "id": "ct_ganzkoerper",
+      "label": "Ganzkörper-CT",
+      "logLabel": "Ganzkörper-CT (Traumaspirale)",
+      "covers": [
+        "CCT",
+        "CTBody"
+      ],
+      "duration_s": 420,
+      "transport_s": 360,
+      "isCT": true,
+      "normalFinding": "Keine traumatischen Verletzungen von Schädel, Wirbelsäule, Thorax, Abdomen und Becken.",
+      "sources": [
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "CT-Standort möglichst nah am Schockraum (< 50 m, GoR B)"
+        },
+        {
+          "citation": "Deutsches Ärzteblatt. Unfallchirurgen melden mehr Schwerverletzte (TraumaRegister DGU, Jahresbericht 2016). 15.09.2017.",
+          "url": "https://www.aerzteblatt.de/news/unfallchirurgen-melden-mehr-schwerverletzte-3f5de2e0-a89d-4b1b-a311-ebff9ae5bffd",
+          "note": "Ganzkörper-CT im Mittel 22 min nach Aufnahme"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Scan und vorläufiger Befund 7 min; Transport hin und zurück 6 min, entfällt bei CT im Schockraum (Sliding Gantry). Didaktische Setzungen."
+    }
+  ]
+}

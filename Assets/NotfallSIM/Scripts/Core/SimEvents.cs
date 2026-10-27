@@ -53,11 +53,13 @@ namespace NotfallSIM.Core
         Intubation,          // Atemweg gesichert, kontrollierte Beatmung
         Osmotherapy,         // hypertone Kochsalzlösung / Mannitol, überbrückend
         NeurosurgicalDecompression, // Kraniotomie; wirkt mit Verzögerung (CT, Transport, OP)
-        BloodGas             // BGA: Ergebnis nach Verzögerung, ohne physiologischen Effekt
+        BloodGas,            // BGA: Ergebnis nach Verzögerung, ohne physiologischen Effekt
+        Supportive           // Wärmeerhalt, Analgesie u. Ä.; im Mock ohne physiologischen Effekt
     }
 
     public class InterventionEvent
     {
+        public string Id;                 // ID aus interventions.json, Teil des Protokoll-Tags
         public InterventionType Type;
         public string TargetCompartment;  // HemorrhageControl: Blutungsort; Entlastung: "LeftLung"/"RightLung"
         public double RateMultiplier = 1; // für HemorrhageControl: 0 = Blutung gestoppt

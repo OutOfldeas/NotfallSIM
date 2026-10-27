@@ -105,6 +105,20 @@ svg.body { width: 100%; height: auto; display: block; }
 .act:disabled { opacity: .5; cursor: not-allowed; }
 .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
 
+/* Bildgebung */
+.imaging-results { display: grid; gap: 10px; margin-top: 10px; }
+.img-result { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface-2); display: grid; gap: 6px; }
+.img-result header { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+.img-result header time { font-family: var(--font-mono); font-weight: 400; color: var(--muted); font-size: 12px; }
+.img-result p { margin: 0; max-width: 70ch; }
+.img-result figure { margin: 0; }
+.img-result img { display: block; max-width: 100%; border-radius: 4px; background: #000; }
+.img-result figcaption { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.img-placeholder { font-size: 12px; color: var(--muted); border: 1px dashed var(--line); border-radius: 6px; padding: 6px 8px; }
+.away { border-radius: 8px; padding: 10px 12px; background: var(--warn-bg); color: var(--warn); font-weight: 600; }
+details.goals summary { cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 18px; }
+details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+
 /* Protokoll */
 .log { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 280px; overflow-y: auto; font-size: 13.5px; }
 .log li { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 8px; padding: 3px 0; border-bottom: 1px dashed var(--line); }
@@ -161,6 +175,13 @@ svg.body { width: 100%; height: auto; display: block; }
         <button type="button" id="modeTextbook" aria-pressed="true">Lehrbuch</button>
         <button type="button" id="modeRegistry" aria-pressed="false">Realität</button>
       </div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <span class="eyebrow">CT-Standort</span>
+      <div class="seg" role="group" aria-label="CT-Standort">
+        <button type="button" id="ctRadiology" aria-pressed="true">Radiologie</button>
+        <button type="button" id="ctTraumaRoom" aria-pressed="false">Im Schockraum</button>
+      </div>
       <button type="button" class="btn primary" id="startBtn">Szenario starten</button>
     </div>
     <p class="notice" id="modeNote"></p>
@@ -180,6 +201,11 @@ svg.body { width: 100%; height: auto; display: block; }
       <button type="button" class="btn danger" id="endBtn">Szenario beenden</button>
     </div>
   </section>
+
+  <section class="panel" id="goalsPanel" hidden>
+    <details class="goals"><summary>Lernziele und bewertete Ziele</summary><div id="goals"></div></details>
+  </section>
+  <div class="away" id="awayBanner" hidden></div>
 
   <div class="grid-2" id="runView" hidden>
     <section class="panel" aria-labelledby="patTitle">
@@ -210,6 +236,11 @@ svg.body { width: 100%; height: auto; display: block; }
       <section class="panel" aria-labelledby="actTitle">
         <h2 id="actTitle">Maßnahmen</h2>
         <div class="actions" id="actions"></div>
+      </section>
+      <section class="panel" aria-labelledby="imgTitle">
+        <h2 id="imgTitle">Bildgebung</h2>
+        <div class="actions" id="imagingBtns"></div>
+        <div class="imaging-results" id="imagingResults"></div>
       </section>
       <section class="panel" aria-labelledby="logTitle">
         <h2 id="logTitle">Protokoll</h2>
@@ -242,10 +273,10 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const R = (x) => Math.round(x);
 
-let selected = DATA.scenarios[0].id, mode = "Textbook";
+let selected = DATA.scenarios[0].id, mode = "Textbook", ctInRoom = false, imgCount = 0;
 let sim = null, speed = 1, paused = false, lastFrame = 0, lastRender = 0, wakeLock = null, logCount = 0;
 
-$("dataVersion").textContent = `Verletzungen v${DATA.injuries.version}, Maßnahmen v${DATA.interventions.version}, Stand ${DATA.built}`;
+$("dataVersion").textContent = `Verletzungen v${DATA.injuries.version}, Maßnahmen v${DATA.interventions.version}, Bildgebung v${DATA.imaging.version}, Stand ${DATA.built}`;
 
 // ---------- Auswahl ----------
 function renderSetup() {
@@ -255,28 +286,34 @@ function renderSetup() {
   $("brief").innerHTML = `<p>${esc(s.description)}</p><p class="muted"><b>Mechanismus:</b> ${esc(s.mechanism)}</p>`;
   $("modeTextbook").setAttribute("aria-pressed", mode === "Textbook");
   $("modeRegistry").setAttribute("aria-pressed", mode === "Registry");
-  $("modeNote").textContent = mode === "Textbook"
+  $("ctRadiology").setAttribute("aria-pressed", !ctInRoom);
+  $("ctTraumaRoom").setAttribute("aria-pressed", ctInRoom);
+  $("modeNote").textContent = (ctInRoom ? "CT im Schockraum: kein Transport, der Patient bleibt während des Scans zugänglich. " : "CT in der Radiologie: Für CCT und Ganzkörper-CT verlässt der Patient den Schockraum. ") + (mode === "Textbook"
     ? "Lehrbuch: Vitalwerte folgen den ATLS-Schockklassen. Gut zum Lernen der Muster."
-    : "Realität: an Registerdaten angelehnt. Weniger Tachykardie, späte Hypotonie, jeder Patient reagiert etwas anders.";
+    : "Realität: an Registerdaten angelehnt. Weniger Tachykardie, späte Hypotonie, jeder Patient reagiert etwas anders.");
 }
 $("scenarioList").addEventListener("click", (e) => { const b = e.target.closest(".scenario-opt"); if (b) { selected = b.dataset.id; renderSetup(); } });
 $("modeTextbook").onclick = () => { mode = "Textbook"; renderSetup(); };
 $("modeRegistry").onclick = () => { mode = "Registry"; renderSetup(); };
+$("ctRadiology").onclick = () => { ctInRoom = false; renderSetup(); };
+$("ctTraumaRoom").onclick = () => { ctInRoom = true; renderSetup(); };
 $("startBtn").onclick = start;
 $("againBtn").onclick = () => { $("debrief").hidden = true; $("setup").hidden = false; sim = null; resetMonitor(); renderSetup(); window.scrollTo({ top: 0 }); };
 
 // ---------- Lauf ----------
 function start() {
-  sim = new E.Simulation(DATA, selected, mode);
-  speed = 1; paused = false; logCount = 0;
+  sim = new E.Simulation(DATA, selected, mode, undefined, ctInRoom);
+  speed = 1; paused = false; logCount = 0; imgCount = 0;
+  $("imagingResults").innerHTML = "";
+  renderGoals();
   $("log").innerHTML = ""; $("labResult").hidden = true;
   $("findings").innerHTML = `<p class="muted" style="margin:6px 0 0">Tippe eine Körperregion an, um sie zu untersuchen. Rechts und links sind aus Sicht des Patienten.</p>`;
   document.querySelectorAll(".region").forEach((r) => r.classList.remove("examined"));
-  $("setup").hidden = true; $("controlsPanel").hidden = false; $("runView").hidden = false; $("debrief").hidden = true;
+  $("setup").hidden = true; $("controlsPanel").hidden = false; $("runView").hidden = false; $("debrief").hidden = true; $("goalsPanel").hidden = false;
   $("pauseBtn").textContent = "Pause";
   document.querySelectorAll("[data-speed]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.speed === "1"));
   $("monScenario").innerHTML = `<strong>${esc(sim.scenario.title)}</strong> · ${mode === "Registry" ? "Realität" : "Lehrbuch"}`;
-  renderActions(); renderMonitor(); renderLog();
+  renderActions(); renderImaging(); renderAway(); renderMonitor(); renderLog();
   try { navigator.wakeLock && navigator.wakeLock.request("screen").then((w) => (wakeLock = w)).catch(() => {}); } catch (e) {}
   lastFrame = performance.now();
   requestAnimationFrame(loop);
@@ -287,7 +324,7 @@ function loop(now) {
   const dt = Math.min(0.25, (now - lastFrame) / 1000);
   lastFrame = now;
   if (!paused && !sim.vitals.arrest) sim.advance(dt * speed);
-  if (now - lastRender > 400) { lastRender = now; renderMonitor(); renderLog(); renderActions(); }
+  if (now - lastRender > 400) { lastRender = now; renderMonitor(); renderLog(); renderActions(); renderImaging(); renderAway(); }
   requestAnimationFrame(loop);
 }
 
@@ -329,7 +366,7 @@ function renderMonitor() {
 function renderActions() {
   const pendingIds = new Set(sim.delayed.map((d) => d.iv.type));
   $("actions").innerHTML = DATA.interventions.interventions.map((d) => {
-    const used = sim.used.has(d.id), blocked = (d.once && used) || sim.ended || sim.vitals.arrest;
+    const used = sim.used.has(d.id), blocked = (d.once && used) || sim.ended || sim.vitals.arrest || sim.isAway;
     const running = pendingIds.has(d.type) && used;
     let note = d.effectDelay_s > 0 ? `wirkt nach ${R(d.effectDelay_s / 60)} min` : (d.once ? "einmalig" : "wiederholbar");
     if (running) note = d.type === "BloodGas" ? "Analyse läuft …" : "angeordnet …";
@@ -347,6 +384,7 @@ function examine(g) {
   if (!sim || sim.ended) return;
   const region = g.dataset.region;
   const f = sim.examine(region);
+  if (f === null) return;
   g.classList.add("examined");
   $("findings").innerHTML = `<b>${esc(region)}</b>` + (f.length ? `<ul>${f.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p style="margin:6px 0 0">Unauffällig.</p>`);
   renderLog();
@@ -354,8 +392,51 @@ function examine(g) {
 $("bodySvg").addEventListener("click", (e) => { const g = e.target.closest(".region"); if (g) examine(g); });
 $("bodySvg").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { const g = e.target.closest(".region"); if (g) { e.preventDefault(); examine(g); } } });
 
+// ---------- Ziele ----------
+function renderGoals() {
+  const s = sim.scenario;
+  const crit = (s.assessment || []).map((c) => {
+    const when = c.type === "maxCount" ? `höchstens ${c.limit}×` : c.relativeTo ? `bis ${R(c.limit / 60 * 10) / 10} min nach Auslöser` : `bis Minute ${R(c.limit / 60 * 10) / 10}`;
+    return `<li>${esc(c.description)} <span class="muted">· ${when}</span>${c.critical ? ' <span class="crit-tag">kritisch</span>' : ""}</li>`;
+  }).join("");
+  $("goals").innerHTML = `<div class="eyebrow" style="margin-top:10px">Lernziele</div><ul>${s.learningGoals.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>
+    <div class="eyebrow" style="margin-top:12px">Bewertet im Debriefing</div><ul>${crit}</ul>`;
+}
+
+// ---------- Bildgebung ----------
+function renderImaging() {
+  const busy = new Set(sim.delayed.filter((d) => d.lines).map((d) => d.iv.id));
+  $("imagingBtns").innerHTML = DATA.imaging.modalities.map((m) => {
+    const transport = m.transport_s > 0 && !(m.isCT && sim.ctInTraumaRoom);
+    const mins = R((m.duration_s + (transport ? m.transport_s : 0)) / 60 * 10) / 10;
+    const note = busy.has(m.id) ? "läuft …" : `${String(mins).replace(".", ",")} min` + (transport ? " · Transport" : " · im Schockraum");
+    const blocked = sim.ended || sim.vitals.arrest || sim.isAway || busy.has(m.id);
+    return `<button type="button" class="act" data-img="${m.id}" ${blocked ? "disabled" : ""}><span>${esc(m.label)}</span><small>${note}</small></button>`;
+  }).join("");
+  if (sim.imagingResults.length === imgCount) return;
+  for (const r of sim.imagingResults.slice(imgCount)) {
+    const el = document.createElement("article");
+    el.className = "img-result";
+    const imgs = r.images.length
+      ? r.images.map((i) => `<figure><img src="${i.src}" alt="${esc(r.label)}"><figcaption>${esc(i.credit)}</figcaption></figure>`).join("")
+      : `<div class="img-placeholder">Für diesen Befund ist noch kein Bild hinterlegt.</div>`;
+    el.innerHTML = `<header><span>${esc(r.label)}</span><time>${E.clock(r.time)}</time></header>${r.lines.map((l) => `<p>${esc(l)}</p>`).join("")}${imgs}`;
+    $("imagingResults").prepend(el);
+  }
+  imgCount = sim.imagingResults.length;
+}
+$("imagingBtns").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-img]"); if (!b || !sim) return;
+  if (sim.requestImaging(b.dataset.img)) { renderImaging(); renderActions(); renderAway(); renderLog(); }
+});
+function renderAway() {
+  const away = sim && sim.isAway && !sim.ended;
+  $("awayBanner").hidden = !away;
+  if (away) $("awayBanner").textContent = `Patient ist im CT (Radiologie) und zurück um ${E.clock(sim.awayUntil)}. Untersuchung und Maßnahmen sind solange nicht möglich.`;
+}
+
 // ---------- Protokoll ----------
-function logClass(tag) { return !tag ? "" : tag.startsWith("state") || tag === "arrest" ? "state" : tag.startsWith("result") ? "result" : ""; }
+function logClass(tag) { return !tag ? "" : tag.startsWith("state") || tag.startsWith("warning") || tag === "arrest" ? "state" : tag.startsWith("result") ? "result" : ""; }
 function renderLog() {
   if (sim.events.length === logCount) return;
   const fresh = sim.events.slice(logCount);
@@ -373,7 +454,7 @@ const OUT = { Met: "erfüllt", Late: "verspätet", Missed: "fehlt", Exceeded: "�
 function showDebrief() {
   const d = sim.debrief();
   try { wakeLock && wakeLock.release(); } catch (e) {}
-  $("controlsPanel").hidden = true; $("runView").hidden = true; $("debrief").hidden = false;
+  $("controlsPanel").hidden = true; $("runView").hidden = true; $("debrief").hidden = false; $("goalsPanel").hidden = true; $("awayBanner").hidden = true;
   $("debMode").textContent = `${sim.scenario.title} · ${d.mode === "Registry" ? "Realitätsmodus" : "Lehrbuchmodus"}`;
   const kv = (k, v) => `<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`;
   $("debOutcome").innerHTML = [

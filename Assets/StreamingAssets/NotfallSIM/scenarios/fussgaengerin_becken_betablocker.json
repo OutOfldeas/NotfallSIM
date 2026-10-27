@@ -57,7 +57,7 @@
       "description": "Beckengurt angelegt",
       "type": "deadline",
       "tags": [
-        "intervention:HemorrhageControl:Pelvis"
+        "intervention:HemorrhageControl:Pelvis:beckengurt"
       ],
       "limit": 300,
       "relativeTo": "",
@@ -116,6 +116,19 @@
       "onlyAfterReference": false,
       "critical": false,
       "rationale": "S3-Leitlinie (GoR B): Volumentherapie bei unkontrollierter Blutung reduzieren, Ziel RRsys ca. 90 mmHg bzw. MAD 65 mmHg bis zur Blutstillung. 1000 mL entspricht dem initialen Bolus nach ATLS 10th ed.; als Obergrenze didaktische Setzung."
+    },
+    {
+      "id": "keine_instabile_ct_fahrt",
+      "description": "Kein Transport ins CT im Schock",
+      "type": "maxCount",
+      "tags": [
+        "warning:unstable-transport"
+      ],
+      "limit": 0,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": false,
+      "rationale": "Hämodynamisch instabile Patienten gehören nicht in einen CT-Raum außerhalb des Schockraums (ATLS); die S3-Leitlinie empfiehlt den CT-Standort nah am Schockraum (< 50 m, GoR B). Mit CT im Schockraum entfällt der Transport."
     }
   ]
 }

@@ -232,8 +232,11 @@
   const de1 = (x) => x.toFixed(1).replace(".", ",");
 
   class Simulation {
-    constructor(data, scenarioId, mode, seed) {
+    constructor(data, scenarioId, mode, seed, ctInTraumaRoom) {
       this.data = data;
+      this.ctInTraumaRoom = !!ctInTraumaRoom;
+      this.imaging = Object.fromEntries(data.imaging.modalities.map((m) => [m.id, m]));
+      this.awayUntil = -1;
       this.scenario = data.scenarios.find((s) => s.id === scenarioId);
       this.injuries = Object.fromEntries(data.injuries.injuries.map((i) => [i.id, i]));
       this.interventions = Object.fromEntries(data.interventions.interventions.map((i) => [i.id, i]));
@@ -246,11 +249,13 @@
       this.samples = [this.engine.current];
       this.nextSample = 5;
       this.used = new Set();
+      this.imagingResults = [];
       this.ended = false;
       this.step = 0.1;
       this.log(`Szenario „${this.scenario.title}“ gestartet (${this.engine.name})`, null);
     }
     get vitals() { return this.engine.current; }
+    get isAway() { return this.engine.current.time < this.awayUntil; }
     log(message, tag) { this.events.push({ time: this.engine.current.time, message, tag }); }
 
     /** Rückt um dt Sekunden in Schritten von 0,1 s vor (wie SimulationManager.Update). */
@@ -270,7 +275,12 @@
         for (let i = this.delayed.length - 1; i >= 0; i--) {
           const d = this.delayed[i];
           if (d.due > t) continue;
-          if (d.result) this.log(d.result, "result:" + d.iv.type);
+          if (d.result) {
+            const img = d.result.startsWith("Befund ");
+            this.log(d.result, img ? "result:Imaging:" + d.iv.id : "result:" + d.iv.type);
+            if (img) { this.imagingResults.push({ time: t, id: d.iv.id, label: d.label, lines: d.lines, images: d.images });
+              if (this.awayUntil > 0 && t >= this.awayUntil - 1e-6) { this.awayUntil = -1; this.log("Patient zurück im Schockraum", "transport:back"); } }
+          }
           else { this.engine.applyIntervention(d.iv); this.log(`Wirksam: ${d.label}`, "effect:" + d.iv.type); }
           this.delayed.splice(i, 1);
         }
@@ -285,12 +295,12 @@
     /** Wie InterventionController.Apply: Definition aus interventions.json. Gibt false zurück, wenn nicht (mehr) möglich. */
     apply(id) {
       const def = this.interventions[id];
-      if (!def || this.ended || this.engine.current.arrest) return false;
+      if (!def || this.ended || this.engine.current.arrest || this.isAway) return false;
       if (def.once && this.used.has(id)) return false;
       this.used.add(id);
-      const iv = { type: def.type, target: def.target || null, compound: def.compound || null, volume_mL: def.volume_mL,
+      const iv = { id: def.id, type: def.type, target: def.target || null, compound: def.compound || null, volume_mL: def.volume_mL,
         rate_mL_min: def.rate_mL_min, rateMultiplier: def.rateMultiplier, successProbability: def.successProbability };
-      const tag = `intervention:${iv.type}:${iv.target || iv.compound || ""}`;
+      const tag = `intervention:${iv.type}:${iv.target || iv.compound || ""}:${iv.id}`;
       const label = def.logLabel || def.label;
       const v = this.engine.current;
       if (iv.type === "BloodGas") {
@@ -309,9 +319,37 @@
       return true;
     }
 
+    /** Wie SimulationManager.RequestImaging. Gibt false zurück, wenn nicht möglich. */
+    requestImaging(id) {
+      const m = this.imaging[id];
+      if (!m || this.ended || this.engine.current.arrest || this.isAway) return false;
+      const v = this.engine.current;
+      const transport = m.transport_s > 0 && !(m.isCT && this.ctInTraumaRoom);
+      const total = m.duration_s + (transport ? m.transport_s : 0);
+      const tags = this.events.map((e) => e.tag).filter(Boolean);
+      const lines = [], images = [];
+      for (const si of this.scenario.injuries) {
+        if (si.onsetTime_s > v.time) continue;
+        for (const f of this.injuries[si.injuryId].imaging || []) {
+          if (!m.covers.includes(f.modality)) continue;
+          const resolved = f.resolvedByTag && tags.some((x) => x.startsWith(f.resolvedByTag));
+          lines.push(resolved && f.resolvedFinding ? f.resolvedFinding : f.finding);
+          if (f.image && !resolved) images.push({ src: f.image, credit: f.imageCredit });
+        }
+      }
+      if (!lines.length) lines.push(m.normalFinding);
+      this.log(`Bildgebung: ${m.logLabel}` + (transport ? " (Transport in die Radiologie)" : m.isCT ? " (CT im Schockraum)" : ""), "imaging:" + m.id);
+      if (transport) {
+        this.awayUntil = v.time + total;
+        if (v.sbp < 90) this.log("Warnung: hämodynamisch instabiler Patient verlässt den Schockraum", "warning:unstable-transport");
+      }
+      this.delayed.push({ due: v.time + total, iv: { type: "Supportive", id: m.id }, label: m.label, result: `Befund ${m.label}: ` + lines.join(" "), lines, images });
+      return true;
+    }
+
     /** Wie BodyRegion.Examine. */
     examine(region) {
-      if (this.ended) return [];
+      if (this.ended || this.isAway) return null;
       const t = this.engine.current.time;
       const findings = [];
       for (const si of this.scenario.injuries) {

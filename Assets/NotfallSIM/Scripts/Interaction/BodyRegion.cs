@@ -40,7 +40,7 @@ namespace NotfallSIM.Interaction
 
         public void Examine()
         {
-            if (sim == null || sim.Scenario == null || sim.Ended) return;
+            if (sim == null || sim.Scenario == null || sim.Ended || sim.IsAway) return;
             double t = sim.Vitals.SimTime_s;
 
             List<string> findings = sim.Scenario.injuries

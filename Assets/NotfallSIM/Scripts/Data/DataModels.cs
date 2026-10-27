@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using NotfallSIM.Core;
 
 namespace NotfallSIM.Data
@@ -34,9 +36,63 @@ namespace NotfallSIM.Data
         public int aisSeverity;           // 1–6 (nur Schweregrad; AIS-Codes selbst sind lizenzpflichtig)
         public PhysiologyEffect[] effects;
         public string[] clinicalFindings; // für den späteren Diagnose-Modus
+        public ImagingFinding[] imaging;  // Befunde je Bildgebungsverfahren
         public SourceRef[] sources;
         public string evidenceStatus;     // "draft" | "reviewed" | "validated"
         public string reviewNotes;
+    }
+
+    [Serializable]
+    public class ImagingFinding
+    {
+        public string modality;        // "eFAST", "XrayChest", "XrayPelvis", "CCT", "CTBody"
+        public string finding;
+        public string resolvedByTag;   // optional: nach diesem Ereignis gilt resolvedFinding (z. B. Drainage gelegt)
+        public string resolvedFinding;
+        public string image;           // optional: Dateiname eines lizenzierten Bildes
+        public string imageCredit;     // Urheber und Lizenz
+    }
+
+    [Serializable]
+    public class ImagingModality
+    {
+        public string id;
+        public string label;
+        public string logLabel;
+        public string[] covers;        // welche Befundkategorien das Verfahren zeigt
+        public double duration_s;      // Untersuchung bis vorläufiger Befund
+        public double transport_s;     // Hin- und Rücktransport, entfällt bei CT im Schockraum oder am Bett
+        public bool isCT;
+        public string normalFinding;
+        public SourceRef[] sources;
+        public string evidenceStatus;
+        public string reviewNotes;
+    }
+
+    [Serializable]
+    public class ImagingDatabaseFile
+    {
+        public string version;
+        public ImagingModality[] modalities;
+    }
+
+    /// <summary>Stellt den Befundtext eines Verfahrens zusammen. Reines C#, testbar.</summary>
+    public static class ImagingReport
+    {
+        public static List<string> Build(ImagingModality modality, IEnumerable<InjuryDefinition> activeInjuries, IEnumerable<string> occurredTags)
+        {
+            var tags = occurredTags.Where(t => t != null).ToList();
+            var lines = new List<string>();
+            foreach (var inj in activeInjuries)
+                foreach (var f in inj.imaging ?? new ImagingFinding[0])
+                {
+                    if (!modality.covers.Contains(f.modality)) continue;
+                    bool resolved = !string.IsNullOrEmpty(f.resolvedByTag) && tags.Any(t => t.StartsWith(f.resolvedByTag, StringComparison.Ordinal));
+                    lines.Add(resolved && !string.IsNullOrEmpty(f.resolvedFinding) ? f.resolvedFinding : f.finding);
+                }
+            if (lines.Count == 0) lines.Add(modality.normalFinding);
+            return lines;
+        }
     }
 
     [Serializable]
@@ -95,6 +151,7 @@ namespace NotfallSIM.Data
             if (!Enum.TryParse(type, out InterventionType t)) return null;
             return new InterventionEvent
             {
+                Id = id,
                 Type = t,
                 TargetCompartment = string.IsNullOrEmpty(target) ? null : target,
                 Compound = string.IsNullOrEmpty(compound) ? null : compound,

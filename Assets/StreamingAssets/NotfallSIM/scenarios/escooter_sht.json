@@ -66,6 +66,20 @@
       "rationale": "Nach GCS-Abfall erneut untersuchen; zählt jede Untersuchung des Kopfes. Zeitziel didaktisch."
     },
     {
+      "id": "kopf_bildgebung",
+      "description": "Bildgebung des Kopfes nach Eintrübung",
+      "type": "deadline",
+      "tags": [
+        "imaging:cct",
+        "imaging:ct_ganzkoerper"
+      ],
+      "limit": 240,
+      "relativeTo": "state:gcs13",
+      "onlyAfterReference": false,
+      "critical": false,
+      "rationale": "Eintrübung nach luzidem Intervall: sofort CCT, um die Raumforderung zu sichern und die Neurochirurgie zu planen. Zeitziel didaktisch."
+    },
+    {
       "id": "kraniotomie",
       "description": "Neurochirurgie früh eingebunden",
       "type": "deadline",

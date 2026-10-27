@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NotfallSIM.Core;
 using NotfallSIM.Data;
 using NotfallSIM.Engines;
@@ -22,6 +23,16 @@ namespace NotfallSIM.Simulation
         [SerializeField] PhysiologyMode mode = PhysiologyMode.Textbook;
 
         public PhysiologyMode Mode => mode;
+
+        [Header("Bildgebung")]
+        [Tooltip("CT direkt im Schockraum (z. B. Sliding Gantry): kein Transport, der Patient bleibt zugänglich.")]
+        [SerializeField] bool ctInTraumaRoom = false;
+
+        /// <summary>True, solange der Patient zur Bildgebung außerhalb des Schockraums ist.</summary>
+        public bool IsAway => Engine != null && Engine.Current.SimTime_s < _awayUntil;
+        public bool CtInTraumaRoom => ctInTraumaRoom;
+        double _awayUntil = -1;
+        readonly Dictionary<string, ImagingModality> _imaging = new Dictionary<string, ImagingModality>();
 
         [Header("Zeit")]
         [Tooltip("1 = Echtzeit. Höher = schneller (zum Testen von Verläufen).")]
@@ -64,6 +75,7 @@ namespace NotfallSIM.Simulation
                 Engine.Initialize(Scenario.patient);
             }
             _pending.AddRange(Scenario.injuries);
+            foreach (var m in InjuryDatabase.LoadImaging().modalities) _imaging[m.id] = m;
             Log($"Szenario '{Scenario.title}' gestartet mit {Engine.Name} (DB v{Database.Version})");
         }
 
@@ -112,7 +124,8 @@ namespace NotfallSIM.Simulation
         public void ApplyIntervention(InterventionEvent iv, string label, double delay_s = 0)
         {
             if (Engine == null || Ended || Engine.Current.CardiacArrest) return;
-            string tag = $"intervention:{iv.Type}:{iv.TargetCompartment ?? iv.Compound ?? ""}";
+            if (IsAway) { Log($"Nicht möglich: Patient ist zur Bildgebung außerhalb des Schockraums ({label})", null); return; }
+            string tag = $"intervention:{iv.Type}:{iv.TargetCompartment ?? iv.Compound ?? ""}:{iv.Id}";
             if (iv.Type == InterventionType.BloodGas)
             {
                 // Werte zum Abnahmezeitpunkt, Ergebnis nach der Laufzeit des Analysegeräts.
@@ -139,7 +152,11 @@ namespace NotfallSIM.Simulation
             {
                 if (_delayed[i].due > t) continue;
                 if (_delayed[i].result != null)
-                    Log(_delayed[i].result, "result:" + _delayed[i].iv.Type);
+                {
+                    bool imaging = _delayed[i].result.StartsWith("Befund ");
+                    Log(_delayed[i].result, imaging ? "result:Imaging:" + _delayed[i].iv.Id : "result:" + _delayed[i].iv.Type);
+                    if (imaging && _awayUntil > 0 && t >= _awayUntil - 1e-6) { _awayUntil = -1; Log("Patient zurück im Schockraum", "transport:back"); }
+                }
                 else
                 {
                     Engine.ApplyIntervention(_delayed[i].iv);
@@ -149,8 +166,38 @@ namespace NotfallSIM.Simulation
             }
         }
 
+        /// <summary>
+        /// Fordert ein Bildgebungsverfahren an (für Buttons: OnClick mit String-Parameter, z. B. "ct_ganzkoerper").
+        /// Der Befund entsteht aus dem Zustand bei Anforderung und erscheint nach Untersuchungs- und Transportzeit.
+        /// </summary>
+        public void RequestImaging(string modalityId)
+        {
+            if (Engine == null || Ended || Engine.Current.CardiacArrest || IsAway) return;
+            if (!_imaging.TryGetValue(modalityId, out var m)) { Debug.LogWarning($"[Bildgebung] Unbekannt: {modalityId}"); return; }
+
+            var v = Engine.Current;
+            bool transport = m.transport_s > 0 && !(m.isCT && ctInTraumaRoom);
+            double total = m.duration_s + (transport ? m.transport_s : 0);
+            var active = Scenario.injuries.Where(si => si.onsetTime_s <= v.SimTime_s).Select(si => Database.Get(si.injuryId));
+            var lines = ImagingReport.Build(m, active, _log.Select(e => e.Tag));
+
+            Log($"Bildgebung: {m.logLabel}" + (transport ? " (Transport in die Radiologie)" : m.isCT ? " (CT im Schockraum)" : ""), "imaging:" + m.id);
+            if (transport)
+            {
+                _awayUntil = v.SimTime_s + total;
+                if (v.SystolicBP_mmHg < 90)
+                    Log("Warnung: hämodynamisch instabiler Patient verlässt den Schockraum", "warning:unstable-transport");
+            }
+            string result = $"Befund {m.label}: " + string.Join(" ", lines);
+            _delayed.Add((v.SimTime_s + total, new InterventionEvent { Type = InterventionType.Supportive, Id = m.id }, m.label, result));
+        }
+
         /// <summary>Freier Protokolleintrag, z. B. für Untersuchungen (Tag "exam:&lt;Region&gt;").</summary>
-        public void Note(string message, string tag = null) => Log(message, tag);
+        public void Note(string message, string tag = null)
+        {
+            if (IsAway) return; // Patient ist nicht im Schockraum
+            Log(message, tag);
+        }
 
         /// <summary>Stoppt die Simulation endgültig und löst das Debriefing aus.</summary>
         public void EndScenario()
@@ -170,9 +217,12 @@ namespace NotfallSIM.Simulation
 
         static string Clock(double s) { int t = (int)s; return $"{t / 60:00}:{t % 60:00}"; }
 
+        readonly List<LogEntry> _log = new List<LogEntry>();
+
         void Log(string msg, string tag = null)
         {
             double t = Engine?.Current.SimTime_s ?? 0;
+            _log.Add(new LogEntry { Time_s = t, Message = msg, Tag = tag });
             Debug.Log($"[Sim {t:F0}s] {msg}");
             OnLogEntry?.Invoke(t, msg, tag);
         }

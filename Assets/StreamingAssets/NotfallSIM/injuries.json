@@ -1,5 +1,5 @@
 {
-  "version": "0.4.0",
+  "version": "0.5.0",
   "injuries": [
     {
       "id": "becken_instabil",
@@ -40,7 +40,33 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Blutungskinetik (baseRate, maxTotalLoss) ist weiterhin geschätzt — es fehlen Primärdaten zum Blutverlust über die Zeit. Größenordnung plausibilisiert über Transfusionsbedarf im Schock (Devaney 2023). Szenario-Schweregrad 0,8 entspricht dem Schock-Subkollektiv, nicht der typischen Beckenfraktur. ICD-10-GM-Code und AIS je nach Frakturtyp präzisieren."
+      "reviewNotes": "Blutungskinetik (baseRate, maxTotalLoss) ist weiterhin geschätzt — es fehlen Primärdaten zum Blutverlust über die Zeit. Größenordnung plausibilisiert über Transfusionsbedarf im Schock (Devaney 2023). Szenario-Schweregrad 0,8 entspricht dem Schock-Subkollektiv, nicht der typischen Beckenfraktur. ICD-10-GM-Code und AIS je nach Frakturtyp präzisieren.",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Keine freie Flüssigkeit intraperitoneal. Retroperitoneale Blutung sonographisch nicht sicher beurteilbar.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "XrayPelvis",
+          "finding": "Instabile Beckenringverletzung: Symphysensprengung mit Diastase über 2,5 cm, Fraktur des Os sacrum rechts.",
+          "resolvedByTag": "intervention:HemorrhageControl:Pelvis",
+          "resolvedFinding": "Beckengurt in situ, Symphyse reponiert; Sakrumfraktur rechts weiter abgrenzbar.",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Instabile Beckenringfraktur (Typ C) mit großem präsakralem und retroperitonealem Hämatom; Kontrastmittelaustritt aus einem Ast der A. iliaca interna rechts (aktive arterielle Blutung).",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ]
     },
     {
       "id": "femur_schaft_rechts",
@@ -76,7 +102,17 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "v0.2: Obergrenze von 1500 auf 1000 mL und Rate von 40 auf 20 mL/min gesenkt — isolierte Femurschaftfrakturen bluten präoperativ eher 0,5–1 L. Hypotonie bei Femurfraktur spricht für eine weitere Blutungsquelle."
+      "reviewNotes": "v0.2: Obergrenze von 1500 auf 1000 mL und Rate von 40 auf 20 mL/min gesenkt — isolierte Femurschaftfrakturen bluten präoperativ eher 0,5–1 L. Hypotonie bei Femurfraktur spricht für eine weitere Blutungsquelle.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Dislozierte Femurschaftfraktur rechts mit ausgedehntem Weichteilhämatom des Oberschenkels.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ]
     },
     {
       "id": "rippenserienfraktur_links",
@@ -98,7 +134,25 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Ohne eigenen physiologischen Effekt im Mock — dient als Befund und Mechanismus-Hinweis. Schmerzbedingte Hypoventilation ggf. in Phase 2 ergänzen."
+      "reviewNotes": "Ohne eigenen physiologischen Effekt im Mock — dient als Befund und Mechanismus-Hinweis. Schmerzbedingte Hypoventilation ggf. in Phase 2 ergänzen.",
+      "imaging": [
+        {
+          "modality": "XrayChest",
+          "finding": "Frakturen der Rippen 4–7 links lateral.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Rippenserienfraktur links 4–7 mit Lungenkontusion im linken Oberlappen.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ]
     },
     {
       "id": "spannungspneu_links",
@@ -140,7 +194,33 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Mock-Modell für spontan atmende Patienten: Spannung steigt linear (progressionRate × Schweregrad), früh Hypoxie, Tachypnoe, Tachykardie; Blutdruckabfall erst ab 60 % Spannung; bei 100 % obstruktiver Stillstand. Zeitverlauf ist eine didaktische Setzung — echte Verläufe sind sehr variabel. Beatmete Patienten dekompensieren deutlich schneller (Phase 2)."
+      "reviewNotes": "Mock-Modell für spontan atmende Patienten: Spannung steigt linear (progressionRate × Schweregrad), früh Hypoxie, Tachypnoe, Tachykardie; Blutdruckabfall erst ab 60 % Spannung; bei 100 % obstruktiver Stillstand. Zeitverlauf ist eine didaktische Setzung — echte Verläufe sind sehr variabel. Beatmete Patienten dekompensieren deutlich schneller (Phase 2).",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Links fehlendes Lungengleiten und kein Lungenpuls, Lungenpunkt nicht darstellbar – vereinbar mit großem Pneumothorax.",
+          "resolvedByTag": "intervention:ChestDrain:LeftLung",
+          "resolvedFinding": "Links Lungengleiten wieder nachweisbar.",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "XrayChest",
+          "finding": "Ausgedehnter Pneumothorax links mit Mediastinalverlagerung nach rechts und abgeflachtem linken Zwerchfell.",
+          "resolvedByTag": "intervention:ChestDrain:LeftLung",
+          "resolvedFinding": "Thoraxdrainage links in situ, Lunge weitgehend entfaltet, schmaler apikaler Restpneumothorax.",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Spannungspneumothorax links mit Mediastinalverlagerung nach rechts.",
+          "resolvedByTag": "intervention:ChestDrain:LeftLung",
+          "resolvedFinding": "Thoraxdrainage links in situ, kein relevanter Restpneumothorax.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ]
     },
     {
       "id": "epiduralhaematom_rechts",
@@ -185,7 +265,17 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Mock-Verlauf: luzides Intervall, Eintrübung, Anisokorie ab 70 % Raumforderung, Cushing-Reflex ab 80 %, Einklemmung bei 100 %. Hypotonie oder Hypoxie verdoppeln die Progression (didaktische Umsetzung von Chesnut 1993, kein gemessener Faktor). Zeitverlauf ist geschätzt."
+      "reviewNotes": "Mock-Verlauf: luzides Intervall, Eintrübung, Anisokorie ab 70 % Raumforderung, Cushing-Reflex ab 80 %, Einklemmung bei 100 %. Hypotonie oder Hypoxie verdoppeln die Progression (didaktische Umsetzung von Chesnut 1993, kein gemessener Faktor). Zeitverlauf ist geschätzt.",
+      "imaging": [
+        {
+          "modality": "CCT",
+          "finding": "Bikonvexe hyperdense Raumforderung temporal rechts (Epiduralhämatom) mit Mittellinienverlagerung nach links; Kalottenfraktur temporal rechts.",
+          "resolvedByTag": "effect:NeurosurgicalDecompression",
+          "resolvedFinding": "Zustand nach Kraniotomie und Hämatomausräumung temporal rechts, Mittellinie zentriert.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ]
     }
   ]
 }

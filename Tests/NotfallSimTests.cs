@@ -41,6 +41,9 @@ static class Tests
         Run("Realitätsmodus: Streuung zwischen Patienten, Lehrbuch identisch", RegistryVariability);
         Run("Betablocker: Tachykardie stark gedämpft", BetaBlockerDampens);
         Run("Debriefing: Modusvergleich ab Klasse II", DebriefComparison);
+        Run("Bildgebung: jeder Befund gehört zu einem Verfahren", ImagingFindingsCovered);
+        Run("Bildgebung: Normalbefund, Verletzungsbefund, Befund nach Therapie", ImagingReportLogic);
+        Run("Maßnahmen: Beckengurt und Not-OP haben unterscheidbare Tags", DistinctPelvisTags);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -57,6 +60,7 @@ static class Tests
 
     static InjuryDatabaseFile Injuries => Load<InjuryDatabaseFile>("injuries.json");
     static InterventionDatabaseFile Interventions => Load<InterventionDatabaseFile>("interventions.json");
+    static ImagingDatabaseFile Imaging => Load<ImagingDatabaseFile>("imaging.json");
     static IEnumerable<ScenarioDefinition> Scenarios =>
         Directory.GetFiles(Path.Combine(DataRoot, "scenarios"), "*.json")
                  .Select(f => Load<ScenarioDefinition>(Path.Combine("scenarios", Path.GetFileName(f))));
@@ -94,7 +98,8 @@ static class Tests
         foreach (var iv in Interventions.interventions)
         {
             var ev = iv.ToEvent();
-            possible.Add($"intervention:{ev.Type}:{ev.TargetCompartment ?? ev.Compound ?? ""}");
+            possible.Add($"intervention:{ev.Type}:{ev.TargetCompartment ?? ev.Compound ?? ""}:{ev.Id}");
+            possible.Add("effect:" + ev.Type);
         }
         foreach (var inj in Injuries.injuries)
         {
@@ -102,6 +107,8 @@ static class Tests
             possible.Add("exam:" + inj.region);
         }
         foreach (var st in StateTags.All) possible.Add(st);
+        foreach (var m in Imaging.modalities) possible.Add("imaging:" + m.id);
+        possible.Add("warning:unstable-transport");
         foreach (var s in Scenarios)
             foreach (var c in s.assessment ?? new AssessmentCriterion[0])
             {
@@ -419,6 +426,46 @@ static class Tests
         var small = new SessionLog();
         small.AddSample(new VitalSigns { SimTime_s = 60, BloodLossFraction = 0.05, GCS = 15 });
         Check(!small.BuildDebrief("Test").Contains("Lehrbuch vs. Realität"), "Vergleich trotz Klasse I");
+    }
+
+    // ------------------------------------------------------------ Bildgebung
+
+    static void ImagingFindingsCovered()
+    {
+        var covered = new HashSet<string>(Imaging.modalities.SelectMany(m => m.covers));
+        foreach (var inj in Injuries.injuries)
+            foreach (var f in inj.imaging)
+            {
+                Check(covered.Contains(f.modality), $"{inj.id}: Kategorie {f.modality} von keinem Verfahren abgedeckt");
+                Check(!string.IsNullOrEmpty(f.finding), $"{inj.id}/{f.modality}: leerer Befund");
+            }
+        foreach (var m in Imaging.modalities)
+            Check(!string.IsNullOrEmpty(m.normalFinding) && m.duration_s > 0 && m.transport_s >= 0, $"{m.id}: unvollständig");
+    }
+
+    static void ImagingReportLogic()
+    {
+        var mods = Imaging.modalities.ToDictionary(m => m.id);
+        var inj = Injuries.injuries.ToDictionary(i => i.id);
+        var none = ImagingReport.Build(mods["rx_thorax"], new InjuryDefinition[0], new string[0]);
+        Check(none.Count == 1 && none[0] == mods["rx_thorax"].normalFinding, "Normalbefund");
+        var tp = ImagingReport.Build(mods["rx_thorax"], new[] { inj["spannungspneu_links"] }, new string[0]);
+        Check(tp.Count == 1 && tp[0].Contains("Pneumothorax links"), "Spannungspneu im Röntgen: " + string.Join(" ", tp));
+        var after = ImagingReport.Build(mods["rx_thorax"], new[] { inj["spannungspneu_links"] }, new[] { "intervention:ChestDrain:LeftLung:drainage_li" });
+        Check(after[0].Contains("Thoraxdrainage"), "nach Drainage: " + after[0]);
+        var ct = ImagingReport.Build(mods["ct_ganzkoerper"], new[] { inj["becken_instabil"], inj["epiduralhaematom_rechts"] }, new string[0]);
+        Check(ct.Count == 2, "Ganzkörper-CT sollte Becken und Kopf zeigen: " + ct.Count);
+        var cct = ImagingReport.Build(mods["cct"], new[] { inj["becken_instabil"] }, new string[0]);
+        Check(cct[0] == mods["cct"].normalFinding, "CCT zeigt keine Beckenverletzung");
+    }
+
+    static void DistinctPelvisTags()
+    {
+        var tags = Interventions.interventions.Select(d => d.ToEvent()).Where(e => e.TargetCompartment == "Pelvis")
+            .Select(e => $"intervention:{e.Type}:{e.TargetCompartment}:{e.Id}").ToList();
+        var crit = Scenarios.SelectMany(s => s.assessment).Where(c => c.id == "beckengurt").SelectMany(c => c.tags).Distinct().ToList();
+        foreach (var c in crit)
+            Check(tags.Count(x => x.StartsWith(c, StringComparison.Ordinal)) == 1, $"Tag {c} trifft {tags.Count(x => x.StartsWith(c, StringComparison.Ordinal))} Maßnahmen");
     }
 
     // ------------------------------------------------------------ Helfer

@@ -29,6 +29,7 @@ namespace NotfallSIM.EditorTools
 
         static readonly Color PanelColor = new Color(0.05f, 0.07f, 0.09f, 0.9f);
         static readonly Color ButtonColor = new Color(0.16f, 0.32f, 0.55f);
+        static readonly Color ImagingColor = new Color(0.22f, 0.40f, 0.42f);
         static readonly Color SpeedColor = new Color(0.25f, 0.27f, 0.30f);
         static readonly Color EndColor = new Color(0.60f, 0.18f, 0.18f);
         static readonly Color Dim = new Color(0.75f, 0.78f, 0.82f);
@@ -170,11 +171,19 @@ namespace NotfallSIM.EditorTools
             Place(actions.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(20, 20), new Vector2(340, 0));
             Vertical(actions.gameObject, 8, fit: true);
             Label("Titel", actions.transform, "MASSNAHMEN", 18, Dim);
-            // Buttons kommen aus interventions.json — neue Maßnahmen dort eintragen und Szene neu erzeugen.
+            // Buttons kommen aus interventions.json bzw. imaging.json — dort eintragen und Szene neu erzeugen.
+            var ivGrid = ButtonGrid(actions.transform, "Massnahmen-Raster");
             foreach (var def in InjuryDatabase.LoadInterventions().interventions)
             {
-                var b = MakeButton(actions.transform, def.label, ButtonColor, null);
+                var b = MakeButton(ivGrid, def.label, ButtonColor, null, 17);
                 UnityEventTools.AddStringPersistentListener(b.onClick, iv.Apply, def.id);
+            }
+            Label("Bildgebung", actions.transform, "BILDGEBUNG", 18, Dim);
+            var imgGrid = ButtonGrid(actions.transform, "Bildgebung-Raster");
+            foreach (var m in InjuryDatabase.LoadImaging().modalities)
+            {
+                var b = MakeButton(imgGrid, m.label, ImagingColor, null, 17);
+                UnityEventTools.AddStringPersistentListener(b.onClick, sim.RequestImaging, m.id);
             }
             Label("Zeit", actions.transform, "ZEITRAFFER", 18, Dim);
             var speedRow = new GameObject("Zeitraffer", typeof(RectTransform));
@@ -227,13 +236,26 @@ namespace NotfallSIM.EditorTools
 
         // ---------------------------------------------------------------- Helfer
 
-        static Button MakeButton(Transform parent, string label, Color color, UnityAction action)
+        /// <summary>Zweispaltiges Raster für viele Buttons; seine Höhe ergibt sich aus der Anzahl.</summary>
+        static Transform ButtonGrid(Transform parent, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var g = go.AddComponent<GridLayoutGroup>();
+            g.cellSize = new Vector2(150, 44);
+            g.spacing = new Vector2(6, 6);
+            g.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            g.constraintCount = 2;
+            return go.transform;
+        }
+
+        static Button MakeButton(Transform parent, string label, Color color, UnityAction action, float fontSize = 22)
         {
             var img = Panel(label, parent, color);
             var btn = img.gameObject.AddComponent<Button>();
             var le = img.gameObject.AddComponent<LayoutElement>();
             le.preferredHeight = 52; le.minHeight = 52;
-            var text = Label("Text", img.transform, label, 22, Color.white, TextAlignmentOptions.Center);
+            var text = Label("Text", img.transform, label, fontSize, Color.white, TextAlignmentOptions.Center);
             Stretch(text.rectTransform, 8, 8, 4, 4);
             if (action != null) UnityEventTools.AddPersistentListener(btn.onClick, action);
             return btn;

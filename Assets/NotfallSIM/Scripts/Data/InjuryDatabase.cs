@@ -32,6 +32,9 @@ namespace NotfallSIM.Data
             return db;
         }
 
+        public static ImagingDatabaseFile LoadImaging() =>
+            JsonUtility.FromJson<ImagingDatabaseFile>(File.ReadAllText(Path.Combine(Root, "imaging.json")));
+
         public static InterventionDatabaseFile LoadInterventions() =>
             JsonUtility.FromJson<InterventionDatabaseFile>(File.ReadAllText(Path.Combine(Root, "interventions.json")));
 
