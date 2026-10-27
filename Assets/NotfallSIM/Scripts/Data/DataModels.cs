@@ -21,6 +21,7 @@ namespace NotfallSIM.Data
         public string compartment;        // interner Blutungsort, z. B. "Pelvis"
         public double baseRate_mL_min;
         public double maxTotalLoss_mL;
+        public double progressionRate_per_min; // nur für fortschreitende Effekte (Spannungspneu)
     }
 
     [Serializable]

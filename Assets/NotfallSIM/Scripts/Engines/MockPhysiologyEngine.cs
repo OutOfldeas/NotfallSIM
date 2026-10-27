@@ -58,16 +58,41 @@ namespace NotfallSIM.Engines
             public double Rate_mL_min;
         }
 
+        // Spannungspneumothorax, spontan atmender Patient. Level 0..1 = Schwere der Spannung.
+        // Didaktische Annahmen nach Roberts et al. (Ann Surg 2015): bei Spontanatmung ist Hypoxie
+        // häufig und früh, Hypotonie und Stillstand deutlich seltener und spät.
+        // Zahlenwerte sind eigene Setzungen (Status: Entwurf), siehe docs/LITERATUR.md.
+        const double TpMaxHrAdd = 30, TpMaxRrAdd = 12, TpMaxSpO2Drop = 25, TpMaxEtCo2Drop = 6;
+        const double TpHypotensionOnset = 0.6, TpMaxSbpDrop = 50;
+        const double TpLevelAfterNeedle = 0.15, TpRateAfterNeedle = 0.2;
+
+        class Tension
+        {
+            public InjuryEvent Injury;
+            public double Level;
+            public double RateFactor = 1;
+            public bool Drained;
+        }
+
         readonly Dictionary<string, Bleed> _bleeds = new Dictionary<string, Bleed>();
+        readonly Dictionary<string, Tension> _tension = new Dictionary<string, Tension>();
         readonly List<Infusion> _infusions = new List<Infusion>();
+        readonly Random _rng;
         double _baselineVolume, _volume, _time, _baselineMap;
         bool _oxygen, _arrest;
+
+        /// <param name="seed">Fester Seed macht Zufallsereignisse (z. B. Versagen der Punktion) reproduzierbar.</param>
+        public MockPhysiologyEngine(int? seed = null)
+        {
+            _rng = seed.HasValue ? new Random(seed.Value) : new Random();
+        }
 
         public bool Initialize(PatientProfile patient)
         {
             _baselineVolume = _volume = patient.EstimatedBloodVolume_mL;
             _time = 0;
             _bleeds.Clear();
+            _tension.Clear();
             _infusions.Clear();
             _oxygen = _arrest = false;
             _baselineMap = DbpTable[0] + (SbpTable[0] - DbpTable[0]) / 3.0;
@@ -77,12 +102,18 @@ namespace NotfallSIM.Engines
 
         public void ApplyInjury(InjuryEvent injury)
         {
-            if (injury.Effect != InjuryEffectType.Hemorrhage)
+            switch (injury.Effect)
             {
-                Console.WriteLine($"[Mock] Effekt {injury.Effect} wird vom Mock nicht simuliert ({injury.InjuryId}).");
-                return;
+                case InjuryEffectType.Hemorrhage:
+                    _bleeds[injury.Compartment] = new Bleed { Injury = injury };
+                    break;
+                case InjuryEffectType.TensionPneumothorax:
+                    _tension[injury.Compartment] = new Tension { Injury = injury };
+                    break;
+                default:
+                    Console.WriteLine($"[Mock] Effekt {injury.Effect} wird vom Mock nicht simuliert ({injury.InjuryId}).");
+                    break;
             }
-            _bleeds[injury.Compartment] = new Bleed { Injury = injury };
         }
 
         public void ApplyIntervention(InterventionEvent iv)
@@ -98,6 +129,22 @@ namespace NotfallSIM.Engines
                     break;
                 case InterventionType.Oxygen:
                     _oxygen = true;
+                    break;
+                case InterventionType.NeedleDecompression:
+                    // Kann versagen (Nadel zu kurz, abgeknickt) — dann ändert sich nichts.
+                    if (_tension.TryGetValue(iv.TargetCompartment, out var tn) && !tn.Drained
+                        && _rng.NextDouble() < iv.SuccessProbability)
+                    {
+                        tn.Level = Math.Min(tn.Level, TpLevelAfterNeedle);
+                        tn.RateFactor = Math.Min(tn.RateFactor, TpRateAfterNeedle); // Re-Spannung möglich
+                    }
+                    break;
+                case InterventionType.ChestDrain:
+                    if (_tension.TryGetValue(iv.TargetCompartment, out var td))
+                    {
+                        td.Level = 0;
+                        td.Drained = true;
+                    }
                     break;
             }
         }
@@ -123,6 +170,13 @@ namespace NotfallSIM.Engines
                     b.Lost_mL += loss;
                     _volume -= loss;
                 }
+
+                foreach (var t in _tension.Values)
+                {
+                    if (t.Drained) continue;
+                    double rate = t.Injury.ProgressionRate_per_min * t.Injury.Severity * t.RateFactor;
+                    t.Level = Math.Min(1, t.Level + rate * minutes);
+                }
             }
 
             foreach (var inf in _infusions)
@@ -141,7 +195,11 @@ namespace NotfallSIM.Engines
         void UpdateVitals()
         {
             double f = Math.Max(0, 1 - _volume / _baselineVolume);
-            if (f >= ArrestThreshold) _arrest = true; // ohne Reanimationsmodell: irreversibel
+            double tp = 0;
+            foreach (var t in _tension.Values) tp = Math.Max(tp, t.Level);
+
+            // Ohne Reanimationsmodell irreversibel. Voller Spannungspneu = obstruktiver Stillstand (PEA).
+            if (f >= ArrestThreshold || tp >= 1) _arrest = true;
 
             if (_arrest)
             {
@@ -153,18 +211,23 @@ namespace NotfallSIM.Engines
                 return;
             }
 
-            double sbp = Interp(f, SbpTable), dbp = Interp(f, DbpTable);
-            double spo2 = _oxygen ? Math.Min(100, Interp(f, SpO2Air) + 3) : Interp(f, SpO2Air);
+            // Spannungspneu wirkt additiv auf das Blutungsbild: früh Hypoxie, Tachypnoe, Tachykardie;
+            // erst ab höherer Spannung obstruktiver Blutdruckabfall.
+            double sbpDrop = tp > TpHypotensionOnset ? (tp - TpHypotensionOnset) / (1 - TpHypotensionOnset) * TpMaxSbpDrop : 0;
+            double sbp = Interp(f, SbpTable) - sbpDrop;
+            double dbp = Interp(f, DbpTable) - sbpDrop * 0.6;
+            double spo2 = Interp(f, SpO2Air) - TpMaxSpO2Drop * tp + (_oxygen ? 3 : 0);
+            spo2 = Math.Max(50, Math.Min(100, spo2));
             Current = new VitalSigns
             {
                 SimTime_s = _time,
-                HeartRate_bpm = Interp(f, HrTable),
+                HeartRate_bpm = Interp(f, HrTable) + TpMaxHrAdd * tp,
                 SystolicBP_mmHg = sbp,
                 DiastolicBP_mmHg = dbp,
                 MeanArterialPressure_mmHg = dbp + (sbp - dbp) / 3.0,
-                RespirationRate_bpm = Interp(f, RrTable),
+                RespirationRate_bpm = Interp(f, RrTable) + TpMaxRrAdd * tp,
                 SpO2_percent = spo2,
-                EtCO2_mmHg = Interp(f, EtCo2Table),
+                EtCO2_mmHg = Interp(f, EtCo2Table) - TpMaxEtCo2Drop * tp,
                 BloodVolume_mL = _volume,
                 BloodLossFraction = f
             };

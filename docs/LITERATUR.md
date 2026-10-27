@@ -1,6 +1,6 @@
 # Literaturnotizen
 
-Stand: 27.10.2026 · Datenbank-Version 0.2.0
+Stand: 27.10.2026 · Datenbank-Version 0.3.0
 
 Hier steht, worauf die Zahlen im Modell beruhen und wie belastbar sie sind.
 Jede Änderung an `injuries.json` oder an den Modelltabellen sollte hier nachvollziehbar sein.
@@ -15,6 +15,8 @@ Jede Änderung an `injuries.json` oder an den Modelltabellen sollte hier nachvol
 | Becken instabil, Blutverlust | max. 3000 mL, 150 mL/min | schwach (geschätzt) | Plausibilisiert über Transfusionsbedarf (Devaney 2023) |
 | Beckengurt-Effekt | Blutungsrate × 0,5 | schwach | Widersprüchliche Beobachtungsstudien |
 | Kristalloid, intravasal | 30 % des Volumens | grob | Vereinfachung, in Pulse realistischer |
+| Spannungspneu, Verlauf (spontan atmend) | früh Hypoxie, Hypotonie ab 60 % Spannung | qualitativ gut, zeitlich geschätzt | Roberts 2015 |
+| Nadeldekompression, Erfolg | 57 % | mäßig (sehr heterogene Daten) | Ahmad 2025 (Versagerrate ca. 43 %) |
 
 ## Wichtigste Erkenntnisse
 
@@ -41,13 +43,27 @@ Ein Patient mit isolierter Femurfraktur und Hypotonie hat daher sehr wahrscheinl
 Devaney et al. (2023) beschreiben 144 operativ versorgte instabile Beckenringverletzungen. Etwa ein Drittel war im traumatischen Schock und erhielt dann median 6 EK in 24 Stunden.
 Direkte Daten zum Blutverlust über die Zeit fehlen, die Kinetik im Modell bleibt eine Schätzung.
 
+**Spannungspneumothorax: Beatmung verändert das Bild grundlegend.**
+Eine systematische Übersicht (Roberts et al. 2015) zeigt zwei unterschiedliche Verläufe.
+Spontan atmende Patienten waren nur in etwa der Hälfte der Fälle hypoxisch, und Hypotonie oder Stillstand traten deutlich seltener auf.
+Unter Beatmung waren über 90 % hypoxisch, Hypotonie und Stillstand waren um ein Vielfaches wahrscheinlicher und traten oft innerhalb von Minuten ein.
+Der Mock bildet vorerst den spontan atmenden Patienten ab: zuerst Hypoxie, Tachypnoe und Tachykardie, Blutdruckabfall spät.
+Der beatmete Verlauf ist ein eigenes Szenario für Phase 2, z. B. „Verschlechterung nach Intubation“.
+
+**Nadeldekompression versagt häufig.**
+Eine Meta-Analyse (Ahmad et al. 2025) fand eine kombinierte Versagerrate von etwa 43 %. Die Nadellänge war wichtiger als der Punktionsort.
+ATLS empfiehlt den 4./5. ICR zwischen vorderer und mittlerer Axillarlinie, das ETC weiterhin den 2. ICR medioklavikulär.
+Im Spiel versagt die Punktion daher zufällig in etwa 4 von 10 Fällen. Lernziel: Erfolg prüfen und die Thoraxdrainage anlegen.
+
 ## Offene Punkte zum Prüfen
 
 - [ ] Empfehlungen und Empfehlungsgrade zu Beckengurt, Volumentherapie und permissiver Hypotension in der S3-Leitlinie (MAGICapp) nachlesen
 - [ ] Lieurance 1992 im Volltext prüfen (Uni-Zugang)
 - [ ] ATLS-Tabelle der Schockklassen gegen die 10. Auflage abgleichen
-- [ ] Entscheiden: Soll das erste Szenario Lehrbuch- oder Registerphysiologie zeigen?
-- [ ] Literatur zum Spannungspneumothorax (Verlauf bei Spontanatmung vs. Beatmung)
+- [x] Entscheiden: Lehrbuch- oder Registerphysiologie? → MVP im Lehrbuchmodus, Realitätsmodus als zweite Schwierigkeitsstufe in Phase 2 (27.10.2026)
+- [x] Literatur zum Spannungspneumothorax (Verlauf bei Spontanatmung vs. Beatmung)
+- [ ] Zeitverlauf des Spannungspneus im Mock (ca. 20 Minuten bis Stillstand) klinisch plausibilisieren
+- [ ] Empfehlung der S3-Leitlinie zu Ort und Technik der Entlastung nachlesen
 
 ## Quellen
 
@@ -62,5 +78,8 @@ Direkte Daten zum Blutverlust über die Zeit fehlen, die Kinetik im Modell bleib
 9. Ghaemmaghami V, Sperry J, Gunst M, et al. Effects of early use of external pelvic compression on transfusion requirements and mortality in pelvic fractures. *Am J Surg*. 2007;194(6):720-723.
 10. BestBETs. Pelvic compression devices: Panacea or myth? [bestbets.org](https://www.bestbets.org/bets/pelvic-compression-devices-panacea-or-myth/)
 11. Lieurance R, Benjamin JB, Rappaport WD. Blood loss and transfusion in patients with isolated femur fractures. *J Orthop Trauma*. 1992;6(2):175-179. (Zahlen bisher aus [Sekundärquelle](https://www.crisis-medicine.com/femur-fracture-blood-loss/))
+
+12. Roberts DJ, et al. Clinical Presentation of Patients With Tension Pneumothorax: A Systematic Review. *Ann Surg*. 2015;261(6):1068-1078. [doi:10.1097/SLA.0000000000001073](https://doi.org/10.1097/SLA.0000000000001073)
+13. Ahmad SJS, et al. Meta-analysis of the optimal needle length and decompression site for tension pneumothorax and consensus recommendations on current ATLS and ETC guidelines. *World J Emerg Surg*. 2025;20:39. [doi:10.1186/s13017-025-00613-7](https://doi.org/10.1186/s13017-025-00613-7)
 
 Angaben ohne Link (4, 8, 9) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.

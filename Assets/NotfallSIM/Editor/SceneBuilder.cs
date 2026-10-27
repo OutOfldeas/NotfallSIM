@@ -173,6 +173,8 @@ namespace NotfallSIM.EditorTools
             MakeButton(actions.transform, "500 mL Kristalloid", ButtonColor, iv.GiveCrystalloid);
             MakeButton(actions.transform, "1 EK transfundieren", ButtonColor, iv.GiveBloodUnit);
             MakeButton(actions.transform, "O2 über Maske", ButtonColor, iv.GiveOxygen);
+            MakeButton(actions.transform, "Nadeldekompression li.", ButtonColor, iv.NeedleDecompressionLeft);
+            MakeButton(actions.transform, "Thoraxdrainage li.", ButtonColor, iv.ChestDrainLeft);
             Label("Zeit", actions.transform, "ZEITRAFFER", 18, Dim);
             var speedRow = new GameObject("Zeitraffer", typeof(RectTransform));
             speedRow.transform.SetParent(actions.transform, false);

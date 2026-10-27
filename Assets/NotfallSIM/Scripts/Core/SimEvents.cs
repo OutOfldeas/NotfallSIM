@@ -20,7 +20,7 @@ namespace NotfallSIM.Core
     public enum InjuryEffectType
     {
         Hemorrhage,
-        TensionPneumothorax, // noch nicht implementiert (Phase 2)
+        TensionPneumothorax,
         TraumaticBrainInjury // noch nicht implementiert (Phase 2)
     }
 
@@ -32,25 +32,30 @@ namespace NotfallSIM.Core
     {
         public string InjuryId;
         public InjuryEffectType Effect;
-        /// <summary>Interner Name des Blutungsorts (z. B. "Pelvis"). Engines mappen ihn selbst.</summary>
+        /// <summary>Interner Ort, z. B. "Pelvis" oder "LeftLung". Engines mappen ihn selbst.</summary>
         public string Compartment;
         public double Severity;          // 0..1
-        public double BaseRate_mL_min;   // Blutungsrate bei Severity 1 und normalem Blutdruck
-        public double MaxTotalLoss_mL;   // Obergrenze (z. B. Tamponade-Effekt), 0 = unbegrenzt
+        public double BaseRate_mL_min;   // Blutung: Rate bei Severity 1 und normalem Blutdruck
+        public double MaxTotalLoss_mL;   // Blutung: Obergrenze (z. B. Tamponade-Effekt), 0 = unbegrenzt
+        /// <summary>Fortschreitende Verletzungen (Spannungspneu): Anteil pro Minute bei Severity 1 bis zur Dekompensation.</summary>
+        public double ProgressionRate_per_min;
     }
 
     public enum InterventionType
     {
-        HemorrhageControl, // Beckengurt, Tourniquet, Druckverband
-        FluidInfusion,     // Kristalloide, Blut
-        Oxygen
+        HemorrhageControl,   // Beckengurt, Tourniquet, Druckverband
+        FluidInfusion,       // Kristalloide, Blut
+        Oxygen,
+        NeedleDecompression, // Entlastungspunktion, kann versagen
+        ChestDrain           // Thoraxdrainage, definitive Entlastung
     }
 
     public class InterventionEvent
     {
         public InterventionType Type;
-        public string TargetCompartment;  // für HemorrhageControl
+        public string TargetCompartment;  // HemorrhageControl: Blutungsort; Entlastung: "LeftLung"/"RightLung"
         public double RateMultiplier = 1; // für HemorrhageControl: 0 = Blutung gestoppt
+        public double SuccessProbability = 1; // für NeedleDecompression
         public string Compound;           // für FluidInfusion: "Saline", "Blood"
         public double Volume_mL;
         public double Rate_mL_min;

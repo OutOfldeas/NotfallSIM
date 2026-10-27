@@ -62,6 +62,8 @@ Assets/
 5. **Play.** Körperregionen anklicken zum Untersuchen, Maßnahmen per Button, Zeitraffer 1x/5x/20x.
    „Szenario beenden“ zeigt das Debriefing und speichert die Verläufe als CSV
    (Ordner: `Application.persistentDataPath/Sessions`, wird im Debriefing angezeigt).
+6. **Szenario wechseln:** im Inspector des Objekts `Simulation` das Feld *Scenario Id* setzen
+   (`motorrad_beckenfraktur` oder `pkw_spannungspneu`).
 
 ## Pulse anbinden
 

@@ -1,0 +1,32 @@
+{
+  "id": "pkw_spannungspneu",
+  "title": "PKW-Unfall mit Thoraxtrauma",
+  "description": "45-jähriger PKW-Fahrer, Frontalkollision mit ca. 50 km/h, Gurt angelegt, Airbag ausgelöst. Bei Übergabe wach, klagt über Schmerzen links thorakal. Präklinisch stabil.",
+  "mechanism": "Frontalkollision, Gurt- und Lenkradanprall links thorakal",
+  "patient": {
+    "sex": "male",
+    "age": 45,
+    "weight_kg": 85,
+    "height_cm": 178
+  },
+  "injuries": [
+    {
+      "injuryId": "rippenserienfraktur_links",
+      "onsetTime_s": 0,
+      "severity": 1.0
+    },
+    {
+      "injuryId": "spannungspneu_links",
+      "onsetTime_s": 90,
+      "severity": 0.8
+    }
+  ],
+  "learningGoals": [
+    "Verschlechterung eines zunächst stabilen Patienten durch wiederholte Re-Evaluation erkennen",
+    "Spannungspneumothorax klinisch diagnostizieren, ohne auf Bildgebung zu warten",
+    "Hypoxie und Tachypnoe als Frühzeichen beim spontan atmenden Patienten einordnen",
+    "Nach Nadeldekompression den Erfolg prüfen und die Thoraxdrainage als definitive Versorgung anlegen"
+  ],
+  "expectedCourse": "Ab ca. 1,5 Minuten entwickelt sich links ein Spannungspneumothorax. Zuerst fallen SpO2 und steigen Atem- und Herzfrequenz, der Blutdruck bleibt lange stabil. Unbehandelt fällt der Blutdruck etwa 14 Minuten nach Szenariostart, nach rund 22 Minuten folgt ein obstruktiver Kreislaufstillstand. Die Nadeldekompression versagt in etwa 4 von 10 Fällen; die Thoraxdrainage entlastet definitiv.",
+  "defaultTimeScale": 1
+}

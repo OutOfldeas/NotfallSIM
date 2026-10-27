@@ -23,6 +23,11 @@ namespace NotfallSIM.Simulation
         [SerializeField] float bloodUnitVolume_mL = 300;      // grobe EK-Größe, prüfen
         [SerializeField] float bloodRate_mL_min = 50;
 
+        [Header("Thoraxentlastung")]
+        [Tooltip("Erfolgswahrscheinlichkeit der Nadeldekompression. Meta-Analyse: kombinierte Versagerrate ca. 43 % " +
+                 "(Ahmad et al., World J Emerg Surg 2025) — stark heterogene, überwiegend retrospektive Daten.")]
+        [SerializeField, Range(0, 1)] float needleSuccessProbability = 0.57f;
+
         bool _binderApplied;
 
         public void Configure(SimulationManager simulation) => sim = simulation;
@@ -59,5 +64,19 @@ namespace NotfallSIM.Simulation
         {
             Type = InterventionType.Oxygen
         }, "O2 über Maske");
+
+        // Vorerst nur links; später Auswahl der Seite über die angeklickte Körperregion.
+        public void NeedleDecompressionLeft() => sim.ApplyIntervention(new InterventionEvent
+        {
+            Type = InterventionType.NeedleDecompression,
+            TargetCompartment = "LeftLung",
+            SuccessProbability = needleSuccessProbability
+        }, "Nadeldekompression links");
+
+        public void ChestDrainLeft() => sim.ApplyIntervention(new InterventionEvent
+        {
+            Type = InterventionType.ChestDrain,
+            TargetCompartment = "LeftLung"
+        }, "Thoraxdrainage links");
     }
 }

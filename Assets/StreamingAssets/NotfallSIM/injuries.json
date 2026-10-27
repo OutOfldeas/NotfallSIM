@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "injuries": [
     {
       "id": "becken_instabil",
@@ -12,7 +12,8 @@
           "effectType": "Hemorrhage",
           "compartment": "Pelvis",
           "baseRate_mL_min": 150,
-          "maxTotalLoss_mL": 3000
+          "maxTotalLoss_mL": 3000,
+          "progressionRate_per_min": 0
         }
       ],
       "clinicalFindings": [
@@ -52,7 +53,8 @@
           "effectType": "Hemorrhage",
           "compartment": "RightThigh",
           "baseRate_mL_min": 20,
-          "maxTotalLoss_mL": 1000
+          "maxTotalLoss_mL": 1000,
+          "progressionRate_per_min": 0
         }
       ],
       "clinicalFindings": [
@@ -77,6 +79,28 @@
       "reviewNotes": "v0.2: Obergrenze von 1500 auf 1000 mL und Rate von 40 auf 20 mL/min gesenkt — isolierte Femurschaftfrakturen bluten präoperativ eher 0,5–1 L. Hypotonie bei Femurfraktur spricht für eine weitere Blutungsquelle."
     },
     {
+      "id": "rippenserienfraktur_links",
+      "name": "Rippenserienfraktur links (Rippen 4–7)",
+      "region": "Thorax",
+      "icd10": "S22.4",
+      "aisSeverity": 3,
+      "effects": [],
+      "clinicalFindings": [
+        "Druckschmerz und Krepitation über den Rippen 4–7 links",
+        "Prellmarke an der linken Thoraxwand",
+        "Schmerzbedingt flache Atmung"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Thoracic Trauma: Rippenfrakturen als Hinweis auf intrathorakale Verletzungen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Ohne eigenen physiologischen Effekt im Mock — dient als Befund und Mechanismus-Hinweis. Schmerzbedingte Hypoventilation ggf. in Phase 2 ergänzen."
+    },
+    {
       "id": "spannungspneu_links",
       "name": "Spannungspneumothorax links",
       "region": "Thorax",
@@ -87,24 +111,36 @@
           "effectType": "TensionPneumothorax",
           "compartment": "LeftLung",
           "baseRate_mL_min": 0,
-          "maxTotalLoss_mL": 0
+          "maxTotalLoss_mL": 0,
+          "progressionRate_per_min": 0.06
         }
       ],
       "clinicalFindings": [
+        "Zunehmende Dyspnoe und Tachypnoe, Patient unruhig",
         "Abgeschwächtes bis fehlendes Atemgeräusch links",
         "Hypersonorer Klopfschall links",
         "Gestaute Halsvenen (bei Hypovolämie oft fehlend)",
-        "Trachealverlagerung nach rechts (Spätzeichen)"
+        "Trachealverlagerung nach rechts (Spätzeichen, oft nicht tastbar)"
       ],
       "sources": [
         {
+          "citation": "Roberts DJ, et al. Clinical Presentation of Patients With Tension Pneumothorax: A Systematic Review. Ann Surg. 2015;261(6):1068-1078.",
+          "url": "https://doi.org/10.1097/SLA.0000000000001073",
+          "note": "Spontanatmung: Hypoxie bei ca. 50 %, Hypotonie und Stillstand deutlich seltener als unter Beatmung (OR Hypotonie 12,6, Stillstand 17,7 beatmet vs. spontan)"
+        },
+        {
+          "citation": "Ahmad SJS, et al. Meta-analysis of the optimal needle length and decompression site for tension pneumothorax and consensus recommendations on current ATLS and ETC guidelines. World J Emerg Surg. 2025;20:39.",
+          "url": "https://doi.org/10.1186/s13017-025-00613-7",
+          "note": "Nadeldekompression: kombinierte Versagerrate ca. 43 %; Nadellänge wichtiger als Punktionsort"
+        },
+        {
           "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
           "url": "",
-          "note": "Thoracic Trauma: Spannungspneumothorax"
+          "note": "Thoracic Trauma: Spannungspneumothorax, Entlastung 4./5. ICR vordere bis mittlere Axillarlinie"
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Platzhalter für Phase 2 — physiologischer Effekt erst mit Pulse (SETensionPneumothorax) umsetzen. Literatur zum Verlauf bei Spontanatmung vs. Beatmung noch ergänzen. AIS-Schweregrad prüfen."
+      "reviewNotes": "Mock-Modell für spontan atmende Patienten: Spannung steigt linear (progressionRate × Schweregrad), früh Hypoxie, Tachypnoe, Tachykardie; Blutdruckabfall erst ab 60 % Spannung; bei 100 % obstruktiver Stillstand. Zeitverlauf ist eine didaktische Setzung — echte Verläufe sind sehr variabel. Beatmete Patienten dekompensieren deutlich schneller (Phase 2)."
     }
   ]
 }

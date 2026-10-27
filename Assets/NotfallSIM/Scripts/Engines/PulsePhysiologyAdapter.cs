@@ -126,6 +126,10 @@ namespace NotfallSIM.Engines
                     // TODO: SESupplementalOxygen (Gerät z. B. NonRebreatherMask) — Enum-Namen in Asset-Version prüfen.
                     Debug.LogWarning("[Pulse] Sauerstoffgabe noch nicht angebunden.");
                     break;
+                default:
+                    // TODO Phase 2: SENeedleDecompression bzw. Thoraxdrainage, inkl. Versagerrate wie im Mock.
+                    Debug.LogWarning($"[Pulse] Maßnahme {iv.Type} noch nicht angebunden.");
+                    break;
             }
         }
 
