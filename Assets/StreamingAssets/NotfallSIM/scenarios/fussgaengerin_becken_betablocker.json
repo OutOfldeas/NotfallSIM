@@ -1,7 +1,7 @@
 {
   "id": "fussgaengerin_becken_betablocker",
   "title": "Ältere Fußgängerin mit Beckenfraktur",
-  "description": "76-jährige Fußgängerin, von einem abbiegenden PKW mit ca. 30 km/h erfasst. Bei Eintreffen wach, klagt über Schmerzen im Becken. Dauermedikation laut Angehörigen: Bisoprolol, Ramipril.",
+  "description": "76-jährige Fußgängerin, von einem abbiegenden PKW mit ca. 30 km/h erfasst. Rettungszeit ca. 20 min. Bei Eintreffen wach, klagt über Schmerzen im Becken. Dauermedikation laut Angehörigen: Bisoprolol, Ramipril.",
   "mechanism": "Fußgängerin von PKW erfasst, seitlicher Anprall, Sturz auf die Straße",
   "patient": {
     "sex": "female",
@@ -9,7 +9,7 @@
     "weight_kg": 65,
     "height_cm": 163,
     "betaBlocker": true,
-    "initialBloodLoss_mL": 0
+    "initialBloodLoss_mL": 350
   },
   "injuries": [
     {

@@ -118,6 +118,9 @@ namespace NotfallSIM.Simulation
             foreach (var m in ImagingModalities) _imaging[m.id] = m;
             NormalFindings = InjuryDatabase.LoadFindings();
             Differentials = InjuryDatabase.LoadDifferentials();
+            // Verletzungen ab Sekunde 0 sofort anwenden, damit der Monitor schon beim ersten Bild den Ankunftszustand zeigt
+            TriggerDueInjuries();
+            Engine.Advance(stepSize_s);
             Log($"Szenario '{Scenario.title}' gestartet mit {Engine.Name} (DB v{Database.Version})");
         }
 

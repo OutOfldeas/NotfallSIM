@@ -1,7 +1,7 @@
 {
   "id": "motorrad_beckenfraktur",
   "title": "Motorradunfall mit Beckenfraktur",
-  "description": "35-jähriger Motorradfahrer, mit ca. 70 km/h gegen eine Leitplanke geprallt. Bei Eintreffen wach, klagt über Schmerzen im Becken und rechten Oberschenkel.",
+  "description": "35-jähriger Motorradfahrer, mit ca. 70 km/h gegen eine Leitplanke geprallt. Rettungszeit ca. 25 min. Bei Eintreffen wach, blass, klagt über Schmerzen im Becken und rechten Oberschenkel. Präklinisch geschätzter Blutverlust ca. 650 mL.",
   "mechanism": "Hochrasanztrauma, Anprall gegen Leitplanke, Sturz vom Motorrad",
   "patient": {
     "sex": "male",
@@ -9,7 +9,7 @@
     "weight_kg": 80,
     "height_cm": 182,
     "betaBlocker": false,
-    "initialBloodLoss_mL": 0
+    "initialBloodLoss_mL": 650
   },
   "injuries": [
     {
