@@ -44,7 +44,9 @@ namespace NotfallSIM.Core
                         start = refs.Min(e => e.Time_s);
                     }
                     r.Deadline_s = start + c.limit;
-                    r.Time_s = matching.Count > 0 ? matching.Min(e => e.Time_s) : (double?)null;
+                    // Bei relativen Zielen zählt nur, was ab dem Bezugsereignis passiert (z. B. Re-Evaluation).
+                    var relevant = matching.Where(e => e.Time_s >= start).ToList();
+                    r.Time_s = relevant.Count > 0 ? relevant.Min(e => e.Time_s) : (double?)null;
                     r.Outcome = r.Time_s == null ? CriterionOutcome.Missed
                               : r.Time_s <= r.Deadline_s ? CriterionOutcome.Met
                               : CriterionOutcome.Late;

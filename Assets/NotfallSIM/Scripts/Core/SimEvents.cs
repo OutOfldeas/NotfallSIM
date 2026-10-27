@@ -21,7 +21,7 @@ namespace NotfallSIM.Core
     {
         Hemorrhage,
         TensionPneumothorax,
-        TraumaticBrainInjury // noch nicht implementiert (Phase 2)
+        TraumaticBrainInjury // raumfordernde Blutung, z. B. Epiduralhämatom
     }
 
     /// <summary>
@@ -48,7 +48,10 @@ namespace NotfallSIM.Core
         Oxygen,
         NeedleDecompression, // Entlastungspunktion, kann versagen
         ChestDrain,          // Thoraxdrainage, definitive Entlastung
-        Medication           // z. B. Tranexamsäure; im Mock ohne physiologischen Effekt
+        Medication,          // z. B. Tranexamsäure; im Mock ohne physiologischen Effekt
+        Intubation,          // Atemweg gesichert, kontrollierte Beatmung
+        Osmotherapy,         // hypertone Kochsalzlösung / Mannitol, überbrückend
+        NeurosurgicalDecompression // Kraniotomie; wirkt mit Verzögerung (CT, Transport, OP)
     }
 
     public class InterventionEvent

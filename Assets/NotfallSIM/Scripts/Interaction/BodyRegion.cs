@@ -27,6 +27,9 @@ namespace NotfallSIM.Interaction
 
         public string RegionName => regionName;
 
+        /// <summary>Region, bei deren Untersuchung GCS und Pupillen angezeigt werden.</summary>
+        public const string NeuroRegion = "Kopf";
+
         public void Configure(SimulationManager simulation, string region)
         {
             sim = simulation;
@@ -46,6 +49,14 @@ namespace NotfallSIM.Interaction
                 .Where(def => def.region == regionName)
                 .SelectMany(def => def.clinicalFindings ?? new string[0])
                 .ToList();
+
+            // Neurologischer Status ist dynamisch und kommt aus der Physiologie, nicht aus der Datenbank.
+            if (regionName == NeuroRegion)
+            {
+                var v = sim.Vitals;
+                findings.Add($"Aktuell GCS {v.GCS:0}" + (v.Intubated ? " (sediert/beatmet)" : ""));
+                findings.Add(v.Anisocoria ? "Pupillen anisokor: eine Pupille weit und lichtstarr" : "Pupillen isokor, prompt lichtreagibel");
+            }
 
             sim.Note($"Untersuchung: {regionName}" + (findings.Count == 0 ? " (unauffällig)" : ""), "exam:" + regionName);
             OnExamined?.Invoke(regionName, findings);

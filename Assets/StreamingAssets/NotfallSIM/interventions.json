@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "interventions": [
     {
       "id": "o2",
@@ -13,6 +13,7 @@
       "rateMultiplier": 1,
       "successProbability": 1,
       "once": true,
+      "effectDelay_s": 0,
       "sources": [],
       "evidenceStatus": "draft",
       "reviewNotes": "Im Mock pauschal +3 Prozentpunkte SpO2."
@@ -29,6 +30,7 @@
       "rateMultiplier": 0.5,
       "successProbability": 1,
       "once": true,
+      "effectDelay_s": 0,
       "sources": [
         {
           "citation": "BestBETs. Pelvic compression devices: Panacea or myth?",
@@ -51,6 +53,7 @@
       "rateMultiplier": 1,
       "successProbability": 1,
       "once": false,
+      "effectDelay_s": 0,
       "sources": [
         {
           "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
@@ -73,6 +76,7 @@
       "rateMultiplier": 1,
       "successProbability": 1,
       "once": false,
+      "effectDelay_s": 0,
       "sources": [],
       "evidenceStatus": "draft",
       "reviewNotes": "Volumen eines EK (ca. 250–350 mL) und Laufrate gegen Querschnitts-Leitlinie Hämotherapie prüfen. Im Mock vollständig intravasal wirksam, Hämoglobin wird nicht modelliert."
@@ -89,6 +93,7 @@
       "rateMultiplier": 1,
       "successProbability": 1,
       "once": true,
+      "effectDelay_s": 0,
       "sources": [
         {
           "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
@@ -111,6 +116,7 @@
       "rateMultiplier": 1,
       "successProbability": 0.57,
       "once": false,
+      "effectDelay_s": 0,
       "sources": [
         {
           "citation": "Ahmad SJS, et al. Meta-analysis of the optimal needle length and decompression site for tension pneumothorax and consensus recommendations on current ATLS and ETC guidelines. World J Emerg Surg. 2025;20:39.",
@@ -133,9 +139,73 @@
       "rateMultiplier": 1,
       "successProbability": 1,
       "once": true,
+      "effectDelay_s": 0,
       "sources": [],
       "evidenceStatus": "draft",
       "reviewNotes": "Im Mock sofortige und vollständige Entlastung; Anlagezeit wird noch nicht simuliert."
+    },
+    {
+      "id": "intubation",
+      "label": "Intubation + Beatmung",
+      "logLabel": "Notfallnarkose, Intubation und Beatmung",
+      "type": "Intubation",
+      "target": "",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": true,
+      "effectDelay_s": 0,
+      "sources": [
+        {
+          "citation": "Böttiger BW, et al. DGAInfo zur S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. Anästh Intensivmed. 2011;52:S693-S700.",
+          "url": "https://www.ai-online.info/images/ai-ausgabe/2011/11-2011/supplement-10-2011/2011_11_S693-S700_SUPPLEMENT%20Nr.%2010%20-%202011%20-%20Trauma-Update%20%20S3-Leitlinie%20Polytrauma.pdf",
+          "note": "Intubation bei schwerem SHT (präklinisch GCS < 9, GoR B; innerklinisch bewusstlose Patienten GCS ≤ 8, GoR A); RSI und Präoxygenierung GoR A"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Im Mock: Atemweg gesichert, keine Hypoventilation mehr. Überdruckbeatmung verschärft einen unentlasteten Spannungspneumothorax (Faktor 3, didaktisch nach Roberts 2015). Narkoseinduzierte Hypotonie noch nicht modelliert."
+    },
+    {
+      "id": "osmotherapie",
+      "label": "Osmotherapie",
+      "logLabel": "Osmotherapie (hypertone NaCl-Lösung)",
+      "type": "Osmotherapy",
+      "target": "",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": true,
+      "effectDelay_s": 0,
+      "sources": [
+        {
+          "citation": "Böttiger BW, et al. DGAInfo zur S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. Anästh Intensivmed. 2011;52:S693-S700.",
+          "url": "https://www.ai-online.info/images/ai-ausgabe/2011/11-2011/supplement-10-2011/2011_11_S693-S700_SUPPLEMENT%20Nr.%2010%20-%202011%20-%20Trauma-Update%20%20S3-Leitlinie%20Polytrauma.pdf",
+          "note": "Bei Verdacht auf Herniation können Hyperventilation, Mannitol oder hypertone Kochsalzlösung eingesetzt werden (GoR 0)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Überbrückende Maßnahme; im Mock einmalig 15 % weniger Raumforderung."
+    },
+    {
+      "id": "kraniotomie",
+      "label": "Neurochirurgie: Kraniotomie",
+      "logLabel": "Notfall-Kraniotomie (CT und Neurochirurgie)",
+      "type": "NeurosurgicalDecompression",
+      "target": "",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": true,
+      "effectDelay_s": 600,
+      "sources": [],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Wirkt nach 10 min (CT, Transport, OP-Beginn) — didaktische Setzung; reale Intervalle aus TR-DGU bzw. Neurochirurgie prüfen. Danach stoppt die Raumforderung bei höchstens 40 %."
     }
   ]
 }

@@ -84,6 +84,7 @@ namespace NotfallSIM.Data
         public double rateMultiplier = 1;
         public double successProbability = 1;
         public bool once;           // nur einmal pro Durchlauf möglich
+        public double effectDelay_s; // Zeit von Anordnung bis Wirkung (0 = sofort)
         public SourceRef[] sources;
         public string evidenceStatus;
         public string reviewNotes;

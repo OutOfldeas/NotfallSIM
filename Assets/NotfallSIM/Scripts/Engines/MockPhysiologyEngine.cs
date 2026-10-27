@@ -74,12 +74,34 @@ namespace NotfallSIM.Engines
             public bool Drained;
         }
 
+        // Schädel-Hirn-Trauma mit raumforderndem Hämatom. Level 0..1 = intrakranielle Raumforderung.
+        // Verlauf: luzides Intervall (GCS lange 14–15), dann Eintrübung, ab 0,7 Anisokorie (Herniation),
+        // ab 0,8 Cushing-Reflex, bei 1 Einklemmung. Hypotonie oder Hypoxie beschleunigen den Verlauf
+        // (sekundäre Hirnschädigung, vgl. Chesnut et al. 1993). Zahlen: didaktische Setzungen, Entwurf.
+        static readonly double[] TbiPoints = { 0.0, 0.3, 0.5, 0.7, 0.85, 1.0 };
+        static readonly double[] TbiGcs    = { 15,  14,  11,  8,   5,    3   };
+        // GCS-Abfall im hämorrhagischen Schock (ATLS: Klasse III verwirrt, Klasse IV lethargisch).
+        static readonly double[] ShockGcs  = { 15,  15,  15,  14,  12,   9   };
+        const double TbiAnisocoriaLevel = 0.7, TbiCushingLevel = 0.8;
+        const double TbiSecondaryInsultFactor = 2.0;     // Beschleunigung bei RRsys < 90 oder SpO2 < 90
+        const double TbiOsmotherapyReduction = 0.15, TbiLevelAfterSurgery = 0.4;
+        const double AirwayMaxSpO2Drop = 15, AirwayMaxEtCo2Rise = 10; // ungeschützter Atemweg bei GCS <= 8
+        const double TpFactorWhenVentilated = 3.0;       // Überdruckbeatmung verschärft Spannungspneu (Roberts 2015)
+
+        class BrainInjury
+        {
+            public InjuryEvent Injury;
+            public double Level;
+            public bool Stopped;
+        }
+
         readonly Dictionary<string, Bleed> _bleeds = new Dictionary<string, Bleed>();
         readonly Dictionary<string, Tension> _tension = new Dictionary<string, Tension>();
+        readonly Dictionary<string, BrainInjury> _brain = new Dictionary<string, BrainInjury>();
         readonly List<Infusion> _infusions = new List<Infusion>();
         readonly Random _rng;
         double _baselineVolume, _volume, _time, _baselineMap;
-        bool _oxygen, _arrest;
+        bool _oxygen, _arrest, _intubated;
 
         /// <param name="seed">Fester Seed macht Zufallsereignisse (z. B. Versagen der Punktion) reproduzierbar.</param>
         public MockPhysiologyEngine(int? seed = null)
@@ -93,8 +115,9 @@ namespace NotfallSIM.Engines
             _time = 0;
             _bleeds.Clear();
             _tension.Clear();
+            _brain.Clear();
             _infusions.Clear();
-            _oxygen = _arrest = false;
+            _oxygen = _arrest = _intubated = false;
             _baselineMap = DbpTable[0] + (SbpTable[0] - DbpTable[0]) / 3.0;
             UpdateVitals();
             return true;
@@ -109,6 +132,9 @@ namespace NotfallSIM.Engines
                     break;
                 case InjuryEffectType.TensionPneumothorax:
                     _tension[injury.Compartment] = new Tension { Injury = injury };
+                    break;
+                case InjuryEffectType.TraumaticBrainInjury:
+                    _brain[injury.Compartment] = new BrainInjury { Injury = injury };
                     break;
                 default:
                     Console.WriteLine($"[Mock] Effekt {injury.Effect} wird vom Mock nicht simuliert ({injury.InjuryId}).");
@@ -138,6 +164,15 @@ namespace NotfallSIM.Engines
                         tn.Level = Math.Min(tn.Level, TpLevelAfterNeedle);
                         tn.RateFactor = Math.Min(tn.RateFactor, TpRateAfterNeedle); // Re-Spannung möglich
                     }
+                    break;
+                case InterventionType.Intubation:
+                    _intubated = true;
+                    break;
+                case InterventionType.Osmotherapy:
+                    foreach (var bi in _brain.Values) bi.Level = Math.Max(0, bi.Level - TbiOsmotherapyReduction);
+                    break;
+                case InterventionType.NeurosurgicalDecompression:
+                    foreach (var bi in _brain.Values) { bi.Level = Math.Min(bi.Level, TbiLevelAfterSurgery); bi.Stopped = true; }
                     break;
                 case InterventionType.ChestDrain:
                     if (_tension.TryGetValue(iv.TargetCompartment, out var td))
@@ -174,8 +209,18 @@ namespace NotfallSIM.Engines
                 foreach (var t in _tension.Values)
                 {
                     if (t.Drained) continue;
-                    double rate = t.Injury.ProgressionRate_per_min * t.Injury.Severity * t.RateFactor;
+                    double rate = t.Injury.ProgressionRate_per_min * t.Injury.Severity * t.RateFactor
+                                  * (_intubated ? TpFactorWhenVentilated : 1);
                     t.Level = Math.Min(1, t.Level + rate * minutes);
+                }
+
+                bool secondaryInsult = Current.SystolicBP_mmHg < 90 || Current.SpO2_percent < 90;
+                foreach (var bi in _brain.Values)
+                {
+                    if (bi.Stopped) continue;
+                    double rate = bi.Injury.ProgressionRate_per_min * bi.Injury.Severity
+                                  * (secondaryInsult ? TbiSecondaryInsultFactor : 1);
+                    bi.Level = Math.Min(1, bi.Level + rate * minutes);
                 }
             }
 
@@ -197,50 +242,66 @@ namespace NotfallSIM.Engines
             double f = Math.Max(0, 1 - _volume / _baselineVolume);
             double tp = 0;
             foreach (var t in _tension.Values) tp = Math.Max(tp, t.Level);
+            double tbi = 0;
+            foreach (var bi in _brain.Values) tbi = Math.Max(tbi, bi.Level);
 
-            // Ohne Reanimationsmodell irreversibel. Voller Spannungspneu = obstruktiver Stillstand (PEA).
-            if (f >= ArrestThreshold || tp >= 1) _arrest = true;
+            // Ohne Reanimationsmodell irreversibel. Voller Spannungspneu = obstruktiver Stillstand (PEA),
+            // volle Raumforderung = Einklemmung.
+            if (f >= ArrestThreshold || tp >= 1 || tbi >= 1) _arrest = true;
 
             if (_arrest)
             {
                 Current = new VitalSigns
                 {
                     SimTime_s = _time, BloodVolume_mL = _volume, BloodLossFraction = f,
-                    EtCO2_mmHg = 5, CardiacArrest = true
+                    EtCO2_mmHg = 5, CardiacArrest = true, GCS = 3, Anisocoria = tbi >= TbiAnisocoriaLevel,
+                    Intubated = _intubated
                 };
                 return;
             }
 
+            double gcs = Math.Min(Interp(tbi, TbiPoints, TbiGcs), Interp(f, LossPoints, ShockGcs));
+            // Ungeschützter Atemweg bei tiefer Bewusstlosigkeit: Hypoventilation, Hypoxie, Hyperkapnie.
+            double airway = !_intubated && gcs <= 8 ? Math.Min(1, (8 - gcs) / 5.0 + 0.2) : 0;
+            // Cushing-Reflex: Hypertonie, Bradykardie, unregelmäßige Atmung.
+            double cushing = tbi > TbiCushingLevel ? (tbi - TbiCushingLevel) / (1 - TbiCushingLevel) : 0;
+
             // Spannungspneu wirkt additiv auf das Blutungsbild: früh Hypoxie, Tachypnoe, Tachykardie;
             // erst ab höherer Spannung obstruktiver Blutdruckabfall.
             double sbpDrop = tp > TpHypotensionOnset ? (tp - TpHypotensionOnset) / (1 - TpHypotensionOnset) * TpMaxSbpDrop : 0;
-            double sbp = Interp(f, SbpTable) - sbpDrop;
-            double dbp = Interp(f, DbpTable) - sbpDrop * 0.6;
-            double spo2 = Interp(f, SpO2Air) - TpMaxSpO2Drop * tp + (_oxygen ? 3 : 0);
+            double sbp = Interp(f, SbpTable) - sbpDrop + 50 * cushing;
+            double dbp = Interp(f, DbpTable) - sbpDrop * 0.6 + 25 * cushing;
+            double spo2 = Interp(f, SpO2Air) - TpMaxSpO2Drop * tp - AirwayMaxSpO2Drop * airway
+                          + (_oxygen ? 3 : 0) + (_intubated ? 3 : 0);
             spo2 = Math.Max(50, Math.Min(100, spo2));
             Current = new VitalSigns
             {
                 SimTime_s = _time,
-                HeartRate_bpm = Interp(f, HrTable) + TpMaxHrAdd * tp,
+                HeartRate_bpm = Interp(f, HrTable) + TpMaxHrAdd * tp - 35 * cushing,
                 SystolicBP_mmHg = sbp,
                 DiastolicBP_mmHg = dbp,
                 MeanArterialPressure_mmHg = dbp + (sbp - dbp) / 3.0,
-                RespirationRate_bpm = Interp(f, RrTable) + TpMaxRrAdd * tp,
+                RespirationRate_bpm = _intubated ? 14 : Interp(f, RrTable) + TpMaxRrAdd * tp - 6 * airway - 6 * cushing,
                 SpO2_percent = spo2,
-                EtCO2_mmHg = Interp(f, EtCo2Table) - TpMaxEtCo2Drop * tp,
+                EtCO2_mmHg = Interp(f, EtCo2Table) - TpMaxEtCo2Drop * tp + AirwayMaxEtCo2Rise * airway,
+                GCS = Math.Round(gcs),
+                Anisocoria = tbi >= TbiAnisocoriaLevel,
+                Intubated = _intubated,
                 BloodVolume_mL = _volume,
                 BloodLossFraction = f
             };
         }
 
-        static double Interp(double x, double[] table)
+        static double Interp(double x, double[] table) => Interp(x, LossPoints, table);
+
+        static double Interp(double x, double[] points, double[] table)
         {
-            if (x <= LossPoints[0]) return table[0];
-            for (int i = 1; i < LossPoints.Length; i++)
+            if (x <= points[0]) return table[0];
+            for (int i = 1; i < points.Length; i++)
             {
-                if (x <= LossPoints[i])
+                if (x <= points[i])
                 {
-                    double t = (x - LossPoints[i - 1]) / (LossPoints[i] - LossPoints[i - 1]);
+                    double t = (x - points[i - 1]) / (points[i] - points[i - 1]);
                     return table[i - 1] + t * (table[i] - table[i - 1]);
                 }
             }

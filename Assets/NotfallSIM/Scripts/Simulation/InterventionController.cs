@@ -40,7 +40,7 @@ namespace NotfallSIM.Simulation
                 return;
             }
             _used.Add(def.id);
-            sim.ApplyIntervention(ev, string.IsNullOrEmpty(def.logLabel) ? def.label : def.logLabel);
+            sim.ApplyIntervention(ev, string.IsNullOrEmpty(def.logLabel) ? def.label : def.logLabel, def.effectDelay_s);
         }
     }
 }

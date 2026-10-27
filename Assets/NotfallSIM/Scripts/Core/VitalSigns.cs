@@ -22,9 +22,16 @@ namespace NotfallSIM.Core
         /// <summary>True, wenn der Patient kreislaufstillständig ist (Reanimationspflicht).</summary>
         public bool CardiacArrest;
 
+        /// <summary>Glasgow Coma Scale 3–15 (Mock: aus SHT-Schwere und Schockklasse).</summary>
+        public double GCS;
+        /// <summary>Pupillendifferenz als Herniationszeichen.</summary>
+        public bool Anisocoria;
+        public bool Intubated;
+
         public override string ToString() =>
             $"t={SimTime_s:F0}s HF={HeartRate_bpm:F0} RR={SystolicBP_mmHg:F0}/{DiastolicBP_mmHg:F0} " +
             $"AF={RespirationRate_bpm:F0} SpO2={SpO2_percent:F0}% etCO2={EtCO2_mmHg:F0} " +
-            $"BV={BloodVolume_mL:F0}mL Verlust={BloodLossFraction:P0}" + (CardiacArrest ? " [STILLSTAND]" : "");
+            $"BV={BloodVolume_mL:F0}mL Verlust={BloodLossFraction:P0} GCS={GCS:F0}" + (Anisocoria ? " aniso" : "") +
+            (Intubated ? " ITN" : "") + (CardiacArrest ? " [STILLSTAND]" : "");
     }
 }

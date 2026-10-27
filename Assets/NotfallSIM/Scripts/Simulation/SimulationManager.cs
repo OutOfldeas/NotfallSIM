@@ -40,6 +40,8 @@ namespace NotfallSIM.Simulation
         public bool Ended { get; private set; }
 
         readonly List<ScenarioInjury> _pending = new List<ScenarioInjury>();
+        readonly List<(double due, InterventionEvent iv, string label)> _delayed = new List<(double, InterventionEvent, string)>();
+        readonly StateWatcher _watcher = new StateWatcher();
         double _accumulator;
 
         void Start()
@@ -79,7 +81,9 @@ namespace NotfallSIM.Simulation
             while (_accumulator >= stepSize_s && guard++ < 500) // Schutz bei hohem timeScale
             {
                 TriggerDueInjuries();
+                TriggerDelayedInterventions();
                 Engine.Advance(stepSize_s);
+                foreach (var st in _watcher.Check(Engine.Current)) Log(st.message, st.tag);
                 _accumulator -= stepSize_s;
             }
             if (Engine.Current.CardiacArrest) Log("Kreislaufstillstand", "arrest");
@@ -97,11 +101,32 @@ namespace NotfallSIM.Simulation
             }
         }
 
-        public void ApplyIntervention(InterventionEvent iv, string label)
+        /// <param name="delay_s">Verzögerung bis zur Wirkung (z. B. Kraniotomie: CT, Transport, OP-Beginn).
+        /// Bewertet wird der Zeitpunkt der Anordnung.</param>
+        public void ApplyIntervention(InterventionEvent iv, string label, double delay_s = 0)
         {
             if (Engine == null || Ended || Engine.Current.CardiacArrest) return;
+            string tag = $"intervention:{iv.Type}:{iv.TargetCompartment ?? iv.Compound ?? ""}";
+            if (delay_s > 0)
+            {
+                _delayed.Add((Engine.Current.SimTime_s + delay_s, iv, label));
+                Log($"Angeordnet: {label} (wirksam in ca. {delay_s / 60:0} min)", tag);
+                return;
+            }
             Engine.ApplyIntervention(iv);
-            Log($"Maßnahme: {label}", $"intervention:{iv.Type}:{iv.TargetCompartment ?? iv.Compound ?? ""}");
+            Log($"Maßnahme: {label}", tag);
+        }
+
+        void TriggerDelayedInterventions()
+        {
+            double t = Engine.Current.SimTime_s;
+            for (int i = _delayed.Count - 1; i >= 0; i--)
+            {
+                if (_delayed[i].due > t) continue;
+                Engine.ApplyIntervention(_delayed[i].iv);
+                Log($"Wirksam: {_delayed[i].label}", "effect:" + _delayed[i].iv.Type);
+                _delayed.RemoveAt(i);
+            }
         }
 
         /// <summary>Freier Protokolleintrag, z. B. für Untersuchungen (Tag "exam:&lt;Region&gt;").</summary>

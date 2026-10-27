@@ -30,6 +30,12 @@ static class Tests
         Run("Mock Spannungspneu: Drainage entlastet vollständig", TensionDrain);
         Run("Mock Nadel: Versagerrate ca. 43 %", NeedleFailureRate);
         Run("Bewertung: relatives Zeitziel und Status", AssessmentLogic);
+        Run("Mock SHT: luzides Intervall, Anisokorie, Einklemmung 15–30 min", TbiUntreated);
+        Run("Mock SHT: frühe Kraniotomie verhindert Einklemmung", TbiEarlySurgery);
+        Run("Mock SHT: ungesicherter Atemweg beschleunigt den Verlauf", TbiAirwayMatters);
+        Run("Mock: Beatmung verschärft unentlasteten Spannungspneu", VentilationWorsensTension);
+        Run("Zustandsereignisse: Episoden mit Hysterese, Schwellen einmalig", StateWatcherLogic);
+        Run("Maßnahmen: Verzögerung nur bei Kraniotomie, nicht negativ", InterventionDelays);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -90,6 +96,7 @@ static class Tests
             possible.Add("injury:" + inj.id);
             possible.Add("exam:" + inj.region);
         }
+        foreach (var st in StateTags.All) possible.Add(st);
         foreach (var s in Scenarios)
             foreach (var c in s.assessment ?? new AssessmentCriterion[0])
             {
@@ -226,6 +233,115 @@ static class Tests
         Check(r["b"].Outcome == CriterionOutcome.Late, $"b: {r["b"].Outcome}");
         Check(r["c"].Outcome == CriterionOutcome.Exceeded && r["c"].Count == 3, $"c: {r["c"].Outcome}");
         Check(r["d"].Outcome == CriterionOutcome.NotApplicable, $"d: {r["d"].Outcome}");
+    }
+
+    // ------------------------------------------------------------ SHT und Zustände
+
+    static InjuryEvent Tbi(double sev) => new InjuryEvent
+    { Effect = InjuryEffectType.TraumaticBrainInjury, Compartment = "Brain", Severity = sev, ProgressionRate_per_min = 0.05 };
+
+    static MockPhysiologyEngine TbiPatient()
+    {
+        var e = new MockPhysiologyEngine(1);
+        e.Initialize(new PatientProfile { weight_kg = 78 });
+        e.ApplyInjury(Tbi(0.9));
+        return e;
+    }
+
+    /// <summary>Simuliert bis zum Stillstand oder Zeitende; optional Intubation automatisch bei GCS ≤ 8.</summary>
+    static double? RunUntilArrest(MockPhysiologyEngine e, double maxSeconds, bool intubateAtGcs8 = false)
+    {
+        bool done = false;
+        for (double t = 0; t < maxSeconds; t += 0.1)
+        {
+            e.Advance(0.1);
+            if (intubateAtGcs8 && !done && e.Current.GCS <= 8)
+            {
+                e.ApplyIntervention(new InterventionEvent { Type = InterventionType.Intubation });
+                done = true;
+            }
+            if (e.Current.CardiacArrest) return e.Current.SimTime_s;
+        }
+        return null;
+    }
+
+    static void TbiUntreated()
+    {
+        var e = TbiPatient();
+        Advance(e, 300);
+        Check(e.Current.GCS >= 14, $"GCS nach 5 min {e.Current.GCS}");
+        bool anisoBeforeArrest = false;
+        double? arrest = null;
+        for (double t = 0; t < 40 * 60; t += 0.1)
+        {
+            e.Advance(0.1);
+            if (e.Current.CardiacArrest) { arrest = e.Current.SimTime_s; break; }
+            if (e.Current.Anisocoria) anisoBeforeArrest = true;
+        }
+        Check(anisoBeforeArrest, "keine Anisokorie vor der Einklemmung");
+        Check(arrest != null && arrest > 15 * 60 && arrest < 30 * 60, $"Einklemmung bei {arrest}s");
+    }
+
+    static void TbiEarlySurgery()
+    {
+        var e = TbiPatient();
+        e.ApplyIntervention(new InterventionEvent { Type = InterventionType.Oxygen });
+        Advance(e, 13 * 60); // Anordnung nach 3 min + 10 min Verzögerung
+        e.ApplyIntervention(new InterventionEvent { Type = InterventionType.NeurosurgicalDecompression });
+        var arrest = RunUntilArrest(e, 40 * 60, intubateAtGcs8: true);
+        Check(arrest == null, $"trotz Kraniotomie Stillstand bei {arrest}s");
+        Check(e.Current.GCS >= 9, $"GCS nach OP {e.Current.GCS}");
+    }
+
+    static void TbiAirwayMatters()
+    {
+        var without = RunUntilArrest(TbiPatient(), 60 * 60);
+        var with = RunUntilArrest(TbiPatient(), 60 * 60, intubateAtGcs8: true);
+        Check(without != null && with != null && without < with - 60,
+              $"ohne Atemwegssicherung {without}s, mit {with}s");
+    }
+
+    static void VentilationWorsensTension()
+    {
+        Func<bool, MockPhysiologyEngine> Make = intubate =>
+        {
+            var e = new MockPhysiologyEngine(1);
+            e.Initialize(new PatientProfile());
+            e.ApplyInjury(Tension(0.8));
+            if (intubate) e.ApplyIntervention(new InterventionEvent { Type = InterventionType.Intubation });
+            return e;
+        };
+        var spont = RunUntilArrest(Make(false), 60 * 60);
+        var vent = RunUntilArrest(Make(true), 60 * 60);
+        Check(spont != null && vent != null && vent < spont / 2, $"spontan {spont}s, beatmet {vent}s");
+    }
+
+    static void StateWatcherLogic()
+    {
+        var w = new StateWatcher();
+        var tags = new List<string>();
+        Action<double, double, double, bool> Step = (sbp, spo2, gcs, aniso) =>
+            tags.AddRange(w.Check(new VitalSigns { SystolicBP_mmHg = sbp, SpO2_percent = spo2, GCS = gcs, Anisocoria = aniso }).Select(x => x.tag));
+        Step(120, 97, 15, false);
+        Step(85, 97, 15, false);    // Hypotonie 1
+        Step(92, 97, 15, false);    // noch keine Erholung (Hysterese)
+        Step(80, 97, 13, false);    // keine neue Episode, aber GCS <= 13
+        Step(100, 97, 12, false);   // erholt
+        Step(85, 88, 8, true);      // Hypotonie 2, Hypoxie, GCS 8, Anisokorie
+        Step(85, 88, 7, true);
+        Check(tags.Count(t => t == StateTags.Hypotension) == 2, "Hypotonie-Episoden: " + tags.Count(t => t == StateTags.Hypotension));
+        Check(tags.Count(t => t == StateTags.Hypoxia) == 1, "Hypoxie-Episoden");
+        Check(tags.Count(t => t == StateTags.GcsDrop) == 1 && tags.Count(t => t == StateTags.Gcs8) == 1, "GCS-Schwellen");
+        Check(tags.Count(t => t == StateTags.Anisocoria) == 1, "Anisokorie");
+    }
+
+    static void InterventionDelays()
+    {
+        foreach (var iv in Interventions.interventions)
+        {
+            Check(iv.effectDelay_s >= 0, $"{iv.id}: negative Verzögerung");
+            if (iv.type == "NeurosurgicalDecompression") Check(iv.effectDelay_s > 0, "Kraniotomie ohne Verzögerung");
+        }
     }
 
     // ------------------------------------------------------------ Helfer

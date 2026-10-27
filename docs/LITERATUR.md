@@ -1,6 +1,6 @@
 # Literaturnotizen
 
-Stand: 27.10.2026 · Datenbank-Version 0.3.0 · Szenarien v0.4
+Stand: 27.10.2026 · Datenbank-Version 0.4.0 · Maßnahmen v0.2.0
 
 Hier steht, worauf die Zahlen im Modell beruhen und wie belastbar sie sind.
 Jede Änderung an `injuries.json` oder an den Modelltabellen sollte hier nachvollziehbar sein.
@@ -17,6 +17,10 @@ Jede Änderung an `injuries.json` oder an den Modelltabellen sollte hier nachvol
 | Kristalloid, intravasal | 30 % des Volumens | grob | Vereinfachung, in Pulse realistischer |
 | Spannungspneu, Verlauf (spontan atmend) | früh Hypoxie, Hypotonie ab 60 % Spannung | qualitativ gut, zeitlich geschätzt | Roberts 2015 |
 | Nadeldekompression, Erfolg | 57 % | mäßig (sehr heterogene Daten) | Ahmad 2025 (Versagerrate ca. 43 %) |
+| SHT, Verlauf | luzides Intervall, GCS 8 nach ca. 15 min, Einklemmung nach ca. 20 min | geschätzt | Lehrbuchbild Epiduralhämatom |
+| SHT, sekundäre Hirnschädigung | Progression ×2 bei RRsys < 90 oder SpO2 < 90 | qualitativ gut, Faktor geschätzt | Chesnut 1993 |
+| Beatmung bei Spannungspneu | Progression ×3 | qualitativ gut, Faktor geschätzt | Roberts 2015 |
+| Kraniotomie, Zeit bis Wirkung | 10 min | geschätzt | didaktisch; reale Intervalle prüfen |
 
 ## Wichtigste Erkenntnisse
 
@@ -55,6 +59,12 @@ Eine Meta-Analyse (Ahmad et al. 2025) fand eine kombinierte Versagerrate von etw
 ATLS empfiehlt den 4./5. ICR zwischen vorderer und mittlerer Axillarlinie, das ETC weiterhin den 2. ICR medioklavikulär.
 Im Spiel versagt die Punktion daher zufällig in etwa 4 von 10 Fällen. Lernziel: Erfolg prüfen und die Thoraxdrainage anlegen.
 
+**Schädel-Hirn-Trauma: Sekundärschäden vermeiden ist der Kern.**
+In der klassischen Auswertung von Chesnut et al. (1993, 717 Patienten mit schwerem SHT) hatten 34,6 % eine Hypotonie (RRsys < 90 mmHg); sie war mit einer um 150 % höheren Letalität verbunden. Hypoxie war unabhängig davon mit schlechterem Outcome assoziiert.
+Die S3-Leitlinie (Stand 2011) fordert beim SHT Normoxie, Normokapnie und Normotonie (GoR A) und einen RRsys nicht unter 90 mmHg (GoR B); die permissive Hypotension gilt bei ZNS-Verletzung als kontraindiziert. Die Brain Trauma Foundation empfiehlt sogar höhere Werte (RRsys ≥ 110 mmHg bei 15–49 Jahren).
+Daraus entsteht ein didaktisch wertvoller Zielkonflikt für spätere Kombinationsszenarien: Beckenblutung verlangt permissive Hypotension, das SHT verbietet sie.
+Ein luzides Intervall ist kein verlässliches Zeichen: In einer Serie von 146 operierten Epiduralhämatomen (Kinder) trat es nur bei etwa 37 % auf.
+
 ## Bewertungskriterien im Debriefing
 
 Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist nur *dass* und *in welcher Reihenfolge* gehandelt werden soll; konkrete Minutenwerte geben weder Leitlinie noch Studien vor. Die Minuten bleiben daher didaktische Setzungen, sind aber jetzt an belegten Ankern ausgerichtet.
@@ -72,6 +82,14 @@ Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist
 | Thorax | Thorax untersucht | 2,5 min ab Beginn | nein | S3 (GoR B): klinische Diagnose |
 | Thorax | Entlastung | 6 min ab Beginn | ja | Sofort nach klinischer Diagnose; im Modell SpO2 < 90 % nach ca. 6 min |
 | Thorax | Thoraxdrainage | 15 min ab Beginn | ja | Nadel versagt in ca. 43 % (Ahmad 2025) |
+| SHT | Sauerstoff | 2 min | nein | Normoxie (S3, GoR A) |
+| SHT | GCS und Pupillen geprüft | 3 min | nein | ABCDE-Logik |
+| SHT | Neurostatus nach Eintrübung erneut geprüft | 2 min ab GCS ≤ 13 | nein | ABCDE-Logik |
+| SHT | Neurochirurgie eingebunden | 4 min ab GCS ≤ 13 | ja | Eintrübung nach luzidem Intervall = Notfall |
+| SHT | Atemweg gesichert | 3 min ab GCS ≤ 8 | ja | S3: GCS ≤ 8 intubieren (innerklinisch GoR A) |
+| SHT | Osmotherapie | 3 min ab Anisokorie | nein | S3, GoR 0 |
+| SHT | Keine Hypoxie | 0 Episoden | ja | Chesnut 1993; S3, GoR A |
+| SHT | Keine Hypotonie | 0 Episoden | ja | Chesnut 1993; S3, GoR B |
 
 Änderungen in v0.4: Beim Thoraxtrauma zählen die Ziele jetzt ab Beginn des Spannungspneus statt ab Szenariostart. Kristalloid ist jetzt eine balancierte Vollelektrolytlösung (S3, GoR A: keine isotone NaCl-Lösung). Tranexamsäure ist als Maßnahme und Ziel dazugekommen.
 
@@ -87,6 +105,8 @@ Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist
 - [ ] Zeitverlauf des Spannungspneus im Mock (ca. 20 Minuten bis Stillstand) klinisch plausibilisieren
 - [ ] Empfehlung der S3-Leitlinie zu Ort und Technik der Entlastung nachlesen
 - [ ] Zeitziele und „kritisch“-Markierungen der Bewertung prüfen (Tabelle oben)
+- [ ] SHT-Empfehlungen (Intubation, Blutdruckziel, Osmotherapie) gegen S3-Leitlinie Version 5.0 prüfen
+- [ ] Realistische Zeit von Anordnung bis Kraniotomie (CT, Transport, OP-Beginn) recherchieren
 
 ## Quellen
 
@@ -108,5 +128,10 @@ Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist
 14. Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. *Bayerisches Ärzteblatt*. 2017;(1-2):8-14. [PDF](https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf) — Empfehlungen und Empfehlungsgrade der Version 2016; in der aktuellen Version 5.0 prüfen
 15. Deutsches Ärzteblatt. Unfallchirurgen melden mehr Schwerverletzte (TraumaRegister DGU, Jahresbericht 2016). 15.09.2017. [Artikel](https://www.aerzteblatt.de/news/unfallchirurgen-melden-mehr-schwerverletzte-3f5de2e0-a89d-4b1b-a311-ebff9ae5bffd)
 16. Duchesne J, McLafferty BJ, Broome JM, et al. Every minute matters: Improving outcomes for penetrating trauma through prehospital advanced resuscitative care. *J Trauma Acute Care Surg*. 2024. [doi:10.1097/TA.0000000000004363](https://doi.org/10.1097/TA.0000000000004363)
+
+17. Chesnut RM, et al. The role of secondary brain injury in determining outcome from severe head injury. *J Trauma*. 1993;34(2):216-222. [Abstract](https://www.qxmd.com/r/8459458)
+18. Böttiger BW, et al. DGAInfo zur S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. *Anästh Intensivmed*. 2011;52:S693-S700. [PDF](https://www.ai-online.info/images/ai-ausgabe/2011/11-2011/supplement-10-2011/2011_11_S693-S700_SUPPLEMENT%20Nr.%2010%20-%202011%20-%20Trauma-Update%20%20S3-Leitlinie%20Polytrauma.pdf)
+19. Brain Trauma Foundation. *Guidelines for the Management of Severe Traumatic Brain Injury*, 4th ed. 2016. (Zusammenfassung: [UMEM](https://em.umaryland.edu/educational_pearls/3108/))
+20. Extradural hematoma: analysis of 146 cases. *Childs Nerv Syst*. 1993;9(2):96-99. [doi:10.1007/BF00305316](https://doi.org/10.1007/BF00305316)
 
 Angaben ohne Link (4, 8, 9) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.

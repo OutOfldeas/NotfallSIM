@@ -1,5 +1,5 @@
 {
-  "version": "0.3.0",
+  "version": "0.4.0",
   "injuries": [
     {
       "id": "becken_instabil",
@@ -141,6 +141,51 @@
       ],
       "evidenceStatus": "draft",
       "reviewNotes": "Mock-Modell für spontan atmende Patienten: Spannung steigt linear (progressionRate × Schweregrad), früh Hypoxie, Tachypnoe, Tachykardie; Blutdruckabfall erst ab 60 % Spannung; bei 100 % obstruktiver Stillstand. Zeitverlauf ist eine didaktische Setzung — echte Verläufe sind sehr variabel. Beatmete Patienten dekompensieren deutlich schneller (Phase 2)."
+    },
+    {
+      "id": "epiduralhaematom_rechts",
+      "name": "Epiduralhämatom rechts temporal",
+      "region": "Kopf",
+      "icd10": "S06.4",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "TraumaticBrainInjury",
+          "compartment": "Brain",
+          "baseRate_mL_min": 0,
+          "maxTotalLoss_mL": 0,
+          "progressionRate_per_min": 0.05
+        }
+      ],
+      "clinicalFindings": [
+        "Prellmarke und Schwellung temporal rechts",
+        "Laut Zeugen kurz bewusstlos, danach wach (luzides Intervall)",
+        "Kopfschmerzen, Übelkeit, Amnesie für das Ereignis"
+      ],
+      "sources": [
+        {
+          "citation": "Chesnut RM, et al. The role of secondary brain injury in determining outcome from severe head injury. J Trauma. 1993;34(2):216-222.",
+          "url": "https://www.qxmd.com/r/8459458",
+          "note": "717 Patienten mit schwerem SHT: Hypotonie (RRsys < 90) bei 34,6 %, verbunden mit 150 % höherer Letalität; Hypoxie unabhängig mit schlechterem Outcome assoziiert"
+        },
+        {
+          "citation": "Böttiger BW, et al. DGAInfo zur S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. Anästh Intensivmed. 2011;52:S693-S700.",
+          "url": "https://www.ai-online.info/images/ai-ausgabe/2011/11-2011/supplement-10-2011/2011_11_S693-S700_SUPPLEMENT%20Nr.%2010%20-%202011%20-%20Trauma-Update%20%20S3-Leitlinie%20Polytrauma.pdf",
+          "note": "SHT: Normoxie, Normokapnie, Normotonie (GoR A); RRsys nicht unter 90 mmHg (GoR B); permissive Hypotension bei ZNS-Verletzung kontraindiziert; Intubation bei schwerem SHT (präklinisch GCS < 9, GoR B). Stand 2011, gegen Version 5.0 prüfen"
+        },
+        {
+          "citation": "Brain Trauma Foundation. Guidelines for the Management of Severe Traumatic Brain Injury, 4th ed. 2016.",
+          "url": "https://em.umaryland.edu/educational_pearls/3108/",
+          "note": "RRsys ≥ 110 mmHg (15–49 J. und > 70 J.) bzw. ≥ 100 mmHg (50–69 J.), Level III; Zusammenfassung über Sekundärquelle"
+        },
+        {
+          "citation": "Extradural hematoma: analysis of 146 cases. Childs Nerv Syst. 1993;9(2):96-99.",
+          "url": "https://doi.org/10.1007/BF00305316",
+          "note": "Luzides Intervall bei ca. 37 % — Kollektiv Kinder 1–16 J., nur eingeschränkt übertragbar"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Mock-Verlauf: luzides Intervall, Eintrübung, Anisokorie ab 70 % Raumforderung, Cushing-Reflex ab 80 %, Einklemmung bei 100 %. Hypotonie oder Hypoxie verdoppeln die Progression (didaktische Umsetzung von Chesnut 1993, kein gemessener Faktor). Zeitverlauf ist geschätzt."
     }
   ]
 }

@@ -1,0 +1,125 @@
+{
+  "id": "escooter_sht",
+  "title": "E-Scooter-Sturz mit Schädel-Hirn-Trauma",
+  "description": "24-jähriger E-Scooter-Fahrer, ohne Helm gestürzt, Kopfanprall rechts temporal. Laut Zeugen kurz bewusstlos, bei Übergabe wach und orientiert, klagt über Kopfschmerzen.",
+  "mechanism": "Sturz vom E-Scooter ohne Helm, Kopfanprall auf Bordsteinkante",
+  "patient": {
+    "sex": "male",
+    "age": 24,
+    "weight_kg": 78,
+    "height_cm": 181
+  },
+  "injuries": [
+    {
+      "injuryId": "epiduralhaematom_rechts",
+      "onsetTime_s": 0,
+      "severity": 0.9
+    }
+  ],
+  "learningGoals": [
+    "Luzides Intervall und Unfallmechanismus als Warnzeichen erkennen, obwohl der Patient zunächst wach ist",
+    "GCS und Pupillen wiederholt kontrollieren und eine Verschlechterung früh bemerken",
+    "Sekundäre Hirnschädigung durch Hypoxie und Hypotonie konsequent vermeiden",
+    "Bei GCS ≤ 8 den Atemweg sichern; bei Anisokorie überbrückend handeln und die Neurochirurgie früh einbinden"
+  ],
+  "expectedCourse": "Zunächst wach (luzides Intervall). Ab etwa 7 Minuten Eintrübung, nach ca. 15 Minuten GCS 8 und Anisokorie, danach Cushing-Reflex. Ohne Maßnahmen Einklemmung nach rund 20 Minuten; ohne gesicherten Atemweg früher, weil die Hypoxie den Verlauf beschleunigt. Die Kraniotomie wirkt 10 Minuten nach Anordnung.",
+  "defaultTimeScale": 1,
+  "assessment": [
+    {
+      "id": "o2",
+      "description": "Sauerstoff gegeben",
+      "type": "deadline",
+      "tags": [
+        "intervention:Oxygen"
+      ],
+      "limit": 120,
+      "relativeTo": "",
+      "critical": false,
+      "rationale": "Basismaßnahme im Primary Survey; Normoxie bei SHT (S3, GoR A). Zeitziel didaktisch."
+    },
+    {
+      "id": "neuro_untersucht",
+      "description": "GCS und Pupillen geprüft",
+      "type": "deadline",
+      "tags": [
+        "exam:Kopf"
+      ],
+      "limit": 180,
+      "relativeTo": "",
+      "critical": false,
+      "rationale": "D-Teil des Primary Survey. Zeitziel didaktisch."
+    },
+    {
+      "id": "neuro_reevaluation",
+      "description": "Neurostatus nach Eintrübung erneut geprüft",
+      "type": "deadline",
+      "tags": [
+        "exam:Kopf"
+      ],
+      "limit": 120,
+      "relativeTo": "state:gcs13",
+      "critical": false,
+      "rationale": "Nach GCS-Abfall erneut untersuchen; zählt jede Untersuchung des Kopfes. Zeitziel didaktisch."
+    },
+    {
+      "id": "kraniotomie",
+      "description": "Neurochirurgie früh eingebunden",
+      "type": "deadline",
+      "tags": [
+        "intervention:NeurosurgicalDecompression"
+      ],
+      "limit": 240,
+      "relativeTo": "state:gcs13",
+      "critical": true,
+      "rationale": "GCS-Abfall nach luzidem Intervall ist ein Notfall; CT und Neurochirurgie sofort. 4 min nach Eintrübung = didaktische Setzung."
+    },
+    {
+      "id": "intubation",
+      "description": "Atemweg gesichert bei GCS ≤ 8",
+      "type": "deadline",
+      "tags": [
+        "intervention:Intubation"
+      ],
+      "limit": 180,
+      "relativeTo": "state:gcs8",
+      "critical": true,
+      "rationale": "S3: bewusstlose Patienten (GCS ≤ 8) intubieren (innerklinisch GoR A). 3 min = didaktische Setzung."
+    },
+    {
+      "id": "osmotherapie",
+      "description": "Osmotherapie bei Anisokorie",
+      "type": "deadline",
+      "tags": [
+        "intervention:Osmotherapy"
+      ],
+      "limit": 180,
+      "relativeTo": "state:anisocoria",
+      "critical": false,
+      "rationale": "Überbrückend bei Herniationszeichen (S3, GoR 0). Zeitziel didaktisch."
+    },
+    {
+      "id": "keine_hypoxie",
+      "description": "Keine Hypoxie (SpO2 < 90 %)",
+      "type": "maxCount",
+      "tags": [
+        "state:hypoxia"
+      ],
+      "limit": 0,
+      "relativeTo": "",
+      "critical": true,
+      "rationale": "Hypoxie verschlechtert das Outcome nach SHT unabhängig (Chesnut 1993); SpO2 < 90 % vermeiden (S3, GoR A)."
+    },
+    {
+      "id": "keine_hypotonie",
+      "description": "Keine Hypotonie (RRsys < 90 mmHg)",
+      "type": "maxCount",
+      "tags": [
+        "state:hypotension"
+      ],
+      "limit": 0,
+      "relativeTo": "",
+      "critical": true,
+      "rationale": "Hypotonie bei schwerem SHT mit 150 % höherer Letalität verbunden (Chesnut 1993); RRsys nicht unter 90 mmHg (S3, GoR B)."
+    }
+  ]
+}

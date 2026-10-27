@@ -88,7 +88,8 @@ namespace NotfallSIM.Engines
                 EtCO2_mmHg = d[7],
                 BloodVolume_mL = bv,
                 BloodLossFraction = _baselineVolume > 0 ? Math.Max(0, 1 - bv / _baselineVolume) : 0,
-                CardiacArrest = d[1] < 1 // TODO: Pulse-Event "CardiacArrest" auswerten
+                CardiacArrest = d[1] < 1, // TODO: Pulse-Event "CardiacArrest" auswerten
+                GCS = 15 // TODO: Bewusstseinslage aus Pulse ableiten (Phase 2)
             };
         }
 
