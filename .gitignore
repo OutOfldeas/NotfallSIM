@@ -35,3 +35,7 @@ crashlytics-build.properties
 # OS
 .DS_Store
 Thumbs.db
+
+# Anatomie-Werkzeuge: Vorschau-Dateien sind reproduzierbar
+tools/anatomy/preview/
+__pycache__/

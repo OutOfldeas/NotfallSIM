@@ -122,6 +122,7 @@ namespace NotfallSIM.Simulation
             TriggerDueInjuries();
             Engine.Advance(stepSize_s);
             Log($"Szenario '{Scenario.title}' gestartet mit {Engine.Name} (DB v{Database.Version})");
+            UI.PauseMenu.Ensure(this);
         }
 
         IPhysiologyEngine CreateEngine()
@@ -272,6 +273,7 @@ namespace NotfallSIM.Simulation
         }
 
         public void SetPaused(bool value) => paused = value;
+        public bool Paused => paused;
 
         /// <summary>Für Buttons (z. B. „Hauptmenü“). Setzt die Zeit zurück, falls Zeitlupe/Zeitraffer aktiv war.</summary>
         public void LoadScene(string sceneName)

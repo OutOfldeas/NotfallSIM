@@ -37,11 +37,19 @@ Assets/
     Engines/       MockPhysiologyEngine, PulsePhysiologyAdapter
     Data/          JSON-Datenklassen, InjuryDatabase
     Simulation/    SimulationManager, InterventionController, SessionRecorder
-    UI/            VitalsMonitor, FindingsPanel, DebriefPanel
+    UI/            VitalsMonitor, MonitorWaveforms, FindingsPanel, DebriefPanel, MainMenu, PauseMenu, OrbitCamera
     Interaction/   BodyRegion
+    Anatomy/       body.bin lesen, Patient aufbauen (Haut, Skelett, Röntgenblick)
+    Crash/         Unfall-Sandbox: Ragdoll, Fahrzeuge, Sensoren, Verletzungskriterien
   NotfallSIM/Editor/
-    SceneBuilder.cs              Menü „NotfallSIM › Schockraum-Szene erstellen“
+    MenuSceneBuilder.cs          Menü „NotfallSIM › Alle Szenen erstellen“
+    SceneBuilder.cs              Schockraum-Szene (Raum aus TraumaRoomBuilder.cs, UI, Post-Processing)
+    CrashSceneBuilder.cs         Unfall-Sandbox-Szene
+  NotfallSIM/Resources/
+    XRay.shader                  Röntgenblick (URP)
   StreamingAssets/NotfallSIM/
+    anatomy/body.bin             Anatomiemodell (BodyParts3D, CC BY-SA 2.1 JP — siehe unten)
+    anatomy/anatomy.json         Verletzung → Strukturen für den Röntgenblick
     injuries.json                Verletzungsdatenbank
     interventions.json           Maßnahmen (Buttons, Volumina, Effektstärken, Quellen)
     imaging.json                 Bildgebung (eFAST, Röntgen, CCT, Ganzkörper-CT)
@@ -50,6 +58,7 @@ Assets/
     differentials.json           Differenzialdiagnosen ohne Physiologie, mit „spricht dagegen“
     injury_risk.json             Unfall-Sandbox: Messwerte → Risikokurven → Verletzungen
     scenarios/*.json             Szenarien
+tools/anatomy/                   Aufbereitung der Anatomie (Python), erzeugt body.bin
 ```
 
 ## Einrichtung
@@ -65,9 +74,12 @@ Assets/
    git push -u origin main
    ```
 3. **Projekt öffnen**, dann *Window › TextMeshPro › Import TMP Essential Resources*.
-4. **Szene erzeugen:** Menü *NotfallSIM › Schockraum-Szene erstellen*. Das legt `Assets/NotfallSIM/Scenes/Schockraum.unity`
-   mit Kamera, Trage, Platzhalter-Patient, Monitor, Maßnahmen, Befund- und Debriefing-Panel an — fertig verdrahtet.
-5. **Play.** Körperregionen anklicken zum Untersuchen, Maßnahmen per Button, Zeitraffer 1x/5x/20x.
+4. **Szenen erzeugen:** Menü *NotfallSIM › Alle Szenen erstellen*. Legt Hauptmenü, Schockraum und Unfall-Sandbox
+   unter `Assets/NotfallSIM/Scenes/` an und trägt sie in die Build-Liste ein. Nach jedem `git pull` mit Änderungen
+   an Editor-Skripten erneut ausführen.
+5. **Play** in der Szene `Hauptmenue`. Im Schockraum: Körperregionen anklicken zum Untersuchen, Maßnahmen per Button,
+   Zeitraffer 1x/5x/20x. Kamera: rechte Maustaste drehen, Mausrad zoomen, mittlere Maustaste verschieben.
+   *Menü (Esc)* pausiert und führt zurück ins Hauptmenü oder startet denselben Fall neu.
    „Szenario beenden“ zeigt das Debriefing und speichert die Verläufe als CSV
    (Ordner: `Application.persistentDataPath/Sessions`, wird im Debriefing angezeigt).
 6. **Szenario wechseln:** im Inspector des Objekts `Simulation` das Feld *Scenario Id* setzen
@@ -86,6 +98,26 @@ Assets/
 7. **Modus wählen:** Feld *Mode* — *Textbook* (ATLS-Lehrbuchbild) oder *Registry* (Realitätsmodus nach
    Registerdaten mit individueller Streuung, Alter und Betablocker). Das Debriefing vergleicht beide.
 
+## Schockraum: Patient und Röntgenblick
+
+Der Patient ist ein anatomisches Modell (Haut, ca. 330 Knochen, Organe, große Gefäße und schematische Nerven),
+zur Laufzeit aus `anatomy/body.bin` aufgebaut und auf die Größe aus dem Szenario skaliert. Er atmet mit der
+Atemfrequenz aus der Physiologie (beim Spannungspneu links hebt sich die linke Thoraxseite kaum), wird mit dem
+Blutverlust blass und bei niedriger Sättigung zyanotisch. Der Monitor zeigt EKG, Pulskurve und Kapnografie;
+der QRS-Ton wird mit sinkender Sättigung tiefer.
+
+*Röntgenblick* macht die Haut durchsichtig; die Ebenen Knochen, Organe, Gefäße und Nerven lassen sich einzeln
+schalten, mit der Maus über einer Struktur steht ihr Name. Nach Szenarioende schaltet sich der Röntgenblick ein
+und markiert die tatsächlichen Verletzungen rot (`anatomy/anatomy.json`).
+
+Anatomiedaten neu erzeugen (nur nötig bei Änderungen an der Auswahl): BodyParts3D-STL-Dateien herunterladen,
+dann `python3 tools/anatomy/build_anatomy.py --bp3d <Ordner>` (braucht `trimesh`, `scipy`, `scikit-image`,
+`fast-simplification`). Fehlt `body.bin`, erscheint ein Platzhalter aus Grundkörpern.
+
+**Lizenz der Anatomiedaten:** BodyParts3D, © The Database Center for Life Science, lizenziert unter
+[CC BY-SA 2.1 Japan](https://creativecommons.org/licenses/by-sa/2.1/jp/deed.de). `body.bin` ist eine Bearbeitung
+(vereinfacht, Haut neu vernetzt, Nerven und Extremitätengefäße schematisch ergänzt) und steht unter derselben Lizenz.
+
 ## Unfall-Sandbox (Ragdoll-Physik)
 
 Menü *NotfallSIM › Unfall-Sandbox erstellen* legt `Assets/NotfallSIM/Scenes/UnfallSandbox.unity` an.
@@ -95,7 +127,8 @@ Danach zeigt die Sandbox die Messwerte wie beim Crashtest-Dummy (HIC15, Brustbes
 das Verletzungsrisiko je Region, färbt den Körper danach ein und übergibt den Fall auf Knopfdruck verdeckt an
 den Schockraum (Schockraum-Szene muss erzeugt sein).
 
-- Ragdoll aus Grundkörpern, Segmentmassen nach de Leva (1996) — `Scripts/Crash/RagdollBuilder.cs`
+- Ragdoll mit Gelenken aus dem Anatomiemodell und der Haut als Skinned Mesh, Kollider als Kapseln und Quader,
+  Segmentmassen nach de Leva (1996) — `Scripts/Crash/RagdollBuilder.cs` (ohne `body.bin`: Grundkörper)
 - Szenen und Crashpulse — `CrashRig.cs`; Sensoren — `CrashSensor.cs`
 - Kriterien und Risikokurven ohne Unity, getestet — `Biomechanics.cs`, `InjuryRisk.cs`, `injury_risk.json`
 - Messung wie beim Dummy: 10 kHz, SAE-J211-Filter, Brustkorbdeflexion über ein federndes Sternum,

@@ -1,0 +1,73 @@
+{
+  "version": "0.1.0",
+  "injuries": [
+    {
+      "injuryId": "becken_instabil",
+      "meshes": [
+        "^(right|left) hip bone$",
+        "^sacrum$"
+      ],
+      "note": "Beckenring"
+    },
+    {
+      "injuryId": "femur_schaft_rechts",
+      "meshes": [
+        "^right femur$"
+      ],
+      "note": ""
+    },
+    {
+      "injuryId": "unterschenkel_offen_rechts",
+      "meshes": [
+        "^right tibia$",
+        "^right fibula$",
+        "^A\\. poplitea / tibialis posterior rechts$"
+      ],
+      "note": "Fraktur mit arterieller Blutung"
+    },
+    {
+      "injuryId": "rippenserienfraktur_links",
+      "meshes": [
+        "^left (fourth|fifth|sixth|seventh) rib$"
+      ],
+      "note": "Rippen 4–7 links"
+    },
+    {
+      "injuryId": "spannungspneu_links",
+      "meshes": [
+        "lobe of left lung$"
+      ],
+      "note": "linke Lunge"
+    },
+    {
+      "injuryId": "milzruptur",
+      "meshes": [
+        "^spleen$"
+      ],
+      "note": ""
+    },
+    {
+      "injuryId": "leberlazeration",
+      "meshes": [
+        "^liver$"
+      ],
+      "note": ""
+    },
+    {
+      "injuryId": "sdh_akut_links",
+      "meshes": [
+        "white matter structure of cerebral hemisphere",
+        "^left parietal bone$"
+      ],
+      "note": "Subduralhämatom links"
+    },
+    {
+      "injuryId": "epiduralhaematom_rechts",
+      "meshes": [
+        "^right temporal bone$",
+        "white matter structure of cerebral hemisphere"
+      ],
+      "note": "Epiduralhämatom rechts temporal"
+    }
+  ]
+}

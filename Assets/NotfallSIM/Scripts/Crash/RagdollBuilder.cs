@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Linq;
+using NotfallSIM.Anatomy;
 using UnityEngine;
 
 namespace NotfallSIM.Crash
@@ -19,6 +21,18 @@ namespace NotfallSIM.Crash
         public float SternumRestOffset; // Abstand Sternum–Thorax entlang „vorn“ in Ruhe
         public ConfigurableJoint NeckJoint, HipJointRight;
         public Transform Body => Root.transform;
+        /// <summary>Für die Risiko-Heatmap: je Segment ein einfärbbarer Körper (beim anatomischen Ragdoll anfangs unsichtbar).</summary>
+        public readonly Dictionary<string, Renderer> Heat = new Dictionary<string, Renderer>();
+        public SkinnedMeshRenderer Skin;
+        /// <summary>Fingerspitzen in der Ausgangshaltung (Welt) — daran werden Lenkrad und Lenker ausgerichtet.</summary>
+        public Vector3 HandTipRight, HandTipLeft;
+
+        public void ShowHeat(string segment, Color c)
+        {
+            if (!Heat.TryGetValue(segment, out var r) || r == null) return;
+            r.enabled = true;
+            r.material.color = c;
+        }
 
         public void SetVelocity(Vector3 v)
         {
@@ -33,8 +47,204 @@ namespace NotfallSIM.Crash
     ///
     /// Koordinaten: Blick in +z, rechts = +x (aus Sicht des Patienten), oben = +y. Ursprung: Mitte zwischen den Hüftgelenken.
     /// </summary>
+    /// <summary>Körpermaße für den Aufbau der Unfallszenen (Sitzhöhe, Armaturenbrett, Lenkrad …).</summary>
+    public struct RagdollDims
+    {
+        public float HipToKnee, KneeToSole, ThighRadius, ShoulderAboveHip, HeadTopAboveHip;
+    }
+
     public static class RagdollBuilder
     {
+        public static RagdollDims Dims(float H)
+        {
+            if (!AnatomyBuilder.Available)
+                return new RagdollDims { HipToKnee = 0.245f * H, KneeToSole = 0.30f * H, ThighRadius = 0.042f * H, ShoulderAboveHip = 0.27f * H, HeadTopAboveHip = 0.42f * H };
+            var h = AnatomyBuilder.Load().Header;
+            float k = H / h.modelHeight;
+            System.Func<string, Vector3> J = n => AnatomyBuilder.V(h.joints.First(j => j.name == n).pos) * k;
+            var thigh = h.segments.First(x => x.name == "Oberschenkel rechts");
+            return new RagdollDims
+            {
+                HipToKnee = (J("Knie rechts") - J("Hüfte rechts")).magnitude,
+                KneeToSole = J("Knie rechts").y - h.floorY * k,
+                ThighRadius = thigh.radius * k,
+                ShoulderAboveHip = J("Schulter rechts").y,
+                HeadTopAboveHip = J("Scheitel").y,
+            };
+        }
+
+        /// <summary>
+        /// Ragdoll mit anatomischem Skelett und Haut (aus anatomy/body.bin), sonst aus Grundkörpern.
+        /// <paramref name="hipCenter"/> = Mitte zwischen den Hüftgelenken.
+        /// </summary>
+        public static Ragdoll Build(Vector3 hipCenter, Quaternion facing, RagdollPose pose, float height_m, float mass_kg, bool male,
+                                    bool invertKneeFlexion = false, float headScale = 1f)
+        {
+            if (AnatomyBuilder.Available)
+            {
+                try { return BuildAnatomical(hipCenter, facing, pose, height_m, mass_kg, male, invertKneeFlexion, headScale); }
+                catch (System.Exception e) { Debug.LogWarning("[Ragdoll] Anatomisches Modell fehlgeschlagen, nutze Grundkörper: " + e.Message); }
+            }
+            return BuildPrimitive(hipCenter, facing, pose, height_m, mass_kg, male, invertKneeFlexion, headScale);
+        }
+
+        /// <summary>Gelenkstellungen je Haltung relativ zur Ruhelage (aufrecht, Arme hängend). Positiver x-Winkel = Vorderseite nach unten.</summary>
+        static Quaternion PoseRotation(RagdollPose pose, string seg)
+        {
+            bool right = seg.EndsWith("rechts");
+            float side = right ? 1 : -1;
+            switch (pose)
+            {
+                case RagdollPose.Seated:
+                    if (seg.StartsWith("Oberschenkel")) return Quaternion.Euler(-90, 0, 0);
+                    if (seg.StartsWith("Unterschenkel")) return Quaternion.Euler(90, 0, 0);
+                    if (seg.StartsWith("Oberarm")) return Quaternion.Euler(-40, 0, side * 6);
+                    // Hände am Lenkrad: Ellbogen gebeugt, Unterarm proniert (Handflächen zum Lenkrad)
+                    if (seg.StartsWith("Unterarm")) return Quaternion.Euler(-55, 0, 0) * Quaternion.Euler(0, -side * 80, 0);
+                    return Quaternion.identity;
+                case RagdollPose.Straddling:
+                    if (seg.StartsWith("Oberschenkel")) return Quaternion.Euler(-75, 0, side * 14);
+                    if (seg.StartsWith("Unterschenkel")) return Quaternion.Euler(70, 0, -side * 6);
+                    if (seg.StartsWith("Oberarm")) return Quaternion.Euler(-62, 0, side * 7);
+                    if (seg.StartsWith("Unterarm")) return Quaternion.Euler(-18, 0, 0) * Quaternion.Euler(0, -side * 80, 0);
+                    if (seg == "Abdomen") return Quaternion.Euler(14, 0, 0);
+                    if (seg == "Thorax") return Quaternion.Euler(10, 0, 0);
+                    return Quaternion.identity;
+                default:
+                    if (seg.StartsWith("Oberarm")) return Quaternion.Euler(0, 0, side * 4);
+                    return Quaternion.identity;
+            }
+        }
+
+        static Ragdoll BuildAnatomical(Vector3 hipCenter, Quaternion facing, RagdollPose pose, float H, float mass_kg, bool male,
+                                       bool invertKneeFlexion, float headScale)
+        {
+            var data = AnatomyBuilder.Load();
+            var h = data.Header;
+            float k = H / h.modelHeight;
+            var rd = new Ragdoll { Root = new GameObject("Ragdoll") };
+            rd.Root.transform.SetPositionAndRotation(hipCenter, facing);
+            var T = rd.Root.transform;
+            var heatMat = CrashPhysics.Mat(new Color(0.62f, 0.69f, 0.78f));
+
+            int n = h.segments.Length;
+            var rbs = new Rigidbody[n];
+            var worldRot = new Quaternion[n];
+            var bones = new Transform[n];
+            for (int i = 0; i < n; i++)
+            {
+                var s = h.segments[i];
+                int p = string.IsNullOrEmpty(s.parent) ? -1 : data.SegmentIndex(s.parent);
+                Vector3 joint = AnatomyBuilder.V(s.joint) * k, end = AnatomyBuilder.V(s.end) * k;
+                Vector3 pos; Quaternion rot;
+                if (p < 0) { pos = hipCenter; rot = facing * PoseRotation(pose, s.name); }
+                else
+                {
+                    Vector3 parentJoint = AnatomyBuilder.V(h.segments[p].joint) * k;
+                    pos = rbs[p].position + worldRot[p] * (joint - parentJoint);
+                    rot = worldRot[p] * PoseRotation(pose, s.name);
+                }
+                worldRot[i] = rot;
+                var go = new GameObject(s.name);
+                go.transform.SetParent(T, true);
+                go.transform.SetPositionAndRotation(pos, rot);
+                bones[i] = go.transform;
+
+                // Kollisionsform in Ruhelage-Achsen (Segmentursprung = proximales Gelenk)
+                Vector3 axis = end - joint;
+                GameObject vis;
+                if (s.capsule)
+                {
+                    float r = s.radius * k;
+                    float len = axis.magnitude;
+                    if (s.name.StartsWith("Unterschenkel")) { axis += new Vector3(0, -(AnatomyBuilder.V(s.end).y - h.floorY) * k * 0.8f, 0); len = axis.magnitude; }
+                    var c = go.AddComponent<CapsuleCollider>();
+                    c.direction = 1;
+                    c.center = axis / 2;
+                    c.radius = r;
+                    c.height = len + 2 * r * 0.5f;
+                    vis = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                    vis.transform.SetParent(go.transform, false);
+                    vis.transform.localPosition = axis / 2;
+                    vis.transform.localRotation = Quaternion.FromToRotation(Vector3.up, axis.normalized);
+                    vis.transform.localScale = new Vector3(2 * r, len / 2 + r * 0.5f, 2 * r);
+                }
+                else if (s.name == "Kopf")
+                {
+                    var c = go.AddComponent<SphereCollider>();
+                    c.center = AnatomyBuilder.V(s.boxCenter) * k;
+                    c.radius = Mathf.Max(s.boxSize[0], s.boxSize[2]) * 0.5f * k * 0.9f * headScale;
+                    vis = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    vis.transform.SetParent(go.transform, false);
+                    vis.transform.localPosition = c.center;
+                    vis.transform.localScale = Vector3.one * c.radius * 2;
+                }
+                else
+                {
+                    var c = go.AddComponent<BoxCollider>();
+                    c.center = AnatomyBuilder.V(s.boxCenter) * k;
+                    c.size = AnatomyBuilder.V(s.boxSize) * k * 0.9f;
+                    vis = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    vis.transform.SetParent(go.transform, false);
+                    vis.transform.localPosition = c.center;
+                    vis.transform.localScale = c.size;
+                }
+                Object.Destroy(vis.GetComponent<Collider>());
+                var vr = vis.GetComponent<Renderer>();
+                vr.sharedMaterial = heatMat;
+                vr.enabled = false;
+                rd.Heat[s.name] = vr;
+
+                float frac = male ? s.massMale : s.massFemale;
+                rbs[i] = Finish(rd, go, s.name, s.region, frac * mass_kg, keepRenderer: true);
+            }
+
+            int fr = data.SegmentIndex("Unterarm rechts"), fl = data.SegmentIndex("Unterarm links");
+            rd.HandTipRight = bones[fr].TransformPoint((AnatomyBuilder.V(h.segments[fr].end) - AnatomyBuilder.V(h.segments[fr].joint)) * k);
+            rd.HandTipLeft = bones[fl].TransformPoint((AnatomyBuilder.V(h.segments[fl].end) - AnatomyBuilder.V(h.segments[fl].joint)) * k);
+
+            // Gelenke: Anker am Segmentursprung, Beugeachse = Querachse des Körpers
+            for (int i = 0; i < n; i++)
+            {
+                var s = h.segments[i];
+                if (string.IsNullOrEmpty(s.parent)) continue;
+                var parent = rbs[data.SegmentIndex(s.parent)];
+                ConfigurableJoint j;
+                if (s.name == "Kopf") j = rd.NeckJoint = Joint(rbs[i], parent, rbs[i].position, T, 45, 45, 40, 30, 60);
+                else if (s.name == "Abdomen" || s.name == "Thorax") j = Joint(rbs[i], parent, rbs[i].position, T, 25, 25, 20, 20, 300);
+                else if (s.name.StartsWith("Oberarm")) j = Joint(rbs[i], parent, rbs[i].position, T, 100, 100, 80, 80, 20);
+                else if (s.name.StartsWith("Unterarm")) j = Joint(rbs[i], parent, rbs[i].position, T, 130, 130, 10, 10, 10);
+                else if (s.name.StartsWith("Oberschenkel")) j = Joint(rbs[i], parent, rbs[i].position, T, 100, 100, 30, 40, 40);
+                else j = Joint(rbs[i], parent, rbs[i].position, T, invertKneeFlexion ? 140 : 5, invertKneeFlexion ? 5 : 140, 5, 5, 30);
+                if (s.name == "Oberschenkel rechts") rd.HipJointRight = j;
+            }
+
+            // Brustbein vor dem Thorax (Brustkorbdeflexion)
+            var thoraxSeg = h.segments[data.SegmentIndex("Thorax")];
+            var thorax = rbs[data.SegmentIndex("Thorax")];
+            Vector3 bc = AnatomyBuilder.V(thoraxSeg.boxCenter) * k, bs = AnatomyBuilder.V(thoraxSeg.boxSize) * k * 0.9f;
+            AddSternumAt(rd, thorax, thorax.transform.TransformPoint(bc + new Vector3(0, 0.05f * bs.y, bs.z / 2 + 0.012f)), T, 0.32f * bs.x, 0.6f * bs.y);
+
+            // Selbstkollisionen im Ragdoll ausschalten (Startüberlappungen würden es sonst sprengen)
+            var cols = rd.Root.GetComponentsInChildren<Collider>();
+            for (int a = 0; a < cols.Length; a++)
+                for (int b = a + 1; b < cols.Length; b++)
+                    Physics.IgnoreCollision(cols[a], cols[b]);
+
+            // Haut an die Segmente binden
+            rd.Skin = AnatomyBuilder.BuildSkinForBones(T, bones, k, CrashPhysics.Mat(new Color(0.86f, 0.67f, 0.55f)), CrashPhysics.Mat(new Color(0.12f, 0.15f, 0.22f)));
+            return rd;
+        }
+
+        /// <summary>Ragdoll aus Grundkörpern (ohne anatomy/body.bin).</summary>
+        public static Ragdoll BuildPrimitive(Vector3 hipCenter, Quaternion facing, RagdollPose pose, float height_m, float mass_kg, bool male,
+                                             bool invertKneeFlexion = false, float headScale = 1f)
+        {
+            var rdp = BuildPrimitiveCore(hipCenter, facing, pose, height_m, mass_kg, male, invertKneeFlexion, headScale);
+            foreach (var kv in rdp.Segments) rdp.Heat[kv.Key] = kv.Value.GetComponent<Renderer>();
+            return rdp;
+        }
+
         // Massenanteile am Körpergewicht (de Leva 1996): Kopf, Rumpf oben/mitte/unten, Oberarm, Unterarm+Hand, Oberschenkel, Unterschenkel+Fuß
         static readonly float[] MaleMass   = { 0.0694f, 0.1596f, 0.1633f, 0.1117f, 0.0271f, 0.0162f + 0.0061f, 0.1416f, 0.0433f + 0.0137f };
         static readonly float[] FemaleMass = { 0.0668f, 0.1545f, 0.1465f, 0.1247f, 0.0255f, 0.0138f + 0.0056f, 0.1478f, 0.0481f + 0.0129f };
@@ -43,8 +253,8 @@ namespace NotfallSIM.Crash
         /// VERIFY in Unity: Vorzeichen der Kniebeugung im ConfigurableJoint. Wenn die Knie nach hinten durchknicken,
         /// im CrashRig „Invert Knee Flexion“ umschalten.
         /// </summary>
-        public static Ragdoll Build(Vector3 hipCenter, Quaternion facing, RagdollPose pose, float height_m, float mass_kg, bool male,
-                                    bool invertKneeFlexion = false, float headScale = 1f)
+        static Ragdoll BuildPrimitiveCore(Vector3 hipCenter, Quaternion facing, RagdollPose pose, float height_m, float mass_kg, bool male,
+                                          bool invertKneeFlexion, float headScale)
         {
             float H = height_m;
             var m = male ? MaleMass : FemaleMass;
@@ -76,6 +286,7 @@ namespace NotfallSIM.Crash
                     break;
             }
             kneeL = Mirror(kneeR); footL = Mirror(footR); elbowL = Mirror(elbowR); handL = Mirror(handR);
+            rd.HandTipRight = P(handR); rd.HandTipLeft = P(handL);
 
             // ---- Rumpf (aufrecht, Boxen) und Kopf
             float pelvisTop = 0.07f * H, abdomenTop = 0.17f * H;
@@ -120,11 +331,17 @@ namespace NotfallSIM.Crash
         {
             float depth = 0.11f * H;
             Vector3 pos = thorax.position + body.forward * (depth / 2 + 0.012f) + body.up * 0.05f * thoraxHeight;
+            AddSternumAt(rd, thorax, pos, body, 0.12f * H, 0.7f * thoraxHeight);
+        }
+
+        static void AddSternumAt(Ragdoll rd, Rigidbody thorax, Vector3 pos, Transform body, float width, float height)
+        {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = "Sternum";
             go.transform.SetPositionAndRotation(pos, body.rotation);
-            go.transform.localScale = new Vector3(0.12f * H, 0.7f * thoraxHeight, 0.02f);
+            go.transform.localScale = new Vector3(width, height, 0.02f);
             var rb = Finish(rd, go, "Sternum", "Thorax", SternumMass_kg);
+            if (AnatomyBuilder.Available) go.GetComponent<Renderer>().enabled = false; // unter der Haut
             rd.Sternum = rb;
             rd.SternumRestOffset = Vector3.Dot(pos - thorax.position, body.forward);
 
@@ -169,7 +386,7 @@ namespace NotfallSIM.Crash
             return Finish(rd, go, name, region, mass);
         }
 
-        static Rigidbody Finish(Ragdoll rd, GameObject go, string name, string region, float mass)
+        static Rigidbody Finish(Ragdoll rd, GameObject go, string name, string region, float mass, bool keepRenderer = false)
         {
             go.name = name;
             go.transform.SetParent(rd.Root.transform, true);
@@ -184,7 +401,7 @@ namespace NotfallSIM.Crash
             sensor.Configure(region, rd.Root.transform);
             rd.Segments[name] = rb;
             rd.Sensors.Add(sensor);
-            var r = go.GetComponent<Renderer>();
+            var r = keepRenderer ? null : go.GetComponent<Renderer>();
             if (r) r.material = CrashPhysics.Mat(new Color(0.62f, 0.69f, 0.78f));
             return rb;
         }

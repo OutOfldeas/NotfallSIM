@@ -64,7 +64,7 @@ namespace NotfallSIM.UI
             RuntimeUi.Button(right, "Schockraum starten", Selected, StartTraumaRoom, 60, 26);
             RuntimeUi.Button(right, "Unfall-Sandbox (Ragdoll-Crash)", Primary, () => Load(SessionSetup.CrashScene), 56, 22);
             _warning = RuntimeUi.Label(right, "", 18, new Color(1f, 0.48f, 0.44f), 50);
-            RuntimeUi.Label(right, "<size=80%>Experimentelles Lernwerkzeug, kein Medizinprodukt. Werte aus einem vereinfachten, literaturgestützten Modell im Entwurfsstatus.</size>", 16, Dim, 60);
+            RuntimeUi.Label(right, "<size=80%>Experimentelles Lernwerkzeug, kein Medizinprodukt. Werte aus einem vereinfachten, literaturgestützten Modell im Entwurfsstatus.\n<size=70%>Anatomie: BodyParts3D, © The Database Center for Life Science, CC BY-SA 2.1 Japan (bearbeitet).</size></size>", 16, Dim, 84);
 
             _choice = _choices.Count > 0 ? _choices[0].key : null;
             Refresh();

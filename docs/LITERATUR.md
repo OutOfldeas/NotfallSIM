@@ -197,6 +197,18 @@ Die Sandbox misst am Ragdoll wie an einem Crashtest-Dummy und übersetzt die Wer
 
 **Grenzen:** Das Ragdoll bleibt ein Mehrkörpermodell aus starren Teilen: keine Weichteile, keine Fahrzeugverformung (Schlittentest mit vorgegebenem Puls), Gelenkgrenzen und Muskeltonus sind Schätzungen.
 
+## Anatomiemodell (Patient, Röntgenblick, Ragdoll-Haut)
+
+Haut, Knochen, Organe und große Gefäße stammen aus **BodyParts3D** (Mitsuhashi et al. 2009, Datenbank des Database Center for Life Science, Japan), einem Modell eines erwachsenen Mannes (Körperhöhe im Modell 1,66 m, im Spiel auf die Patientengröße skaliert). `tools/anatomy/build_anatomy.py` wählt ca. 330 Strukturen aus, vereinfacht sie, vernetzt die Haut neu (Voxel-Hülle, geschlossen) und schreibt `StreamingAssets/NotfallSIM/anatomy/body.bin`.
+
+- **Lizenz:** CC BY-SA 2.1 Japan. `body.bin` ist eine Bearbeitung und steht damit unter derselben Lizenz; Namensnennung im Hauptmenü und im Dateikopf. Der Programmcode ist davon nicht betroffen.
+- **Ergänzt, nicht aus BodyParts3D:** Nerven (Rückenmark, Plexus brachialis mit N. medianus, ulnaris, radialis; N. femoralis, N. ischiadicus) und Extremitätengefäße als schematische Röhren entlang anatomischer Landmarken. Verlauf didaktisch, nicht vermessen.
+- **Skelett:** 12 Segmente; Gelenkzentren aus den Knochen bestimmt (Hüfte aus dem Acetabulum, Knie zwischen den Femurkondylen usw.). Massen je Segment nach de Leva (1996), getrennt nach Geschlecht. Dieselben Segmente nutzt die Unfall-Sandbox.
+- **Atmung:** drei Blendshapes (Thorax rechts, Thorax links, Abdomen). Beim Spannungspneu links hebt sich die linke Seite kaum noch.
+- **Verletzungen im Röntgenblick** (`anatomy/anatomy.json`): Zuordnung Verletzung → Strukturen, z. B. Beckenfraktur → Os coxae und Sakrum, Rippenserie links → Rippen 4–7 links. Erst nach Szenarioende sichtbar.
+
+**Grenzen:** ein Körperbau für alle Patienten (Frauen und Kinder nur skaliert), Organe in Ruhelage und ohne Verformung, Weichteile ohne Masse.
+
 ## Offene Punkte zum Prüfen
 
 - [ ] Empfehlungen und Empfehlungsgrade zu Beckengurt, Volumentherapie und permissiver Hypotension in der S3-Leitlinie (MAGICapp) nachlesen
@@ -230,6 +242,8 @@ Die Sandbox misst am Ragdoll wie an einem Crashtest-Dummy und übersetzt die Wer
 - [ ] Vorzeichen von Halskraft/-moment und Femurkraft aus Joint.currentForce/currentTorque in Unity prüfen
 - [ ] Halsverletzung (HWS) mit Physiologie in die Datenbank aufnehmen, dann Nij zuordnen
 - [ ] Fehlende typische Verletzungen ergänzen: Wirbelsäule, Kalkaneus (Sturz), Aortenverletzung (Dezeleration), Rippenserie rechts
+- [ ] Anatomie: Zuordnung Verletzung → Strukturen (`anatomy.json`) und schematische Nervenverläufe gegenlesen
+- [ ] Weibliches Anatomiemodell (z. B. Z-Anatomy, ebenfalls CC BY-SA) für Patientinnen prüfen
 
 ## Quellen
 
@@ -275,5 +289,7 @@ Die Sandbox misst am Ragdoll wie an einem Crashtest-Dummy und übersetzt die Wer
 33. NHTSA. FMVSS 208 Test Report 2004 Jeep Liberty (Test v05137). [PDF](https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v05100/v05137R007.pdf)
 34. Injury Criteria and Motor Vehicle Regulations (Tabellen zu FMVSS 208 / ECE R94). [Artikel](https://musculoskeletalkey.com/injury-criteria-and-motor-vehicle-regulations/)
 35. Lobdell TE, et al. Impact response of the human thorax. In: Human Impact Response. Plenum; 1973.
+
+36. Mitsuhashi N, Fujieda K, Tamura T, Kawamoto S, Takagi T, Okubo K. BodyParts3D: 3D structure database for anatomical concepts. *Nucleic Acids Res*. 2009;37(Database issue):D782-D785. [doi:10.1093/nar/gkn613](https://doi.org/10.1093/nar/gkn613) · Daten: [lifesciencedb.jp/bp3d](https://lifesciencedb.jp/bp3d/), CC BY-SA 2.1 Japan
 
 Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.

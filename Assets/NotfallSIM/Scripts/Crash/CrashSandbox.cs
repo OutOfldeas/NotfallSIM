@@ -218,12 +218,14 @@ namespace NotfallSIM.Crash
         void Colorize()
         {
             var byRegion = _result.Risks.GroupBy(r => r.Metric.region).ToDictionary(g => g.Key, g => g.Max(r => r.Probability));
+            // Haut ausblenden, Segmente nach Risiko eingefärbt zeigen
+            if (rig.Ragdoll.Skin) rig.Ragdoll.Skin.enabled = false;
             foreach (var s in rig.Ragdoll.Sensors)
             {
-                if (!byRegion.TryGetValue(s.Region, out double p)) continue;
+                double p = byRegion.TryGetValue(s.Region, out double q) ? q : 0;
                 var c = p < 0.5 ? Color.Lerp(new Color(0.3f, 0.75f, 0.4f), new Color(0.95f, 0.8f, 0.2f), (float)p * 2)
                                 : Color.Lerp(new Color(0.95f, 0.8f, 0.2f), new Color(0.85f, 0.15f, 0.15f), (float)(p - 0.5) * 2);
-                s.GetComponent<Renderer>().material.color = c;
+                rig.Ragdoll.ShowHeat(s.name, c);
             }
         }
 

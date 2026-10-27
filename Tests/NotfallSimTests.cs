@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Json;
 using System.Text;
+using NotfallSIM.Anatomy;
 using NotfallSIM.Core;
 using NotfallSIM.Crash;
 using NotfallSIM.Data;
@@ -61,6 +62,7 @@ static class Tests
         Run("Dynamische Befunde: Spätzeichen, Hypovolämie, nach Drainage und OP", DynamicFindings);
         Run("Dynamische Befunde: Bedingungen gültig, Tags erreichbar", DynamicFindingsValid);
         Run("Differenzialdiagnosen: eindeutige IDs, Argumente gültig, spezifisches Argument bevorzugt", Differentials);
+        Run("Anatomie: body.bin vollständig lesbar, Skelett plausibel", AnatomyFileReads);
         Run("Biomechanik: HIC und 3-ms-Clip an bekannten Pulsen", BiomechanicsMath);
         Run("Risikokurven: HIC 700/1000, log-logistisch bei x50", RiskCurves);
         Run("Crash: Risikodaten konsistent", RiskDataConsistent);
@@ -860,6 +862,39 @@ static class Tests
     // ------------------------------------------------------------ Unfall-Sandbox
 
     static InjuryRiskDatabaseFile Risk => Load<InjuryRiskDatabaseFile>("injury_risk.json");
+
+    static void AnatomyFileReads()
+    {
+        var bytes = File.ReadAllBytes(Path.Combine(DataRoot, "anatomy", "body.bin"));
+        var data = AnatomyFile.Read(bytes, json =>
+        {
+            var ser = new DataContractJsonSerializer(typeof(AnatomyHeader));
+            using (var st = new MemoryStream(Encoding.UTF8.GetBytes(json))) return (AnatomyHeader)ser.ReadObject(st);
+        });
+        Check(data.Meshes.Count > 300, $"{data.Meshes.Count} Meshes");
+        var skin = data.Meshes[0];
+        Check(skin.Info.layer == "skin" && skin.Bones != null && skin.BlendShapes.Count == 3, "Haut ohne Gewichte/Blendshapes");
+        Check(skin.Info.submeshes.Sum() == skin.Indices.Length, "Teilmeshes passen nicht");
+        foreach (var m in data.Meshes)
+        {
+            Check(m.Indices.All(i => i >= 0 && i < m.Info.vertexCount), m.Info.name + ": Index außerhalb");
+            Check(m.Info.segment < data.Header.segments.Length, m.Info.name + ": Segment");
+        }
+        Check(skin.Bones.All(b => b < data.Header.segments.Length), "Knochenindex außerhalb");
+        Check(data.Header.modelHeight > 1.5f && data.Header.modelHeight < 1.9f, $"Modellhöhe {data.Header.modelHeight}");
+        var names = new HashSet<string>(data.Header.segments.Select(x => x.name));
+        foreach (var r in new[] { "Becken", "Abdomen", "Thorax", "Kopf", "Oberschenkel rechts", "Unterschenkel links", "Oberarm rechts", "Unterarm links" })
+            Check(names.Contains(r), "Segment fehlt: " + r);
+        foreach (var sg in data.Header.segments)
+            Check(sg.parent == "" || names.Contains(sg.parent), sg.name + ": Elternsegment");
+        // Anatomie-Zuordnung der Verletzungen: jedes Muster trifft mindestens ein Mesh
+        var map = Load<AnatomyInjuryMapFile>("anatomy/anatomy.json");
+        foreach (var e in map.injuries)
+            foreach (var pat in e.meshes)
+                Check(data.Meshes.Any(m => System.Text.RegularExpressions.Regex.IsMatch(m.Info.name, pat)), $"{e.injuryId}: kein Mesh für '{pat}'");
+        var ids = new HashSet<string>(Injuries.injuries.Select(i => i.id));
+        foreach (var e in map.injuries) Check(ids.Contains(e.injuryId), "unbekannte Verletzung " + e.injuryId);
+    }
 
     static void BiomechanicsMath()
     {

@@ -12,6 +12,9 @@ using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
+using NotfallSIM.Anatomy;
 
 namespace NotfallSIM.EditorTools
 {
@@ -59,8 +62,8 @@ namespace NotfallSIM.EditorTools
             var recorder = simGo.AddComponent<SessionRecorder>();
             recorder.Configure(sim);
 
-            BuildRoom(sim);
-            BuildUi(sim, interventions, recorder);
+            var patient = BuildRoom(sim);
+            BuildUi(sim, interventions, recorder, patient);
 
             EnsureFolder(SceneFolder);
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -71,60 +74,66 @@ namespace NotfallSIM.EditorTools
 
         // ---------------------------------------------------------------- 3D
 
-        static void BuildRoom(SimulationManager sim)
+        static AnatomyPatient BuildRoom(SimulationManager sim)
         {
+            TraumaRoomBuilder.Build();
+
             var cam = Camera.main;
-            cam.transform.position = new Vector3(0f, 2.4f, -1.75f);
-            cam.transform.LookAt(new Vector3(0f, 0.9f, 0.05f));
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.12f, 0.14f, 0.16f);
-            cam.gameObject.AddComponent<PhysicsRaycaster>(); // nötig für Klicks auf 3D-Objekte
+            cam.fieldOfView = 50;
+            cam.nearClipPlane = 0.05f;
+            var raycaster = cam.gameObject.AddComponent<PhysicsRaycaster>(); // nötig für Klicks auf 3D-Objekte
+            raycaster.eventMask = ~(1 << 2); // Anatomie-Kollider (Ignore Raycast) stören die Untersuchung nicht
+            cam.gameObject.AddComponent<OrbitCamera>().Configure(new Vector3(0, 0.95f, 0.05f), 2.5f, 25f, 35f);
+            var camData = cam.GetUniversalAdditionalCameraData();
+            camData.renderPostProcessing = true;
+            camData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
 
-            var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            floor.name = "Boden";
-            floor.GetComponent<Renderer>().sharedMaterial = Mat("Boden", new Color(0.55f, 0.58f, 0.60f));
+            // Grundlicht: schwaches, schräges Licht für Schatten; Hauptlicht ist die OP-Leuchte
+            var sunGo = GameObject.Find("Directional Light");
+            if (sunGo != null)
+            {
+                var sun = sunGo.GetComponent<Light>();
+                sun.intensity = 0.35f;
+                sun.color = new Color(1f, 0.98f, 0.95f);
+                sun.shadows = LightShadows.Soft;
+                sunGo.transform.rotation = Quaternion.Euler(60, -30, 0);
+            }
+            PostProcessing();
 
-            var stretcher = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            stretcher.name = "Trage";
-            stretcher.transform.position = new Vector3(0f, 0.8f, -0.05f);
-            stretcher.transform.localScale = new Vector3(0.75f, 0.08f, 2.35f);
-            stretcher.GetComponent<Renderer>().sharedMaterial = Mat("Trage", new Color(0.35f, 0.37f, 0.40f));
-
-            var patient = new GameObject("Patient").transform;
-            Material skin = Mat("Haut", new Color(0.87f, 0.70f, 0.58f));
-            Material clothes = Mat("Kleidung", new Color(0.22f, 0.27f, 0.40f));
-
-            // Rückenlage, Kopf Richtung +z. Patientenseite rechts = -x.
-            // Regionsnamen müssen zu "region" in injuries.json passen.
-            Region(sim, patient, "Kopf", PrimitiveType.Sphere, new Vector3(0f, 0.97f, 0.82f), Vector3.zero, new Vector3(0.21f, 0.21f, 0.24f), skin);
-            Region(sim, patient, "Thorax", PrimitiveType.Cube, new Vector3(0f, 0.95f, 0.46f), Vector3.zero, new Vector3(0.44f, 0.20f, 0.42f), clothes);
-            Region(sim, patient, "Abdomen", PrimitiveType.Cube, new Vector3(0f, 0.94f, 0.13f), Vector3.zero, new Vector3(0.38f, 0.17f, 0.26f), clothes);
-            Region(sim, patient, "Becken", PrimitiveType.Cube, new Vector3(0f, 0.95f, -0.14f), Vector3.zero, new Vector3(0.40f, 0.19f, 0.28f), clothes);
-            var limb = new Vector3(90f, 0f, 0f);
-            Region(sim, patient, "Oberschenkel rechts", PrimitiveType.Capsule, new Vector3(-0.11f, 0.94f, -0.52f), limb, new Vector3(0.15f, 0.22f, 0.15f), clothes);
-            Region(sim, patient, "Oberschenkel links", PrimitiveType.Capsule, new Vector3(0.11f, 0.94f, -0.52f), limb, new Vector3(0.15f, 0.22f, 0.15f), clothes);
-            Region(sim, patient, "Unterschenkel rechts", PrimitiveType.Capsule, new Vector3(-0.11f, 0.92f, -0.95f), limb, new Vector3(0.12f, 0.21f, 0.12f), clothes);
-            Region(sim, patient, "Unterschenkel links", PrimitiveType.Capsule, new Vector3(0.11f, 0.92f, -0.95f), limb, new Vector3(0.12f, 0.21f, 0.12f), clothes);
-            Region(sim, patient, "Arm rechts", PrimitiveType.Capsule, new Vector3(-0.29f, 0.93f, 0.32f), limb, new Vector3(0.10f, 0.30f, 0.10f), skin);
-            Region(sim, patient, "Arm links", PrimitiveType.Capsule, new Vector3(0.29f, 0.93f, 0.32f), limb, new Vector3(0.10f, 0.30f, 0.10f), skin);
+            // Patient: anatomisches Modell, wird zur Laufzeit aus anatomy/body.bin aufgebaut
+            var patientGo = new GameObject("Patient");
+            var patient = patientGo.AddComponent<AnatomyPatient>();
+            return patient;
         }
 
-        static void Region(SimulationManager sim, Transform parent, string name, PrimitiveType type,
-                           Vector3 pos, Vector3 euler, Vector3 scale, Material mat)
+        /// <summary>Globales Volume: Tonemapping, leichtes Bloom (OP-Leuchte, Monitore), Vignette, Farbkorrektur.</summary>
+        internal static void PostProcessing()
         {
-            var go = GameObject.CreatePrimitive(type); // bringt passenden Collider mit
-            go.name = name;
-            go.transform.SetParent(parent, false);
-            go.transform.position = pos;
-            go.transform.eulerAngles = euler;
-            go.transform.localScale = scale;
-            go.GetComponent<Renderer>().sharedMaterial = mat;
-            go.AddComponent<BodyRegion>().Configure(sim, name);
+            const string path = "Assets/NotfallSIM/Materials/Schockraum_PostProcessing.asset";
+            var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);
+            if (profile == null)
+            {
+                EnsureFolder(MaterialFolder);
+                profile = ScriptableObject.CreateInstance<VolumeProfile>();
+                AssetDatabase.CreateAsset(profile, path);
+                var tone = profile.Add<Tonemapping>(true); tone.mode.Override(TonemappingMode.Neutral);
+                var bloom = profile.Add<Bloom>(true); bloom.intensity.Override(0.35f); bloom.threshold.Override(1.05f); bloom.scatter.Override(0.6f);
+                var vignette = profile.Add<Vignette>(true); vignette.intensity.Override(0.22f); vignette.smoothness.Override(0.45f);
+                var color = profile.Add<ColorAdjustments>(true); color.contrast.Override(8f); color.saturation.Override(-4f); color.postExposure.Override(0.15f);
+                foreach (var c in profile.components) AssetDatabase.AddObjectToAsset(c, profile);
+                EditorUtility.SetDirty(profile);
+                AssetDatabase.SaveAssets();
+            }
+            var vol = new GameObject("Post-Processing").AddComponent<Volume>();
+            vol.isGlobal = true;
+            vol.sharedProfile = profile;
         }
 
         // ---------------------------------------------------------------- UI
 
-        static void BuildUi(SimulationManager sim, InterventionController iv, SessionRecorder recorder)
+        static void BuildUi(SimulationManager sim, InterventionController iv, SessionRecorder recorder, AnatomyPatient patient)
         {
             var canvasGo = new GameObject("UI", typeof(RectTransform));
             var canvas = canvasGo.AddComponent<Canvas>();
@@ -146,13 +155,37 @@ namespace NotfallSIM.EditorTools
             Vertical(monitor.gameObject, 4, fit: true);
             Label("Titel", monitor.transform, "PATIENTENMONITOR", 18, Dim);
             var hr = VitalRow(monitor.transform, "HF", new Color(0.3f, 1f, 0.4f));
+            var ecgImg = Wave(monitor.transform, "EKG");
             var bp = VitalRow(monitor.transform, "RR", new Color(1f, 0.45f, 0.45f));
             var spo2 = VitalRow(monitor.transform, "SpO2", new Color(0.4f, 0.85f, 1f));
+            var plethImg = Wave(monitor.transform, "Pleth");
             var rr = VitalRow(monitor.transform, "AF", new Color(1f, 0.9f, 0.4f));
             var co2 = VitalRow(monitor.transform, "etCO2", new Color(1f, 0.9f, 0.4f));
+            var capnoImg = Wave(monitor.transform, "Kapnografie");
+            var waves = monitor.gameObject.AddComponent<MonitorWaveforms>();
+            waves.Configure(sim, ecgImg, plethImg, capnoImg);
+            WorldMonitor(sim, waves);
             var time = VitalRow(monitor.transform, "Zeit", Dim);
             var status = Label("Status", monitor.transform, "", 20, Dim);
             monitor.gameObject.AddComponent<VitalsMonitor>().Configure(sim, hr, bp, rr, spo2, co2, time, status);
+
+            // Röntgenblick oben links unter dem Hinweis
+            var xr = Panel("Röntgenblick", root, PanelColor);
+            Place(xr.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -100), new Vector2(440, 0));
+            Vertical(xr.gameObject, 6, fit: true);
+            var xrToggle = MakeButton(xr.transform, "Röntgenblick", new Color(0.18f, 0.36f, 0.55f), patient.ToggleXRay, 18);
+            var layers = ButtonGrid(xr.transform, "Ebenen");
+            var lg = layers.GetComponent<GridLayoutGroup>(); lg.cellSize = new Vector2(100, 38); lg.constraintCount = 4;
+            string[] layerIds = { "bone", "organ", "vessel", "nerve" }, layerNames = { "Knochen", "Organe", "Gefäße", "Nerven" };
+            for (int i = 0; i < layerIds.Length; i++)
+            {
+                var b = MakeButton(layers, layerNames[i], SpeedColor, null, 14);
+                UnityEventTools.AddStringPersistentListener(b.onClick, patient.ToggleLayer, layerIds[i]);
+            }
+            MakeButton(xr.transform, "Verletzungen zeigen (nach Ende)", SpeedColor, patient.ToggleInjuries, 15);
+            var hover = Label("Struktur", xr.transform, "", 18, new Color(1f, 0.9f, 0.5f));
+            hover.gameObject.AddComponent<LayoutElement>().preferredHeight = 26;
+            patient.Configure(sim, hover, xrToggle.GetComponentInChildren<TMP_Text>());
 
             // Debriefing-Panel (früh anlegen, der Beenden-Button braucht es)
             var debriefComp = canvasGo.AddComponent<DebriefPanel>();
@@ -261,6 +294,57 @@ namespace NotfallSIM.EditorTools
             var value = Label("Wert", row.transform, "--", 42, color, TextAlignmentOptions.Right);
             value.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1;
             return value;
+        }
+
+        static RawImage Wave(Transform parent, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var img = go.AddComponent<RawImage>();
+            img.color = Color.white;
+            img.raycastTarget = false;
+            go.AddComponent<LayoutElement>().preferredHeight = 52;
+            return img;
+        }
+
+        static TextMeshProUGUI Num(Transform parent, string name, Vector2 pos, Color c, float size)
+        {
+            var t = Label(name, parent, "--", size, c, TextAlignmentOptions.Right);
+            Place(t.rectTransform, new Vector2(0, 1), new Vector2(0, 1), pos, new Vector2(150, 70));
+            return t;
+        }
+
+        static RawImage Img(Transform parent, string name, float y)
+        {
+            var img = new GameObject(name, typeof(RectTransform)).AddComponent<RawImage>();
+            img.transform.SetParent(parent, false);
+            Place(img.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(10, y), new Vector2(380, 80));
+            return img;
+        }
+
+        /// <summary>Der Monitor an der Deckenversorgungseinheit zeigt dieselben Werte und Kurven (World-Space-Canvas).</summary>
+        static void WorldMonitor(SimulationManager sim, MonitorWaveforms waves)
+        {
+            var body = TraumaRoomBuilder.MonitorBody;
+            if (body == null) return;
+            var go = new GameObject("Monitor-Anzeige", typeof(RectTransform));
+            var canvas = go.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            var rt = (RectTransform)go.transform;
+            rt.sizeDelta = new Vector2(560, 380);
+            rt.localScale = Vector3.one * (0.5f / 560f);
+            rt.rotation = body.rotation;
+            rt.position = body.position - body.forward * 0.042f; // knapp vor der Bildschirmfläche (−z-Seite)
+            var bg = Panel("Hintergrund", go.transform, new Color(0.01f, 0.02f, 0.02f, 1f));
+            Stretch(bg.rectTransform, 0, 0, 0, 0);
+            var e = Img(go.transform, "EKG", -20); var p = Img(go.transform, "Pleth", -140); var c2 = Img(go.transform, "Kapno", -260);
+            var hr = Num(go.transform, "HF", new Vector2(400, -25), new Color(0.3f, 1f, 0.4f), 64);
+            var sp = Num(go.transform, "SpO2", new Vector2(400, -145), new Color(0.4f, 0.85f, 1f), 56);
+            var co = Num(go.transform, "etCO2", new Vector2(400, -265), new Color(1f, 0.9f, 0.4f), 44);
+            var bp = Label("RR", go.transform, "--", 30, new Color(1f, 0.45f, 0.45f), TextAlignmentOptions.Left);
+            Place(bp.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(12, 8), new Vector2(380, 40));
+            waves.SetMirror(e, p, c2);
+            go.AddComponent<VitalsMonitor>().Configure(sim, hr, bp, null, sp, co, null, null);
         }
 
         static void SpeedButton(Transform parent, SimulationManager sim, float scale)

@@ -109,21 +109,26 @@ namespace NotfallSIM.Crash
                 case "pkw_frontal":
                 case "pkw_seite":
                 {
-                    float seatTop = 0.30f * H;               // Sitzfläche über dem Fahrzeugboden
-                    float hipY = seatTop + 0.042f * H;       // Hüftgelenk über der Sitzfläche (Oberschenkelradius)
+                    var d = RagdollBuilder.Dims(H);
+                    float hipY = d.KneeToSole + 0.05f;       // Füße (Haut inkl. Ferse) knapp über dem Fahrzeugboden
+                    float seatTop = hipY - d.ThighRadius;    // Oberschenkel liegen auf der Sitzfläche
                     bool frontal = p.MechanismId == "pkw_frontal";
                     var car = Vehicle("Fahrzeug", Vector3.zero);
                     var t = car.transform;
                     Part(t, "Boden", new Vector3(0, -0.025f, 0.2f), new Vector3(1.5f, 0.05f, 2f), new Color(0.2f, 0.2f, 0.22f));
                     Part(t, "Sitzpolster", new Vector3(0, seatTop - 0.06f, -0.02f), new Vector3(0.52f, 0.12f, 0.52f), new Color(0.15f, 0.15f, 0.17f), counts: false);
                     Part(t, "Lehne", new Vector3(0, hipY + 0.3f, -0.08f * H - 0.06f), new Vector3(0.52f, 0.75f, 0.1f), new Color(0.15f, 0.15f, 0.17f), counts: false);
-                    Part(t, "Armaturenbrett", new Vector3(0, hipY + 0.08f, 0.245f * H + 0.2f), new Vector3(1.3f, 0.3f, 0.16f), new Color(0.25f, 0.25f, 0.28f));
-                    Part(t, "Lenkrad", new Vector3(0, hipY + 0.4f, 0.27f * H + 0.02f), new Vector3(0.38f, 0.38f, 0.05f), new Color(0.1f, 0.1f, 0.1f), tiltX: -20);
+                    Part(t, "Armaturenbrett", new Vector3(0, hipY + 0.08f, d.HipToKnee + 0.2f), new Vector3(1.3f, 0.3f, 0.16f), new Color(0.25f, 0.25f, 0.28f));
                     Part(t, "Windschutzscheibe", new Vector3(0, hipY + 0.82f, 0.62f), new Vector3(1.4f, 0.04f, 0.9f), Color.clear, visible: false, tiltX: -55);
                     Part(t, "Dach", new Vector3(0, hipY + 1.0f, -0.1f), new Vector3(1.4f, 0.05f, 1.4f), Color.clear, visible: false);
                     Part(t, "Fahrertür", new Vector3(-0.42f, hipY + 0.15f, 0.1f), new Vector3(0.06f, 0.9f, 1.3f), new Color(0.55f, 0.1f, 0.1f), visible: !frontal);
                     Part(t, "Mittelkonsole", new Vector3(0.38f, hipY - 0.05f, 0.2f), new Vector3(0.12f, 0.3f, 0.8f), new Color(0.2f, 0.2f, 0.22f), visible: false);
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, hipY, 0), Quaternion.identity, RagdollPose.Seated, H, p.Mass_kg, p.Male, invertKneeFlexion);
+                    // Lenkrad dort, wo die Hände sind
+                    Vector3 hr = Ragdoll.HandTipRight, hl = Ragdoll.HandTipLeft;
+                    var wheel = new Vector3(0, (hr.y + hl.y) / 2, Mathf.Max(hr.z, hl.z) - 0.02f);
+                    float wheelD = Mathf.Clamp(Mathf.Abs(hr.x - hl.x) - 0.08f, 0.32f, 0.42f);
+                    Part(t, "Lenkrad", wheel, new Vector3(wheelD, wheelD, 0.05f), new Color(0.1f, 0.1f, 0.1f), tiltX: -20);
                     if (p.Belted) Belt(car.GetComponent<Rigidbody>(), H);
 
                     var rbCar = car.GetComponent<Rigidbody>();
@@ -133,7 +138,7 @@ namespace NotfallSIM.Crash
                         // Halbsinus-Verzögerung, Δv = v, Dauer 100 ms (typischer Frontalcrashpuls)
                         const float T = 0.1f;
                         Ragdoll.SetVelocity(new Vector3(0, 0, v));
-                        Action<float> airbag = p.Airbag ? Airbag(car, new Vector3(0, hipY + 0.4f, 0.27f * H + 0.02f), t0 + 0.015f) : null;
+                        Action<float> airbag = p.Airbag ? Airbag(car, wheel, t0 + 0.015f) : null;
                         drive = time =>
                         {
                             float u = Mathf.Clamp01((time - t0) / T);
@@ -165,13 +170,15 @@ namespace NotfallSIM.Crash
                     var bike = Vehicle("Motorrad", Vector3.zero);
                     var t = bike.transform;
                     Part(t, "Rumpf", new Vector3(0, 0.45f, 0.1f), new Vector3(0.2f, 0.46f, 1.4f), new Color(0.1f, 0.25f, 0.55f));
-                    Part(t, "Sitzbank", new Vector3(0, seatY - 0.04f * H - 0.06f, -0.05f), new Vector3(0.24f, 0.08f, 0.5f), new Color(0.1f, 0.1f, 0.1f), counts: false);
-                    Part(t, "Lenker", new Vector3(0, seatY + 0.13f * H, 0.33f * H + 0.08f), new Vector3(0.75f, 0.04f, 0.04f), new Color(0.6f, 0.6f, 0.6f));
+                    var dm = RagdollBuilder.Dims(H);
+                    Part(t, "Sitzbank", new Vector3(0, seatY - dm.ThighRadius - 0.04f, -0.05f), new Vector3(0.24f, 0.08f, 0.5f), new Color(0.1f, 0.1f, 0.1f), counts: false);
                     // Hindernis: Seite eines querenden PKW
                     float gap = 0.4f;
                     var obstacle = Part(null, "Hindernis (PKW-Seite)", new Vector3(0, 0.6f, 0.8f + gap + 0.25f), new Vector3(3f, 1.2f, 0.5f), new Color(0.55f, 0.1f, 0.1f));
                     _spawned.Add(obstacle);
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, seatY, 0), Quaternion.identity, RagdollPose.Straddling, H, p.Mass_kg, p.Male, invertKneeFlexion, headScale: 1.25f);
+                    Vector3 mr = Ragdoll.HandTipRight, ml = Ragdoll.HandTipLeft;
+                    Part(t, "Lenker", new Vector3(0, (mr.y + ml.y) / 2 - 0.03f, Mathf.Max(mr.z, ml.z) + 0.03f), new Vector3(Mathf.Abs(mr.x - ml.x) + 0.15f, 0.04f, 0.04f), new Color(0.6f, 0.6f, 0.6f));
                     Ragdoll.SetVelocity(new Vector3(0, 0, v));
                     var rbBike = bike.GetComponent<Rigidbody>();
                     float tHit = gap / Mathf.Max(0.1f, v);
@@ -187,7 +194,8 @@ namespace NotfallSIM.Crash
 
                 case "fussgaenger":
                 {
-                    float hipY = 0.545f * H + 0.01f; // Füße knapp über dem Boden
+                    var dp = RagdollBuilder.Dims(H);
+                    float hipY = dp.KneeToSole + dp.HipToKnee + 0.01f; // Füße knapp über dem Boden
                     // Fahrzeug kommt von rechts (+x) und fährt nach −x
                     var car = Vehicle("Fahrzeug", new Vector3(0.13f * H + 0.12f, 0, 0));
                     var t = car.transform;
@@ -216,7 +224,8 @@ namespace NotfallSIM.Crash
                     Quaternion rot = orientation == 0 ? Quaternion.Euler(0, 0, 8)
                                    : orientation == 1 ? Quaternion.Euler(0, 0, 80)
                                    : Quaternion.Euler(-75, 0, 0);
-                    float lowest = orientation == 0 ? 0.56f * H : 0.15f * H; // Hüfthöhe über dem tiefsten Punkt
+                    var df = RagdollBuilder.Dims(H);
+                    float lowest = orientation == 0 ? df.KneeToSole + df.HipToKnee + 0.02f : 0.15f * H; // Hüfthöhe über dem tiefsten Punkt
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, lowest + 0.25f, 0), rot, RagdollPose.Standing, H, p.Mass_kg, p.Male, invertKneeFlexion);
                     Ragdoll.SetVelocity(new Vector3(0, -vImpact, 0));
                     return 1.5f;

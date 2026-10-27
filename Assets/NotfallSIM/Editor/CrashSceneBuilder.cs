@@ -5,6 +5,7 @@ using UnityEditor.Events;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using static NotfallSIM.EditorTools.SceneBuilder;
@@ -43,6 +44,10 @@ namespace NotfallSIM.EditorTools
             cam.transform.position = new Vector3(3.5f, 1.6f, 0.5f);
             cam.transform.LookAt(new Vector3(0, 0.8f, 0.3f));
             cam.nearClipPlane = 0.05f;
+            var camData = cam.GetUniversalAdditionalCameraData();
+            camData.renderPostProcessing = true;
+            camData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+            PostProcessing();
 
             var rigGo = new GameObject("Unfall");
             var rig = rigGo.AddComponent<CrashRig>();
