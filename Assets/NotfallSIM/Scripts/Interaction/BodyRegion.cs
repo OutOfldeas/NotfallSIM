@@ -1,40 +1,54 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using NotfallSIM.Simulation;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace NotfallSIM.Interaction
 {
     /// <summary>
     /// Auf ein Körperteil des Patientenmodells legen (braucht einen Collider).
-    /// Beim Anklicken werden die klinischen Befunde der aktiven Verletzungen in dieser Region
-    /// ausgegeben — Grundstein für den späteren Diagnose-Modus.
+    /// Ein Klick "untersucht" die Region: Die klinischen Befunde aller bereits aktiven
+    /// Verletzungen in dieser Region werden über <see cref="OnExamined"/> gemeldet.
     ///
-    /// Hinweis: OnMouseDown funktioniert nur mit dem alten Input Manager oder
-    /// "Active Input Handling = Both" (Project Settings > Player).
+    /// Klicks kommen über das EventSystem (Kamera braucht einen PhysicsRaycaster) und
+    /// funktionieren damit mit dem alten und dem neuen Input System.
     /// </summary>
     [RequireComponent(typeof(Collider))]
-    public class BodyRegion : MonoBehaviour
+    public class BodyRegion : MonoBehaviour, IPointerClickHandler
     {
         [SerializeField] SimulationManager sim;
         [Tooltip("Muss dem Feld 'region' in injuries.json entsprechen, z. B. 'Becken'.")]
         [SerializeField] string regionName = "Becken";
 
-        void OnMouseDown()
+        /// <summary>Region und gefundene Befunde (leere Liste = unauffällig).</summary>
+        public static event Action<string, IReadOnlyList<string>> OnExamined;
+
+        public string RegionName => regionName;
+
+        public void Configure(SimulationManager simulation, string region)
         {
-            if (sim.Scenario == null) return;
+            sim = simulation;
+            regionName = region;
+        }
+
+        public void OnPointerClick(PointerEventData eventData) => Examine();
+
+        public void Examine()
+        {
+            if (sim == null || sim.Scenario == null || sim.Ended) return;
             double t = sim.Vitals.SimTime_s;
 
-            var findings = sim.Scenario.injuries
+            List<string> findings = sim.Scenario.injuries
                 .Where(si => si.onsetTime_s <= t)
                 .Select(si => sim.Database.Get(si.injuryId))
                 .Where(def => def.region == regionName)
                 .SelectMany(def => def.clinicalFindings ?? new string[0])
                 .ToList();
 
-            Debug.Log(findings.Count == 0
-                ? $"[Untersuchung] {regionName}: unauffällig"
-                : $"[Untersuchung] {regionName}: " + string.Join("; ", findings));
-            // TODO: Befunde in einem UI-Panel statt im Log anzeigen.
+            sim.Note($"Untersuchung: {regionName}" + (findings.Count == 0 ? " (unauffällig)" : ""));
+            OnExamined?.Invoke(regionName, findings);
         }
     }
 }

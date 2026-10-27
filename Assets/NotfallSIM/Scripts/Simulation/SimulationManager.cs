@@ -33,6 +33,8 @@ namespace NotfallSIM.Simulation
 
         /// <summary>Für Logging/Debriefing: jede Verletzung und Intervention mit Zeitstempel.</summary>
         public event Action<double, string> OnLogEntry;
+        public event Action OnScenarioEnded;
+        public bool Ended { get; private set; }
 
         readonly List<ScenarioInjury> _pending = new List<ScenarioInjury>();
         double _accumulator;
@@ -67,7 +69,7 @@ namespace NotfallSIM.Simulation
 
         void Update()
         {
-            if (paused || Engine == null || Engine.Current.CardiacArrest) return;
+            if (paused || Ended || Engine == null || Engine.Current.CardiacArrest) return;
 
             _accumulator += Time.deltaTime * timeScale;
             int guard = 0;
@@ -94,13 +96,29 @@ namespace NotfallSIM.Simulation
 
         public void ApplyIntervention(InterventionEvent iv, string label)
         {
-            if (Engine == null || Engine.Current.CardiacArrest) return;
+            if (Engine == null || Ended || Engine.Current.CardiacArrest) return;
             Engine.ApplyIntervention(iv);
             Log($"Maßnahme: {label}");
         }
 
+        /// <summary>Freier Protokolleintrag, z. B. für Untersuchungen.</summary>
+        public void Note(string message) => Log(message);
+
+        /// <summary>Stoppt die Simulation endgültig und löst das Debriefing aus.</summary>
+        public void EndScenario()
+        {
+            if (Ended) return;
+            Ended = true;
+            Log("Szenario beendet");
+            OnScenarioEnded?.Invoke();
+        }
+
         public void SetPaused(bool value) => paused = value;
-        public void SetTimeScale(float value) => timeScale = Mathf.Max(0, value);
+        public void SetTimeScale(float value)
+        {
+            timeScale = Mathf.Max(0, value);
+            Log($"Zeitraffer {timeScale:0.#}x");
+        }
 
         void Log(string msg)
         {

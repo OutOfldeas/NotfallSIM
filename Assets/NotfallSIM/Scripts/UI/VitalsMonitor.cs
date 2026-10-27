@@ -20,6 +20,14 @@ namespace NotfallSIM.UI
         static readonly Color Normal = new Color(0.3f, 1f, 0.4f), Alarm = new Color(1f, 0.25f, 0.25f);
         float _timer;
 
+        public void Configure(SimulationManager simulation, TMP_Text hr, TMP_Text bp, TMP_Text rr,
+                              TMP_Text sat, TMP_Text co2, TMP_Text time, TMP_Text statusText)
+        {
+            sim = simulation;
+            heartRate = hr; bloodPressure = bp; respRate = rr;
+            spo2 = sat; etco2 = co2; simTime = time; status = statusText;
+        }
+
         void Update()
         {
             _timer += Time.deltaTime;

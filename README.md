@@ -31,12 +31,14 @@ Grundregeln:
 ```
 Assets/
   NotfallSIM/Scripts/
-    Core/          VitalSigns, Events, IPhysiologyEngine   (ohne Unity-Abhängigkeit)
+    Core/          VitalSigns, Events, IPhysiologyEngine, SessionLog   (ohne Unity-Abhängigkeit)
     Engines/       MockPhysiologyEngine, PulsePhysiologyAdapter
     Data/          JSON-Datenklassen, InjuryDatabase
-    Simulation/    SimulationManager, InterventionController
-    UI/            VitalsMonitor
+    Simulation/    SimulationManager, InterventionController, SessionRecorder
+    UI/            VitalsMonitor, FindingsPanel, DebriefPanel
     Interaction/   BodyRegion
+  NotfallSIM/Editor/
+    SceneBuilder.cs              Menü „NotfallSIM › Schockraum-Szene erstellen“
   StreamingAssets/NotfallSIM/
     injuries.json                Verletzungsdatenbank
     scenarios/*.json             Szenarien
@@ -44,16 +46,22 @@ Assets/
 
 ## Einrichtung
 
-1. **Unity Hub:** neues Projekt mit Unity 6 LTS (oder 2022.3 LTS), Vorlage „Universal 3D“, Name `NotfallSIM`.
-2. **Dateien kopieren:** Inhalt dieses Ordners ins Projektverzeichnis (der `Assets`-Ordner wird zusammengeführt).
-3. **TextMeshPro:** beim ersten Öffnen eines TMP-Elements „Import TMP Essentials“ bestätigen.
-4. **Szene aufbauen:**
-   - Leeres GameObject `Simulation` → `SimulationManager` (Engine = Mock).
-   - Canvas mit TMP-Textfeldern für HF, RR, AF, SpO₂, etCO₂, Zeit, Status → `VitalsMonitor`, Felder zuweisen.
-   - Buttons (Beckengurt, Kristalloid, EK, O₂) → `InterventionController`, OnClick verknüpfen.
-   - Patient: vorerst Kapsel oder einfaches Modell; Kinder-Objekte mit Collidern und `BodyRegion` (Regionen `Becken`, `Oberschenkel rechts`, `Thorax`).
-   - Für `BodyRegion`: *Project Settings › Player › Active Input Handling* auf **Both**.
-5. **Play.** Zum schnellen Durchlaufen `timeScale` im Inspector auf 10 stellen. Die Konsole protokolliert Verletzungen und Maßnahmen.
+1. **Unity Hub:** neues Projekt mit Unity 6 LTS, Vorlage „Universal 3D“, Name `NotfallSIM`. Unity einmal schließen.
+2. **Repository in den Projektordner holen** (Terminal im neuen Projektordner):
+   ```
+   git init -b main
+   git remote add origin https://github.com/OutOfldeas/NotfallSIM.git
+   git pull origin main
+   git add -A
+   git commit -m "Unity-Projekteinstellungen"
+   git push -u origin main
+   ```
+3. **Projekt öffnen**, dann *Window › TextMeshPro › Import TMP Essential Resources*.
+4. **Szene erzeugen:** Menü *NotfallSIM › Schockraum-Szene erstellen*. Das legt `Assets/NotfallSIM/Scenes/Schockraum.unity`
+   mit Kamera, Trage, Platzhalter-Patient, Monitor, Maßnahmen, Befund- und Debriefing-Panel an — fertig verdrahtet.
+5. **Play.** Körperregionen anklicken zum Untersuchen, Maßnahmen per Button, Zeitraffer 1x/5x/20x.
+   „Szenario beenden“ zeigt das Debriefing und speichert die Verläufe als CSV
+   (Ordner: `Application.persistentDataPath/Sessions`, wird im Debriefing angezeigt).
 
 ## Pulse anbinden
 

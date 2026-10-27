@@ -24,6 +24,8 @@ namespace NotfallSIM.Simulation
 
         bool _binderApplied;
 
+        public void Configure(SimulationManager simulation) => sim = simulation;
+
         public void ApplyPelvicBinder()
         {
             if (_binderApplied) return;
