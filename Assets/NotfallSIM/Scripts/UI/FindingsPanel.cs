@@ -1,20 +1,40 @@
 using System.Collections.Generic;
 using System.Text;
 using NotfallSIM.Interaction;
+using NotfallSIM.Simulation;
 using TMPro;
 using UnityEngine;
 
 namespace NotfallSIM.UI
 {
-    /// <summary>Zeigt die Befunde der zuletzt untersuchten Körperregion an.</summary>
+    /// <summary>Zeigt die Befunde der zuletzt untersuchten Körperregion und Laborergebnisse an.</summary>
     public class FindingsPanel : MonoBehaviour
     {
         [SerializeField] TMP_Text text;
+        [SerializeField] SimulationManager sim;
 
-        public void Configure(TMP_Text target) => text = target;
+        public void Configure(TMP_Text target, SimulationManager simulation)
+        {
+            text = target;
+            sim = simulation;
+        }
 
-        void OnEnable() => BodyRegion.OnExamined += Show;
-        void OnDisable() => BodyRegion.OnExamined -= Show;
+        void OnEnable()
+        {
+            BodyRegion.OnExamined += Show;
+            if (sim) sim.OnLogEntry += OnLog;
+        }
+
+        void OnDisable()
+        {
+            BodyRegion.OnExamined -= Show;
+            if (sim) sim.OnLogEntry -= OnLog;
+        }
+
+        void OnLog(double time, string message, string tag)
+        {
+            if (text && tag != null && tag.StartsWith("result:")) text.text = "<b>Labor</b>\n" + message;
+        }
 
         void Show(string region, IReadOnlyList<string> findings)
         {

@@ -1,6 +1,6 @@
 # Literaturnotizen
 
-Stand: 27.10.2026 · Datenbank-Version 0.4.0 · Maßnahmen v0.2.0
+Stand: 27.10.2026 · Datenbank-Version 0.4.0 · Maßnahmen v0.3.0
 
 Hier steht, worauf die Zahlen im Modell beruhen und wie belastbar sie sind.
 Jede Änderung an `injuries.json` oder an den Modelltabellen sollte hier nachvollziehbar sein.
@@ -10,7 +10,13 @@ Jede Änderung an `injuries.json` oder an den Modelltabellen sollte hier nachvol
 | Parameter | Wert im Modell | Belastbarkeit | Grundlage |
 |---|---|---|---|
 | Blutvolumen | 70 mL/kg (♂), 65 mL/kg (♀) | gut | Lehrbuchwert |
-| Vitalwerte je Schockklasse | ATLS-Tabelle, interpoliert | Lehrbuch; real oft anders | ATLS 10th ed.; Kritik s. u. |
+| Vitalwerte je Schockklasse (Lehrbuchmodus) | ATLS-Tabelle, interpoliert | Lehrbuch; real oft anders | ATLS 10th ed.; Kritik s. u. |
+| Vitalwerte je Schockklasse (Realitätsmodus) | HF 84–97, RRsys 135–92 | Mittelwerte belegt, Zuordnung genähert | Mutschler 2013 (TR-DGU) |
+| Individuelle Streuung (Realitätsmodus) | HF ±12, Reaktionsstärke ×0,5–1,5, RRsys ±10 | geschätzt | didaktisch |
+| Betablocker | HF-Anstieg ×0,25 | qualitativ gut, Faktor geschätzt | didaktisch |
+| Alter ≥ 65 (Realitätsmodus) | RRsys +15 mmHg (vorbestehende Hypertonie) | geschätzt | didaktisch |
+| Base Excess je Klasse | 0 / −2 / −6 / −10 / < −10 mmol/L | gut | ATLS 10th ed.; Mutschler 2013 |
+| Laktat | 1,0 → 9,0 mmol/L | geschätzt | didaktisch, an BE gekoppelt |
 | Femurschaft, Blutverlust | max. 1000 mL, 20 mL/min | mäßig | Lieurance 1992 (Sekundärquelle) |
 | Becken instabil, Blutverlust | max. 3000 mL, 150 mL/min | schwach (geschätzt) | Plausibilisiert über Transfusionsbedarf (Devaney 2023) |
 | Beckengurt-Effekt | Blutungsrate × 0,5 | schwach | Widersprüchliche Beobachtungsstudien |
@@ -32,6 +38,12 @@ Eine weitere Auswertung zur analogen präklinischen PHTLS-Einteilung (46.689 Pat
 
 Konsequenz für NotfallSIM: Der Mock zeigt bewusst das Lehrbuchbild, damit die Schockklassen erlernbar sind.
 Für mehr Realismus wäre ein zweiter Modus sinnvoll, der sich an den Registerdaten orientiert, plus der Base Excess als zusätzlicher Laborwert.
+
+**Realitätsmodus: so ist er gebaut.**
+Grundlage sind die mittleren Aufnahmewerte je Base-Deficit-Klasse aus dem TraumaRegister DGU (Mutschler et al. 2013): HF 86/90/96/97/min, RRsys 133/125/113/95 mmHg.
+Die BD-Klassen werden über die ATLS-10-Zuordnung des Base Excess (0 bis −2 / −2 bis −6 / −6 bis −10 / unter −10 mmol/L) näherungsweise auf die Blutverlustklassen abgebildet. Das ist eine Annäherung: Registerpatienten haben oft Begleitverletzungen, Schmerzen und präklinische Therapie.
+Dazu kommen individuelle Streuung sowie Alter und Betablocker. Bei 35 % Blutverlust zeigt der Lehrbuchmodus HF 128 und RR 100/72; im Realitätsmodus liegt die HF im Mittel bei 95 (Spanne 78–111) und der RRsys bei 112. Eine 76-jährige Patientin unter Betablocker hat bei gleichem Verlust HF 82 und RR 134/81 — ein „unauffälliger“ Monitor bei manifestem Schock.
+Der Base Excess verhält sich in beiden Modi gleich. Das ist die Kernbotschaft: Er deckt den Schock auf, wenn die Vitalwerte es nicht tun.
 
 **Beckengurt: plausibel, aber schwach belegt.**
 Eine BestBETs-Übersicht fand nur kleine Beobachtungsstudien.
@@ -107,6 +119,8 @@ Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist
 - [ ] Zeitziele und „kritisch“-Markierungen der Bewertung prüfen (Tabelle oben)
 - [ ] SHT-Empfehlungen (Intubation, Blutdruckziel, Osmotherapie) gegen S3-Leitlinie Version 5.0 prüfen
 - [ ] Realistische Zeit von Anordnung bis Kraniotomie (CT, Transport, OP-Beginn) recherchieren
+- [ ] Faktoren für Streuung, Betablocker und Alter im Realitätsmodus klinisch plausibilisieren
+- [ ] Laktatwerte je Schockklasse mit Literatur belegen
 
 ## Quellen
 

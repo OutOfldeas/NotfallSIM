@@ -10,6 +10,7 @@ namespace NotfallSIM.Core
         public int age = 35;
         public double weight_kg = 75;
         public double height_cm = 180;
+        public bool betaBlocker;    // Dauermedikation: dämpft die Tachykardie
 
         public bool IsMale => !string.Equals(sex, "female", StringComparison.OrdinalIgnoreCase);
 
@@ -51,7 +52,8 @@ namespace NotfallSIM.Core
         Medication,          // z. B. Tranexamsäure; im Mock ohne physiologischen Effekt
         Intubation,          // Atemweg gesichert, kontrollierte Beatmung
         Osmotherapy,         // hypertone Kochsalzlösung / Mannitol, überbrückend
-        NeurosurgicalDecompression // Kraniotomie; wirkt mit Verzögerung (CT, Transport, OP)
+        NeurosurgicalDecompression, // Kraniotomie; wirkt mit Verzögerung (CT, Transport, OP)
+        BloodGas             // BGA: Ergebnis nach Verzögerung, ohne physiologischen Effekt
     }
 
     public class InterventionEvent

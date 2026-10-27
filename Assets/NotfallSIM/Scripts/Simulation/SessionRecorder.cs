@@ -21,7 +21,11 @@ namespace NotfallSIM.Simulation
         public void Configure(SimulationManager simulation) => sim = simulation;
 
         // Awake läuft vor allen Start()-Aufrufen, so geht kein Ereignis verloren.
-        void Awake() => sim.OnLogEntry += Log.AddEvent;
+        void Awake()
+        {
+            sim.OnLogEntry += Log.AddEvent;
+            Log.Mode = sim.Mode;
+        }
         void OnDestroy() { if (sim) sim.OnLogEntry -= Log.AddEvent; }
 
         void Update()

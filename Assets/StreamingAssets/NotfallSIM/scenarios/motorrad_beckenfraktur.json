@@ -7,7 +7,8 @@
     "sex": "male",
     "age": 35,
     "weight_kg": 80,
-    "height_cm": 182
+    "height_cm": 182,
+    "betaBlocker": false
   },
   "injuries": [
     {
@@ -78,6 +79,18 @@
       "relativeTo": "",
       "critical": true,
       "rationale": "S3-Leitlinie (GoR A): bei instabilem Beckenring mit hämodynamischer Instabilität mechanische Notfallstabilisierung. Muss im Primary Survey und vor der CT erfolgen (Ganzkörper-CT laut TR-DGU 2016 im Mittel 22 min nach Aufnahme). 5 min = didaktische Konkretisierung."
+    },
+    {
+      "id": "bga",
+      "description": "BGA mit Base Excess abgenommen",
+      "type": "deadline",
+      "tags": [
+        "intervention:BloodGas"
+      ],
+      "limit": 600,
+      "relativeTo": "",
+      "critical": false,
+      "rationale": "Base Excess zeigt den Schock verlässlicher als HF und Blutdruck (Mutschler 2013, TR-DGU); ATLS 10th ed. führt ihn in der Schockklassen-Tabelle. Zeitziel didaktisch."
     },
     {
       "id": "blut",

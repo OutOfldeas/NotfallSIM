@@ -18,6 +18,10 @@ namespace NotfallSIM.Simulation
         [Header("Szenario")]
         [SerializeField] string scenarioId = "motorrad_beckenfraktur";
         [SerializeField] EngineChoice engine = EngineChoice.Mock;
+        [Tooltip("Lehrbuch: ATLS-Stufen. Realität: an Registerdaten angelehnt, mit individueller Streuung (nur Mock).")]
+        [SerializeField] PhysiologyMode mode = PhysiologyMode.Textbook;
+
+        public PhysiologyMode Mode => mode;
 
         [Header("Zeit")]
         [Tooltip("1 = Echtzeit. Höher = schneller (zum Testen von Verläufen).")]
@@ -40,7 +44,9 @@ namespace NotfallSIM.Simulation
         public bool Ended { get; private set; }
 
         readonly List<ScenarioInjury> _pending = new List<ScenarioInjury>();
-        readonly List<(double due, InterventionEvent iv, string label)> _delayed = new List<(double, InterventionEvent, string)>();
+        // result != null: reines Ergebnis (z. B. BGA), das zum Fälligkeitszeitpunkt nur protokolliert wird.
+        readonly List<(double due, InterventionEvent iv, string label, string result)> _delayed =
+            new List<(double, InterventionEvent, string, string)>();
         readonly StateWatcher _watcher = new StateWatcher();
         double _accumulator;
 
@@ -54,7 +60,7 @@ namespace NotfallSIM.Simulation
             if (!Engine.Initialize(Scenario.patient))
             {
                 Debug.LogError($"[Sim] {Engine.Name} konnte nicht initialisiert werden — falle auf Mock zurück.");
-                Engine = new MockPhysiologyEngine();
+                Engine = new MockPhysiologyEngine(null, mode);
                 Engine.Initialize(Scenario.patient);
             }
             _pending.AddRange(Scenario.injuries);
@@ -69,7 +75,7 @@ namespace NotfallSIM.Simulation
             if (engine == EngineChoice.Pulse)
                 Debug.LogWarning("[Sim] Pulse gewählt, aber NOTFALLSIM_PULSE nicht gesetzt — nutze Mock.");
 #endif
-            return new MockPhysiologyEngine();
+            return new MockPhysiologyEngine(null, mode);
         }
 
         void Update()
@@ -107,9 +113,18 @@ namespace NotfallSIM.Simulation
         {
             if (Engine == null || Ended || Engine.Current.CardiacArrest) return;
             string tag = $"intervention:{iv.Type}:{iv.TargetCompartment ?? iv.Compound ?? ""}";
+            if (iv.Type == InterventionType.BloodGas)
+            {
+                // Werte zum Abnahmezeitpunkt, Ergebnis nach der Laufzeit des Analysegeräts.
+                var v = Engine.Current;
+                string result = $"BGA-Ergebnis (abgenommen {Clock(v.SimTime_s)}): BE {v.BaseExcess:+0.0;-0.0} mmol/L, Laktat {v.Lactate:0.0} mmol/L";
+                _delayed.Add((v.SimTime_s + delay_s, iv, label, result.Replace('.', ',')));
+                Log($"Maßnahme: {label}", tag);
+                return;
+            }
             if (delay_s > 0)
             {
-                _delayed.Add((Engine.Current.SimTime_s + delay_s, iv, label));
+                _delayed.Add((Engine.Current.SimTime_s + delay_s, iv, label, null));
                 Log($"Angeordnet: {label} (wirksam in ca. {delay_s / 60:0} min)", tag);
                 return;
             }
@@ -123,8 +138,13 @@ namespace NotfallSIM.Simulation
             for (int i = _delayed.Count - 1; i >= 0; i--)
             {
                 if (_delayed[i].due > t) continue;
-                Engine.ApplyIntervention(_delayed[i].iv);
-                Log($"Wirksam: {_delayed[i].label}", "effect:" + _delayed[i].iv.Type);
+                if (_delayed[i].result != null)
+                    Log(_delayed[i].result, "result:" + _delayed[i].iv.Type);
+                else
+                {
+                    Engine.ApplyIntervention(_delayed[i].iv);
+                    Log($"Wirksam: {_delayed[i].label}", "effect:" + _delayed[i].iv.Type);
+                }
                 _delayed.RemoveAt(i);
             }
         }
@@ -147,6 +167,8 @@ namespace NotfallSIM.Simulation
             timeScale = Mathf.Max(0, value);
             Log($"Zeitraffer {timeScale:0.#}x");
         }
+
+        static string Clock(double s) { int t = (int)s; return $"{t / 60:00}:{t % 60:00}"; }
 
         void Log(string msg, string tag = null)
         {

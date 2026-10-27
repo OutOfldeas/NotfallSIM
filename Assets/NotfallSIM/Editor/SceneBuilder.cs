@@ -191,7 +191,7 @@ namespace NotfallSIM.EditorTools
             Place(findings.rectTransform, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-20, 20), new Vector2(560, 300));
             var findingsText = Label("Text", findings.transform, "Noch keine Untersuchung.", 22, Color.white, TextAlignmentOptions.TopLeft);
             Stretch(findingsText.rectTransform, 20, 20, 20, 20);
-            canvasGo.AddComponent<FindingsPanel>().Configure(findingsText);
+            canvasGo.AddComponent<FindingsPanel>().Configure(findingsText, sim);
 
             debrief.transform.SetAsLastSibling(); // liegt über allem
             debrief.gameObject.SetActive(false);

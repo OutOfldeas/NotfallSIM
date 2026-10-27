@@ -10,10 +10,9 @@ namespace NotfallSIM.Engines
     /// Blutverlust über Stützstellen interpoliert, die sich an den ATLS-Schockklassen
     /// orientieren (Klasse I &lt;15 %, II 15–30 %, III 30–40 %, IV &gt;40 %).
     ///
-    /// ACHTUNG Lehrbuch vs. Realität: Registerdaten (TraumaRegister DGU, Mutschler et al.
-    /// Crit Care 2013;17:R42) zeigen, dass echte Traumapatienten deutlich weniger Tachykardie
-    /// entwickeln als ATLS vorhersagt (mittlere HF nur ca. 86 -> 97/min über die Schockklassen).
-    /// Der Mock bildet bewusst das ATLS-Lehrbuchbild ab. Siehe docs/LITERATUR.md.
+    /// Zwei Modi (siehe <see cref="ShockTables"/>): Lehrbuch (ATLS-Stufen) und Register
+    /// (an TraumaRegister-DGU-Daten angelehnt: kaum Tachykardie, individuelle Streuung,
+    /// Alter und Betablocker wirken sich aus). Siehe docs/LITERATUR.md.
     ///
     /// GRENZEN (absichtlich): keine Gerinnung, keine Hämodilution, keine Azidose,
     /// keine Hypothermie, kristalloide Volumenwirkung nur als fester Anteil.
@@ -23,19 +22,12 @@ namespace NotfallSIM.Engines
     /// </summary>
     public class MockPhysiologyEngine : IPhysiologyEngine
     {
-        public string Name => "Mock (ATLS-Lehrmodell)";
+        public string Name => Mode == PhysiologyMode.Registry ? "Mock (Realitätsmodus)" : "Mock (Lehrbuchmodus)";
+        public PhysiologyMode Mode { get; }
         public VitalSigns Current { get; private set; }
 
-        // Stützstellen: relativer Blutverlust -> Vitalwert.
-        // QUELLE: ATLS Student Course Manual, 10th ed. (ACS 2018), Tabelle der Schockklassen.
-        // Konkrete Zwischenwerte sind eigene Interpolation (Status: Entwurf, zu validieren).
-        static readonly double[] LossPoints = { 0.00, 0.15, 0.30, 0.40, 0.50, 0.58 };
-        static readonly double[] HrTable    = { 75,   98,   118,  138,  150,  110 }; // präterminal Bradykardie
-        static readonly double[] SbpTable   = { 120,  120,  112,  88,   70,   50  };
-        static readonly double[] DbpTable   = { 78,   84,   82,   62,   45,   30  }; // Klasse II: kleine Amplitude
-        static readonly double[] RrTable    = { 14,   18,   26,   34,   40,   40  };
-        static readonly double[] EtCo2Table = { 38,   37,   33,   27,   20,   14  };
-        static readonly double[] SpO2Air    = { 97,   97,   96,   95,   92,   88  };
+        // Stützstellen und Werte je Modus: Core/ShockTables.cs
+        static readonly double[] LossPoints = ShockTables.LossPoints;
         const double ArrestThreshold = 0.60;
 
         // Anteil eines Infusionsvolumens, der (vereinfachend) intravasal wirksam bleibt.
@@ -101,13 +93,18 @@ namespace NotfallSIM.Engines
         readonly List<Infusion> _infusions = new List<Infusion>();
         readonly Random _rng;
         double _baselineVolume, _volume, _time, _baselineMap;
+        // Individuelle Reaktion (Realitätsmodus) und Patientenfaktoren
+        double _hrBaseOffset, _hrResponse = 1, _sbpOffset;
         bool _oxygen, _arrest, _intubated;
 
         /// <param name="seed">Fester Seed macht Zufallsereignisse (z. B. Versagen der Punktion) reproduzierbar.</param>
-        public MockPhysiologyEngine(int? seed = null)
+        public MockPhysiologyEngine(int? seed = null, PhysiologyMode mode = PhysiologyMode.Textbook)
         {
             _rng = seed.HasValue ? new Random(seed.Value) : new Random();
+            Mode = mode;
         }
+
+        double Uniform(double min, double max) => min + _rng.NextDouble() * (max - min);
 
         public bool Initialize(PatientProfile patient)
         {
@@ -118,8 +115,18 @@ namespace NotfallSIM.Engines
             _brain.Clear();
             _infusions.Clear();
             _oxygen = _arrest = _intubated = false;
-            _baselineMap = DbpTable[0] + (SbpTable[0] - DbpTable[0]) / 3.0;
+            // Lehrbuch: idealisierter Patient. Register: Ausgangswerte und Reaktionsstärke streuen.
+            _hrBaseOffset = 0; _hrResponse = 1; _sbpOffset = 0;
+            if (Mode == PhysiologyMode.Registry)
+            {
+                _hrBaseOffset = Uniform(-12, 12);
+                _hrResponse = Uniform(0.5, 1.5);
+                _sbpOffset = Uniform(-10, 10) + (patient.age >= 65 ? 15 : 0); // Ältere: oft vorbestehende Hypertonie
+            }
+            // Betablocker dämpfen die Tachykardie in beiden Modi (didaktischer Faktor).
+            if (patient.betaBlocker) _hrResponse *= 0.25;
             UpdateVitals();
+            _baselineMap = Current.MeanArterialPressure_mmHg;
             return true;
         }
 
@@ -254,7 +261,7 @@ namespace NotfallSIM.Engines
                 Current = new VitalSigns
                 {
                     SimTime_s = _time, BloodVolume_mL = _volume, BloodLossFraction = f,
-                    EtCO2_mmHg = 5, CardiacArrest = true, GCS = 3, Anisocoria = tbi >= TbiAnisocoriaLevel,
+                    EtCO2_mmHg = 5, CardiacArrest = true, GCS = 3, BaseExcess = -20, Lactate = 12, Anisocoria = tbi >= TbiAnisocoriaLevel,
                     Intubated = _intubated
                 };
                 return;
@@ -269,21 +276,25 @@ namespace NotfallSIM.Engines
             // Spannungspneu wirkt additiv auf das Blutungsbild: früh Hypoxie, Tachypnoe, Tachykardie;
             // erst ab höherer Spannung obstruktiver Blutdruckabfall.
             double sbpDrop = tp > TpHypotensionOnset ? (tp - TpHypotensionOnset) / (1 - TpHypotensionOnset) * TpMaxSbpDrop : 0;
-            double sbp = Interp(f, SbpTable) - sbpDrop + 50 * cushing;
-            double dbp = Interp(f, DbpTable) - sbpDrop * 0.6 + 25 * cushing;
-            double spo2 = Interp(f, SpO2Air) - TpMaxSpO2Drop * tp - AirwayMaxSpO2Drop * airway
+            double hr0 = ShockTables.Hr(Mode, 0);
+            double hr = hr0 + _hrBaseOffset + (ShockTables.Hr(Mode, f) - hr0) * _hrResponse;
+            double sbp = ShockTables.Sbp(Mode, f) + _sbpOffset - sbpDrop + 50 * cushing;
+            double dbp = ShockTables.Dbp(Mode, f) + _sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing;
+            double spo2 = Interp(f, ShockTables.SpO2Air) - TpMaxSpO2Drop * tp - AirwayMaxSpO2Drop * airway
                           + (_oxygen ? 3 : 0) + (_intubated ? 3 : 0);
             spo2 = Math.Max(50, Math.Min(100, spo2));
             Current = new VitalSigns
             {
                 SimTime_s = _time,
-                HeartRate_bpm = Interp(f, HrTable) + TpMaxHrAdd * tp - 35 * cushing,
+                HeartRate_bpm = hr + TpMaxHrAdd * tp - 35 * cushing,
                 SystolicBP_mmHg = sbp,
                 DiastolicBP_mmHg = dbp,
                 MeanArterialPressure_mmHg = dbp + (sbp - dbp) / 3.0,
-                RespirationRate_bpm = _intubated ? 14 : Interp(f, RrTable) + TpMaxRrAdd * tp - 6 * airway - 6 * cushing,
+                RespirationRate_bpm = _intubated ? 14 : ShockTables.Rr(Mode, f) + TpMaxRrAdd * tp - 6 * airway - 6 * cushing,
                 SpO2_percent = spo2,
-                EtCO2_mmHg = Interp(f, EtCo2Table) - TpMaxEtCo2Drop * tp + AirwayMaxEtCo2Rise * airway,
+                EtCO2_mmHg = Interp(f, ShockTables.EtCo2) - TpMaxEtCo2Drop * tp + AirwayMaxEtCo2Rise * airway,
+                BaseExcess = Interp(f, ShockTables.BaseExcess),
+                Lactate = Interp(f, ShockTables.Lactate),
                 GCS = Math.Round(gcs),
                 Anisocoria = tbi >= TbiAnisocoriaLevel,
                 Intubated = _intubated,
@@ -292,20 +303,7 @@ namespace NotfallSIM.Engines
             };
         }
 
-        static double Interp(double x, double[] table) => Interp(x, LossPoints, table);
-
-        static double Interp(double x, double[] points, double[] table)
-        {
-            if (x <= points[0]) return table[0];
-            for (int i = 1; i < points.Length; i++)
-            {
-                if (x <= points[i])
-                {
-                    double t = (x - points[i - 1]) / (points[i] - points[i - 1]);
-                    return table[i - 1] + t * (table[i] - table[i - 1]);
-                }
-            }
-            return table[table.Length - 1];
-        }
+        static double Interp(double x, double[] table) => ShockTables.Interp(x, table);
+        static double Interp(double x, double[] points, double[] table) => ShockTables.Interp(x, points, table);
     }
 }

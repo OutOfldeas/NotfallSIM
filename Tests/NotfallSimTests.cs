@@ -36,6 +36,11 @@ static class Tests
         Run("Mock: Beatmung verschärft unentlasteten Spannungspneu", VentilationWorsensTension);
         Run("Zustandsereignisse: Episoden mit Hysterese, Schwellen einmalig", StateWatcherLogic);
         Run("Maßnahmen: Verzögerung nur bei Kraniotomie, nicht negativ", InterventionDelays);
+        Run("Realitätsmodus: deutlich weniger Tachykardie als Lehrbuch", RegistryLessTachycardia);
+        Run("Base Excess: Grenzen der ATLS-Klassen", BaseExcessClasses);
+        Run("Realitätsmodus: Streuung zwischen Patienten, Lehrbuch identisch", RegistryVariability);
+        Run("Betablocker: Tachykardie stark gedämpft", BetaBlockerDampens);
+        Run("Debriefing: Modusvergleich ab Klasse II", DebriefComparison);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -342,6 +347,73 @@ static class Tests
             Check(iv.effectDelay_s >= 0, $"{iv.id}: negative Verzögerung");
             if (iv.type == "NeurosurgicalDecompression") Check(iv.effectDelay_s > 0, "Kraniotomie ohne Verzögerung");
         }
+    }
+
+    // ------------------------------------------------------------ Realitätsmodus
+
+    static MockPhysiologyEngine Bleeding(PhysiologyMode mode, int seed, bool betaBlocker = false)
+    {
+        var e = new MockPhysiologyEngine(seed, mode);
+        e.Initialize(new PatientProfile { weight_kg = 80, age = 40, betaBlocker = betaBlocker });
+        e.ApplyInjury(Bleed("Pelvis", 1.0, 150, 0));
+        return e;
+    }
+
+    static VitalSigns AtLoss(MockPhysiologyEngine e, double loss)
+    {
+        while (e.Current.BloodLossFraction < loss && !e.Current.CardiacArrest) e.Advance(0.5);
+        return e.Current;
+    }
+
+    static void RegistryLessTachycardia()
+    {
+        var tb = AtLoss(Bleeding(PhysiologyMode.Textbook, 1), 0.35);
+        double mean = Enumerable.Range(0, 50).Select(s => AtLoss(Bleeding(PhysiologyMode.Registry, s), 0.35).HeartRate_bpm).Average();
+        Check(tb.HeartRate_bpm - mean > 25, $"Lehrbuch HF {tb.HeartRate_bpm:F0}, Register Ø {mean:F0}");
+        Check(mean < 100, $"Register Ø HF {mean:F0} bei 35 % Verlust");
+    }
+
+    static void BaseExcessClasses()
+    {
+        Func<double, double> be = f => ShockTables.Interp(f, ShockTables.BaseExcess);
+        Check(be(0.10) > -2, "Klasse I");
+        Check(be(0.20) <= -2 && be(0.20) > -6, "Klasse II");
+        Check(be(0.35) <= -6 && be(0.35) > -10, "Klasse III");
+        Check(be(0.45) <= -10, "Klasse IV");
+        var v = AtLoss(Bleeding(PhysiologyMode.Textbook, 1), 0.35);
+        Check(v.BaseExcess <= -6 && v.Lactate > 2, $"Engine: BE {v.BaseExcess:F1}, Laktat {v.Lactate:F1}");
+    }
+
+    static void RegistryVariability()
+    {
+        var reg = Enumerable.Range(0, 20).Select(s => Bleeding(PhysiologyMode.Registry, s).Current.HeartRate_bpm).Distinct().Count();
+        var tb = Enumerable.Range(0, 20).Select(s => Bleeding(PhysiologyMode.Textbook, s).Current.HeartRate_bpm).Distinct().Count();
+        Check(reg > 10, $"Register: nur {reg} verschiedene Ausgangs-HF");
+        Check(tb == 1, $"Lehrbuch: {tb} verschiedene Ausgangs-HF");
+        var a = Bleeding(PhysiologyMode.Registry, 7).Current.HeartRate_bpm;
+        var b = Bleeding(PhysiologyMode.Registry, 7).Current.HeartRate_bpm;
+        Check(a == b, "gleicher Seed, unterschiedliche Werte");
+    }
+
+    static void BetaBlockerDampens()
+    {
+        var normal = Bleeding(PhysiologyMode.Textbook, 1);
+        double hr0 = normal.Current.HeartRate_bpm, rise = AtLoss(normal, 0.30).HeartRate_bpm - hr0;
+        var bb = Bleeding(PhysiologyMode.Textbook, 1, betaBlocker: true);
+        double hrB0 = bb.Current.HeartRate_bpm, riseB = AtLoss(bb, 0.30).HeartRate_bpm - hrB0;
+        Check(riseB < rise * 0.3, $"Anstieg ohne {rise:F0}, mit Betablocker {riseB:F0}");
+        Check(bb.Current.BaseExcess <= -5, "BE trotz Betablocker nicht pathologisch");
+    }
+
+    static void DebriefComparison()
+    {
+        var log = new SessionLog { Mode = PhysiologyMode.Registry };
+        log.AddSample(new VitalSigns { SimTime_s = 600, BloodLossFraction = 0.35, HeartRate_bpm = 95, SystolicBP_mmHg = 112, GCS = 15 });
+        string text = log.BuildDebrief("Test");
+        Check(text.Contains("Lehrbuch vs. Realität") && text.Contains("Modus: Realität"), "Vergleich fehlt");
+        var small = new SessionLog();
+        small.AddSample(new VitalSigns { SimTime_s = 60, BloodLossFraction = 0.05, GCS = 15 });
+        Check(!small.BuildDebrief("Test").Contains("Lehrbuch vs. Realität"), "Vergleich trotz Klasse I");
     }
 
     // ------------------------------------------------------------ Helfer

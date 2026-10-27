@@ -21,6 +21,7 @@ namespace NotfallSIM.Core
     {
         public readonly List<VitalSigns> Samples = new List<VitalSigns>();
         public readonly List<LogEntry> Events = new List<LogEntry>();
+        public PhysiologyMode Mode = PhysiologyMode.Textbook;
 
         static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
@@ -32,15 +33,15 @@ namespace NotfallSIM.Core
         public string ToVitalsCsv()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("Zeit_s;HF;RRsys;RRdia;MAD;AF;SpO2;etCO2;Blutvolumen_mL;Blutverlust_Prozent;Stillstand");
+            sb.AppendLine("Zeit_s;HF;RRsys;RRdia;MAD;AF;SpO2;etCO2;Blutvolumen_mL;Blutverlust_Prozent;GCS;BE;Laktat;Stillstand");
             foreach (var v in Samples)
             {
                 sb.AppendLine(string.Join(";", new[]
                 {
                     F(v.SimTime_s), F(v.HeartRate_bpm), F(v.SystolicBP_mmHg), F(v.DiastolicBP_mmHg),
                     F(v.MeanArterialPressure_mmHg), F(v.RespirationRate_bpm), F(v.SpO2_percent),
-                    F(v.EtCO2_mmHg), F(v.BloodVolume_mL), F(v.BloodLossFraction * 100),
-                    v.CardiacArrest ? "1" : "0"
+                    F(v.EtCO2_mmHg), F(v.BloodVolume_mL), F(v.BloodLossFraction * 100), F(v.GCS),
+                    D1(v.BaseExcess), D1(v.Lactate), v.CardiacArrest ? "1" : "0"
                 }));
             }
             return sb.ToString();
@@ -60,6 +61,7 @@ namespace NotfallSIM.Core
         {
             var sb = new StringBuilder();
             sb.AppendLine($"<b>Debriefing: {scenarioTitle}</b>");
+            sb.AppendLine(Mode == PhysiologyMode.Registry ? "Modus: Realität (Registerdaten)" : "Modus: Lehrbuch (ATLS)");
             if (Samples.Count == 0)
             {
                 sb.AppendLine("Keine Daten aufgezeichnet.");
@@ -78,6 +80,16 @@ namespace NotfallSIM.Core
             if (alive.Count > 0)
                 sb.AppendLine($"Max. HF: {F(alive.Max(s => s.HeartRate_bpm))} · Min. RRsys: {F(alive.Min(s => s.SystolicBP_mmHg))} mmHg" +
                               $" · Min. SpO2: {F(alive.Min(s => s.SpO2_percent))} %");
+
+            // Modusvergleich: wie hätte derselbe Blutverlust im jeweils anderen Modell ausgesehen?
+            if (maxLoss >= 0.15)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"<b>Lehrbuch vs. Realität bei {F(maxLoss * 100)} % Blutverlust</b>");
+                sb.AppendLine($"Lehrbuch: HF {F(ShockTables.Hr(PhysiologyMode.Textbook, maxLoss))}, RRsys {F(ShockTables.Sbp(PhysiologyMode.Textbook, maxLoss))} mmHg");
+                sb.AppendLine($"Registerdaten: HF {F(ShockTables.Hr(PhysiologyMode.Registry, maxLoss))}, RRsys {F(ShockTables.Sbp(PhysiologyMode.Registry, maxLoss))} mmHg");
+                sb.AppendLine($"Base Excess in beiden: {D1(ShockTables.Interp(maxLoss, ShockTables.BaseExcess))} mmol/L — der BE zeigt den Schock oft verlässlicher als HF und Blutdruck.");
+            }
 
             var results = Assessment.Evaluate(criteria, Events).Where(r => r.Outcome != CriterionOutcome.NotApplicable).ToList();
             if (results.Count > 0)
@@ -121,6 +133,7 @@ namespace NotfallSIM.Core
             lossFraction < 0.15 ? "I" : lossFraction < 0.30 ? "II" : lossFraction < 0.40 ? "III" : "IV";
 
         static string F(double x) => Math.Round(x).ToString("0", Inv);
+        static string D1(double x) => x.ToString("0.0", Inv).Replace('.', ',');
         static string Clock(double s) { int t = (int)s; return $"{t / 60:00}:{t % 60:00}"; }
     }
 }

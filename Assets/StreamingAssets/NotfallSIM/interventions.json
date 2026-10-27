@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "interventions": [
     {
       "id": "o2",
@@ -206,6 +206,29 @@
       "sources": [],
       "evidenceStatus": "draft",
       "reviewNotes": "Wirkt nach 10 min (CT, Transport, OP-Beginn) — didaktische Setzung; reale Intervalle aus TR-DGU bzw. Neurochirurgie prüfen. Danach stoppt die Raumforderung bei höchstens 40 %."
+    },
+    {
+      "id": "bga",
+      "label": "BGA abnehmen",
+      "logLabel": "Arterielle BGA abgenommen",
+      "type": "BloodGas",
+      "target": "",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": false,
+      "effectDelay_s": 120,
+      "sources": [
+        {
+          "citation": "Mutschler M, et al. Renaissance of base deficit for the initial assessment of trauma patients. Crit Care. 2013;17:R42.",
+          "url": "https://doi.org/10.1186/cc12555",
+          "note": "Base Deficit stratifiziert Transfusionsbedarf und Letalität besser als die ATLS-Klassifikation aus Vitalparametern"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Ergebnis nach 2 min mit den Werten zum Abnahmezeitpunkt. Laktat-Werte im Mock sind didaktische Setzungen."
     }
   ]
 }
