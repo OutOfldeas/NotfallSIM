@@ -98,6 +98,10 @@ den Schockraum (Schockraum-Szene muss erzeugt sein).
 - Ragdoll aus Grundkörpern, Segmentmassen nach de Leva (1996) — `Scripts/Crash/RagdollBuilder.cs`
 - Szenen und Crashpulse — `CrashRig.cs`; Sensoren — `CrashSensor.cs`
 - Kriterien und Risikokurven ohne Unity, getestet — `Biomechanics.cs`, `InjuryRisk.cs`, `injury_risk.json`
+- Messung wie beim Dummy: 10 kHz, SAE-J211-Filter, Brustkorbdeflexion über ein federndes Sternum,
+  Viscous Criterion, Nij aus dem Halsgelenk, axiale Femurkraft; Fahrerairbag zuschaltbar
+- „Kalibrieren“ stellt die Referenztests aus `calibration.json` nach und speichert Korrekturfaktoren
+  (danach `calibration.json` committen)
 - **Noch nie in Unity gelaufen.** Erste Prüfpunkte: Knie knicken richtig herum (sonst *Invert Knee Flexion*
   am Objekt `Unfall`), keine Teile „explodieren“ beim Start, Werte in plausibler Größenordnung
   (PKW frontal 50 km/h mit Gurt: HIC eher unter 500, Brust 30–50 g).

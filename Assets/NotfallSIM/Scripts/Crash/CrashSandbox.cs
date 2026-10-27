@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -69,12 +71,69 @@ namespace NotfallSIM.Crash
 
         public void ToggleBelt() { if (rig.Running) return; _p.Belted = !_p.Belted; Preview(); }
 
+        public void ToggleAirbag() { if (rig.Running) return; _p.Airbag = !_p.Airbag; Preview(); }
+
+        /// <summary>
+        /// Stellt jeden Referenztest aus calibration.json dreimal nach, berechnet Faktoren (Referenz / Simulation,
+        /// gemittelt über die Referenzen) und speichert sie. Nur im Editor sinnvoll (StreamingAssets ist dort beschreibbar).
+        /// </summary>
+        public void Calibrate()
+        {
+            if (rig.Running) return;
+            StartCoroutine(CalibrateRoutine());
+        }
+
+        IEnumerator CalibrateRoutine()
+        {
+            var cal = LoadCalibration();
+            if (cal == null || cal.references == null || cal.references.Length == 0) { resultText.text = "Keine Referenztests in calibration.json."; yield break; }
+            var perMetric = new Dictionary<string, List<double>>();
+            var log = new StringBuilder("<b>Kalibrierung</b>\n");
+            foreach (var reference in cal.references)
+            {
+                var runs = new List<IList<CrashMeasurement>>();
+                for (int i = 0; i < 3; i++)
+                {
+                    resultText.text = log + $"Referenz {reference.id}: Lauf {i + 1}/3 …";
+                    var rp = new CrashParams
+                    {
+                        MechanismId = reference.mechanismId, Speed_kmh = (float)reference.speed_kmh, Belted = reference.belted, Airbag = reference.airbag,
+                        Height_m = (float)reference.height_m, Mass_kg = (float)reference.mass_kg, Male = true, Seed = 1000 + i
+                    };
+                    yield return rig.Run(rp, 1f, m => runs.Add(m));
+                }
+                foreach (var f in InjuryRisk.ComputeFactors(cal, reference, runs))
+                {
+                    if (!perMetric.ContainsKey(f.metric)) perMetric[f.metric] = new List<double>();
+                    perMetric[f.metric].Add(f.factor);
+                    log.AppendLine($"{f.metric}: Sandbox {f.simulated:0.##} · Referenz {f.reference:0.##} → Faktor {f.factor:0.##}");
+                }
+            }
+            cal.factors = perMetric.Select(kv => new CalibrationFactor { metric = kv.Key, factor = Math.Round(kv.Value.Average(), 3) }).ToArray();
+            cal.calibratedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+            try
+            {
+                File.WriteAllText(Path.Combine(InjuryDatabase.Root, "calibration.json"), JsonUtility.ToJson(cal, true));
+                log.AppendLine("\nGespeichert in StreamingAssets/NotfallSIM/calibration.json — bitte committen.");
+            }
+            catch (Exception e) { log.AppendLine("\nSpeichern fehlgeschlagen: " + e.Message); }
+            log.AppendLine("<size=80%>Faktoren gleichen nur systematische Abweichungen aus. Große Faktoren (&gt; 2 oder &lt; 0,5) heißen: das Modell selbst verbessern.</size>");
+            resultText.text = log.ToString();
+            Preview();
+        }
+
+        static CalibrationFile LoadCalibration()
+        {
+            string path = Path.Combine(InjuryDatabase.Root, "calibration.json");
+            return File.Exists(path) ? JsonUtility.FromJson<CalibrationFile>(File.ReadAllText(path)) : null;
+        }
+
         public void SetSlowMotion(float factor) { _slowMo = factor; ShowSettings(); }
 
         public void StartCrash()
         {
             if (rig.Running) return;
-            _p.Seed = Random.Range(1, 100000);
+            _p.Seed = UnityEngine.Random.Range(1, 100000);
             _result = null;
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
             resultText.text = "Crash läuft …";
@@ -103,11 +162,15 @@ namespace NotfallSIM.Crash
             bool car = _p.MechanismId.StartsWith("pkw");
             settingsText.text = $"<b>{m.label}</b>\n{(_p.MechanismId == "sturz_hoehe" ? "Höhe" : "Geschwindigkeit")}: {_p.Speed_kmh:0} {m.unit}" +
                                 (car ? $"\nGurt: {(_p.Belted ? "angelegt" : "nicht angelegt")}" : "") +
+                                (_p.MechanismId == "pkw_frontal" ? $"\nAirbag: {(_p.Airbag ? "ja" : "nein")}" : "") +
                                 $"\nZeitlupe: {(_slowMo >= 1 ? "aus" : $"×{_slowMo:0.##}")}";
         }
 
-        void OnMeasured(List<CrashMeasurement> measurements)
+        void OnMeasured(List<CrashMeasurement> raw)
         {
+            var cal = LoadCalibration();
+            bool calibrated = cal != null && !string.IsNullOrEmpty(cal.calibratedAt) && cal.factors != null && cal.factors.Length > 0;
+            var measurements = InjuryRisk.Calibrate(raw, calibrated ? cal : null);
             string root = InjuryDatabase.Root;
             var risk = JsonUtility.FromJson<InjuryRiskDatabaseFile>(File.ReadAllText(Path.Combine(root, "injury_risk.json")));
             var mech = InjuryDatabase.LoadMechanisms();
@@ -123,7 +186,7 @@ namespace NotfallSIM.Crash
             Colorize();
 
             var sb = new StringBuilder();
-            sb.AppendLine("<b>Messwerte und Verletzungsrisiko</b>");
+            sb.AppendLine("<b>Messwerte und Verletzungsrisiko</b>" + (calibrated ? $" <size=80%>(kalibriert {cal.calibratedAt})</size>" : " <size=80%>(unkalibriert)</size>"));
             foreach (var r in _result.Risks)
             {
                 string limit = r.Metric.limit > 0 ? $" <size=80%>(Grenzwert {r.Metric.limit:0.#}{Unit(r.Metric)}, {r.Metric.limitSource})</size>" : "";

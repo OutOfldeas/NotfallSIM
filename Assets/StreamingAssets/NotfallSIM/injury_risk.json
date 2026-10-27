@@ -1,6 +1,6 @@
 {
-  "version": "0.1.0",
-  "note": "Messwerte aus der Unfall-Sandbox → Risiko je AIS-Stufe → Verletzungen der Datenbank. Anteile (share) und Schweregrade sind didaktische Setzungen. Abdomen.lateral: −1 Anprall von links, +1 von rechts (Milz links, Leber rechts).",
+  "version": "0.2.0",
+  "note": "Messwerte aus der Unfall-Sandbox → Risiko je AIS-Stufe → Verletzungen der Datenbank. Anteile (share) und Schweregrade sind didaktische Setzungen. Abdomen.lateral: −1 Anprall von links, +1 von rechts (Milz links, Leber rechts). Thorax: Deflexion und Viscous Criterion aus einem Sternum-Feder-Dämpfer-Modell; Brustbeschleunigung an der Wirbelsäule. Hals (Nij) wird angezeigt, aber noch keiner Verletzung zugeordnet.",
   "metrics": [
     {
       "id": "HIC15",
@@ -35,7 +35,92 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Veröffentlichte Risikokurve (Normalverteilung von ln HIC). Kopfbeschleunigung am Ragdoll mit 2 ms gleitendem Mittel geglättet."
+      "reviewNotes": "Veröffentlichte Risikokurve (Normalverteilung von ln HIC). Kopfbeschleunigung mit CFC 1000 gefiltert (SAE J211)."
+    },
+    {
+      "id": "Nij",
+      "label": "Neck Injury Criterion",
+      "unit": "",
+      "region": "Hals",
+      "ais": "AIS3+",
+      "limit": 1.0,
+      "limitSource": "FMVSS 208",
+      "curve": {
+        "type": "loglogistic",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 1.6,
+        "shape": 2.7
+      },
+      "sources": [
+        {
+          "citation": "NHTSA. Federal Motor Vehicle Safety Standards; Occupant Crash Protection (FMVSS No. 208), Final Rule. 65 FR 30680, 12.05.2000.",
+          "url": "",
+          "note": "Grenzwerte Hybrid III 50 %: Brustdeflexion 63 mm, Nij 1,0 (Intercepts 6806 N / 6160 N / 310 Nm / 135 Nm), Femur 10 kN"
+        },
+        {
+          "citation": "Injury Criteria and Motor Vehicle Regulations (Lehrbuchkapitel, Zusammenstellung FMVSS 208 / ECE R94).",
+          "url": "https://musculoskeletalkey.com/injury-criteria-and-motor-vehicle-regulations/",
+          "note": "Tabellen 27.1/27.2: Grenzwerte und Nij-Intercepts"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Aus Kraft und Moment im Kopf-Rumpf-Gelenk (CFC 1000 bzw. 600). Kurve didaktisch, Ankerpunkt etwa 22 % bei Nij 1,0 — NHTSA-Original prüfen. Noch keine Halsverletzung in der Datenbank, daher nur Anzeige."
+    },
+    {
+      "id": "Thorax.D",
+      "label": "Brustkorbdeflexion",
+      "unit": "mm",
+      "region": "Thorax",
+      "ais": "AIS3+",
+      "limit": 63,
+      "limitSource": "FMVSS 208",
+      "curve": {
+        "type": "loglogistic",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 55,
+        "shape": 5.5
+      },
+      "sources": [
+        {
+          "citation": "NHTSA. Federal Motor Vehicle Safety Standards; Occupant Crash Protection (FMVSS No. 208), Final Rule. 65 FR 30680, 12.05.2000.",
+          "url": "",
+          "note": "Grenzwerte Hybrid III 50 %: Brustdeflexion 63 mm, Nij 1,0 (Intercepts 6806 N / 6160 N / 310 Nm / 135 Nm), Femur 10 kN"
+        },
+        {
+          "citation": "Injury Criteria and Motor Vehicle Regulations (Lehrbuchkapitel, Zusammenstellung FMVSS 208 / ECE R94).",
+          "url": "https://musculoskeletalkey.com/injury-criteria-and-motor-vehicle-regulations/",
+          "note": "Tabellen 27.1/27.2: Grenzwerte und Nij-Intercepts"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Kurve didaktisch (x50 55 mm). Original: Laituri et al. 2005 bzw. NCAP 2008 — übernehmen. Gemessen am Sternum-Feder-Modell (Lobdell-artig), CFC 600."
+    },
+    {
+      "id": "Thorax.VC",
+      "label": "Viscous Criterion",
+      "unit": "m/s",
+      "region": "Thorax",
+      "ais": "AIS4+",
+      "limit": 1.0,
+      "limitSource": "ECE R94",
+      "curve": {
+        "type": "loglogistic",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 1.3,
+        "shape": 4.2
+      },
+      "sources": [
+        {
+          "citation": "Lau IV, Viano DC. The Viscous Criterion – Bases and Applications of an Injury Severity Index for Soft Tissues. SAE 861882; 1986.",
+          "url": "https://saemobilus.sae.org/papers/viscous-criterion-bases-applications-injury-severity-index-soft-tissues-861882",
+          "note": "VC 1,0 m/s ≈ 25 % Risiko AIS4+ (stumpfer Frontalanprall)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Log-logistische Kurve durch den veröffentlichten Ankerpunkt VC 1,0 m/s ≈ 25 % AIS4+; Form didaktisch. Brustkorbtiefe 0,229 m (Hybrid III), Skalierung 1,0."
     },
     {
       "id": "Thorax.a3ms",
@@ -60,7 +145,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Kurvenform und Parameter sind didaktische Setzungen, angelehnt an den Grenzwert. Ein starres Ragdoll misst keine Dummy-Werte; die Zahlen sind qualitativ. Echte Dummys messen zusätzlich die Brustkorbdeflexion (NCAP 2008); ein starres Ragdoll kann das nicht."
+      "reviewNotes": "Kurvenform und Parameter sind didaktische Setzungen, angelehnt an den Grenzwert. Ein starres Ragdoll misst keine Dummy-Werte; die Zahlen sind qualitativ. Gemessen an der Brustwirbelsäule (Thorax-Segment), CFC 180."
     },
     {
       "id": "Thorax.F",
@@ -136,6 +221,31 @@
       ],
       "evidenceStatus": "draft",
       "reviewNotes": "Kurvenform und Parameter sind didaktische Setzungen, angelehnt an den Grenzwert. Ein starres Ragdoll misst keine Dummy-Werte; die Zahlen sind qualitativ. Sitzkontakt zählt nicht."
+    },
+    {
+      "id": "Oberschenkel rechts.Fax",
+      "label": "Axiale Femurkraft rechts",
+      "unit": "kN",
+      "region": "Oberschenkel rechts",
+      "ais": "AIS2+",
+      "limit": 10,
+      "limitSource": "FMVSS 208",
+      "curve": {
+        "type": "loglogistic",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 11,
+        "shape": 5
+      },
+      "sources": [
+        {
+          "citation": "NHTSA. Federal Motor Vehicle Safety Standards; Occupant Crash Protection (FMVSS No. 208), Final Rule. 65 FR 30680, 12.05.2000.",
+          "url": "",
+          "note": "Grenzwerte Hybrid III 50 %: Brustdeflexion 63 mm, Nij 1,0 (Intercepts 6806 N / 6160 N / 310 Nm / 135 Nm), Femur 10 kN"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Aus der Gelenkkraft im Hüftgelenk entlang der Oberschenkelachse (CFC 600). Kurve didaktisch."
     },
     {
       "id": "Oberschenkel rechts.F",
@@ -220,7 +330,7 @@
     },
     {
       "injuryId": "rippenserienfraktur_links",
-      "metric": "Thorax.a3ms",
+      "metric": "Thorax.D",
       "share": 1.0,
       "severityMin": 1,
       "severityMax": 1,
@@ -233,7 +343,7 @@
     {
       "injuryId": "rippenserienfraktur_links",
       "metric": "Thorax.F",
-      "share": 1.0,
+      "share": 0.6,
       "severityMin": 1,
       "severityMax": 1,
       "onsetMin_s": 0,
@@ -244,8 +354,20 @@
     },
     {
       "injuryId": "spannungspneu_links",
-      "metric": "Thorax.a3ms",
-      "share": 0.35,
+      "metric": "Thorax.VC",
+      "share": 0.6,
+      "severityMin": 0.6,
+      "severityMax": 0.9,
+      "onsetMin_s": 60,
+      "onsetMax_s": 300,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "spannungspneu_links",
+      "metric": "Thorax.D",
+      "share": 0.3,
       "severityMin": 0.6,
       "severityMax": 0.9,
       "onsetMin_s": 60,
@@ -257,7 +379,7 @@
     {
       "injuryId": "spannungspneu_links",
       "metric": "Thorax.F",
-      "share": 0.35,
+      "share": 0.25,
       "severityMin": 0.6,
       "severityMax": 0.9,
       "onsetMin_s": 60,
@@ -304,8 +426,20 @@
     },
     {
       "injuryId": "femur_schaft_rechts",
-      "metric": "Oberschenkel rechts.F",
+      "metric": "Oberschenkel rechts.Fax",
       "share": 0.9,
+      "severityMin": 0.5,
+      "severityMax": 0.8,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "femur_schaft_rechts",
+      "metric": "Oberschenkel rechts.F",
+      "share": 0.5,
       "severityMin": 0.5,
       "severityMax": 0.8,
       "onsetMin_s": 0,

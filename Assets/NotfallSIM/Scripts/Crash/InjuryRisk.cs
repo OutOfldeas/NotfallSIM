@@ -55,6 +55,49 @@ namespace NotfallSIM.Crash
         public RiskInjuryLink[] injuries;
     }
 
+    // ---------- Kalibrierung (calibration.json) ----------
+
+    [Serializable]
+    public class CalibrationReferenceValue
+    {
+        public string metric;
+        public double value;
+    }
+
+    /// <summary>Ein dokumentierter Crashtest, den die Sandbox nachstellen soll.</summary>
+    [Serializable]
+    public class CalibrationReference
+    {
+        public string id;
+        public string description;
+        public string mechanismId;     // wie in der Sandbox
+        public double speed_kmh;
+        public bool belted, airbag;
+        public double height_m, mass_kg; // Dummygröße (Hybrid III 50 %: 1,75 m, 78 kg; 95 %: 1,88 m, 101 kg)
+        public CalibrationReferenceValue[] values;
+        public SourceRef[] sources;
+    }
+
+    [Serializable]
+    public class CalibrationFactor
+    {
+        public string metric;
+        public double factor;   // Messwert × Faktor = kalibrierter Wert
+        public double simulated; // Mittelwert der Sandbox beim Kalibrierlauf (vor Faktor)
+        public double reference; // Mittelwert der Referenzen
+    }
+
+    [Serializable]
+    public class CalibrationFile
+    {
+        public string version;
+        public string note;
+        public string calibratedAt;    // leer = noch nie kalibriert
+        public double minFactor, maxFactor;
+        public CalibrationReference[] references;
+        public CalibrationFactor[] factors;
+    }
+
     [Serializable]
     public class CrashMeasurement
     {
@@ -91,6 +134,31 @@ namespace NotfallSIM.Crash
 
     public static class InjuryRisk
     {
+        /// <summary>Wendet Kalibrierfaktoren an (Messwert × Faktor). Ohne Faktor bleibt der Wert unverändert.</summary>
+        public static List<CrashMeasurement> Calibrate(IEnumerable<CrashMeasurement> raw, CalibrationFile cal)
+        {
+            var f = (cal?.factors ?? new CalibrationFactor[0]).Where(x => x.factor > 0).ToDictionary(x => x.metric, x => x.factor);
+            return raw.Select(m => new CrashMeasurement { metric = m.metric, value = f.TryGetValue(m.metric, out double k) ? m.value * k : m.value }).ToList();
+        }
+
+        /// <summary>
+        /// Berechnet Kalibrierfaktoren = Referenz / Simulation je Messwert (begrenzt auf [minFactor, maxFactor]).
+        /// <paramref name="simulatedRuns"/>: Messwerte mehrerer Läufe des nachgestellten Referenztests (ohne Kalibrierung).
+        /// </summary>
+        public static CalibrationFactor[] ComputeFactors(CalibrationFile cal, CalibrationReference reference, IList<IList<CrashMeasurement>> simulatedRuns)
+        {
+            var result = new List<CalibrationFactor>();
+            foreach (var rv in reference.values)
+            {
+                var sims = simulatedRuns.Select(run => run.FirstOrDefault(m => m.metric == rv.metric)).Where(m => m != null).Select(m => m.value).ToList();
+                if (sims.Count == 0) continue;
+                double sim = sims.Average();
+                double factor = sim > 1e-9 ? Math.Max(cal.minFactor, Math.Min(cal.maxFactor, rv.value / sim)) : 1;
+                result.Add(new CalibrationFactor { metric = rv.metric, factor = Math.Round(factor, 3), simulated = Math.Round(sim, 3), reference = rv.value });
+            }
+            return result.ToArray();
+        }
+
         public static double Probability(RiskCurve c, double x)
         {
             if (c.type == "lognormal")

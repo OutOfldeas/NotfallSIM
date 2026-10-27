@@ -75,3 +75,47 @@ namespace NotfallSIM.Crash
         }
     }
 }
+
+namespace NotfallSIM.Crash
+{
+    /// <summary>
+    /// Innere Messgrößen wie bei Dummy-Messdosen: Brustkorbdeflexion (Sternum gegen Wirbelsäule),
+    /// Halskraft und -moment (Kopf-Rumpf-Gelenk) sowie axiale Femurkraft (rechtes Hüftgelenk).
+    /// </summary>
+    public class CrashGauges : MonoBehaviour
+    {
+        public readonly System.Collections.Generic.List<double> ChestDeflection_m = new System.Collections.Generic.List<double>();
+        public readonly System.Collections.Generic.List<double> NeckFz_N = new System.Collections.Generic.List<double>();
+        public readonly System.Collections.Generic.List<double> NeckMy_Nm = new System.Collections.Generic.List<double>();
+        public readonly System.Collections.Generic.List<double> FemurAxialR_N = new System.Collections.Generic.List<double>();
+
+        Ragdoll _rd;
+        bool _recording;
+
+        public void Begin(Ragdoll ragdoll)
+        {
+            _rd = ragdoll;
+            ChestDeflection_m.Clear(); NeckFz_N.Clear(); NeckMy_Nm.Clear(); FemurAxialR_N.Clear();
+            _recording = true;
+        }
+
+        public void Stop() => _recording = false;
+
+        void FixedUpdate()
+        {
+            if (!_recording || _rd == null || _rd.Sternum == null) return;
+            var thorax = _rd.Thorax.transform;
+            // Deflexion: wie weit das Sternum gegenüber der Ruhelage nach hinten gedrückt ist (positiv = eingedrückt)
+            double offset = Vector3.Dot(_rd.Sternum.position - _rd.Thorax.position, thorax.forward);
+            ChestDeflection_m.Add(System.Math.Max(0, _rd.SternumRestOffset - offset));
+
+            // VERIFY in Unity: Joint.currentForce/currentTorque sind die Kraft bzw. das Moment, das das Gelenk auf den
+            // verbundenen Körper (hier Thorax bzw. Becken) ausübt, in Weltkoordinaten. Vorzeichen von Zug/Flexion prüfen.
+            var head = _rd.Head.transform;
+            NeckFz_N.Add(Vector3.Dot(_rd.NeckJoint.currentForce, head.up));      // > 0: Zug
+            NeckMy_Nm.Add(Vector3.Dot(_rd.NeckJoint.currentTorque, head.right)); // > 0: Flexion (Kinn zur Brust)
+            var thigh = _rd.Segments["Oberschenkel rechts"].transform;
+            FemurAxialR_N.Add(Vector3.Dot(_rd.HipJointRight.currentForce, thigh.up));
+        }
+    }
+}

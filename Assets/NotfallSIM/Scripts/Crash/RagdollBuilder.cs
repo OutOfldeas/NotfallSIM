@@ -12,6 +12,13 @@ namespace NotfallSIM.Crash
         public readonly Dictionary<string, Rigidbody> Segments = new Dictionary<string, Rigidbody>();
         public readonly List<CrashSensor> Sensors = new List<CrashSensor>();
         public Rigidbody Pelvis => Segments["Becken"];
+        public Rigidbody Thorax => Segments["Thorax"];
+        public Rigidbody Head => Segments["Kopf"];
+        /// <summary>Brustbein-Platte vor dem Thorax, federnd gelagert (Brustkorbdeflexion).</summary>
+        public Rigidbody Sternum;
+        public float SternumRestOffset; // Abstand Sternum–Thorax entlang „vorn“ in Ruhe
+        public ConfigurableJoint NeckJoint, HipJointRight;
+        public Transform Body => Root.transform;
 
         public void SetVelocity(Vector3 v)
         {
@@ -90,17 +97,49 @@ namespace NotfallSIM.Crash
             // ---- Gelenke (Winkel in Grad; X = Beugung um die Querachse des Körpers)
             Joint(abdomen, becken, P(new Vector3(0, pelvisTop, 0)), T, 25, 25, 20, 20, 300);
             Joint(thorax, abdomen, P(new Vector3(0, abdomenTop, 0)), T, 25, 25, 20, 20, 300);
-            Joint(kopf, thorax, P(new Vector3(0, shoulderY + 0.02f * H, 0)), T, 45, 45, 40, 30, 60);
+            rd.NeckJoint = Joint(kopf, thorax, P(new Vector3(0, shoulderY + 0.02f * H, 0)), T, 45, 45, 40, 30, 60);
             Joint(oaR, thorax, P(shR), T, 100, 100, 80, 80, 20);
             Joint(oaL, thorax, P(shL), T, 100, 100, 80, 80, 20);
             Joint(uaR, oaR, P(elbowR), T, 130, 130, 10, 10, 10);
             Joint(uaL, oaL, P(elbowL), T, 130, 130, 10, 10, 10);
-            Joint(osR, becken, P(hipR), T, 100, 100, 30, 40, 40);
+            rd.HipJointRight = Joint(osR, becken, P(hipR), T, 100, 100, 30, 40, 40);
             Joint(osL, becken, P(hipL), T, 100, 100, 30, 40, 40);
             float kneeLow = invertKneeFlexion ? 140 : 5, kneeHigh = invertKneeFlexion ? 5 : 140;
             Joint(usR, osR, P(kneeR), T, kneeLow, kneeHigh, 5, 5, 30);
             Joint(usL, osL, P(kneeL), T, kneeLow, kneeHigh, 5, 5, 30);
+            AddSternum(rd, thorax, T, H, (shoulderY + 0.015f * H - abdomenTop));
             return rd;
+        }
+
+        // Brustkorb als Feder-Dämpfer zwischen Sternum und Wirbelsäule, angelehnt an das Thoraxmodell von Lobdell (1973).
+        // Steifigkeit und Dämpfung sind Größenordnungen, keine validierten Werte (VERIFY gegen Lobdell 1973 / Kroell 1974).
+        public const float ChestStiffness_N_per_m = 26000f, ChestDamping_Ns_per_m = 520f, SternumMass_kg = 0.45f;
+        public const float MaxChestDeflection_m = 0.09f;
+
+        static void AddSternum(Ragdoll rd, Rigidbody thorax, Transform body, float H, float thoraxHeight)
+        {
+            float depth = 0.11f * H;
+            Vector3 pos = thorax.position + body.forward * (depth / 2 + 0.012f) + body.up * 0.05f * thoraxHeight;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "Sternum";
+            go.transform.SetPositionAndRotation(pos, body.rotation);
+            go.transform.localScale = new Vector3(0.12f * H, 0.7f * thoraxHeight, 0.02f);
+            var rb = Finish(rd, go, "Sternum", "Thorax", SternumMass_kg);
+            rd.Sternum = rb;
+            rd.SternumRestOffset = Vector3.Dot(pos - thorax.position, body.forward);
+
+            var j = go.AddComponent<ConfigurableJoint>();
+            j.connectedBody = thorax;
+            j.autoConfigureConnectedAnchor = true;
+            j.anchor = Vector3.zero;
+            j.axis = go.transform.InverseTransformDirection(body.right);
+            j.secondaryAxis = go.transform.InverseTransformDirection(body.up); // Gelenk-z = vorn/hinten
+            j.xMotion = j.yMotion = ConfigurableJointMotion.Locked;
+            j.zMotion = ConfigurableJointMotion.Limited;
+            j.linearLimit = new SoftJointLimit { limit = MaxChestDeflection_m }; // harter Anschlag: Rippen bis zur Wirbelsäule
+            j.zDrive = new JointDrive { positionSpring = ChestStiffness_N_per_m, positionDamper = ChestDamping_Ns_per_m, maximumForce = float.MaxValue };
+            j.angularXMotion = j.angularYMotion = j.angularZMotion = ConfigurableJointMotion.Locked;
+            j.enablePreprocessing = false;
         }
 
         static Vector3 Mirror(Vector3 v) => new Vector3(-v.x, v.y, v.z);
@@ -151,7 +190,7 @@ namespace NotfallSIM.Crash
         }
 
         /// <summary>ConfigurableJoint mit Grenzen in Grad und leichtem „Muskeltonus“ (hält die Ausgangshaltung).</summary>
-        static void Joint(Rigidbody child, Rigidbody parent, Vector3 worldAnchor, Transform body,
+        static ConfigurableJoint Joint(Rigidbody child, Rigidbody parent, Vector3 worldAnchor, Transform body,
                           float lowX, float highX, float swingY, float swingZ, float tone)
         {
             var j = child.gameObject.AddComponent<ConfigurableJoint>();
@@ -172,6 +211,7 @@ namespace NotfallSIM.Crash
             j.projectionDistance = 0.02f;
             j.projectionAngle = 5;
             j.enablePreprocessing = false;
+            return j;
         }
     }
 }

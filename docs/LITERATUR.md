@@ -174,19 +174,28 @@ Die Diagnosebewertung steht getrennt von den Behandlungszielen. Im Browser-Proto
 
 Die Sandbox misst am Ragdoll wie an einem Crashtest-Dummy und übersetzt die Werte über Risikokurven in Verletzungen der Datenbank (`injury_risk.json`). Mehrere Messwerte für dieselbe Verletzung werden als 1 − Π(1 − p) kombiniert; der Schweregrad wächst mit dem Risiko.
 
+**Messtechnik wie beim Dummy:** Physikschritt 0,1 ms (10 kHz). Alle Kanäle werden mit dem Kanalfilter nach SAE J211 / ISO 6487 gefiltert (Butterworth, vor- und rückwärts): Kopf CFC 1000, Brustwirbelsäule CFC 180, Brustkorbdeflexion CFC 600, Halskraft CFC 1000, Halsmoment CFC 600, Femur und Kontaktkräfte CFC 600.
+
+**Brustkorb:** Vor dem Thorax sitzt eine Sternum-Platte (0,45 kg), federnd und gedämpft gelagert (26 kN/m, 520 N·s/m, Anschlag bei 90 mm) — angelehnt an das Thoraxmodell von Lobdell (1973), Werte noch zu prüfen. Der Schultergurt greift am Sternum an. Daraus: Deflexion und Viscous Criterion (Brustkorbtiefe 0,229 m wie Hybrid III).
+
+**Hals und Femur:** Kraft und Moment im Kopf-Rumpf-Gelenk ergeben Nij (Intercepts FMVSS 208, 50. Perzentil Mann: Zug 6806 N, Druck 6160 N, Flexion 310 Nm, Extension 135 Nm). Die axiale Femurkraft kommt aus dem rechten Hüftgelenk.
+
+**Airbag (PKW frontal):** entfaltet sich 15 ms nach Crashbeginn in 25 ms um 25 cm aus dem Lenkrad und wirkt dann als Feder-Dämpfer-Polster (25 kN/m, 1500 N·s/m). Didaktisch.
+
 | Messwert | Grenzwert | Kurve | Status |
 |---|---|---|---|
-| HIC15 (Kopf, 2 ms geglättet) | 700 (FMVSS 208) | AIS3+ = Φ((ln HIC − 7,45231) / 0,73998), veröffentlicht | Parameter-Zuordnung HIC15/HIC36 im Original prüfen |
-| Brustbeschleunigung, 3-ms-Clip | 60 g (FMVSS 208) | log-logistisch, x50 75 g | didaktisch |
-| Kontaktkraft Thorax, 3 ms | – | log-logistisch, x50 6 kN | didaktisch |
-| Kontaktkraft Abdomen, 3 ms | 2,5 kN (Euro NCAP, ES-2) | log-logistisch, x50 3,5 kN | didaktisch |
-| Kontaktkraft Becken, 3 ms | 6 kN (Euro NCAP, Schambein) | log-logistisch, x50 7 kN | didaktisch |
-| Kontaktkraft Oberschenkel, 3 ms | 10 kN (FMVSS 208, axial) | log-logistisch, x50 11 kN | didaktisch |
-| Kontaktkraft Unterschenkel, 3 ms | – | log-logistisch, x50 5 kN | didaktisch |
+| HIC15 (CFC 1000) | 700 (FMVSS 208) | AIS3+ = Φ((ln HIC − 7,45231) / 0,73998), veröffentlicht | Zuordnung HIC15/HIC36 im Original prüfen |
+| Nij | 1,0 (FMVSS 208) | log-logistisch, ≈ 22 % AIS3+ bei 1,0 | didaktisch; noch keiner Verletzung zugeordnet |
+| Brustkorbdeflexion | 63 mm (FMVSS 208) | log-logistisch, x50 55 mm | didaktisch; Laituri 2005 übernehmen |
+| Viscous Criterion | 1,0 m/s (ECE R94) | log-logistisch durch VC 1,0 m/s ≈ 25 % AIS4+ (Lau & Viano 1986) | Ankerpunkt veröffentlicht, Form didaktisch |
+| Brustbeschleunigung, 3-ms-Clip (CFC 180) | 60 g (FMVSS 208) | log-logistisch, x50 75 g | didaktisch |
+| Kontaktkraft Thorax / Abdomen / Becken, 3 ms | – / 2,5 kN / 6 kN (Euro NCAP, Seite) | log-logistisch | didaktisch |
+| Axiale Femurkraft | 10 kN (FMVSS 208) | log-logistisch, x50 11 kN | didaktisch |
+| Kontaktkraft Ober-/Unterschenkel, 3 ms | – | log-logistisch | didaktisch |
 
-**Grenzen:** Ein starres Ragdoll aus PhysX ist kein Dummy. Es misst keine Brustkorbdeflexion, keine axialen Knochenkräfte und keine Halskräfte (Nij); Kontaktkräfte und Beschleunigungen sind numerisch verrauscht und hängen vom Zeitschritt ab. Die Werte sind qualitativ. Die PKW-Fälle sind Schlittentests mit vorgegebenem Crashpuls (Halbsinus 100 ms frontal, 60 ms seitlich), keine Fahrzeugverformung. Der Helm beim Motorrad dämpft die Kopfbeschleunigung pauschal (Faktor 0,6).
+**Kalibrierung (`calibration.json`):** Referenztests aus NHTSA-Berichten stellt die Sandbox auf Knopfdruck je dreimal nach. Faktor = Referenzwert / Mittel der Sandbox, begrenzt auf 0,25–4, gemittelt über alle Referenzen; danach gilt: angezeigter Wert = Messwert × Faktor. Erste Referenz: NHTSA FMVSS-208-Test 2004, Jeep Liberty, Fahrer (Hybrid III 95. Perzentil): HIC15 575, Brust 46 g, Deflexion 32,5 mm, Nij 0,31. Eine einzelne Referenz ist schwach — weitere Testberichte ergänzen (NHTSA Vehicle Crash Test Database). Faktoren weit weg von 1 bedeuten, dass das Modell selbst nachgebessert werden muss (z. B. Gurt- oder Brustkorbsteifigkeit).
 
-**Kalibrierung:** NHTSA veröffentlicht die Dummy-Messdaten seiner Crashtests (Datenbank „Vehicle Crash Test“). Ziel: einen dokumentierten Frontaltest nachstellen und HIC15, Brustbeschleunigung und Femurkraft vergleichen.
+**Grenzen:** Das Ragdoll bleibt ein Mehrkörpermodell aus starren Teilen: keine Weichteile, keine Fahrzeugverformung (Schlittentest mit vorgegebenem Puls), Gelenkgrenzen und Muskeltonus sind Schätzungen.
 
 ## Offene Punkte zum Prüfen
 
@@ -216,7 +225,10 @@ Die Sandbox misst am Ragdoll wie an einem Crashtest-Dummy und übersetzt die Wer
 - [ ] Sandbox in Unity testen: Stabilität, Kniebeugung, Größenordnung der Messwerte
 - [ ] Risikokurven Thorax (Deflexion, Laituri 2005), Femur (AIS2+) und Nij aus 73 FR 40016 (NCAP 2008, Anhang C) übernehmen
 - [ ] HIC-Kurve: Zuordnung der Parameter (7,45231/0,73998) zu HIC15 vs. HIC36 im NHTSA-Original prüfen
-- [ ] Sandbox gegen NHTSA-Crashtestdaten kalibrieren
+- [ ] Sandbox gegen NHTSA-Crashtestdaten kalibrieren (Kalibrierlauf in Unity ausführen, weitere Referenzen ergänzen)
+- [ ] Thoraxmodell: Parameter von Lobdell 1973 bzw. Kroell 1974 prüfen
+- [ ] Vorzeichen von Halskraft/-moment und Femurkraft aus Joint.currentForce/currentTorque in Unity prüfen
+- [ ] Halsverletzung (HWS) mit Physiologie in die Datenbank aufnehmen, dann Nij zuordnen
 - [ ] Fehlende typische Verletzungen ergänzen: Wirbelsäule, Kalkaneus (Sturz), Aortenverletzung (Dezeleration), Rippenserie rechts
 
 ## Quellen
@@ -258,4 +270,10 @@ Die Sandbox misst am Ragdoll wie an einem Crashtest-Dummy und übersetzt die Wer
 29. de Leva P. Adjustments to Zatsiorsky-Seluyanov's segment inertia parameters. *J Biomech*. 1996;29(9):1223-1230.
 30. Euro NCAP. Assessment Protocol – Adult Occupant Protection. [euroncap.com](https://www.euroncap.com/en/for-engineers/protocols/)
 
-Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.
+31. Lau IV, Viano DC. The Viscous Criterion – Bases and Applications of an Injury Severity Index for Soft Tissues. SAE 861882; 1986. [SAE](https://saemobilus.sae.org/papers/viscous-criterion-bases-applications-injury-severity-index-soft-tissues-861882)
+32. SAE J211-1 / ISO 6487. Instrumentation for impact test – Electronic instrumentation (Kanalfilterklassen CFC). [Übersicht](https://www.dadisp.com/cfc1.htm)
+33. NHTSA. FMVSS 208 Test Report 2004 Jeep Liberty (Test v05137). [PDF](https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v05100/v05137R007.pdf)
+34. Injury Criteria and Motor Vehicle Regulations (Tabellen zu FMVSS 208 / ECE R94). [Artikel](https://musculoskeletalkey.com/injury-criteria-and-motor-vehicle-regulations/)
+35. Lobdell TE, et al. Impact response of the human thorax. In: Human Impact Response. Plenum; 1973.
+
+Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.

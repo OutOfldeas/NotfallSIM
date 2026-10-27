@@ -64,6 +64,8 @@ static class Tests
         Run("Biomechanik: HIC und 3-ms-Clip an bekannten Pulsen", BiomechanicsMath);
         Run("Risikokurven: HIC 700/1000, log-logistisch bei x50", RiskCurves);
         Run("Crash: Risikodaten konsistent", RiskDataConsistent);
+        Run("Biomechanik: CFC-Filter (SAE J211), Viscous Criterion, Nij", FiltersAndCriteria);
+        Run("Kalibrierung: Faktoren aus Referenz, begrenzt, angewandt", CalibrationLogic);
         Run("Crash: harter Aufprall verletzt, leichter nicht, Seite bestimmt Milz/Leber", CrashScenario);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
@@ -889,6 +891,55 @@ static class Tests
             Check(Math.Abs(InjuryRisk.Probability(m.curve, m.curve.x50) - 0.5) < 1e-9, m.id);
     }
 
+    static void FiltersAndCriteria()
+    {
+        const double dt = 0.0001;
+        Func<double, double, double> amp = (f, cfc) =>
+        {
+            var x = new List<double>();
+            for (int i = 0; i < 20000; i++) x.Add(Math.Sin(2 * Math.PI * f * i * dt));
+            var y = Biomechanics.Cfc(x, dt, cfc);
+            double m = 0;
+            for (int i = 5000; i < 15000; i++) m = Math.Max(m, Math.Abs(y[i]));
+            return m;
+        };
+        Check(Math.Abs(amp(100, 1000) - 1) < 0.01, "CFC 1000 dämpft 100 Hz");
+        Check(Math.Abs(amp(1650, 1000) - 0.75) < 0.05, $"CFC 1000 bei 1650 Hz: {amp(1650, 1000):F2} statt ≈ 0,71–0,76 (−3 dB)");
+        Check(amp(3000, 600) < 0.05, "CFC 600 lässt 3 kHz durch");
+        var step = new List<double>(); for (int i = 0; i < 2000; i++) step.Add(5);
+        Check(Biomechanics.Cfc(step, dt, 180).All(v => Math.Abs(v - 5) < 1e-9), "Gleichanteil verändert");
+
+        // VC: lineare Eindrückung 0 → 50 mm in 25 ms bei 0,229 m Tiefe: V = 2 m/s, C max ≈ 0,218 → VC ≈ 0,437 m/s
+        var d = new List<double>(); for (int i = 0; i <= 250; i++) d.Add(0.05 * i / 250.0); for (int i = 0; i < 50; i++) d.Add(0.05);
+        double vc = Biomechanics.ViscousCriterion(d, dt, 0.229);
+        Check(Math.Abs(vc - 2 * 0.05 / 0.229) < 0.01, $"VC {vc:F3} statt 0,437");
+
+        // Nij: Zug an der Grenze allein = 1; Extension 67,5 Nm allein = 0,5; Kombination
+        Check(Math.Abs(Biomechanics.Nij(new[] { 6806.0 }, new[] { 0.0 }) - 1) < 1e-9, "Nij Zug");
+        Check(Math.Abs(Biomechanics.Nij(new[] { 0.0 }, new[] { -67.5 }) - 0.5) < 1e-9, "Nij Extension");
+        Check(Math.Abs(Biomechanics.Nij(new[] { -3080.0, 0 }, new[] { 155.0, 0 }) - 1.0) < 1e-9, "Nij Druck + Flexion");
+    }
+
+    static void CalibrationLogic()
+    {
+        var cal = Load<CalibrationFile>("calibration.json");
+        Check(cal.references.Length > 0 && cal.references.All(r => r.values.Length > 0 && r.sources.Length > 0), "Referenzen unvollständig");
+        var metrics = new HashSet<string>(Risk.metrics.Select(m => m.id));
+        foreach (var r in cal.references) foreach (var v in r.values) Check(metrics.Contains(v.metric), $"Referenz {r.id}: unbekannter Messwert {v.metric}");
+        var refTest = cal.references[0];
+        var runs = new List<IList<CrashMeasurement>> {
+            new List<CrashMeasurement> { new CrashMeasurement { metric = "HIC15", value = 1000 }, new CrashMeasurement { metric = "Thorax.D", value = 1 } },
+            new List<CrashMeasurement> { new CrashMeasurement { metric = "HIC15", value = 1300 }, new CrashMeasurement { metric = "Thorax.D", value = 1 } } };
+        var f = InjuryRisk.ComputeFactors(cal, refTest, runs).ToDictionary(x => x.metric);
+        double hicRef = refTest.values.First(v => v.metric == "HIC15").value;
+        Check(Math.Abs(f["HIC15"].factor - Math.Round(hicRef / 1150, 3)) < 1e-9, $"HIC-Faktor {f["HIC15"].factor}");
+        Check(f["Thorax.D"].factor == cal.maxFactor, "Faktor nicht begrenzt");
+        Check(!f.ContainsKey("Nij"), "Faktor ohne Simulationswert");
+        cal.factors = f.Values.ToArray();
+        var c = InjuryRisk.Calibrate(new[] { new CrashMeasurement { metric = "HIC15", value = 1150 }, new CrashMeasurement { metric = "Becken.F", value = 3 } }, cal);
+        Check(Math.Abs(c[0].value - hicRef) < 1 && c[1].value == 3, "Anwendung der Faktoren");
+    }
+
     static void RiskDataConsistent()
     {
         var r = Risk; var ids = new HashSet<string>(Injuries.injuries.Select(i => i.id));
@@ -913,7 +964,9 @@ static class Tests
             new CrashMeasurement { metric = "HIC15", value = hic }, new CrashMeasurement { metric = "Thorax.a3ms", value = thoraxG },
             new CrashMeasurement { metric = "Thorax.F", value = thoraxG / 15 }, new CrashMeasurement { metric = "Abdomen.F", value = thoraxG / 12 },
             new CrashMeasurement { metric = "Abdomen.lateral", value = lateral }, new CrashMeasurement { metric = "Becken.F", value = thoraxG / 10 },
-            new CrashMeasurement { metric = "Oberschenkel rechts.F", value = thoraxG / 6 }, new CrashMeasurement { metric = "Unterschenkel rechts.F", value = thoraxG / 15 } };
+            new CrashMeasurement { metric = "Oberschenkel rechts.F", value = thoraxG / 6 }, new CrashMeasurement { metric = "Unterschenkel rechts.F", value = thoraxG / 15 },
+            new CrashMeasurement { metric = "Thorax.D", value = thoraxG * 0.6 }, new CrashMeasurement { metric = "Thorax.VC", value = thoraxG / 80 },
+            new CrashMeasurement { metric = "Oberschenkel rechts.Fax", value = thoraxG / 8 }, new CrashMeasurement { metric = "Nij", value = thoraxG / 100 } };
         var setup = new CrashSetup { MechanismId = "pkw_seite", Speed_kmh = 60, Rescue_min = 30 };
         int hardInjured = 0, softInjured = 0, liver = 0, spleen = 0;
         for (uint seed = 1; seed <= 200; seed++)

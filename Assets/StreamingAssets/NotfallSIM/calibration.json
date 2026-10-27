@@ -1,0 +1,45 @@
+{
+  "version": "0.1.0",
+  "note": "Kalibrierfaktoren gleichen systematische Abweichungen der Sandbox gegenüber echten Dummy-Messungen aus: kalibrierter Wert = Messwert × Faktor. Faktoren entstehen über das Editor-Menü „NotfallSIM › Unfall-Sandbox kalibrieren“, das den Referenztest mehrfach nachstellt. Je mehr Referenztests, desto besser — weitere NHTSA-Testberichte einfach ergänzen.",
+  "calibratedAt": "",
+  "minFactor": 0.25,
+  "maxFactor": 4.0,
+  "references": [
+    {
+      "id": "nhtsa_v05137_jeep_liberty_fahrer",
+      "description": "NHTSA FMVSS-208-Test 2004, Jeep Liberty, Fahrer (Hybrid III 95. Perzentil), Frontalaufprall gegen Barriere. Geschwindigkeit und Rückhaltesystem im Bericht prüfen (angenommen 56 km/h, Gurt, Airbag).",
+      "mechanismId": "pkw_frontal",
+      "speed_kmh": 56,
+      "belted": true,
+      "airbag": true,
+      "height_m": 1.88,
+      "mass_kg": 101,
+      "values": [
+        {
+          "metric": "HIC15",
+          "value": 575.2
+        },
+        {
+          "metric": "Thorax.a3ms",
+          "value": 46.0
+        },
+        {
+          "metric": "Thorax.D",
+          "value": 32.5
+        },
+        {
+          "metric": "Nij",
+          "value": 0.31
+        }
+      ],
+      "sources": [
+        {
+          "citation": "NHTSA. FMVSS 208 Test Report, 2004 Jeep Liberty (QUICK-1 TR-P24104-10-NC), 12.08.2004. Vehicle Crash Test Database, Test v05137.",
+          "url": "https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v05100/v05137R007.pdf",
+          "note": "Fahrer: HIC15 575,2; Brust 3 ms 46,0 g; Deflexion 32,5 mm; Nij max 0,31 (Nte)"
+        }
+      ]
+    }
+  ],
+  "factors": []
+}

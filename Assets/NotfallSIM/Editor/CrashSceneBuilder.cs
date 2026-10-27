@@ -78,7 +78,9 @@ namespace NotfallSIM.EditorTools
             UnityEventTools.AddFloatPersistentListener(minus.onClick, sandbox.ChangeSpeed, -1);
             var plus = MakeButton(row, "+ schneller", NeutralColor, null, 17);
             UnityEventTools.AddFloatPersistentListener(plus.onClick, sandbox.ChangeSpeed, 1);
-            MakeButton(left.transform, "Gurt an/aus", NeutralColor, sandbox.ToggleBelt, 18);
+            var safety = Row(left.transform);
+            MakeButton(safety, "Gurt an/aus", NeutralColor, sandbox.ToggleBelt, 17);
+            MakeButton(safety, "Airbag an/aus", NeutralColor, sandbox.ToggleAirbag, 17);
             var slow = Row(left.transform);
             foreach (float f in new[] { 0.05f, 0.2f, 1f })
             {
@@ -86,6 +88,7 @@ namespace NotfallSIM.EditorTools
                 UnityEventTools.AddFloatPersistentListener(b.onClick, sandbox.SetSlowMotion, f);
             }
             MakeButton(left.transform, "Crash starten", StartColor, sandbox.StartCrash, 22);
+            MakeButton(left.transform, "Kalibrieren (Referenztests)", NeutralColor, sandbox.Calibrate, 16);
 
             var right = Panel("Ergebnis", root, PanelColor);
             Place(right.rectTransform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-20, -20), new Vector2(620, 0));

@@ -12,6 +12,7 @@ namespace NotfallSIM.Crash
         public string MechanismId = "pkw_frontal"; // pkw_frontal, pkw_seite, motorrad, fussgaenger, sturz_hoehe
         public float Speed_kmh = 50;              // beim Sturz: Höhe in m
         public bool Belted = true;
+        public bool Airbag = true;                // nur PKW frontal
         public float Height_m = 1.80f, Mass_kg = 80;
         public bool Male = true;
         public int Seed = 1;
@@ -31,7 +32,7 @@ namespace NotfallSIM.Crash
     public class CrashRig : MonoBehaviour
     {
         [Tooltip("Physikschritt während des Aufpralls (s). Crashtests messen mit ≥ 10 kHz; 0,5 ms ist ein Kompromiss.")]
-        [SerializeField] float crashStep_s = 0.0005f;
+        [SerializeField] float crashStep_s = 0.0001f; // 10 kHz: nötig für den Kopffilter CFC 1000 (SAE J211)
         [Tooltip("VERIFY: umschalten, falls die Knie nach hinten durchknicken.")]
         [SerializeField] bool invertKneeFlexion = false;
         [Tooltip("Pauschale Dämpfung der Kopfbeschleunigung durch den Helm (didaktische Setzung).")]
@@ -132,11 +133,13 @@ namespace NotfallSIM.Crash
                         // Halbsinus-Verzögerung, Δv = v, Dauer 100 ms (typischer Frontalcrashpuls)
                         const float T = 0.1f;
                         Ragdoll.SetVelocity(new Vector3(0, 0, v));
+                        Action<float> airbag = p.Airbag ? Airbag(car, new Vector3(0, hipY + 0.4f, 0.27f * H + 0.02f), t0 + 0.015f) : null;
                         drive = time =>
                         {
                             float u = Mathf.Clamp01((time - t0) / T);
                             float vel = v - v * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
                             rbCar.MovePosition(rbCar.position + new Vector3(0, 0, vel * Time.fixedDeltaTime));
+                            airbag?.Invoke(time);
                         };
                         return 0.6f;
                     }
@@ -221,10 +224,51 @@ namespace NotfallSIM.Crash
             }
         }
 
-        /// <summary>Dreipunktgurt vereinfacht: Thorax und Becken mit elastischer Begrenzung am Fahrzeug.</summary>
+        /// <summary>
+        /// Fahrerairbag vereinfacht: entfaltet sich in 25 ms kinematisch aus dem Lenkrad Richtung Fahrer und
+        /// wird danach zu einem federnd-gedämpften Polster (Gasaustritt ≈ Dämpfung). Werte didaktisch.
+        /// </summary>
+        Action<float> Airbag(GameObject car, Vector3 wheelLocal, float deployAt)
+        {
+            const float deployTime = 0.025f, travel = 0.25f;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "Airbag";
+            go.transform.position = car.transform.TransformPoint(wheelLocal);
+            go.transform.localScale = new Vector3(0.5f, 0.5f, 0.2f);
+            go.GetComponent<Renderer>().material = CrashPhysics.Mat(new Color(0.92f, 0.92f, 0.88f));
+            go.AddComponent<CrashSurface>();
+            var rb = go.AddComponent<Rigidbody>();
+            rb.mass = 0.5f;
+            rb.isKinematic = true;
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+            var col = go.GetComponent<Collider>();
+            foreach (var c in car.GetComponentsInChildren<Collider>()) Physics.IgnoreCollision(col, c);
+            _spawned.Add(go);
+            var carRb = car.GetComponent<Rigidbody>();
+            Vector3 start = wheelLocal;
+            bool deployed = false;
+            return time =>
+            {
+                if (deployed || time < deployAt) { if (!deployed) rb.MovePosition(carRb.position + start); return; }
+                float u = Mathf.Clamp01((time - deployAt) / deployTime);
+                rb.MovePosition(carRb.position + start + new Vector3(0, 0, -travel * u));
+                if (u < 1) return;
+                deployed = true;
+                rb.isKinematic = false;
+                var j = go.AddComponent<ConfigurableJoint>();
+                j.connectedBody = carRb;
+                j.autoConfigureConnectedAnchor = true;
+                j.xMotion = j.yMotion = j.zMotion = ConfigurableJointMotion.Free;
+                j.angularXMotion = j.angularYMotion = j.angularZMotion = ConfigurableJointMotion.Locked;
+                var drive = new JointDrive { positionSpring = 25000, positionDamper = 1500, maximumForce = float.MaxValue };
+                j.xDrive = j.yDrive = j.zDrive = drive;
+            };
+        }
+
+        /// <summary>Dreipunktgurt vereinfacht: Sternum (Schultergurt) und Becken (Beckengurt) elastisch am Fahrzeug.</summary>
         void Belt(Rigidbody car, float H)
         {
-            foreach (var name in new[] { "Thorax", "Becken" })
+            foreach (var name in new[] { "Sternum", "Becken" })
             {
                 var seg = Ragdoll.Segments[name];
                 var j = seg.gameObject.AddComponent<ConfigurableJoint>();
@@ -233,7 +277,7 @@ namespace NotfallSIM.Crash
                 j.anchor = Vector3.zero;
                 j.xMotion = j.yMotion = j.zMotion = ConfigurableJointMotion.Limited;
                 j.angularXMotion = j.angularYMotion = j.angularZMotion = ConfigurableJointMotion.Free;
-                j.linearLimit = new SoftJointLimit { limit = name == "Thorax" ? 0.06f : 0.04f }; // Gurtlose und Dehnung
+                j.linearLimit = new SoftJointLimit { limit = name == "Sternum" ? 0.06f : 0.04f }; // Gurtlose und Dehnung
                 // Gurtband: ca. 140 kN/m (Dehnung ~7 % bei 10 kN auf 1 m) — didaktische Größenordnung
                 j.linearLimitSpring = new SoftJointLimitSpring { spring = 140000, damper = 3000 };
             }
@@ -251,45 +295,58 @@ namespace NotfallSIM.Crash
             Time.timeScale = Mathf.Clamp(slowMotion, 0.02f, 1f);
             yield return new WaitForFixedUpdate();
             foreach (var s in Ragdoll.Sensors) s.StartRecording();
+            var gauges = gameObject.AddComponent<CrashGauges>();
+            gauges.Begin(Ragdoll);
             _t0 = Time.time;
             var driver = gameObject.AddComponent<CrashDriver>();
             driver.Init(drive, _t0);
             while (Time.time - _t0 < duration) yield return null;
             foreach (var s in Ragdoll.Sensors) s.StopRecording();
+            gauges.Stop();
             Destroy(driver);
             Time.timeScale = 1;
             Time.fixedDeltaTime = _savedStep;
             Running = false;
-            done(Measure(p));
+            var measured = Measure(p, gauges);
+            Destroy(gauges);
+            done(measured);
         }
 
-        /// <summary>Wertet die Sensoren aus: HIC15 (Kopf), 3-ms-Clips für Thorax-Beschleunigung und Kontaktkräfte.</summary>
-        List<CrashMeasurement> Measure(CrashParams p)
+        /// <summary>
+        /// Wertet die Sensoren aus — gefiltert nach SAE J211 (CFC) wie bei Dummy-Messungen:
+        /// HIC15 (Kopf, CFC 1000), Brustwirbelsäule 3 ms (CFC 180), Deflexion und VC (CFC 600),
+        /// Nij (Kraft CFC 1000, Moment CFC 600), axiale Femurkraft und Kontaktkräfte (CFC 600).
+        /// Rohwerte ohne Kalibrierung — die wendet die Sandbox an.
+        /// </summary>
+        List<CrashMeasurement> Measure(CrashParams p, CrashGauges g)
         {
             var result = new List<CrashMeasurement>();
-            var byRegion = Ragdoll.Sensors.GroupBy(s => s.Region).ToDictionary(g => g.Key, g => g.ToList());
+            var byRegion = Ragdoll.Sensors.GroupBy(s => s.Region).ToDictionary(x => x.Key, x => x.ToList());
             double dt = Ragdoll.Sensors[0].Dt_s;
-            int smooth = Mathf.Max(1, Mathf.RoundToInt(0.002f / (float)dt)); // 2 ms gleitendes Mittel
+            Action<string, double> add = (id, v) => result.Add(new CrashMeasurement { metric = id, value = v });
 
             var head = byRegion["Kopf"][0];
-            var headAcc = Biomechanics.MovingAverage(head.Accel_g, smooth);
+            var headAcc = Biomechanics.Cfc(head.Accel_g, dt, 1000);
             if (p.MechanismId == "motorrad") for (int i = 0; i < headAcc.Count; i++) headAcc[i] *= helmetHeadFactor;
-            result.Add(new CrashMeasurement { metric = "HIC15", value = Biomechanics.Hic(headAcc, dt, 0.015) });
+            add("HIC15", Biomechanics.Hic(headAcc, dt, 0.015));
 
-            var thorax = byRegion["Thorax"][0];
-            result.Add(new CrashMeasurement { metric = "Thorax.a3ms", value = Biomechanics.Clip(Biomechanics.MovingAverage(thorax.Accel_g, smooth), dt) });
+            var spine = Ragdoll.Segments["Thorax"].GetComponent<CrashSensor>();
+            add("Thorax.a3ms", Biomechanics.Clip(Biomechanics.Cfc(spine.Accel_g, dt, 180), dt));
+
+            var defl = Biomechanics.Cfc(g.ChestDeflection_m, dt, 600);
+            add("Thorax.D", Biomechanics.MaxAbs(defl) * 1000);
+            add("Thorax.VC", Biomechanics.ViscousCriterion(defl, dt, 0.229));
+            add("Nij", Biomechanics.Nij(Biomechanics.Cfc(g.NeckFz_N, dt, 1000), Biomechanics.Cfc(g.NeckMy_Nm, dt, 600)));
+            add("Oberschenkel rechts.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.FemurAxialR_N, dt, 600)) / 1000);
 
             foreach (var region in new[] { "Thorax", "Abdomen", "Becken", "Oberschenkel rechts", "Unterschenkel rechts" })
-            {
-                double f = byRegion[region].Max(s => Biomechanics.Clip(Biomechanics.MovingAverage(s.Force_kN, smooth), dt));
-                result.Add(new CrashMeasurement { metric = region + ".F", value = f });
-            }
+                add(region + ".F", byRegion[region].Max(s => Biomechanics.Clip(Biomechanics.Cfc(s.Force_kN, dt, 600), dt)));
 
             // Seite des Anpralls am Rumpf: −1 links … +1 rechts
             double lat = 0, tot = 0;
             foreach (var r in new[] { "Thorax", "Abdomen", "Becken" })
                 foreach (var s in byRegion[r]) { lat += s.LateralImpulse; tot += s.TotalImpulse; }
-            result.Add(new CrashMeasurement { metric = "Abdomen.lateral", value = tot > 0 ? lat / tot : 0 });
+            add("Abdomen.lateral", tot > 0 ? lat / tot : 0);
             return result;
         }
 
