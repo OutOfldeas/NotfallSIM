@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using NotfallSIM.Core;
+using NotfallSIM.Crash;
 using NotfallSIM.Data;
 using NotfallSIM.Engines;
 
@@ -60,6 +61,10 @@ static class Tests
         Run("Dynamische Befunde: Spätzeichen, Hypovolämie, nach Drainage und OP", DynamicFindings);
         Run("Dynamische Befunde: Bedingungen gültig, Tags erreichbar", DynamicFindingsValid);
         Run("Differenzialdiagnosen: eindeutige IDs, Argumente gültig, spezifisches Argument bevorzugt", Differentials);
+        Run("Biomechanik: HIC und 3-ms-Clip an bekannten Pulsen", BiomechanicsMath);
+        Run("Risikokurven: HIC 700/1000, log-logistisch bei x50", RiskCurves);
+        Run("Crash: Risikodaten konsistent", RiskDataConsistent);
+        Run("Crash: harter Aufprall verletzt, leichter nicht, Seite bestimmt Milz/Leber", CrashScenario);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -848,6 +853,85 @@ static class Tests
         Check(r["haematothorax_links"].IsDifferential && r["haematothorax_links"].Against.Length == 1 && r["haematothorax_links"].Against[0].Contains("hypersonor"), "spezifisches Argument fehlt");
         Check(r["hohlorganverletzung"].Against[0].Contains("Gurtzeichen"), "allgemeines Argument fehlt");
         Check(!r["milzruptur"].IsDifferential && r["milzruptur"].Against[0].StartsWith("Typische Befunde fehlten"), "Fehlverdacht auf Verletzung ohne Hinweis");
+    }
+
+    // ------------------------------------------------------------ Unfall-Sandbox
+
+    static InjuryRiskDatabaseFile Risk => Load<InjuryRiskDatabaseFile>("injury_risk.json");
+
+    static void BiomechanicsMath()
+    {
+        const double dt = 0.0005;
+        Func<double, double, List<double>> pulse = (g, ms) =>
+        {
+            var l = new List<double>();
+            for (int i = 0; i < 40; i++) l.Add(0);
+            for (int i = 0; i < (int)Math.Round(ms / 1000 / dt); i++) l.Add(g);
+            for (int i = 0; i < 40; i++) l.Add(0);
+            return l;
+        };
+        double h10 = Biomechanics.Hic(pulse(100, 10), dt), h20 = Biomechanics.Hic(pulse(100, 20), dt);
+        Check(Math.Abs(h10 - 1000) < 10, $"HIC 100 g/10 ms = {h10:F0} statt 1000");
+        Check(Math.Abs(h20 - 1500) < 15, $"HIC15 100 g/20 ms = {h20:F0} statt 1500 (Fenster 15 ms)");
+        var plateau = pulse(50, 10);
+        for (int i = 50; i < 52; i++) plateau[i] = 200; // 1-ms-Spitze
+        Check(Math.Abs(Biomechanics.Clip(plateau, dt) - 50) < 1e-9, $"3-ms-Clip {Biomechanics.Clip(plateau, dt)} statt 50");
+        Check(Math.Abs(Biomechanics.NormalCdf(1.96) - 0.975) < 0.001 && Math.Abs(Biomechanics.NormalCdf(-1) - 0.1587) < 0.001, "Normalverteilung");
+    }
+
+    static void RiskCurves()
+    {
+        var head = Risk.metrics.First(m => m.id == "HIC15").curve;
+        double p700 = InjuryRisk.Probability(head, 700), p1000 = InjuryRisk.Probability(head, 1000);
+        Check(Math.Abs(p700 - 0.112) < 0.01 && Math.Abs(p1000 - 0.231) < 0.01, $"HIC 700 → {p700:P1}, 1000 → {p1000:P1}");
+        Check(InjuryRisk.Probability(head, 0) == 0, "HIC 0");
+        foreach (var m in Risk.metrics.Where(x => x.curve.type == "loglogistic"))
+            Check(Math.Abs(InjuryRisk.Probability(m.curve, m.curve.x50) - 0.5) < 1e-9, m.id);
+    }
+
+    static void RiskDataConsistent()
+    {
+        var r = Risk; var ids = new HashSet<string>(Injuries.injuries.Select(i => i.id));
+        var metrics = new HashSet<string>(r.metrics.Select(m => m.id));
+        foreach (var m in r.metrics)
+        {
+            Check(m.curve.type == "lognormal" || m.curve.type == "loglogistic", $"{m.id}: Kurve {m.curve.type}");
+            Check(m.sources.Length > 0, $"{m.id}: keine Quelle");
+        }
+        foreach (var l in r.injuries)
+        {
+            Check(ids.Contains(l.injuryId), $"unbekannte Verletzung {l.injuryId}");
+            Check(metrics.Contains(l.metric), $"unbekannter Messwert {l.metric}");
+            Check(l.share > 0 && l.share <= 1 && l.severityMin <= l.severityMax, $"{l.injuryId}/{l.metric}: Werte");
+        }
+    }
+
+    static void CrashScenario()
+    {
+        var mech = Mechanisms; var inj = Injuries.injuries;
+        Func<double, double, double, List<CrashMeasurement>> meas = (hic, thoraxG, lateral) => new List<CrashMeasurement> {
+            new CrashMeasurement { metric = "HIC15", value = hic }, new CrashMeasurement { metric = "Thorax.a3ms", value = thoraxG },
+            new CrashMeasurement { metric = "Thorax.F", value = thoraxG / 15 }, new CrashMeasurement { metric = "Abdomen.F", value = thoraxG / 12 },
+            new CrashMeasurement { metric = "Abdomen.lateral", value = lateral }, new CrashMeasurement { metric = "Becken.F", value = thoraxG / 10 },
+            new CrashMeasurement { metric = "Oberschenkel rechts.F", value = thoraxG / 6 }, new CrashMeasurement { metric = "Unterschenkel rechts.F", value = thoraxG / 15 } };
+        var setup = new CrashSetup { MechanismId = "pkw_seite", Speed_kmh = 60, Rescue_min = 30 };
+        int hardInjured = 0, softInjured = 0, liver = 0, spleen = 0;
+        for (uint seed = 1; seed <= 200; seed++)
+        {
+            var hard = InjuryRisk.BuildScenario(Risk, mech, inj, meas(2500, 120, -1), setup, seed).Scenario;
+            var soft = InjuryRisk.BuildScenario(Risk, mech, inj, meas(80, 8, -1), setup, seed).Scenario;
+            if (hard.injuries.Length > 0) hardInjured++;
+            if (soft.injuries.Length > 0) softInjured++;
+            liver += hard.injuries.Count(i => i.injuryId == "leberlazeration");
+            spleen += hard.injuries.Count(i => i.injuryId == "milzruptur");
+            Check(hard.injuries.Count(i => i.injuryId == "sdh_akut_links" || i.injuryId == "epiduralhaematom_rechts") <= 1, "Ausschlussgruppe SHT");
+            Check(!hard.description.Contains("{"), "Platzhalter: " + hard.description);
+        }
+        Check(hardInjured == 200 && softInjured < 10, $"verletzt: hart {hardInjured}/200, leicht {softInjured}/200");
+        Check(spleen > 100 && liver == 0, $"Anprall von links: Milz {spleen}, Leber {liver}");
+        var a = InjuryRisk.BuildScenario(Risk, mech, inj, meas(1200, 70, 0), setup, 42).Scenario;
+        var b = InjuryRisk.BuildScenario(Risk, mech, inj, meas(1200, 70, 0), setup, 42).Scenario;
+        Check(string.Join(",", a.injuries.Select(i => i.injuryId + i.severity)) == string.Join(",", b.injuries.Select(i => i.injuryId + i.severity)), "nicht reproduzierbar");
     }
 
     // ------------------------------------------------------------ Helfer

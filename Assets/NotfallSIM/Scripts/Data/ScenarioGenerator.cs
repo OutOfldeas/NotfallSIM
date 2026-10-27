@@ -87,30 +87,10 @@ namespace NotfallSIM.Data
                     severity = Round2((fallback.severityMin + fallback.severityMax) / 2), onsetTime_s = fallback.onsetMin_s });
             }
 
-            // Präklinischer Blutverlust aus den Blutungsraten und der Rettungszeit.
-            double rate = 0;
-            foreach (var si in chosen)
-                foreach (var e in defs[si.injuryId].effects)
-                    if (e.effectType == "Hemorrhage" && si.onsetTime_s <= 0) rate += e.baseRate_mL_min * si.severity;
             var ph = db.prehospital;
-            double loss = Math.Min(ph.maxLoss_mL, rate * rescue * ph.lossFactor);
-            loss = R(loss / ph.roundTo_mL) * ph.roundTo_mL;
-
-            // Bewertung: Basisziele + Vorlagen der gewählten Verletzungen, doppelte ids nur einmal.
-            var criteria = new List<AssessmentCriterion>();
-            var ids = new HashSet<string>();
-            foreach (var cr in db.baseCriteria.Concat(chosen.SelectMany(si => defs[si.injuryId].criteria ?? new AssessmentCriterion[0])))
-                if (ids.Add(cr.id)) criteria.Add(cr);
-
-            string description = mech.descriptionTemplate
-                .Replace("{age}", age.ToString(CultureInfo.InvariantCulture))
-                .Replace("{r}", male ? "r" : "")
-                .Replace("{in}", male ? "" : "in")
-                .Replace("{driver}", male ? "Fahrer" : "Fahrerin")
-                .Replace("{belt}", unrestrained ? "nicht angeschnallt" : "angeschnallt")
-                .Replace("{speed}", speed.ToString(CultureInfo.InvariantCulture))
-                .Replace("{height}", fallHeight.ToString(CultureInfo.InvariantCulture))
-                .Replace("{rescue}", rescue.ToString(CultureInfo.InvariantCulture));
+            double loss = PrehospitalLoss(chosen, defs, rescue, ph);
+            var criteria = Criteria(db, chosen, defs);
+            string description = FillTemplate(mech.descriptionTemplate, age, male, unrestrained, speed, fallHeight, rescue);
             if (loss >= ph.reportThreshold_mL) description += $" Präklinisch geschätzter Blutverlust ca. {loss.ToString(CultureInfo.InvariantCulture)} mL.";
             if (betaBlocker) description += " Dauermedikation: Betablocker.";
 
@@ -133,7 +113,39 @@ namespace NotfallSIM.Data
             };
         }
 
-        static bool Conflicts(MechanismDatabaseFile db, List<ScenarioInjury> chosen, string injuryId)
+        /// <summary>Präklinischer Blutverlust aus den Blutungsraten und der Rettungszeit.</summary>
+        public static double PrehospitalLoss(IEnumerable<ScenarioInjury> chosen, IDictionary<string, InjuryDefinition> defs, double rescue_min, PrehospitalSettings ph)
+        {
+            double rate = 0;
+            foreach (var si in chosen)
+                foreach (var e in defs[si.injuryId].effects)
+                    if (e.effectType == "Hemorrhage" && si.onsetTime_s <= 0) rate += e.baseRate_mL_min * si.severity;
+            double loss = Math.Min(ph.maxLoss_mL, rate * rescue_min * ph.lossFactor);
+            return R(loss / ph.roundTo_mL) * ph.roundTo_mL;
+        }
+
+        /// <summary>Bewertung: Basisziele + Vorlagen der gewählten Verletzungen, doppelte ids nur einmal.</summary>
+        public static List<AssessmentCriterion> Criteria(MechanismDatabaseFile db, IEnumerable<ScenarioInjury> chosen, IDictionary<string, InjuryDefinition> defs)
+        {
+            var criteria = new List<AssessmentCriterion>();
+            var ids = new HashSet<string>();
+            foreach (var cr in db.baseCriteria.Concat(chosen.SelectMany(si => defs[si.injuryId].criteria ?? new AssessmentCriterion[0])))
+                if (ids.Add(cr.id)) criteria.Add(cr);
+            return criteria;
+        }
+
+        public static string FillTemplate(string template, int age, bool male, bool unrestrained, int speed, int fallHeight, int rescue) =>
+            template
+                .Replace("{age}", age.ToString(CultureInfo.InvariantCulture))
+                .Replace("{r}", male ? "r" : "")
+                .Replace("{in}", male ? "" : "in")
+                .Replace("{driver}", male ? "Fahrer" : "Fahrerin")
+                .Replace("{belt}", unrestrained ? "nicht angeschnallt" : "angeschnallt")
+                .Replace("{speed}", speed.ToString(CultureInfo.InvariantCulture))
+                .Replace("{height}", fallHeight.ToString(CultureInfo.InvariantCulture))
+                .Replace("{rescue}", rescue.ToString(CultureInfo.InvariantCulture));
+
+        public static bool Conflicts(MechanismDatabaseFile db, List<ScenarioInjury> chosen, string injuryId)
         {
             foreach (var g in db.exclusiveGroups)
                 if (g.injuryIds.Contains(injuryId) && chosen.Any(si => g.injuryIds.Contains(si.injuryId)))
@@ -141,8 +153,8 @@ namespace NotfallSIM.Data
             return false;
         }
 
-        static double Round2(double v) => R(v * 100) / 100;
+        public static double Round2(double v) => R(v * 100) / 100;
         // Kaufmännisch runden wie JS Math.round (C# Math.Round rundet sonst zur geraden Zahl).
-        static double R(double v) => Math.Floor(v + 0.5);
+        public static double R(double v) => Math.Floor(v + 0.5);
     }
 }

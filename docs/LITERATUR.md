@@ -170,6 +170,24 @@ Jede Untersuchung liefert einen ausformulierten Befund: in verletzten Regionen d
 
 Die Diagnosebewertung steht getrennt von den Behandlungszielen. Im Browser-Prototyp zeigt das Protokoll nicht mehr an, wann eine Verletzung aktiv wird (das hätte die Diagnose verraten).
 
+## Unfall-Sandbox: Verletzungskriterien
+
+Die Sandbox misst am Ragdoll wie an einem Crashtest-Dummy und übersetzt die Werte über Risikokurven in Verletzungen der Datenbank (`injury_risk.json`). Mehrere Messwerte für dieselbe Verletzung werden als 1 − Π(1 − p) kombiniert; der Schweregrad wächst mit dem Risiko.
+
+| Messwert | Grenzwert | Kurve | Status |
+|---|---|---|---|
+| HIC15 (Kopf, 2 ms geglättet) | 700 (FMVSS 208) | AIS3+ = Φ((ln HIC − 7,45231) / 0,73998), veröffentlicht | Parameter-Zuordnung HIC15/HIC36 im Original prüfen |
+| Brustbeschleunigung, 3-ms-Clip | 60 g (FMVSS 208) | log-logistisch, x50 75 g | didaktisch |
+| Kontaktkraft Thorax, 3 ms | – | log-logistisch, x50 6 kN | didaktisch |
+| Kontaktkraft Abdomen, 3 ms | 2,5 kN (Euro NCAP, ES-2) | log-logistisch, x50 3,5 kN | didaktisch |
+| Kontaktkraft Becken, 3 ms | 6 kN (Euro NCAP, Schambein) | log-logistisch, x50 7 kN | didaktisch |
+| Kontaktkraft Oberschenkel, 3 ms | 10 kN (FMVSS 208, axial) | log-logistisch, x50 11 kN | didaktisch |
+| Kontaktkraft Unterschenkel, 3 ms | – | log-logistisch, x50 5 kN | didaktisch |
+
+**Grenzen:** Ein starres Ragdoll aus PhysX ist kein Dummy. Es misst keine Brustkorbdeflexion, keine axialen Knochenkräfte und keine Halskräfte (Nij); Kontaktkräfte und Beschleunigungen sind numerisch verrauscht und hängen vom Zeitschritt ab. Die Werte sind qualitativ. Die PKW-Fälle sind Schlittentests mit vorgegebenem Crashpuls (Halbsinus 100 ms frontal, 60 ms seitlich), keine Fahrzeugverformung. Der Helm beim Motorrad dämpft die Kopfbeschleunigung pauschal (Faktor 0,6).
+
+**Kalibrierung:** NHTSA veröffentlicht die Dummy-Messdaten seiner Crashtests (Datenbank „Vehicle Crash Test“). Ziel: einen dokumentierten Frontaltest nachstellen und HIC15, Brustbeschleunigung und Femurkraft vergleichen.
+
 ## Offene Punkte zum Prüfen
 
 - [ ] Empfehlungen und Empfehlungsgrade zu Beckengurt, Volumentherapie und permissiver Hypotension in der S3-Leitlinie (MAGICapp) nachlesen
@@ -195,6 +213,10 @@ Die Diagnosebewertung steht getrennt von den Behandlungszielen. Im Browser-Proto
 - [x] Befunde zeitabhängig machen (dynamicFindings, v0.8)
 - [x] Differenzialdiagnosen ohne Physiologie ergänzen (differentials.json)
 - [ ] Review-Tabelle aller Befundtexte durch Nutzer und Arzt abarbeiten, Ergebnisse in die Daten übernehmen
+- [ ] Sandbox in Unity testen: Stabilität, Kniebeugung, Größenordnung der Messwerte
+- [ ] Risikokurven Thorax (Deflexion, Laituri 2005), Femur (AIS2+) und Nij aus 73 FR 40016 (NCAP 2008, Anhang C) übernehmen
+- [ ] HIC-Kurve: Zuordnung der Parameter (7,45231/0,73998) zu HIC15 vs. HIC36 im NHTSA-Original prüfen
+- [ ] Sandbox gegen NHTSA-Crashtestdaten kalibrieren
 - [ ] Fehlende typische Verletzungen ergänzen: Wirbelsäule, Kalkaneus (Sturz), Aortenverletzung (Dezeleration), Rippenserie rechts
 
 ## Quellen
@@ -229,4 +251,11 @@ Die Diagnosebewertung steht getrennt von den Behandlungszielen. Im Browser-Proto
 23. Newgard CD, et al. National guideline for the field triage of injured patients: recommendations of the National Expert Panel on Field Triage, 2021. *J Trauma Acute Care Surg*. 2022;93(2):e49-e60.
 24. Falls from Great Heights: Risk to Sustain Severe Thoracic and Pelvic Injuries Increases with Height of the Fall. *J Clin Med*. 2021;10(11):2307.
 
-Angaben ohne Link (4, 8, 9, 23, 24) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.
+25. NHTSA. Federal Motor Vehicle Safety Standards; Occupant Crash Protection (FMVSS No. 208), Final Rule. 65 FR 30680; 2000.
+26. NHTSA. Consumer Information; New Car Assessment Program. 73 FR 40016; 11.07.2008. [PDF](https://www.nhtsa.gov/sites/nhtsa.gov/files/nhtsa-2006-26555-0114_0.pdf)
+27. Prasad P, Mertz HJ, et al. Evaluation of the field relevance of several injury risk functions. *Stapp Car Crash J*. 2010;54:49-72.
+28. Head Injury Criterion – mini review. *Am J Biomed Sci Res*. 2019;5(2). [Artikel](https://biomedgrid.com/fulltext/volume5/head-injury-criterion-mini-review.000957.php)
+29. de Leva P. Adjustments to Zatsiorsky-Seluyanov's segment inertia parameters. *J Biomech*. 1996;29(9):1223-1230.
+30. Euro NCAP. Assessment Protocol – Adult Occupant Protection. [euroncap.com](https://www.euroncap.com/en/for-engineers/protocols/)
+
+Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.

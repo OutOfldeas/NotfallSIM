@@ -256,7 +256,7 @@ namespace NotfallSIM.EditorTools
         // ---------------------------------------------------------------- Helfer
 
         /// <summary>Zweispaltiges Raster für viele Buttons; seine Höhe ergibt sich aus der Anzahl.</summary>
-        static Transform ButtonGrid(Transform parent, string name)
+        internal static Transform ButtonGrid(Transform parent, string name)
         {
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
@@ -268,7 +268,7 @@ namespace NotfallSIM.EditorTools
             return go.transform;
         }
 
-        static Button MakeButton(Transform parent, string label, Color color, UnityAction action, float fontSize = 22)
+        internal static Button MakeButton(Transform parent, string label, Color color, UnityAction action, float fontSize = 22)
         {
             var img = Panel(label, parent, color);
             var btn = img.gameObject.AddComponent<Button>();
@@ -280,7 +280,7 @@ namespace NotfallSIM.EditorTools
             return btn;
         }
 
-        static Image Panel(string name, Transform parent, Color color)
+        internal static Image Panel(string name, Transform parent, Color color)
         {
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
@@ -289,7 +289,7 @@ namespace NotfallSIM.EditorTools
             return img;
         }
 
-        static TextMeshProUGUI Label(string name, Transform parent, string content, float size, Color color,
+        internal static TextMeshProUGUI Label(string name, Transform parent, string content, float size, Color color,
                                      TextAlignmentOptions align = TextAlignmentOptions.TopLeft)
         {
             var go = new GameObject(name, typeof(RectTransform));
@@ -303,7 +303,7 @@ namespace NotfallSIM.EditorTools
             return t;
         }
 
-        static void Vertical(GameObject go, float spacing, bool fit)
+        internal static void Vertical(GameObject go, float spacing, bool fit)
         {
             var v = go.AddComponent<VerticalLayoutGroup>();
             v.padding = new RectOffset(16, 16, 16, 16);
@@ -313,7 +313,7 @@ namespace NotfallSIM.EditorTools
             if (fit) go.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         }
 
-        static void Place(RectTransform rt, Vector2 anchor, Vector2 pivot, Vector2 pos, Vector2 size)
+        internal static void Place(RectTransform rt, Vector2 anchor, Vector2 pivot, Vector2 pos, Vector2 size)
         {
             rt.anchorMin = rt.anchorMax = anchor;
             rt.pivot = pivot;
@@ -321,7 +321,7 @@ namespace NotfallSIM.EditorTools
             rt.sizeDelta = size;
         }
 
-        static void Stretch(RectTransform rt, float left, float right, float top, float bottom)
+        internal static void Stretch(RectTransform rt, float left, float right, float top, float bottom)
         {
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
@@ -329,7 +329,7 @@ namespace NotfallSIM.EditorTools
             rt.offsetMax = new Vector2(-right, -top);
         }
 
-        static Material Mat(string name, Color color)
+        internal static Material Mat(string name, Color color)
         {
             EnsureFolder(MaterialFolder);
             string path = $"{MaterialFolder}/{name}.mat";
@@ -346,7 +346,7 @@ namespace NotfallSIM.EditorTools
             return mat;
         }
 
-        static void EnsureFolder(string path)
+        internal static void EnsureFolder(string path)
         {
             if (AssetDatabase.IsValidFolder(path)) return;
             string parent = System.IO.Path.GetDirectoryName(path).Replace('\\', '/');
@@ -354,7 +354,7 @@ namespace NotfallSIM.EditorTools
             AssetDatabase.CreateFolder(parent, System.IO.Path.GetFileName(path));
         }
 
-        static void AddToBuildSettings(string path)
+        internal static void AddToBuildSettings(string path)
         {
             var scenes = EditorBuildSettings.scenes.ToList();
             if (scenes.Any(s => s.path == path)) return;

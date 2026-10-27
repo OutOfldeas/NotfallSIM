@@ -78,7 +78,14 @@ namespace NotfallSIM.Simulation
         void Start()
         {
             Database = InjuryDatabase.Load();
-            if (string.IsNullOrEmpty(randomMechanism))
+            if (Crash.CrashHandoff.Pending != null)
+            {
+                // Fall aus der Unfall-Sandbox
+                Scenario = Crash.CrashHandoff.Pending;
+                Crash.CrashHandoff.Pending = null;
+                Debug.Log($"[Sim] Crash-Szenario {Scenario.id}: {Scenario.expectedCourse}");
+            }
+            else if (string.IsNullOrEmpty(randomMechanism))
                 Scenario = InjuryDatabase.LoadScenario(scenarioId);
             else
             {

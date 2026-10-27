@@ -48,6 +48,7 @@ Assets/
     mechanisms.json              Unfallmechanismen für Zufallsfälle (Verletzungswahrscheinlichkeiten)
     findings.json                Normalbefunde je Körperregion (Diagnose-Modus)
     differentials.json           Differenzialdiagnosen ohne Physiologie, mit „spricht dagegen“
+    injury_risk.json             Unfall-Sandbox: Messwerte → Risikokurven → Verletzungen
     scenarios/*.json             Szenarien
 ```
 
@@ -84,6 +85,22 @@ Assets/
    was dagegen sprach.
 7. **Modus wählen:** Feld *Mode* — *Textbook* (ATLS-Lehrbuchbild) oder *Registry* (Realitätsmodus nach
    Registerdaten mit individueller Streuung, Alter und Betablocker). Das Debriefing vergleicht beide.
+
+## Unfall-Sandbox (Ragdoll-Physik)
+
+Menü *NotfallSIM › Unfall-Sandbox erstellen* legt `Assets/NotfallSIM/Scenes/UnfallSandbox.unity` an.
+Play → Mechanismus wählen (PKW frontal, PKW seitlich, Motorrad, Fußgänger, Sturz), Geschwindigkeit bzw.
+Höhe und Gurt einstellen, „Crash starten“. Der Crash läuft in Zeitlupe mit 0,5-ms-Physikschritt.
+Danach zeigt die Sandbox die Messwerte wie beim Crashtest-Dummy (HIC15, Brustbeschleunigung, Kontaktkräfte),
+das Verletzungsrisiko je Region, färbt den Körper danach ein und übergibt den Fall auf Knopfdruck verdeckt an
+den Schockraum (Schockraum-Szene muss erzeugt sein).
+
+- Ragdoll aus Grundkörpern, Segmentmassen nach de Leva (1996) — `Scripts/Crash/RagdollBuilder.cs`
+- Szenen und Crashpulse — `CrashRig.cs`; Sensoren — `CrashSensor.cs`
+- Kriterien und Risikokurven ohne Unity, getestet — `Biomechanics.cs`, `InjuryRisk.cs`, `injury_risk.json`
+- **Noch nie in Unity gelaufen.** Erste Prüfpunkte: Knie knicken richtig herum (sonst *Invert Knee Flexion*
+  am Objekt `Unfall`), keine Teile „explodieren“ beim Start, Werte in plausibler Größenordnung
+  (PKW frontal 50 km/h mit Gurt: HIC eher unter 500, Brust 30–50 g).
 
 ## Tests
 

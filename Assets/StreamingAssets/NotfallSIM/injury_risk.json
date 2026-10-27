@@ -1,0 +1,330 @@
+{
+  "version": "0.1.0",
+  "note": "Messwerte aus der Unfall-Sandbox → Risiko je AIS-Stufe → Verletzungen der Datenbank. Anteile (share) und Schweregrade sind didaktische Setzungen. Abdomen.lateral: −1 Anprall von links, +1 von rechts (Milz links, Leber rechts).",
+  "metrics": [
+    {
+      "id": "HIC15",
+      "label": "Head Injury Criterion (15 ms)",
+      "unit": "",
+      "region": "Kopf",
+      "ais": "AIS3+",
+      "limit": 700,
+      "limitSource": "FMVSS 208",
+      "curve": {
+        "type": "lognormal",
+        "mu": 7.45231,
+        "sigma": 0.73998,
+        "x50": 0,
+        "shape": 0
+      },
+      "sources": [
+        {
+          "citation": "Head Injury Criterion – mini review. Am J Biomed Sci & Res. 2019;5(2).",
+          "url": "https://biomedgrid.com/fulltext/volume5/head-injury-criterion-mini-review.000957.php",
+          "note": "Normalverteilte Risikokurve für ln(HIC): AIS3+ mu 7,45231, sigma 0,73998 (dort HIC36 zugeordnet; im NHTSA-Regelwerk für HIC15 verwendet — im Original prüfen)"
+        },
+        {
+          "citation": "NHTSA. Federal Motor Vehicle Safety Standards; Occupant Crash Protection (FMVSS No. 208), Final Rule. 65 FR 30680, 12.05.2000.",
+          "url": "",
+          "note": "HIC15-Grenzwert 700, Brustbeschleunigung 60 g (3 ms), Femurkraft 10 kN für Hybrid III 50. Perzentil Mann"
+        },
+        {
+          "citation": "Prasad P, Mertz HJ, et al. Evaluation of the field relevance of several injury risk functions. Stapp Car Crash J. 2010;54:49-72.",
+          "url": "https://saemobilus.sae.org/papers/evaluation-field-relevance-several-injury-risk-functions-2010-22-0004",
+          "note": ""
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Veröffentlichte Risikokurve (Normalverteilung von ln HIC). Kopfbeschleunigung am Ragdoll mit 2 ms gleitendem Mittel geglättet."
+    },
+    {
+      "id": "Thorax.a3ms",
+      "label": "Brustbeschleunigung (3-ms-Clip)",
+      "unit": "g",
+      "region": "Thorax",
+      "ais": "AIS3+",
+      "limit": 60,
+      "limitSource": "FMVSS 208",
+      "curve": {
+        "type": "loglogistic",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 75,
+        "shape": 6
+      },
+      "sources": [
+        {
+          "citation": "NHTSA. Federal Motor Vehicle Safety Standards; Occupant Crash Protection (FMVSS No. 208), Final Rule. 65 FR 30680, 12.05.2000.",
+          "url": "",
+          "note": "HIC15-Grenzwert 700, Brustbeschleunigung 60 g (3 ms), Femurkraft 10 kN für Hybrid III 50. Perzentil Mann"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Kurvenform und Parameter sind didaktische Setzungen, angelehnt an den Grenzwert. Ein starres Ragdoll misst keine Dummy-Werte; die Zahlen sind qualitativ. Echte Dummys messen zusätzlich die Brustkorbdeflexion (NCAP 2008); ein starres Ragdoll kann das nicht."
+    },
+    {
+      "id": "Thorax.F",
+      "label": "Kontaktkraft Thorax (3 ms)",
+      "unit": "kN",
+      "region": "Thorax",
+      "ais": "AIS3+",
+      "limit": 0,
+      "limitSource": "",
+      "curve": {
+        "type": "loglogistic",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 6,
+        "shape": 5
+      },
+      "sources": [
+        {
+          "citation": "NHTSA. Consumer Information; New Car Assessment Program. 73 FR 40016, 11.07.2008 (Docket NHTSA-2006-26555).",
+          "url": "https://www.nhtsa.gov/sites/nhtsa.gov/files/nhtsa-2006-26555-0114_0.pdf",
+          "note": "Risikokurven Kopf (HIC15), Hals, Thorax (Deflexion, Laituri 2005) und Femur (AIS2+); Gleichungen nur als Abbildung — Parameter im Original übernehmen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Kurvenform und Parameter sind didaktische Setzungen, angelehnt an den Grenzwert. Ein starres Ragdoll misst keine Dummy-Werte; die Zahlen sind qualitativ."
+    },
+    {
+      "id": "Abdomen.F",
+      "label": "Kontaktkraft Abdomen (3 ms)",
+      "unit": "kN",
+      "region": "Abdomen",
+      "ais": "AIS3+",
+      "limit": 2.5,
+      "limitSource": "Euro NCAP (ES-2, Seite)",
+      "curve": {
+        "type": "loglogistic",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 3.5,
+        "shape": 5
+      },
+      "sources": [
+        {
+          "citation": "Euro NCAP. Assessment Protocol – Adult Occupant Protection.",
+          "url": "https://www.euroncap.com/en/for-engineers/protocols/",
+          "note": "Seitenaufprall ES-2: Bauchkraft (Grenze 2,5 kN), Schambeinkraft (Grenze 6 kN) — aktuelle Version prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Kurvenform und Parameter sind didaktische Setzungen, angelehnt an den Grenzwert. Ein starres Ragdoll misst keine Dummy-Werte; die Zahlen sind qualitativ."
+    },
+    {
+      "id": "Becken.F",
+      "label": "Kontaktkraft Becken (3 ms)",
+      "unit": "kN",
+      "region": "Becken",
+      "ais": "AIS3+",
+      "limit": 6,
+      "limitSource": "Euro NCAP (ES-2, Schambein)",
+      "curve": {
+        "type": "loglogistic",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 7,
+        "shape": 5
+      },
+      "sources": [
+        {
+          "citation": "Euro NCAP. Assessment Protocol – Adult Occupant Protection.",
+          "url": "https://www.euroncap.com/en/for-engineers/protocols/",
+          "note": "Seitenaufprall ES-2: Bauchkraft (Grenze 2,5 kN), Schambeinkraft (Grenze 6 kN) — aktuelle Version prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Kurvenform und Parameter sind didaktische Setzungen, angelehnt an den Grenzwert. Ein starres Ragdoll misst keine Dummy-Werte; die Zahlen sind qualitativ. Sitzkontakt zählt nicht."
+    },
+    {
+      "id": "Oberschenkel rechts.F",
+      "label": "Kontaktkraft Oberschenkel rechts (3 ms)",
+      "unit": "kN",
+      "region": "Oberschenkel rechts",
+      "ais": "AIS2+",
+      "limit": 10,
+      "limitSource": "FMVSS 208 (axiale Femurkraft)",
+      "curve": {
+        "type": "loglogistic",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 11,
+        "shape": 5
+      },
+      "sources": [
+        {
+          "citation": "NHTSA. Federal Motor Vehicle Safety Standards; Occupant Crash Protection (FMVSS No. 208), Final Rule. 65 FR 30680, 12.05.2000.",
+          "url": "",
+          "note": "HIC15-Grenzwert 700, Brustbeschleunigung 60 g (3 ms), Femurkraft 10 kN für Hybrid III 50. Perzentil Mann"
+        },
+        {
+          "citation": "NHTSA. Consumer Information; New Car Assessment Program. 73 FR 40016, 11.07.2008 (Docket NHTSA-2006-26555).",
+          "url": "https://www.nhtsa.gov/sites/nhtsa.gov/files/nhtsa-2006-26555-0114_0.pdf",
+          "note": "Risikokurven Kopf (HIC15), Hals, Thorax (Deflexion, Laituri 2005) und Femur (AIS2+); Gleichungen nur als Abbildung — Parameter im Original übernehmen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Kurvenform und Parameter sind didaktische Setzungen, angelehnt an den Grenzwert. Ein starres Ragdoll misst keine Dummy-Werte; die Zahlen sind qualitativ. Gemessen wird die Kontaktkraft am Segment, nicht die axiale Kraft im Femur."
+    },
+    {
+      "id": "Unterschenkel rechts.F",
+      "label": "Kontaktkraft Unterschenkel rechts (3 ms)",
+      "unit": "kN",
+      "region": "Unterschenkel rechts",
+      "ais": "AIS2+",
+      "limit": 0,
+      "limitSource": "",
+      "curve": {
+        "type": "loglogistic",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 5,
+        "shape": 5
+      },
+      "sources": [
+        {
+          "citation": "Euro NCAP. Assessment Protocol – Adult Occupant Protection.",
+          "url": "https://www.euroncap.com/en/for-engineers/protocols/",
+          "note": "Seitenaufprall ES-2: Bauchkraft (Grenze 2,5 kN), Schambeinkraft (Grenze 6 kN) — aktuelle Version prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Kurvenform und Parameter sind didaktische Setzungen, angelehnt an den Grenzwert. Ein starres Ragdoll misst keine Dummy-Werte; die Zahlen sind qualitativ. Fußgängerschutz misst mit dem Beinimpaktor Biegemoment und Beschleunigung; hier nur Kontaktkraft."
+    }
+  ],
+  "injuries": [
+    {
+      "injuryId": "sdh_akut_links",
+      "metric": "HIC15",
+      "share": 0.55,
+      "severityMin": 0.75,
+      "severityMax": 1.0,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "epiduralhaematom_rechts",
+      "metric": "HIC15",
+      "share": 0.25,
+      "severityMin": 0.8,
+      "severityMax": 1.0,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "rippenserienfraktur_links",
+      "metric": "Thorax.a3ms",
+      "share": 1.0,
+      "severityMin": 1,
+      "severityMax": 1,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "rippenserienfraktur_links",
+      "metric": "Thorax.F",
+      "share": 1.0,
+      "severityMin": 1,
+      "severityMax": 1,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "spannungspneu_links",
+      "metric": "Thorax.a3ms",
+      "share": 0.35,
+      "severityMin": 0.6,
+      "severityMax": 0.9,
+      "onsetMin_s": 60,
+      "onsetMax_s": 300,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "spannungspneu_links",
+      "metric": "Thorax.F",
+      "share": 0.35,
+      "severityMin": 0.6,
+      "severityMax": 0.9,
+      "onsetMin_s": 60,
+      "onsetMax_s": 300,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "milzruptur",
+      "metric": "Abdomen.F",
+      "share": 0.7,
+      "severityMin": 0.5,
+      "severityMax": 0.95,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "Abdomen.lateral",
+      "conditionMin": -1,
+      "conditionMax": 0.3
+    },
+    {
+      "injuryId": "leberlazeration",
+      "metric": "Abdomen.F",
+      "share": 0.7,
+      "severityMin": 0.5,
+      "severityMax": 0.95,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "Abdomen.lateral",
+      "conditionMin": -0.3,
+      "conditionMax": 1
+    },
+    {
+      "injuryId": "becken_instabil",
+      "metric": "Becken.F",
+      "share": 0.9,
+      "severityMin": 0.5,
+      "severityMax": 0.95,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "femur_schaft_rechts",
+      "metric": "Oberschenkel rechts.F",
+      "share": 0.9,
+      "severityMin": 0.5,
+      "severityMax": 0.8,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "unterschenkel_offen_rechts",
+      "metric": "Unterschenkel rechts.F",
+      "share": 0.6,
+      "severityMin": 0.6,
+      "severityMax": 1.0,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    }
+  ]
+}
