@@ -29,7 +29,7 @@ namespace NotfallSIM.UI
         List<ScenarioDefinition> _scenarios;
         MechanismDatabaseFile _mechanisms;
         string _choice;
-        TextMeshProUGUI _brief;
+        TextMeshProUGUI _brief, _warning;
         Button _modeTextbook, _modeRegistry, _ctRadiology, _ctRoom;
 
         public void Configure(RectTransform uiRoot) => root = uiRoot;
@@ -62,7 +62,8 @@ namespace NotfallSIM.UI
             _ctRoom = RuntimeUi.Button(right, "Im Schockraum", Option, () => { SessionSetup.CtInTraumaRoom = true; Refresh(); });
             RuntimeUi.Label(right, "", 10, Dim, 12);
             RuntimeUi.Button(right, "Schockraum starten", Selected, StartTraumaRoom, 60, 26);
-            RuntimeUi.Button(right, "Unfall-Sandbox (Ragdoll-Crash)", Primary, () => SceneManager.LoadScene(SessionSetup.CrashScene), 56, 22);
+            RuntimeUi.Button(right, "Unfall-Sandbox (Ragdoll-Crash)", Primary, () => Load(SessionSetup.CrashScene), 56, 22);
+            _warning = RuntimeUi.Label(right, "", 18, new Color(1f, 0.48f, 0.44f), 50);
             RuntimeUi.Label(right, "<size=80%>Experimentelles Lernwerkzeug, kein Medizinprodukt. Werte aus einem vereinfachten, literaturgestützten Modell im Entwurfsstatus.</size>", 16, Dim, 60);
 
             _choice = _choices.Count > 0 ? _choices[0].key : null;
@@ -104,7 +105,18 @@ namespace NotfallSIM.UI
             SessionSetup.Active = true;
             SessionSetup.ScenarioId = _choice.StartsWith("scenario:") ? _choice.Substring(9) : null;
             SessionSetup.RandomMechanism = _choice.StartsWith("random:") ? _choice.Substring(7) : null;
-            SceneManager.LoadScene(SessionSetup.TraumaRoomScene);
+            Load(SessionSetup.TraumaRoomScene);
+        }
+
+        void Load(string scene)
+        {
+            if (!Application.CanStreamedLevelBeLoaded(scene))
+            {
+                _warning.text = $"Szene „{scene}“ fehlt in der Build-Liste. Im Editor: NotfallSIM › Alle Szenen erstellen " +
+                                "oder NotfallSIM › Szenen in Build-Liste eintragen.";
+                return;
+            }
+            SceneManager.LoadScene(scene);
         }
     }
 }

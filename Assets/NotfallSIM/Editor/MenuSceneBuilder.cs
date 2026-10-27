@@ -22,6 +22,24 @@ namespace NotfallSIM.EditorTools
             SceneBuilder.Build();
             CrashSceneBuilder.Build();
             Build();
+            SyncBuildScenes();
+        }
+
+        /// <summary>
+        /// Trägt alle Szenen aus Assets/NotfallSIM/Scenes in die gemeinsame Szenenliste ein (Hauptmenü zuerst).
+        /// Ohne Eintrag kann SceneManager.LoadScene eine Szene nicht laden.
+        /// </summary>
+        [MenuItem("NotfallSIM/Szenen in Build-Liste eintragen", priority = 2)]
+        public static void SyncBuildScenes()
+        {
+            var ours = AssetDatabase.FindAssets("t:Scene", new[] { "Assets/NotfallSIM/Scenes" })
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .OrderBy(p => p == ScenePath ? 0 : 1).ThenBy(p => p)
+                .ToList();
+            var others = EditorBuildSettings.scenes.Where(s => !ours.Contains(s.path));
+            EditorBuildSettings.scenes = ours.Select(p => new EditorBuildSettingsScene(p, true)).Concat(others).ToArray();
+            Debug.Log("[NotfallSIM] Szenen in der Build-Liste: " + string.Join(", ", ours.Select(System.IO.Path.GetFileNameWithoutExtension)) +
+                      ". Falls ein eigenes Build Profile aktiv ist: File › Build Profiles › Scene List prüfen.");
         }
 
         [MenuItem("NotfallSIM/Hauptmenü erstellen", priority = 1)]
@@ -61,10 +79,7 @@ namespace NotfallSIM.EditorTools
             SceneBuilder.EnsureFolder("Assets/NotfallSIM/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);
 
-            // Hauptmenü als erste Szene im Build
-            var scenes = EditorBuildSettings.scenes.Where(s => s.path != ScenePath).ToList();
-            scenes.Insert(0, new EditorBuildSettingsScene(ScenePath, true));
-            EditorBuildSettings.scenes = scenes.ToArray();
+            SyncBuildScenes();
             Debug.Log("[NotfallSIM] Hauptmenü erstellt. Play startet im Menü; Schockraum und Unfall-Sandbox müssen ebenfalls erzeugt sein.");
         }
     }
