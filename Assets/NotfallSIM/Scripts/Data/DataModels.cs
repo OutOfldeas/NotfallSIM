@@ -10,6 +10,7 @@ namespace NotfallSIM.Data
     public class SourceRef
     {
         public string citation;   // vollständige Literaturangabe
+        public string url;        // DOI-Link oder Fundstelle
         public string note;       // wofür genau die Quelle steht
     }
 

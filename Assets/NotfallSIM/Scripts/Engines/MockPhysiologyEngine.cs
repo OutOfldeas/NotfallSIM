@@ -10,6 +10,11 @@ namespace NotfallSIM.Engines
     /// Blutverlust über Stützstellen interpoliert, die sich an den ATLS-Schockklassen
     /// orientieren (Klasse I &lt;15 %, II 15–30 %, III 30–40 %, IV &gt;40 %).
     ///
+    /// ACHTUNG Lehrbuch vs. Realität: Registerdaten (TraumaRegister DGU, Mutschler et al.
+    /// Crit Care 2013;17:R42) zeigen, dass echte Traumapatienten deutlich weniger Tachykardie
+    /// entwickeln als ATLS vorhersagt (mittlere HF nur ca. 86 -> 97/min über die Schockklassen).
+    /// Der Mock bildet bewusst das ATLS-Lehrbuchbild ab. Siehe docs/LITERATUR.md.
+    ///
     /// GRENZEN (absichtlich): keine Gerinnung, keine Hämodilution, keine Azidose,
     /// keine Hypothermie, kristalloide Volumenwirkung nur als fester Anteil.
     /// Für echten Realismus -> PulsePhysiologyAdapter. Der Mock dient als

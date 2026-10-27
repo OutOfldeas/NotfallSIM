@@ -13,7 +13,8 @@ namespace NotfallSIM.Simulation
         [SerializeField] SimulationManager sim;
 
         [Header("Beckengurt")]
-        [Tooltip("Faktor auf die Beckenblutungsrate. PLATZHALTER — Evidenz zur Größe des Effekts prüfen.")]
+        [Tooltip("Faktor auf die Beckenblutungsrate. PLATZHALTER: Die Evidenz zur Effektgröße ist schwach " +
+                 "und widersprüchlich (nur kleine Beobachtungsstudien), siehe docs/LITERATUR.md.")]
         [SerializeField] float pelvicBinderRateMultiplier = 0.5f;
 
         [Header("Infusion")]

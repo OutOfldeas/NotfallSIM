@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "injuries": [
     {
       "id": "becken_instabil",
@@ -24,15 +24,22 @@
       "sources": [
         {
           "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
           "note": "Schockklassen, Beckenstabilisierung im Primary Survey"
         },
         {
-          "citation": "DGU et al. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung, AWMF-Register-Nr. 187-023, Version 2022.",
-          "note": "Empfehlungen Beckenverletzung und Blutungskontrolle — Registernummer/Version vor Verwendung prüfen"
+          "citation": "DGU/DGOU. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung, AWMF-Register-Nr. 187-023, Version 5.0 (verabschiedet 11/2025). Digitale Fassung: MAGICapp.",
+          "url": "https://app.magicapp.org/#/guideline/8812",
+          "note": "Empfehlungen zu Beckenverletzung und Blutungskontrolle — Empfehlungstext und Grad im Kapitel Schockraum noch nachlesen"
+        },
+        {
+          "citation": "Devaney GL, Tarrant SM, Weaver N, King KL, Balogh ZJ. Major Pelvic Ring Injuries: Fewer Transfusions Without Deaths from Bleeding During the Last Decade. World J Surg. 2023;47(5):1136-1143.",
+          "url": "https://doi.org/10.1007/s00268-023-06897-7",
+          "note": "144 operativ versorgte instabile Beckenringverletzungen: ca. 1/3 im traumatischen Schock, dort median 6 EK in 24 h; keine Blutungstoten"
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "baseRate und maxTotalLoss sind Spielwerte, abgeleitet aus Lehrbuch-Schätzungen des Blutverlusts bei Beckenfrakturen (ca. 1–5 L). Primärquelle für Verlaufskinetik fehlt noch. ICD-10-GM-Code und AIS-Schweregrad je nach Frakturtyp präzisieren."
+      "reviewNotes": "Blutungskinetik (baseRate, maxTotalLoss) ist weiterhin geschätzt — es fehlen Primärdaten zum Blutverlust über die Zeit. Größenordnung plausibilisiert über Transfusionsbedarf im Schock (Devaney 2023). Szenario-Schweregrad 0,8 entspricht dem Schock-Subkollektiv, nicht der typischen Beckenfraktur. ICD-10-GM-Code und AIS je nach Frakturtyp präzisieren."
     },
     {
       "id": "femur_schaft_rechts",
@@ -44,8 +51,8 @@
         {
           "effectType": "Hemorrhage",
           "compartment": "RightThigh",
-          "baseRate_mL_min": 40,
-          "maxTotalLoss_mL": 1500
+          "baseRate_mL_min": 20,
+          "maxTotalLoss_mL": 1000
         }
       ],
       "clinicalFindings": [
@@ -56,12 +63,18 @@
       ],
       "sources": [
         {
+          "citation": "Lieurance R, Benjamin JB, Rappaport WD. Blood loss and transfusion in patients with isolated femur fractures. J Orthop Trauma. 1992;6(2):175-179.",
+          "url": "https://www.crisis-medicine.com/femur-fracture-blood-loss/",
+          "note": "53 isolierte Femurschaftfrakturen: geschätzter Verlust präoperativ Ø ca. 740 mL, gesamt inkl. OP Ø ca. 1,2 L. Zahlen bisher nur aus Sekundärquelle (Link), Volltext prüfen"
+        },
+        {
           "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
-          "note": "Musculoskeletal Trauma: Blutverlust bei Femurfrakturen"
+          "url": "",
+          "note": "Musculoskeletal Trauma: Femurfraktur als Blutungsquelle"
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Blutverlust geschlossene Femurfraktur in Lehrbüchern meist mit ca. 1–1,5 L angegeben; Zahlen gegen Primärquelle prüfen."
+      "reviewNotes": "v0.2: Obergrenze von 1500 auf 1000 mL und Rate von 40 auf 20 mL/min gesenkt — isolierte Femurschaftfrakturen bluten präoperativ eher 0,5–1 L. Hypotonie bei Femurfraktur spricht für eine weitere Blutungsquelle."
     },
     {
       "id": "spannungspneu_links",
@@ -86,11 +99,12 @@
       "sources": [
         {
           "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
           "note": "Thoracic Trauma: Spannungspneumothorax"
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Platzhalter für Phase 2 — physiologischer Effekt erst mit Pulse (SETensionPneumothorax) umsetzen. AIS-Schweregrad prüfen."
+      "reviewNotes": "Platzhalter für Phase 2 — physiologischer Effekt erst mit Pulse (SETensionPneumothorax) umsetzen. Literatur zum Verlauf bei Spontanatmung vs. Beatmung noch ergänzen. AIS-Schweregrad prüfen."
     }
   ]
 }
