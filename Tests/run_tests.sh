@@ -13,6 +13,7 @@ mcs -nologo -warnaserror- \
     -out:"$OUT/tests.exe" \
     $SCRIPTS/Core/*.cs \
     $SCRIPTS/Data/DataModels.cs \
+    $SCRIPTS/Data/ScenarioGenerator.cs \
     $SCRIPTS/Engines/MockPhysiologyEngine.cs \
     Tests/NotfallSimTests.cs
 

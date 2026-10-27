@@ -1,5 +1,5 @@
 {
-  "version": "0.6.0",
+  "version": "0.7.0",
   "interventions": [
     {
       "id": "o2",
@@ -85,7 +85,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Wirkt nur bei Blutung einer Extremität; in den aktuellen Szenarien ohne Effekt (Distraktor)."
+      "reviewNotes": "Stoppt eine arterielle Extremitätenblutung vollständig (Blutungsort Extremity, z. B. offene Unterschenkelfraktur)."
     },
     {
       "id": "femur_schiene",
@@ -360,6 +360,29 @@
       "sources": [],
       "evidenceStatus": "draft",
       "reviewNotes": "Definitive Blutstillung der Beckenblutung; wirkt nach 20 min (Team, Saal bzw. Angiographie bereit) – didaktische Setzung, reale Intervalle prüfen."
+    },
+    {
+      "id": "laparotomie",
+      "label": "Notfall-Laparotomie",
+      "logLabel": "Notfall-Laparotomie (Damage Control)",
+      "type": "HemorrhageControl",
+      "target": "Spleen,Liver",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 0.05,
+      "successProbability": 1,
+      "once": true,
+      "effectDelay_s": 900,
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Intraabdominelle Blutung beim instabilen Patienten: operative Blutstillung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Wirkt nach 15 min (OP-Saal bereit, Schnitt); stillt Milz- und Leberblutung. Zeit didaktisch."
     }
   ]
 }

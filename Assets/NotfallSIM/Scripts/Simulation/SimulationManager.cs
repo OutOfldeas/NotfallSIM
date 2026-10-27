@@ -18,6 +18,10 @@ namespace NotfallSIM.Simulation
     {
         [Header("Szenario")]
         [SerializeField] string scenarioId = "motorrad_beckenfraktur";
+        [Tooltip("Statt eines festen Szenarios ein Zufallsszenario aus diesem Unfallmechanismus erzeugen (mechanisms.json), z. B. pkw_frontal. Leer = festes Szenario.")]
+        [SerializeField] string randomMechanism = "";
+        [Tooltip("Seed für das Zufallsszenario. 0 = jedes Mal neu. Gleicher Seed = gleiches Szenario wie im Browser-Prototyp.")]
+        [SerializeField] int randomSeed = 0;
         [SerializeField] EngineChoice engine = EngineChoice.Mock;
         [Tooltip("Lehrbuch: ATLS-Stufen. Realität: an Registerdaten angelehnt, mit individueller Streuung (nur Mock).")]
         [SerializeField] PhysiologyMode mode = PhysiologyMode.Textbook;
@@ -64,7 +68,14 @@ namespace NotfallSIM.Simulation
         void Start()
         {
             Database = InjuryDatabase.Load();
-            Scenario = InjuryDatabase.LoadScenario(scenarioId);
+            if (string.IsNullOrEmpty(randomMechanism))
+                Scenario = InjuryDatabase.LoadScenario(scenarioId);
+            else
+            {
+                uint seed = randomSeed != 0 ? (uint)randomSeed : (uint)Environment.TickCount;
+                Scenario = ScenarioGenerator.Generate(InjuryDatabase.LoadMechanisms(), randomMechanism, Database.All, seed);
+                Debug.Log($"[Sim] Zufallsszenario {Scenario.id}: {Scenario.expectedCourse}");
+            }
             if (Scenario.defaultTimeScale > 0) timeScale = (float)Scenario.defaultTimeScale;
 
             Engine = CreateEngine();

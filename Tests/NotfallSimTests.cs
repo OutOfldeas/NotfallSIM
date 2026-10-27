@@ -50,6 +50,10 @@ static class Tests
         Run("Noradrenalin: hebt den MAD, erhöht aber den Blutverlust", VasopressorTradeOff);
         Run("Polytrauma: präklinischer Blutverlust und akutes SDH bei Ankunft", PolytraumaArrival);
         Run("Zustandsereignis: MAD < 80 nur bei schwerem SHT", MapLowTbiState);
+        Run("Laparotomie: stillt Milz- und Leberblutung (mehrere Ziele)", MultiTargetControl);
+        Run("Generator: gleicher Seed gleiches Szenario, Ausschlussgruppen, nie leer", GeneratorConsistency);
+        Run("Generator: Häufigkeiten folgen den Wahrscheinlichkeiten", GeneratorDistribution);
+        Run("Generator: gute Versorgung überlebt, keine Versorgung oft nicht", GeneratorPlayable);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -67,6 +71,7 @@ static class Tests
     static InjuryDatabaseFile Injuries => Load<InjuryDatabaseFile>("injuries.json");
     static InterventionDatabaseFile Interventions => Load<InterventionDatabaseFile>("interventions.json");
     static ImagingDatabaseFile Imaging => Load<ImagingDatabaseFile>("imaging.json");
+    static MechanismDatabaseFile Mechanisms => Load<MechanismDatabaseFile>("mechanisms.json");
     static IEnumerable<ScenarioDefinition> Scenarios =>
         Directory.GetFiles(Path.Combine(DataRoot, "scenarios"), "*.json")
                  .Select(f => Load<ScenarioDefinition>(Path.Combine("scenarios", Path.GetFileName(f))));
@@ -115,8 +120,11 @@ static class Tests
         foreach (var st in StateTags.All) possible.Add(st);
         foreach (var m in Imaging.modalities) { possible.Add("imaging:" + m.id); possible.Add("result:Imaging:" + m.id); }
         possible.Add("warning:unstable-transport");
-        foreach (var s in Scenarios)
-            foreach (var c in s.assessment ?? new AssessmentCriterion[0])
+        var lists = Scenarios.Select(x => new { id = x.id, crit = x.assessment ?? new AssessmentCriterion[0] })
+            .Concat(Injuries.injuries.Select(x => new { id = "injury/" + x.id, crit = x.criteria ?? new AssessmentCriterion[0] }))
+            .Concat(new[] { new { id = "mechanisms/base", crit = Mechanisms.baseCriteria } });
+        foreach (var s in lists)
+            foreach (var c in s.crit)
             {
                 Check(c.type == "deadline" || c.type == "maxCount", $"{s.id}/{c.id}: Typ {c.type}");
                 Check(c.tags.Any(t => possible.Any(p => p.StartsWith(t, StringComparison.Ordinal))),
@@ -557,6 +565,155 @@ static class Tests
         Check(count(70, 7) == 1, "bei GCS 7 und MAD 70 nicht ausgelöst");
         Check(count(78, 7) == 0, "doppelt ausgelöst");
         Check(count(86, 7) == 0 && count(75, 7) == 1, "Hysterese");
+    }
+
+    // ------------------------------------------------------------ Unfallmechanismen
+
+    static void MultiTargetControl()
+    {
+        var e = new MockPhysiologyEngine(1);
+        e.Initialize(new PatientProfile { weight_kg = 80 });
+        e.ApplyInjury(new InjuryEvent { Effect = InjuryEffectType.Hemorrhage, Compartment = "Spleen", Severity = 1, BaseRate_mL_min = 100, MaxTotalLoss_mL = 2500 });
+        e.ApplyInjury(new InjuryEvent { Effect = InjuryEffectType.Hemorrhage, Compartment = "Liver", Severity = 1, BaseRate_mL_min = 90, MaxTotalLoss_mL = 2500 });
+        Advance(e, 60);
+        var lap = Interventions.interventions.First(i => i.id == "laparotomie").ToEvent();
+        e.ApplyIntervention(lap);
+        double before = e.Current.BloodVolume_mL;
+        Advance(e, 60);
+        Check(before - e.Current.BloodVolume_mL < 15, $"Verlust nach Laparotomie {before - e.Current.BloodVolume_mL:F0} mL/min");
+    }
+
+    static void GeneratorConsistency()
+    {
+        var db = Mechanisms; var inj = Injuries.injuries;
+        var ids = new HashSet<string>(inj.Select(i => i.id));
+        foreach (var m in db.mechanisms)
+        {
+            foreach (var c in m.injuries) Check(ids.Contains(c.injuryId), $"{m.id}: unbekannte Verletzung {c.injuryId}");
+            Check(m.sources.Length > 0, $"{m.id}: keine Quelle");
+            for (uint seed = 1; seed <= 300; seed++)
+            {
+                var a = ScenarioGenerator.Generate(db, m.id, inj, seed);
+                var b = ScenarioGenerator.Generate(db, m.id, inj, seed);
+                Check(a.description == b.description && a.injuries.Length == b.injuries.Length, $"{m.id}/{seed}: nicht deterministisch");
+                Check(a.injuries.Any(si => inj.First(d => d.id == si.injuryId).effects.Length > 0), $"{m.id}/{seed}: ohne relevante Verletzung");
+                foreach (var g in db.exclusiveGroups)
+                    Check(a.injuries.Count(si => g.injuryIds.Contains(si.injuryId)) <= 1, $"{m.id}/{seed}: Ausschlussgruppe verletzt");
+                Check(a.assessment.Select(c => c.id).Distinct().Count() == a.assessment.Length, $"{m.id}/{seed}: doppelte Kriterien");
+                Check(a.patient.initialBloodLoss_mL >= 0 && a.patient.initialBloodLoss_mL <= db.prehospital.maxLoss_mL, $"{m.id}/{seed}: Verlust {a.patient.initialBloodLoss_mL}");
+                Check(!a.description.Contains("{"), $"{m.id}: Platzhalter übrig: {a.description}");
+            }
+        }
+    }
+
+    static void GeneratorDistribution()
+    {
+        var db = Mechanisms; var inj = Injuries.injuries;
+        var m = db.mechanisms.First(x => x.id == "motorrad"); // keine Gurt-Multiplikatoren
+        const int n = 2000;
+        var count = new Dictionary<string, int>();
+        for (uint seed = 1; seed <= n; seed++)
+            foreach (var si in ScenarioGenerator.Generate(db, m.id, inj, seed).injuries)
+                count[si.injuryId] = (count.TryGetValue(si.injuryId, out var c) ? c : 0) + 1;
+        // Szenarien ohne relevante Verletzung werden neu gezogen: P(X | nicht leer) = p / (1 − P(leer)).
+        Func<string, bool> relevant = id => inj.First(d => d.id == id).effects.Length > 0;
+        double pEmpty = m.injuries.Where(x => relevant(x.injuryId)).Aggregate(1.0, (acc, x) => acc * (1 - x.probability));
+        foreach (var c in m.injuries.Where(x => !db.exclusiveGroups.Any(g => g.injuryIds.Contains(x.injuryId))))
+        {
+            double f = (count.TryGetValue(c.injuryId, out var k) ? k : 0) / (double)n;
+            double expected = relevant(c.injuryId) ? c.probability / (1 - pEmpty) : c.probability;
+            Check(Math.Abs(f - expected) < 0.04, $"{c.injuryId}: {f:P0} statt {expected:P0}");
+        }
+    }
+
+    /// <summary>Spielt ein generiertes Szenario mit einer Musterversorgung (oder ohne) durch. Rückgabe: überlebt?</summary>
+    static bool PlayGenerated(ScenarioDefinition s, bool treat, out string why)
+    {
+        var ivs = Interventions.interventions.ToDictionary(i => i.id);
+        var e = new MockPhysiologyEngine(7);
+        e.Initialize(s.patient);
+        var has = new HashSet<string>(s.injuries.Select(i => i.injuryId));
+        var pending = s.injuries.OrderBy(i => i.onsetTime_s).ToList();
+        var defs = Injuries.injuries.ToDictionary(d => d.id);
+        var plan = new List<KeyValuePair<double, string>>();
+        Action<double, string> at = (t, id) => plan.Add(new KeyValuePair<double, string>(t, id));
+        bool bleed = s.injuries.Any(si => defs[si.injuryId].effects.Any(x => x.effectType == "Hemorrhage"));
+        bool tbi = has.Contains("sdh_akut_links") || has.Contains("epiduralhaematom_rechts");
+        if (treat)
+        {
+            if (has.Contains("unterschenkel_offen_rechts")) at(20, "tourniquet");
+            at(30, "o2");
+            if (has.Contains("becken_instabil")) { at(60, "beckengurt"); at(600, "angio_op"); }
+            if (has.Contains("femur_schaft_rechts")) at(90, "femur_schiene");
+            if (bleed) { at(90, "txa"); for (int k = 0; k < 5; k++) at(90 + 360 * k, "ek"); }
+            if (has.Contains("milzruptur") || has.Contains("leberlazeration")) at(300, "laparotomie");
+            var tp = s.injuries.FirstOrDefault(i => i.injuryId == "spannungspneu_links");
+            if (tp != null) at(tp.onsetTime_s + 90, "drainage_li");
+            if (tbi) at(480, "kraniotomie");
+        }
+        plan.Sort((x, y) => x.Key.CompareTo(y.Key));
+        var delayed = new List<KeyValuePair<double, InterventionEvent>>();
+        Action<string, double> apply = (id, now) =>
+        {
+            var d = ivs[id];
+            if (d.effectDelay_s > 0) delayed.Add(new KeyValuePair<double, InterventionEvent>(now + d.effectDelay_s, d.ToEvent()));
+            else e.ApplyIntervention(d.ToEvent());
+        };
+        bool intubated = false, pressor = false;
+        int next = 0;
+        for (double t = 0; t < 2700; t += 0.1)
+        {
+            while (pending.Count > 0 && pending[0].onsetTime_s <= t)
+            {
+                var si = pending[0]; pending.RemoveAt(0);
+                foreach (var ev in ToEvents(defs[si.injuryId], si)) e.ApplyInjury(ev);
+            }
+            while (next < plan.Count && plan[next].Key <= t) apply(plan[next++].Value, t);
+            for (int k = delayed.Count - 1; k >= 0; k--)
+                if (delayed[k].Key <= t) { e.ApplyIntervention(delayed[k].Value); delayed.RemoveAt(k); }
+            if (treat && !intubated && e.Current.GCS <= 8 && t > 1) { apply("intubation", t); intubated = true; }
+            if (treat && intubated && !pressor && e.Current.MeanArterialPressure_mmHg < 80) { apply("noradrenalin", t); pressor = true; }
+            e.Advance(0.1);
+            if (e.Current.CardiacArrest)
+            {
+                why = $"Stillstand nach {t / 60:F0} min, Verlust {e.Current.BloodLossFraction:P0}, GCS {e.Current.GCS}";
+                return false;
+            }
+        }
+        why = "";
+        return true;
+    }
+
+    static IEnumerable<InjuryEvent> ToEvents(InjuryDefinition def, ScenarioInjury si)
+    {
+        foreach (var x in def.effects)
+            yield return new InjuryEvent
+            {
+                InjuryId = def.id, Effect = (InjuryEffectType)Enum.Parse(typeof(InjuryEffectType), x.effectType),
+                Compartment = x.compartment, Severity = si.severity, BaseRate_mL_min = x.baseRate_mL_min,
+                MaxTotalLoss_mL = x.maxTotalLoss_mL, ProgressionRate_per_min = x.progressionRate_per_min, InitialLevel = x.initialLevel
+            };
+    }
+
+    static void GeneratorPlayable()
+    {
+        var db = Mechanisms; var inj = Injuries.injuries;
+        foreach (var m in db.mechanisms)
+        {
+            int n = 40, survivedTreated = 0, survivedUntreated = 0;
+            var fails = new List<string>();
+            for (uint seed = 1; seed <= n; seed++)
+            {
+                var s = ScenarioGenerator.Generate(db, m.id, inj, seed);
+                string why;
+                if (PlayGenerated(s, true, out why)) survivedTreated++;
+                else fails.Add($"{seed} [{string.Join(",", s.injuries.Select(i => i.injuryId + ":" + i.severity))}; {s.patient.initialBloodLoss_mL} mL] {why}");
+                if (PlayGenerated(s, false, out why)) survivedUntreated++;
+            }
+            Console.WriteLine($"        {m.id}: behandelt {survivedTreated}/{n}, unbehandelt {survivedUntreated}/{n} überleben" + (fails.Count > 0 ? " — z. B. " + fails[0] : ""));
+            Check(survivedTreated >= n * 0.9, $"{m.id}: nur {survivedTreated}/{n} überleben mit Versorgung. " + string.Join(" | ", fails.Take(3)));
+            Check(survivedUntreated <= n * 0.7, $"{m.id}: {survivedUntreated}/{n} überleben ohne Versorgung — zu harmlos");
+        }
     }
 
     // ------------------------------------------------------------ Helfer

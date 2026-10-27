@@ -45,7 +45,33 @@ run("polytrauma_noradrenalin", { weight_kg: 85, age: 42, sex: "male", initialBlo
   if (s === 6000) e.applyIntervention(iv("Intubation"));
   if (s === 7000) e.applyIntervention(iv("Vasopressor"));
 }, 1800);
+run("laparotomie_mehrfach", man80, (e, s) => {
+  if (s === 0) { e.applyInjury(bleed("Spleen", 0.8, 100, 2500)); e.applyInjury(bleed("Liver", 0.7, 90, 2500)); e.applyInjury(bleed("Extremity", 0.8, 120, 0)); }
+  if (s === 300) e.applyIntervention(iv("HemorrhageControl", { target: "Extremity", rateMultiplier: 0 }));
+  if (s === 3000) e.applyIntervention(iv("HemorrhageControl", { target: "Spleen,Liver", rateMultiplier: 0.05 }));
+}, 1200);
 run("betablocker", { weight_kg: 65, age: 76, sex: "female", betaBlocker: true }, (e, s) => { if (s === 0) e.applyInjury(bleed("Pelvis", 0.6, 150, 3000)); }, 1800);
+
+// Zufallsszenarien (Datei als drittes Argument)
+if (process.argv[3]) {
+  const { generateScenario } = require("../../web/engine.js");
+  const root = process.argv[4];
+  const data = { injuries: JSON.parse(fs.readFileSync(root + "/injuries.json", "utf8")), mechanisms: JSON.parse(fs.readFileSync(root + "/mechanisms.json", "utf8")) };
+  const lines = [];
+  for (const m of data.mechanisms.mechanisms)
+    for (let seed = 1; seed <= 60; seed++) {
+      const s = generateScenario(data, m.id, (seed * 7919) >>> 0), p = s.patient;
+      lines.push([s.id, s.description, p.sex, p.age, N(p.weight_kg), N(p.height_cm), p.betaBlocker ? "1" : "0", N(p.initialBloodLoss_mL),
+        s.injuries.map((i) => `${i.injuryId}:${N(i.severity)}:${N(i.onsetTime_s)}`).join(","), s.assessment.map((c) => c.id).join(",")].join("|"));
+    }
+  const gref = fs.readFileSync(process.argv[3], "utf8").trim().split("\n");
+  const diff = gref.findIndex((l, i) => l !== lines[i]);
+  if (gref.length !== lines.length || diff >= 0) {
+    console.log(`Zufallsszenarien weichen ab (Zeile ${diff + 1}):\n  C#: ${gref[diff]}\n  JS: ${lines[diff]}`);
+    process.exit(1);
+  }
+  console.log(`${lines.length} Zufallsszenarien identisch`);
+}
 
 const ref = fs.readFileSync(process.argv[2], "utf8").trim().split("\n").map((l) => l.split(";"));
 let maxDiff = 0, worst = "", fails = 0;

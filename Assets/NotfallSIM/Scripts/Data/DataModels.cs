@@ -41,6 +41,7 @@ namespace NotfallSIM.Data
         public SourceRef[] sources;
         public string evidenceStatus;     // "draft" | "reviewed" | "validated"
         public string reviewNotes;
+        public AssessmentCriterion[] criteria; // Bewertungsvorlagen für generierte Szenarien
     }
 
     [Serializable]
@@ -192,5 +193,80 @@ namespace NotfallSIM.Data
         public bool onlyAfterReference;
         public bool critical;
         public string rationale;
+    }
+
+    // ---------- Unfallmechanismen (mechanisms.json) ----------
+
+    [Serializable]
+    public class MechanismInjury
+    {
+        public string injuryId;
+        public double probability;      // didaktische Setzung, siehe reviewNotes
+        public double severityMin;
+        public double severityMax;
+        public double onsetMin_s;
+        public double onsetMax_s;
+    }
+
+    [Serializable]
+    public class InjuryFactor
+    {
+        public string injuryId;
+        public double factor;
+    }
+
+    [Serializable]
+    public class MechanismDefinition
+    {
+        public string id;
+        public string label;
+        public string descriptionTemplate; // Platzhalter: {age} {r} {in} {driver} {belt} {speed} {height} {rescue}
+        public double speedMin, speedMax;    // km/h (0 = nicht relevant)
+        public double heightMin, heightMax;  // m (Sturz)
+        public double ageMin, ageMax;
+        public double maleShare;
+        public double rescueMin, rescueMax;  // min bis Schockraum
+        public double unrestrainedShare;     // Anteil nicht angeschnallt (nur PKW)
+        public MechanismInjury[] injuries;
+        public InjuryFactor[] unrestrainedMultipliers;
+        public SourceRef[] sources;
+        public string evidenceStatus;
+        public string reviewNotes;
+    }
+
+    [Serializable]
+    public class ExclusiveGroup
+    {
+        public string[] injuryIds; // höchstens eine dieser Verletzungen pro Szenario
+    }
+
+    [Serializable]
+    public class Anthropometry
+    {
+        public double maleWeightMin_kg, maleWeightMax_kg, maleHeightMin_cm, maleHeightMax_cm;
+        public double femaleWeightMin_kg, femaleWeightMax_kg, femaleHeightMin_cm, femaleHeightMax_cm;
+        public double betaBlockerMinAge, betaBlockerShare;
+    }
+
+    [Serializable]
+    public class PrehospitalSettings
+    {
+        public double lossFactor;
+        public double maxLoss_mL;
+        public double roundTo_mL;
+        public double reportThreshold_mL; // ab hier in der Übergabe erwähnt
+        public string note;
+    }
+
+    [Serializable]
+    public class MechanismDatabaseFile
+    {
+        public string version;
+        public string[] learningGoals;
+        public Anthropometry anthropometry;
+        public PrehospitalSettings prehospital;
+        public AssessmentCriterion[] baseCriteria;
+        public ExclusiveGroup[] exclusiveGroups;
+        public MechanismDefinition[] mechanisms;
     }
 }

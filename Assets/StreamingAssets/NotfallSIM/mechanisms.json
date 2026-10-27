@@ -1,0 +1,536 @@
+{
+  "version": "0.1.0",
+  "learningGoals": [
+    "Primary Survey nach xABCDE strukturiert durchführen",
+    "Aus dem Unfallmechanismus mögliche Verletzungen ableiten und gezielt suchen",
+    "Blutungsquellen erkennen und priorisiert behandeln",
+    "Bildgebung passend zur Kreislaufsituation einsetzen"
+  ],
+  "anthropometry": {
+    "maleWeightMin_kg": 70,
+    "maleWeightMax_kg": 95,
+    "maleHeightMin_cm": 170,
+    "maleHeightMax_cm": 192,
+    "femaleWeightMin_kg": 55,
+    "femaleWeightMax_kg": 80,
+    "femaleHeightMin_cm": 158,
+    "femaleHeightMax_cm": 178,
+    "betaBlockerMinAge": 65,
+    "betaBlockerShare": 0.3
+  },
+  "prehospital": {
+    "lossFactor": 0.2,
+    "maxLoss_mL": 2000,
+    "roundTo_mL": 50,
+    "reportThreshold_mL": 300,
+    "note": "Präklinischer Blutverlust ≈ Summe(Blutungsrate × Schweregrad) × Rettungszeit × Faktor. Faktor berücksichtigt Hypotonie und präklinische Kompression; didaktische Setzung. Erst ab reportThreshold_mL wird der Verlust in der Übergabe genannt."
+  },
+  "baseCriteria": [
+    {
+      "id": "o2",
+      "description": "Sauerstoff gegeben",
+      "type": "deadline",
+      "tags": [
+        "intervention:Oxygen"
+      ],
+      "limit": 120,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": false,
+      "rationale": "Basismaßnahme im Primary Survey. Zeitziel didaktisch."
+    },
+    {
+      "id": "bga",
+      "description": "BGA abgenommen",
+      "type": "deadline",
+      "tags": [
+        "intervention:BloodGas"
+      ],
+      "limit": 600,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": false,
+      "rationale": "Base Excess und Laktat zeigen den Schock verlässlicher als HF und Blutdruck (Mutschler 2013). Zeitziel didaktisch."
+    },
+    {
+      "id": "keine_instabile_ct_fahrt",
+      "description": "Kein Transport ins CT im Schock",
+      "type": "maxCount",
+      "tags": [
+        "warning:unstable-transport"
+      ],
+      "limit": 0,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": false,
+      "rationale": "Instabile Patienten nicht in einen CT-Raum außerhalb des Schockraums (ATLS; S3: CT < 50 m, GoR B)."
+    }
+  ],
+  "exclusiveGroups": [
+    {
+      "injuryIds": [
+        "epiduralhaematom_rechts",
+        "sdh_akut_links"
+      ]
+    },
+    {
+      "injuryIds": [
+        "milzruptur",
+        "leberlazeration"
+      ]
+    }
+  ],
+  "mechanisms": [
+    {
+      "id": "pkw_frontal",
+      "label": "PKW-Frontalkollision",
+      "descriptionTemplate": "{age}-jährige{r} PKW-{driver}, Frontalkollision mit ca. {speed} km/h, {belt}. Rettungszeit ca. {rescue} min.",
+      "speedMin": 50,
+      "speedMax": 100,
+      "heightMin": 0,
+      "heightMax": 0,
+      "ageMin": 18,
+      "ageMax": 80,
+      "maleShare": 0.7,
+      "rescueMin": 20,
+      "rescueMax": 60,
+      "unrestrainedShare": 0.3,
+      "injuries": [
+        {
+          "injuryId": "rippenserienfraktur_links",
+          "probability": 0.5,
+          "severityMin": 1,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "sdh_akut_links",
+          "probability": 0.25,
+          "severityMin": 0.8,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "epiduralhaematom_rechts",
+          "probability": 0.1,
+          "severityMin": 0.8,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "femur_schaft_rechts",
+          "probability": 0.35,
+          "severityMin": 0.5,
+          "severityMax": 0.8,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "becken_instabil",
+          "probability": 0.3,
+          "severityMin": 0.5,
+          "severityMax": 0.9,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "milzruptur",
+          "probability": 0.15,
+          "severityMin": 0.5,
+          "severityMax": 0.9,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "leberlazeration",
+          "probability": 0.15,
+          "severityMin": 0.5,
+          "severityMax": 0.9,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "spannungspneu_links",
+          "probability": 0.15,
+          "severityMin": 0.6,
+          "severityMax": 0.9,
+          "onsetMin_s": 60,
+          "onsetMax_s": 300
+        }
+      ],
+      "unrestrainedMultipliers": [
+        {
+          "injuryId": "sdh_akut_links",
+          "factor": 1.8
+        },
+        {
+          "injuryId": "epiduralhaematom_rechts",
+          "factor": 1.8
+        },
+        {
+          "injuryId": "femur_schaft_rechts",
+          "factor": 1.3
+        }
+      ],
+      "sources": [
+        {
+          "citation": "Newgard CD, et al. National guideline for the field triage of injured patients: recommendations of the National Expert Panel on Field Triage, 2021. J Trauma Acute Care Surg. 2022;93(2):e49-e60.",
+          "url": "",
+          "note": "Hochrisiko-Mechanismen (u. a. Sturz > 3 m, Fußgänger/Zweirad > 30 km/h, Herausschleudern, Intrusion) als Triagekriterium; Zitat vor Verwendung prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Wahrscheinlichkeiten didaktisch: Kopf (Windschutzscheibe, v. a. ungesichert), Knie/Femur/Becken (Armaturenbrett), Thorax (Lenkrad, Gurt)."
+    },
+    {
+      "id": "pkw_seite",
+      "label": "PKW-Seitenkollision (Fahrerseite)",
+      "descriptionTemplate": "{age}-jährige{r} PKW-{driver}, seitlicher Anprall auf der Fahrerseite mit ca. {speed} km/h, {belt}. Rettungszeit ca. {rescue} min.",
+      "speedMin": 40,
+      "speedMax": 80,
+      "heightMin": 0,
+      "heightMax": 0,
+      "ageMin": 18,
+      "ageMax": 85,
+      "maleShare": 0.6,
+      "rescueMin": 25,
+      "rescueMax": 70,
+      "unrestrainedShare": 0.15,
+      "injuries": [
+        {
+          "injuryId": "rippenserienfraktur_links",
+          "probability": 0.65,
+          "severityMin": 1,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "becken_instabil",
+          "probability": 0.45,
+          "severityMin": 0.5,
+          "severityMax": 0.9,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "milzruptur",
+          "probability": 0.3,
+          "severityMin": 0.5,
+          "severityMax": 0.9,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "spannungspneu_links",
+          "probability": 0.25,
+          "severityMin": 0.6,
+          "severityMax": 0.9,
+          "onsetMin_s": 60,
+          "onsetMax_s": 300
+        },
+        {
+          "injuryId": "sdh_akut_links",
+          "probability": 0.2,
+          "severityMin": 0.8,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "leberlazeration",
+          "probability": 0.05,
+          "severityMin": 0.5,
+          "severityMax": 0.8,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        }
+      ],
+      "unrestrainedMultipliers": [
+        {
+          "injuryId": "sdh_akut_links",
+          "factor": 1.5
+        }
+      ],
+      "sources": [
+        {
+          "citation": "Yoganandan N, Pintar FA, Gennarelli TA, Maltese MR. Patterns of abdominal injuries in frontal and side impacts. Annu Proc Assoc Adv Automot Med. 2000;44:17-36.",
+          "url": "https://trid.trb.org/View/710752",
+          "note": "Seitenkollisionen verursachen einen großen Teil der Abdominalverletzungen; Leber und Milz am häufigsten betroffen"
+        },
+        {
+          "citation": "Newgard CD, et al. National guideline for the field triage of injured patients: recommendations of the National Expert Panel on Field Triage, 2021. J Trauma Acute Care Surg. 2022;93(2):e49-e60.",
+          "url": "",
+          "note": "Hochrisiko-Mechanismen (u. a. Sturz > 3 m, Fußgänger/Zweirad > 30 km/h, Herausschleudern, Intrusion) als Triagekriterium; Zitat vor Verwendung prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Linksseitiger Anprall: linker Thorax, Becken (laterale Kompression), Milz. Wahrscheinlichkeiten didaktisch."
+    },
+    {
+      "id": "motorrad",
+      "label": "Motorradunfall",
+      "descriptionTemplate": "{age}-jährige{r} Motorradfahrer{in}, Sturz bzw. Anprall mit ca. {speed} km/h, Helm getragen. Rettungszeit ca. {rescue} min.",
+      "speedMin": 40,
+      "speedMax": 110,
+      "heightMin": 0,
+      "heightMax": 0,
+      "ageMin": 18,
+      "ageMax": 70,
+      "maleShare": 0.9,
+      "rescueMin": 15,
+      "rescueMax": 45,
+      "unrestrainedShare": 0,
+      "injuries": [
+        {
+          "injuryId": "becken_instabil",
+          "probability": 0.35,
+          "severityMin": 0.5,
+          "severityMax": 0.9,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "femur_schaft_rechts",
+          "probability": 0.35,
+          "severityMin": 0.5,
+          "severityMax": 0.8,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "unterschenkel_offen_rechts",
+          "probability": 0.3,
+          "severityMin": 0.6,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "rippenserienfraktur_links",
+          "probability": 0.3,
+          "severityMin": 1,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "spannungspneu_links",
+          "probability": 0.15,
+          "severityMin": 0.6,
+          "severityMax": 0.9,
+          "onsetMin_s": 60,
+          "onsetMax_s": 300
+        },
+        {
+          "injuryId": "sdh_akut_links",
+          "probability": 0.15,
+          "severityMin": 0.8,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "epiduralhaematom_rechts",
+          "probability": 0.1,
+          "severityMin": 0.8,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "milzruptur",
+          "probability": 0.1,
+          "severityMin": 0.5,
+          "severityMax": 0.8,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        }
+      ],
+      "unrestrainedMultipliers": [],
+      "sources": [
+        {
+          "citation": "Newgard CD, et al. National guideline for the field triage of injured patients: recommendations of the National Expert Panel on Field Triage, 2021. J Trauma Acute Care Surg. 2022;93(2):e49-e60.",
+          "url": "",
+          "note": "Hochrisiko-Mechanismen (u. a. Sturz > 3 m, Fußgänger/Zweirad > 30 km/h, Herausschleudern, Intrusion) als Triagekriterium; Zitat vor Verwendung prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Extremitäten und Becken dominieren; Helm senkt, verhindert aber nicht schwere Kopfverletzungen. Wahrscheinlichkeiten didaktisch."
+    },
+    {
+      "id": "fussgaenger",
+      "label": "Fußgänger von PKW erfasst",
+      "descriptionTemplate": "{age}-jährige{r} Fußgänger{in}, von einem PKW mit ca. {speed} km/h erfasst und auf die Straße geschleudert. Rettungszeit ca. {rescue} min.",
+      "speedMin": 30,
+      "speedMax": 70,
+      "heightMin": 0,
+      "heightMax": 0,
+      "ageMin": 18,
+      "ageMax": 90,
+      "maleShare": 0.55,
+      "rescueMin": 15,
+      "rescueMax": 35,
+      "unrestrainedShare": 0,
+      "injuries": [
+        {
+          "injuryId": "unterschenkel_offen_rechts",
+          "probability": 0.45,
+          "severityMin": 0.6,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "sdh_akut_links",
+          "probability": 0.3,
+          "severityMin": 0.8,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "epiduralhaematom_rechts",
+          "probability": 0.15,
+          "severityMin": 0.8,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "becken_instabil",
+          "probability": 0.3,
+          "severityMin": 0.5,
+          "severityMax": 0.9,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "femur_schaft_rechts",
+          "probability": 0.15,
+          "severityMin": 0.5,
+          "severityMax": 0.8,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "rippenserienfraktur_links",
+          "probability": 0.25,
+          "severityMin": 1,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "milzruptur",
+          "probability": 0.08,
+          "severityMin": 0.5,
+          "severityMax": 0.8,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        }
+      ],
+      "unrestrainedMultipliers": [],
+      "sources": [
+        {
+          "citation": "Newgard CD, et al. National guideline for the field triage of injured patients: recommendations of the National Expert Panel on Field Triage, 2021. J Trauma Acute Care Surg. 2022;93(2):e49-e60.",
+          "url": "",
+          "note": "Hochrisiko-Mechanismen (u. a. Sturz > 3 m, Fußgänger/Zweirad > 30 km/h, Herausschleudern, Intrusion) als Triagekriterium; Zitat vor Verwendung prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Stoßstange: Unterschenkel; Motorhaube/Scheibe und Aufprall auf der Straße: Kopf; Becken. Wahrscheinlichkeiten didaktisch."
+    },
+    {
+      "id": "sturz_hoehe",
+      "label": "Sturz aus großer Höhe (> 3 m)",
+      "descriptionTemplate": "{age}-jährige{r} Patient{in}, Sturz aus ca. {height} m Höhe (Gerüst bzw. Leiter) auf harten Untergrund. Rettungszeit ca. {rescue} min.",
+      "speedMin": 0,
+      "speedMax": 0,
+      "heightMin": 3,
+      "heightMax": 10,
+      "ageMin": 18,
+      "ageMax": 85,
+      "maleShare": 0.75,
+      "rescueMin": 15,
+      "rescueMax": 40,
+      "unrestrainedShare": 0,
+      "injuries": [
+        {
+          "injuryId": "becken_instabil",
+          "probability": 0.35,
+          "severityMin": 0.5,
+          "severityMax": 0.9,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "rippenserienfraktur_links",
+          "probability": 0.4,
+          "severityMin": 1,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "spannungspneu_links",
+          "probability": 0.15,
+          "severityMin": 0.6,
+          "severityMax": 0.9,
+          "onsetMin_s": 60,
+          "onsetMax_s": 300
+        },
+        {
+          "injuryId": "sdh_akut_links",
+          "probability": 0.3,
+          "severityMin": 0.8,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "milzruptur",
+          "probability": 0.12,
+          "severityMin": 0.5,
+          "severityMax": 0.8,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "leberlazeration",
+          "probability": 0.12,
+          "severityMin": 0.5,
+          "severityMax": 0.8,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "femur_schaft_rechts",
+          "probability": 0.15,
+          "severityMin": 0.5,
+          "severityMax": 0.8,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        }
+      ],
+      "unrestrainedMultipliers": [],
+      "sources": [
+        {
+          "citation": "Falls from Great Heights: Risk to Sustain Severe Thoracic and Pelvic Injuries Increases with Height of the Fall. J Clin Med. 2021;10(11):2307.",
+          "url": "",
+          "note": "Mit der Sturzhöhe steigt das Risiko schwerer Thorax- und Beckenverletzungen (nur Titel/Abstract gesichtet, Volltext prüfen)"
+        },
+        {
+          "citation": "Newgard CD, et al. National guideline for the field triage of injured patients: recommendations of the National Expert Panel on Field Triage, 2021. J Trauma Acute Care Surg. 2022;93(2):e49-e60.",
+          "url": "",
+          "note": "Hochrisiko-Mechanismen (u. a. Sturz > 3 m, Fußgänger/Zweirad > 30 km/h, Herausschleudern, Intrusion) als Triagekriterium; Zitat vor Verwendung prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Wirbelsäule und Kalkaneus (häufig) sind noch nicht in der Datenbank. Wahrscheinlichkeiten didaktisch."
+    }
+  ]
+}

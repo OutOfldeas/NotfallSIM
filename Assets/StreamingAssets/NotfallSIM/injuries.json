@@ -1,5 +1,5 @@
 {
-  "version": "0.6.0",
+  "version": "0.7.0",
   "injuries": [
     {
       "id": "becken_instabil",
@@ -67,6 +67,73 @@
           "image": "",
           "imageCredit": ""
         }
+      ],
+      "criteria": [
+        {
+          "id": "becken_untersucht",
+          "description": "Becken untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Becken"
+          ],
+          "limit": 180,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "C-Teil: Blutungsquellen suchen. Zeitziel didaktisch."
+        },
+        {
+          "id": "beckengurt",
+          "description": "Beckengurt angelegt",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:Pelvis:beckengurt"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "S3 (GoR A): Notfallstabilisierung bei instabilem Beckenring mit Kreislaufinstabilität. 5 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        },
+        {
+          "id": "txa",
+          "description": "Tranexamsäure gegeben",
+          "type": "deadline",
+          "tags": [
+            "intervention:Medication:TXA"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "So früh wie möglich, spätestens 3 h nach Trauma (Rossaint 2023, Grade 1A). 10 min didaktisch."
+        },
+        {
+          "id": "kristalloid_restriktiv",
+          "description": "Kristalloide restriktiv (max. 1000 mL)",
+          "type": "maxCount",
+          "tags": [
+            "intervention:FluidInfusion:BalancedCrystalloid"
+          ],
+          "limit": 2,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "S3 (GoR B): Volumentherapie bei unkontrollierter Blutung reduzieren (permissive Hypotension). 1000 mL entspricht dem initialen ATLS-Bolus; Obergrenze didaktisch."
+        }
       ]
     },
     {
@@ -123,6 +190,73 @@
           "image": "",
           "imageCredit": ""
         }
+      ],
+      "criteria": [
+        {
+          "id": "neuro_untersucht",
+          "description": "GCS und Pupillen geprüft",
+          "type": "deadline",
+          "tags": [
+            "exam:Kopf"
+          ],
+          "limit": 180,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "D-Teil des Primary Survey. Zeitziel didaktisch."
+        },
+        {
+          "id": "kraniotomie",
+          "description": "Neurochirurgie früh eingebunden",
+          "type": "deadline",
+          "tags": [
+            "intervention:NeurosurgicalDecompression"
+          ],
+          "limit": 240,
+          "relativeTo": "state:gcs13",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Eintrübung nach luzidem Intervall: CT und Neurochirurgie sofort. 4 min didaktisch."
+        },
+        {
+          "id": "intubation",
+          "description": "Atemweg gesichert bei GCS ≤ 8",
+          "type": "deadline",
+          "tags": [
+            "intervention:Intubation"
+          ],
+          "limit": 180,
+          "relativeTo": "state:gcs8",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "S3: GCS ≤ 8 intubieren (GoR A). 3 min didaktisch."
+        },
+        {
+          "id": "keine_hypoxie",
+          "description": "Keine Hypoxie (SpO2 < 90 %)",
+          "type": "maxCount",
+          "tags": [
+            "state:hypoxia"
+          ],
+          "limit": 0,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Hypoxie verschlechtert das Outcome nach SHT (Chesnut 1993)."
+        },
+        {
+          "id": "keine_hypotonie",
+          "description": "Keine Hypotonie (RRsys < 90 mmHg)",
+          "type": "maxCount",
+          "tags": [
+            "state:hypotension"
+          ],
+          "limit": 0,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Hypotonie bei SHT mit höherer Letalität (Chesnut 1993); S3: RRsys nicht unter 90 (GoR B)."
+        }
       ]
     },
     {
@@ -170,6 +304,290 @@
           "image": "",
           "imageCredit": ""
         }
+      ],
+      "criteria": [
+        {
+          "id": "oberschenkel_untersucht",
+          "description": "Oberschenkel untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Oberschenkel rechts",
+            "exam:Oberschenkel links"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Femurfraktur als Blutungsquelle erkennen. Zeitziel didaktisch."
+        }
+      ]
+    },
+    {
+      "id": "leberlazeration",
+      "name": "Leberlazeration",
+      "region": "Abdomen",
+      "icd10": "S36.1",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "Liver",
+          "baseRate_mL_min": 90,
+          "maxTotalLoss_mL": 2500,
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Druckschmerz im rechten Oberbauch",
+        "Prellmarke am rechten Rippenbogen",
+        "Zunehmende Distension des Abdomens"
+      ],
+      "sources": [
+        {
+          "citation": "Yoganandan N, Pintar FA, Gennarelli TA, Maltese MR. Patterns of abdominal injuries in frontal and side impacts. Annu Proc Assoc Adv Automot Med. 2000;44:17-36.",
+          "url": "https://trid.trb.org/View/710752",
+          "note": "Seitenkollisionen verursachen einen großen Teil der Abdominalverletzungen; Leber und Milz am häufigsten betroffen"
+        },
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Abdominaltrauma: eFAST, operative Blutstillung bei instabilem Patienten"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Blutungsrate und Obergrenze didaktisch (Spielwerte).",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Freie Flüssigkeit im Morison-Pouch (hepatorenal) und im kleinen Becken.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Leberlazeration Segment VI/VII (AAST Grad IV) mit Hämatoperitoneum und aktiver Blutung.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "abdomen_untersucht",
+          "description": "Abdomen untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Abdomen"
+          ],
+          "limit": 240,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "C-Teil: Abdomen als Blutungsquelle prüfen (Prellmarken, Abwehrspannung). Klinisch unzuverlässig, daher eFAST ergänzen. Zeitziel didaktisch."
+        },
+        {
+          "id": "efast",
+          "description": "eFAST durchgeführt",
+          "type": "deadline",
+          "tags": [
+            "imaging:efast"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "eFAST als Adjunct zum Primary Survey sucht freie Flüssigkeit (ATLS). 5 min didaktisch."
+        },
+        {
+          "id": "laparotomie",
+          "description": "Notfall-Laparotomie angeordnet",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:Spleen,Liver:laparotomie"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Intraabdominelle Blutung mit Schock: operative Blutstillung (Damage Control). 15 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        },
+        {
+          "id": "txa",
+          "description": "Tranexamsäure gegeben",
+          "type": "deadline",
+          "tags": [
+            "intervention:Medication:TXA"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "So früh wie möglich, spätestens 3 h nach Trauma (Rossaint 2023, Grade 1A). 10 min didaktisch."
+        },
+        {
+          "id": "kristalloid_restriktiv",
+          "description": "Kristalloide restriktiv (max. 1000 mL)",
+          "type": "maxCount",
+          "tags": [
+            "intervention:FluidInfusion:BalancedCrystalloid"
+          ],
+          "limit": 2,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "S3 (GoR B): Volumentherapie bei unkontrollierter Blutung reduzieren (permissive Hypotension). 1000 mL entspricht dem initialen ATLS-Bolus; Obergrenze didaktisch."
+        }
+      ]
+    },
+    {
+      "id": "milzruptur",
+      "name": "Milzruptur",
+      "region": "Abdomen",
+      "icd10": "S36.0",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "Spleen",
+          "baseRate_mL_min": 100,
+          "maxTotalLoss_mL": 2500,
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Druckschmerz und Abwehrspannung im linken Oberbauch",
+        "Prellmarke an der linken Flanke",
+        "Schmerzausstrahlung in die linke Schulter (Kehr-Zeichen)"
+      ],
+      "sources": [
+        {
+          "citation": "Yoganandan N, Pintar FA, Gennarelli TA, Maltese MR. Patterns of abdominal injuries in frontal and side impacts. Annu Proc Assoc Adv Automot Med. 2000;44:17-36.",
+          "url": "https://trid.trb.org/View/710752",
+          "note": "Seitenkollisionen verursachen einen großen Teil der Abdominalverletzungen; Leber und Milz am häufigsten betroffen"
+        },
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Abdominaltrauma: eFAST, operative Blutstillung bei instabilem Patienten"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Blutungsrate und Obergrenze didaktisch (Spielwerte). Spontanstillstand und nicht-operatives Management nicht modelliert.",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Freie Flüssigkeit perisplenisch und im kleinen Becken.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Milzruptur (AAST Grad IV) mit Kontrastmittelaustritt und ausgedehntem Hämatoperitoneum.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "abdomen_untersucht",
+          "description": "Abdomen untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Abdomen"
+          ],
+          "limit": 240,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "C-Teil: Abdomen als Blutungsquelle prüfen (Prellmarken, Abwehrspannung). Klinisch unzuverlässig, daher eFAST ergänzen. Zeitziel didaktisch."
+        },
+        {
+          "id": "efast",
+          "description": "eFAST durchgeführt",
+          "type": "deadline",
+          "tags": [
+            "imaging:efast"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "eFAST als Adjunct zum Primary Survey sucht freie Flüssigkeit (ATLS). 5 min didaktisch."
+        },
+        {
+          "id": "laparotomie",
+          "description": "Notfall-Laparotomie angeordnet",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:Spleen,Liver:laparotomie"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Intraabdominelle Blutung mit Schock: operative Blutstillung (Damage Control). 15 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        },
+        {
+          "id": "txa",
+          "description": "Tranexamsäure gegeben",
+          "type": "deadline",
+          "tags": [
+            "intervention:Medication:TXA"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "So früh wie möglich, spätestens 3 h nach Trauma (Rossaint 2023, Grade 1A). 10 min didaktisch."
+        },
+        {
+          "id": "kristalloid_restriktiv",
+          "description": "Kristalloide restriktiv (max. 1000 mL)",
+          "type": "maxCount",
+          "tags": [
+            "intervention:FluidInfusion:BalancedCrystalloid"
+          ],
+          "limit": 2,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "S3 (GoR B): Volumentherapie bei unkontrollierter Blutung reduzieren (permissive Hypotension). 1000 mL entspricht dem initialen ATLS-Bolus; Obergrenze didaktisch."
+        }
       ]
     },
     {
@@ -210,7 +628,8 @@
           "image": "",
           "imageCredit": ""
         }
-      ]
+      ],
+      "criteria": []
     },
     {
       "id": "sdh_akut_links",
@@ -255,6 +674,87 @@
           "resolvedFinding": "Zustand nach Kraniotomie links und Hämatomausräumung; Mittellinie nahezu zentriert, Kontusionen frontal links unverändert.",
           "image": "",
           "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "neuro_untersucht",
+          "description": "GCS und Pupillen geprüft",
+          "type": "deadline",
+          "tags": [
+            "exam:Kopf"
+          ],
+          "limit": 180,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "D-Teil des Primary Survey. Zeitziel didaktisch."
+        },
+        {
+          "id": "intubation",
+          "description": "Atemweg gesichert bei GCS ≤ 8",
+          "type": "deadline",
+          "tags": [
+            "intervention:Intubation"
+          ],
+          "limit": 180,
+          "relativeTo": "state:gcs8",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "S3: GCS ≤ 8 intubieren (GoR A). 3 min didaktisch."
+        },
+        {
+          "id": "keine_hypoxie",
+          "description": "Keine Hypoxie (SpO2 < 90 %)",
+          "type": "maxCount",
+          "tags": [
+            "state:hypoxia"
+          ],
+          "limit": 0,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Hypoxie verschlechtert das Outcome nach SHT (Chesnut 1993)."
+        },
+        {
+          "id": "map_ziel_sht",
+          "description": "MAD ≥ 80 mmHg beim schweren SHT",
+          "type": "maxCount",
+          "tags": [
+            "state:map-low-tbi"
+          ],
+          "limit": 0,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Rossaint 2023 (Grade 1C): bei GCS ≤ 8 MAD ≥ 80 mmHg; Noradrenalin ergänzend."
+        },
+        {
+          "id": "kopf_bildgebung",
+          "description": "Bildgebung des Kopfes",
+          "type": "deadline",
+          "tags": [
+            "imaging:cct",
+            "imaging:ct_ganzkoerper"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Eingetrübter Patient nach Kopfanprall: CCT bzw. Ganzkörper-CT. 15 min didaktisch."
+        },
+        {
+          "id": "neurochirurgie",
+          "description": "Neurochirurgie nach CT-Befund eingebunden",
+          "type": "deadline",
+          "tags": [
+            "intervention:NeurosurgicalDecompression"
+          ],
+          "limit": 300,
+          "relativeTo": "result:Imaging:c",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Raumforderndes SDH: Notfall-Kraniotomie direkt nach CT. 5 min didaktisch."
         }
       ]
     },
@@ -324,6 +824,113 @@
           "resolvedFinding": "Thoraxdrainage links in situ, kein relevanter Restpneumothorax.",
           "image": "",
           "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "thorax_untersucht",
+          "description": "Thorax untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Thorax"
+          ],
+          "limit": 150,
+          "relativeTo": "injury:spannungspneu_links",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Klinische Diagnose (S3, GoR B). Zeitziel didaktisch."
+        },
+        {
+          "id": "entlastung",
+          "description": "Thorax entlastet (Nadel oder Drainage)",
+          "type": "deadline",
+          "tags": [
+            "intervention:NeedleDecompression:LeftLung",
+            "intervention:ChestDrain:LeftLung"
+          ],
+          "limit": 360,
+          "relativeTo": "injury:spannungspneu_links",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Sofort entlasten, nicht auf Bildgebung warten (S3, ATLS). 6 min didaktisch."
+        },
+        {
+          "id": "drainage",
+          "description": "Thoraxdrainage angelegt",
+          "type": "deadline",
+          "tags": [
+            "intervention:ChestDrain:LeftLung"
+          ],
+          "limit": 900,
+          "relativeTo": "injury:spannungspneu_links",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Nadel versagt häufig (Ahmad 2025); Drainage definitiv. 15 min didaktisch."
+        }
+      ]
+    },
+    {
+      "id": "unterschenkel_offen_rechts",
+      "name": "Offene Unterschenkelfraktur rechts mit arterieller Blutung",
+      "region": "Unterschenkel rechts",
+      "icd10": "S82.2",
+      "aisSeverity": 3,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "Extremity",
+          "baseRate_mL_min": 120,
+          "maxTotalLoss_mL": 0,
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Offene Unterschenkelfraktur rechts mit pulsierend spritzender Blutung",
+        "Knochenfragmente in der Wunde sichtbar, Fehlstellung",
+        "Fußpulse rechts nicht tastbar"
+      ],
+      "sources": [
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "Lebensbedrohliche Extremitätenblutung: Tourniquet sofort"
+        },
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Kontrolle externer Blutungen vor allen anderen Maßnahmen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Arterielle Blutung ohne Tamponade (Obergrenze 0); Tourniquet stoppt sie vollständig. Rate didaktisch.",
+      "imaging": [],
+      "criteria": [
+        {
+          "id": "tourniquet",
+          "description": "Tourniquet angelegt",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:Extremity:tourniquet"
+          ],
+          "limit": 120,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Lebensbedrohliche Extremitätenblutung zuerst stoppen (xABCDE; S3: Tourniquet sofort). 2 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
         }
       ]
     }

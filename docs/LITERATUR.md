@@ -133,6 +133,29 @@ Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist
 
 **Bessere Datenquellen für echte Zeitziele:** die aktuellen Jahresberichte des TraumaRegister DGU (Schockraumintervalle), die Langfassung der S3-Leitlinie auf MAGICapp und ein Expertenkonsens erfahrener Schockraumleiter (z. B. Delphi-Befragung).
 
+## Unfallmechanismen und Zufallsfälle
+
+`mechanisms.json` beschreibt fünf Mechanismen (PKW frontal, PKW seitlich Fahrerseite, Motorrad, Fußgänger, Sturz > 3 m). Je Mechanismus stehen dort Alters- und Geschlechtsverteilung, Geschwindigkeit bzw. Sturzhöhe, Rettungszeit und die möglichen Verletzungen mit Wahrscheinlichkeit, Schweregrad und Beginn. Der Generator (`ScenarioGenerator.cs`, gleich in `web/engine.js`) zieht daraus einen Fall:
+
+- Jede Verletzung wird unabhängig mit ihrer Wahrscheinlichkeit gezogen. Ausschlussgruppen verhindern Unsinn (höchstens ein raumforderndes Hämatom, höchstens ein parenchymatöses Abdominalorgan).
+- Ohne Gurt steigen beim PKW Kopf- und Femurverletzungen (Multiplikator je Verletzung).
+- Fälle ohne kreislauf- oder hirnrelevante Verletzung werden neu gezogen.
+- Präklinischer Blutverlust ≈ Σ (Blutungsrate × Schweregrad) × Rettungszeit × 0,2, höchstens 2000 mL. Der Faktor 0,2 steht für Hypotonie, Tamponade und präklinische Kompression; didaktische Setzung.
+- Bewertungsziele kommen aus Vorlagen je Verletzung (`criteria` in `injuries.json`) plus Basiszielen (O₂, BGA, kein CT-Transport im Schock). Doppelte Ziele zählen einmal.
+- Gleicher Seed ergibt in Unity und im Browser denselben Fall (Mulberry32-Zufallsgenerator; in der Parität geprüft).
+
+**Evidenzstand: Entwurf.** Die Wahrscheinlichkeiten sind didaktische Setzungen nach typischen Verletzungsmustern (Lehrbuchwissen zur Kinematik), nicht aus Registerdaten berechnet. Qualitativ belegt:
+
+| Aussage | Quelle |
+|---|---|
+| Seitenkollisionen verursachen einen großen Teil der Abdominalverletzungen; Leber und Milz am häufigsten betroffen | Yoganandan 2000 (22) |
+| Hochrisiko-Mechanismen (Sturz > 3 m, Fußgänger/Zweirad mit hoher Geschwindigkeit, Herausschleudern, Intrusion) als Triagekriterium | Newgard 2022 (23) |
+| Mit der Sturzhöhe steigt das Risiko schwerer Thorax- und Beckenverletzungen | J Clin Med 2021 (24), nur Titel/Abstract |
+
+Mit Musterversorgung überleben im Test 39–40 von 40 Fällen je Mechanismus; die Ausnahmen sind Kombinationen aus schwerem SDH, Becken- und Abdominalblutung mit hohem präklinischem Verlust. Ohne Versorgung überleben 5–15 von 40.
+
+Neue Verletzungen in v0.7: Milzruptur, Leberlazeration (je ca. 90–100 mL/min, Tamponade bei 2,5 L) und offene Unterschenkelfraktur mit arterieller Blutung (120 mL/min ohne Tamponade, Tourniquet stoppt sie). Neue Maßnahme: Notfall-Laparotomie (stillt Milz- und Leberblutung nach 15 min). Alle Raten sind Spielwerte.
+
 ## Offene Punkte zum Prüfen
 
 - [ ] Empfehlungen und Empfehlungsgrade zu Beckengurt, Volumentherapie und permissiver Hypotension in der S3-Leitlinie (MAGICapp) nachlesen
@@ -151,6 +174,10 @@ Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist
 - [ ] Calcium-Abfall je Blutprodukt und Hämatokrit des EK mit Literatur belegen
 - [ ] Polytrauma-Szenario klinisch durchspielen: Ist der Zeitdruck realistisch, sind die Prioritäten richtig gewichtet?
 - [ ] Narkoseinduzierte Hypotonie bei der Intubation modellieren (relevant beim Polytrauma)
+- [ ] Verletzungswahrscheinlichkeiten je Mechanismus mit TraumaRegister-DGU-Daten oder Kinematik-Studien belegen (Jahresbericht, ggf. Datenanfrage)
+- [ ] Blutungsraten von Milz- und Leberverletzung nach AAST-Grad belegen
+- [ ] Präklinischen Blutverlust gegen Registerdaten (Hb bzw. Schockindex bei Aufnahme nach Rettungszeit) plausibilisieren
+- [ ] Fehlende typische Verletzungen ergänzen: Wirbelsäule, Kalkaneus (Sturz), Aortenverletzung (Dezeleration), Rippenserie rechts
 
 ## Quellen
 
@@ -180,4 +207,8 @@ Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist
 
 21. Rossaint R, Afshari A, Bouillon B, et al. The European guideline on management of major bleeding and coagulopathy following trauma: sixth edition. *Crit Care*. 2023;27:80. [doi:10.1186/s13054-023-04327-7](https://doi.org/10.1186/s13054-023-04327-7)
 
-Angaben ohne Link (4, 8, 9) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.
+22. Yoganandan N, Pintar FA, Gennarelli TA, Maltese MR. Patterns of abdominal injuries in frontal and side impacts. *Annu Proc Assoc Adv Automot Med*. 2000;44:17-36. [TRID](https://trid.trb.org/View/710752)
+23. Newgard CD, et al. National guideline for the field triage of injured patients: recommendations of the National Expert Panel on Field Triage, 2021. *J Trauma Acute Care Surg*. 2022;93(2):e49-e60.
+24. Falls from Great Heights: Risk to Sustain Severe Thoracic and Pelvic Injuries Increases with Height of the Fall. *J Clin Med*. 2021;10(11):2307.
+
+Angaben ohne Link (4, 8, 9, 23, 24) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.

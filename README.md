@@ -44,6 +44,8 @@ Assets/
   StreamingAssets/NotfallSIM/
     injuries.json                Verletzungsdatenbank
     interventions.json           Maßnahmen (Buttons, Volumina, Effektstärken, Quellen)
+    imaging.json                 Bildgebung (eFAST, Röntgen, CCT, Ganzkörper-CT)
+    mechanisms.json              Unfallmechanismen für Zufallsfälle (Verletzungswahrscheinlichkeiten)
     scenarios/*.json             Szenarien
 ```
 
@@ -67,6 +69,10 @@ Assets/
    (Ordner: `Application.persistentDataPath/Sessions`, wird im Debriefing angezeigt).
 6. **Szenario wechseln:** im Inspector des Objekts `Simulation` das Feld *Scenario Id* setzen
    (`motorrad_beckenfraktur`, `pkw_spannungspneu`, `escooter_sht`, `fussgaengerin_becken_betablocker` oder `pkw_polytrauma`).
+   **Zufallsfall:** Feld *Random Mechanism* auf `pkw_frontal`, `pkw_seite`, `motorrad`, `fussgaenger` oder
+   `sturz_hoehe` setzen. Der Generator würfelt Patient, Verletzungsmuster, präklinischen Blutverlust und die
+   passenden Bewertungsziele. *Random Seed* ≠ 0 erzeugt reproduzierbar denselben Fall wie der Fall-Code im Browser
+   (z. B. Fall-Code `motorrad-4711` = Mechanismus `motorrad`, Seed `4711`).
 7. **Modus wählen:** Feld *Mode* — *Textbook* (ATLS-Lehrbuchbild) oder *Registry* (Realitätsmodus nach
    Registerdaten mit individueller Streuung, Alter und Betablocker). Das Debriefing vergleicht beide.
 

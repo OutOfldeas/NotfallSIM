@@ -49,6 +49,7 @@ namespace NotfallSIM.Engines
             { "RightThigh", "RightLeg" },
             { "Spleen", "Spleen" },
             { "Liver", "Liver" },
+            { "Extremity", "RightLeg" }, // VERIFY: offene Unterschenkelfraktur rechts
         };
 
         public bool Initialize(PatientProfile patient)
@@ -113,8 +114,12 @@ namespace NotfallSIM.Engines
             {
                 case InterventionType.HemorrhageControl:
                     // Pulse: Blutung im selben Kompartiment mit neuem Schweregrad überschreibt die alte.
-                    if (_hemorrhageSeverity.TryGetValue(iv.TargetCompartment, out var sev))
-                        SetHemorrhage(iv.TargetCompartment, sev * iv.RateMultiplier);
+                    foreach (var raw in (iv.TargetCompartment ?? "").Split(','))
+                    {
+                        var target = raw.Trim();
+                        if (_hemorrhageSeverity.TryGetValue(target, out var sev))
+                            SetHemorrhage(target, sev * iv.RateMultiplier);
+                    }
                     break;
                 case InterventionType.FluidInfusion:
                     var infusion = new SESubstanceCompoundInfusion();

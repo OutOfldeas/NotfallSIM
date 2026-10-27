@@ -38,6 +38,11 @@ namespace NotfallSIM.Data
         public static InterventionDatabaseFile LoadInterventions() =>
             JsonUtility.FromJson<InterventionDatabaseFile>(File.ReadAllText(Path.Combine(Root, "interventions.json")));
 
+        public static MechanismDatabaseFile LoadMechanisms() =>
+            JsonUtility.FromJson<MechanismDatabaseFile>(File.ReadAllText(Path.Combine(Root, "mechanisms.json")));
+
+        public IEnumerable<InjuryDefinition> All => _byId.Values;
+
         public static ScenarioDefinition LoadScenario(string scenarioId)
         {
             string json = File.ReadAllText(Path.Combine(Root, "scenarios", scenarioId + ".json"));

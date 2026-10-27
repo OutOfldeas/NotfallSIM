@@ -140,7 +140,10 @@
 
     applyIntervention(iv) {
       switch (iv.type) {
-        case "HemorrhageControl": { const b = this.bleeds[iv.target]; if (b) b.multiplier = Math.min(b.multiplier, iv.rateMultiplier); break; }
+        case "HemorrhageControl": {
+          for (const t of String(iv.target || "").split(",")) { const b = this.bleeds[t.trim()]; if (b) b.multiplier = Math.min(b.multiplier, iv.rateMultiplier); }
+          break;
+        }
         case "FluidInfusion": this.infusions.push({ compound: iv.compound, remaining: iv.volume_mL, rate: iv.rate_mL_min }); break;
         case "Oxygen": this.oxygen = true; break;
         case "NeedleDecompression": {
@@ -292,7 +295,7 @@
       this.ctInTraumaRoom = !!ctInTraumaRoom;
       this.imaging = Object.fromEntries(data.imaging.modalities.map((m) => [m.id, m]));
       this.awayUntil = -1;
-      this.scenario = data.scenarios.find((s) => s.id === scenarioId);
+      this.scenario = typeof scenarioId === "object" ? scenarioId : data.scenarios.find((s) => s.id === scenarioId);
       this.injuries = Object.fromEntries(data.injuries.injuries.map((i) => [i.id, i]));
       this.interventions = Object.fromEntries(data.interventions.interventions.map((i) => [i.id, i]));
       this.engine = new MockEngine(seed, mode);
@@ -452,7 +455,87 @@
     }
   }
 
-  const api = { BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
+
+  // ---------- Unfallmechanismus → Zufallsszenario (wie Data/ScenarioGenerator.cs) ----------
+
+  /** Mulberry32 — identisch zu SeededRandom in C#, damit ein Fall-Code überall dasselbe Szenario ergibt. */
+  function seededRandom(seed) {
+    let state = seed >>> 0;
+    const next = () => {
+      state = (state + 0x6D2B79F5) >>> 0;
+      let t = state;
+      t = Math.imul(t ^ (t >>> 15), t | 1) >>> 0;
+      t = (t ^ (t + Math.imul(t ^ (t >>> 7), t | 61))) >>> 0;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    return { next, range: (min, max) => min + next() * (max - min) };
+  }
+
+  function generateScenario(data, mechanismId, seed) {
+    const db = data.mechanisms;
+    const mech = db.mechanisms.find((m) => m.id === mechanismId);
+    if (!mech) throw new Error(`Mechanismus '${mechanismId}' nicht gefunden`);
+    const defs = Object.fromEntries(data.injuries.injuries.map((d) => [d.id, d]));
+    const rng = seededRandom(seed), a = db.anthropometry;
+    const R = (v) => Math.floor(v + 0.5), round2 = (v) => R(v * 100) / 100;
+    const conflicts = (chosen, id) => db.exclusiveGroups.some((g) => g.injuryIds.includes(id) && chosen.some((si) => g.injuryIds.includes(si.injuryId)));
+    const relevant = (list) => list.some((si) => defs[si.injuryId].effects.length > 0);
+
+    const male = rng.next() < mech.maleShare;
+    const age = R(rng.range(mech.ageMin, mech.ageMax));
+    const weight = R(male ? rng.range(a.maleWeightMin_kg, a.maleWeightMax_kg) : rng.range(a.femaleWeightMin_kg, a.femaleWeightMax_kg));
+    const height = R(male ? rng.range(a.maleHeightMin_cm, a.maleHeightMax_cm) : rng.range(a.femaleHeightMin_cm, a.femaleHeightMax_cm));
+    const betaBlocker = rng.next() < a.betaBlockerShare && age >= a.betaBlockerMinAge;
+    const unrestrained = rng.next() < mech.unrestrainedShare;
+    const speed = R(rng.range(mech.speedMin, mech.speedMax) / 5) * 5;
+    const fallHeight = R(rng.range(mech.heightMin, mech.heightMax));
+    const rescue = R(rng.range(mech.rescueMin, mech.rescueMax) / 5) * 5;
+
+    let chosen = [];
+    for (let attempt = 0; attempt < 50; attempt++) {
+      chosen = [];
+      for (const c of mech.injuries) {
+        let p = c.probability;
+        if (unrestrained) for (const f of mech.unrestrainedMultipliers) if (f.injuryId === c.injuryId) p *= f.factor;
+        const pick = rng.next(), sev = rng.range(c.severityMin, c.severityMax), onset = rng.range(c.onsetMin_s, c.onsetMax_s);
+        if (pick >= Math.min(1, p) || conflicts(chosen, c.injuryId)) continue;
+        chosen.push({ injuryId: c.injuryId, severity: round2(sev), onsetTime_s: R(onset) });
+      }
+      if (relevant(chosen)) break;
+    }
+    if (!relevant(chosen)) {
+      const fb = mech.injuries.filter((c) => defs[c.injuryId].effects.length > 0 && !conflicts(chosen, c.injuryId))
+        .reduce((best, c) => (!best || c.probability > best.probability ? c : best), null);
+      chosen.push({ injuryId: fb.injuryId, severity: round2((fb.severityMin + fb.severityMax) / 2), onsetTime_s: fb.onsetMin_s });
+    }
+
+    let rate = 0;
+    for (const si of chosen) for (const e of defs[si.injuryId].effects)
+      if (e.effectType === "Hemorrhage" && si.onsetTime_s <= 0) rate += e.baseRate_mL_min * si.severity;
+    const ph = db.prehospital;
+    const loss = R(Math.min(ph.maxLoss_mL, rate * rescue * ph.lossFactor) / ph.roundTo_mL) * ph.roundTo_mL;
+
+    const criteria = [], ids = new Set();
+    for (const cr of db.baseCriteria.concat(...chosen.map((si) => defs[si.injuryId].criteria || [])))
+      if (!ids.has(cr.id)) { ids.add(cr.id); criteria.push(cr); }
+
+    let description = mech.descriptionTemplate
+      .split("{age}").join(String(age)).split("{r}").join(male ? "r" : "").split("{in}").join(male ? "" : "in")
+      .split("{driver}").join(male ? "Fahrer" : "Fahrerin").split("{belt}").join(unrestrained ? "nicht angeschnallt" : "angeschnallt")
+      .split("{speed}").join(String(speed)).split("{height}").join(String(fallHeight)).split("{rescue}").join(String(rescue));
+    if (loss >= ph.reportThreshold_mL) description += ` Präklinisch geschätzter Blutverlust ca. ${loss} mL.`;
+    if (betaBlocker) description += " Dauermedikation: Betablocker.";
+
+    return {
+      id: `zufall_${mech.id}_${seed}`, title: `Zufall: ${mech.label}`, description, mechanism: mech.label,
+      patient: { sex: male ? "male" : "female", age, weight_kg: weight, height_cm: height, betaBlocker, initialBloodLoss_mL: loss },
+      injuries: chosen, learningGoals: db.learningGoals,
+      expectedCourse: "Verletzungen: " + chosen.map((si) => defs[si.injuryId].name).join(", ") + ".",
+      defaultTimeScale: 1, assessment: criteria, generated: true, seed,
+    };
+  }
+
+  const api = { seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.NotfallEngine = api;
 })(typeof window !== "undefined" ? window : globalThis);

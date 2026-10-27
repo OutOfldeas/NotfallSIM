@@ -171,8 +171,10 @@ namespace NotfallSIM.Engines
             switch (iv.Type)
             {
                 case InterventionType.HemorrhageControl:
-                    if (_bleeds.TryGetValue(iv.TargetCompartment, out var b))
-                        b.Multiplier = Math.Min(b.Multiplier, iv.RateMultiplier);
+                    // Mehrere Ziele kommagetrennt möglich (z. B. Laparotomie: "Spleen,Liver").
+                    foreach (var target in (iv.TargetCompartment ?? "").Split(','))
+                        if (_bleeds.TryGetValue(target.Trim(), out var b))
+                            b.Multiplier = Math.Min(b.Multiplier, iv.RateMultiplier);
                     break;
                 case InterventionType.FluidInfusion:
                     _infusions.Add(new Infusion { Compound = iv.Compound, Remaining_mL = iv.Volume_mL, Rate_mL_min = iv.Rate_mL_min });

@@ -2,6 +2,11 @@
 // damit web/engine.js dagegen geprüft werden kann. Aufruf über Tests/parity/run_parity.sh.
 using System;
 using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Runtime.Serialization.Json;
+using System.Text;
+using NotfallSIM.Data;
 using NotfallSIM.Core;
 using NotfallSIM.Engines;
 
@@ -31,8 +36,32 @@ static class Parity
     static InterventionEvent Iv(InterventionType t, string target = null, string compound = null, double vol = 0, double rate = 0, double mult = 1) =>
         new InterventionEvent { Type = t, TargetCompartment = target, Compound = compound, Volume_mL = vol, Rate_mL_min = rate, RateMultiplier = mult };
 
-    static void Main()
+    static T Load<T>(string path)
     {
+        var ser = new DataContractJsonSerializer(typeof(T));
+        using (var st = new MemoryStream(Encoding.UTF8.GetBytes(File.ReadAllText(path)))) return (T)ser.ReadObject(st);
+    }
+
+    /// <summary>Zufallsszenarien: gleicher Seed muss in C# und JS dasselbe ergeben.</summary>
+    static void Generator(string root)
+    {
+        var mech = Load<MechanismDatabaseFile>(Path.Combine(root, "mechanisms.json"));
+        var inj = Load<InjuryDatabaseFile>(Path.Combine(root, "injuries.json")).injuries;
+        foreach (var m in mech.mechanisms)
+            for (uint seed = 1; seed <= 60; seed++)
+            {
+                var s = ScenarioGenerator.Generate(mech, m.id, inj, seed * 7919u);
+                var p = s.patient;
+                Console.WriteLine(string.Join("|", s.id, s.description, p.sex, p.age, N(p.weight_kg), N(p.height_cm), p.betaBlocker ? "1" : "0", N(p.initialBloodLoss_mL),
+                    string.Join(",", s.injuries.Select(i => i.injuryId + ":" + N(i.severity) + ":" + N(i.onsetTime_s))),
+                    string.Join(",", s.assessment.Select(c => c.id))));
+            }
+    }
+
+    static void Main(string[] args)
+    {
+        Console.OutputEncoding = new UTF8Encoding(false);
+        if (args.Length == 2 && args[0] == "gen") { Generator(args[1]); return; }
         var man80 = new PatientProfile { weight_kg = 80, age = 35 };
         Run("becken_unbehandelt", man80, (e, s) => { if (s == 0) { e.ApplyInjury(Bleed("Pelvis", 0.8, 150, 3000)); e.ApplyInjury(Bleed("RightThigh", 0.6, 20, 1000)); } }, 1800);
         Run("becken_behandelt", man80, (e, s) =>
@@ -63,6 +92,12 @@ static class Parity
             if (s == 6000) e.ApplyIntervention(Iv(InterventionType.Intubation));
             if (s == 7000) e.ApplyIntervention(Iv(InterventionType.Vasopressor));
         }, 1800);
+        Run("laparotomie_mehrfach", man80, (e, s) =>
+        {
+            if (s == 0) { e.ApplyInjury(Bleed("Spleen", 0.8, 100, 2500)); e.ApplyInjury(Bleed("Liver", 0.7, 90, 2500)); e.ApplyInjury(Bleed("Extremity", 0.8, 120, 0)); }
+            if (s == 300) e.ApplyIntervention(Iv(InterventionType.HemorrhageControl, "Extremity", mult: 0));
+            if (s == 3000) e.ApplyIntervention(Iv(InterventionType.HemorrhageControl, "Spleen,Liver", mult: 0.05));
+        }, 1200);
         Run("betablocker", new PatientProfile { weight_kg = 65, age = 76, sex = "female", betaBlocker = true },
             (e, s) => { if (s == 0) e.ApplyInjury(Bleed("Pelvis", 0.6, 150, 3000)); }, 1800);
     }

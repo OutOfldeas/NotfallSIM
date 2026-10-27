@@ -70,6 +70,11 @@ main { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-
 .scenario-opt { text-align: left; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; cursor: pointer; display: grid; gap: 2px; }
 .scenario-opt[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .scenario-opt b { font-weight: 600; }
+.mechs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.mech-opt { background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; cursor: pointer; color: inherit; font: inherit; font-size: 14px; }
+.mech-opt[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.case-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.injury-list { margin: 6px 0 0; padding-left: 18px; }
 .seg { display: inline-grid; grid-auto-flow: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .seg button { background: var(--surface-2); border: 0; padding: 8px 14px; cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
@@ -174,6 +179,8 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
     <div class="eyebrow">Prüfwerkzeug · Mock-Physiologie wie im Unity-Projekt</div>
     <h2 id="setupTitle">Szenario wählen</h2>
     <div class="scenarios" id="scenarioList" role="group" aria-label="Szenarien"></div>
+    <div class="eyebrow" style="margin-top:14px">Zufallsfall aus Unfallmechanismus</div>
+    <div class="mechs" id="mechList" role="group" aria-label="Unfallmechanismen"></div>
     <div class="brief" id="brief"></div>
     <div class="row" style="margin-top:14px">
       <span class="eyebrow">Physiologie</span>
@@ -260,6 +267,7 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
     <div class="eyebrow" id="debMode"></div>
     <h2 id="debTitle">Debriefing</h2>
     <div class="outcome" id="debOutcome"></div>
+    <div id="debInjuries"></div>
     <h2 style="margin-top:18px" id="debScore"></h2>
     <ul class="results" id="debResults"></ul>
     <div id="debCompare"></div>
@@ -279,17 +287,23 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const R = (x) => Math.round(x);
 
-let selected = DATA.scenarios[0].id, mode = "Textbook", ctInRoom = false, imgCount = 0;
+let selected = DATA.scenarios[0].id, generated = null, mode = "Textbook", ctInRoom = false, imgCount = 0;
 let sim = null, speed = 1, paused = false, lastFrame = 0, lastRender = 0, wakeLock = null, logCount = 0;
 
-$("dataVersion").textContent = `Verletzungen v${DATA.injuries.version}, Maßnahmen v${DATA.interventions.version}, Bildgebung v${DATA.imaging.version}, Stand ${DATA.built}`;
+$("dataVersion").textContent = `Verletzungen v${DATA.injuries.version}, Maßnahmen v${DATA.interventions.version}, Bildgebung v${DATA.imaging.version}, Mechanismen v${DATA.mechanisms.version}, Stand ${DATA.built}`;
 
 // ---------- Auswahl ----------
 function renderSetup() {
   $("scenarioList").innerHTML = DATA.scenarios.map((s) =>
-    `<button type="button" class="scenario-opt" data-id="${s.id}" aria-pressed="${s.id === selected}"><b>${esc(s.title)}</b><span class="muted">${esc(s.patient.age)} J., ${s.patient.sex === "female" ? "weiblich" : "männlich"}, ${esc(s.patient.weight_kg)} kg${s.patient.betaBlocker ? " · Betablocker" : ""}</span></button>`).join("");
-  const s = DATA.scenarios.find((x) => x.id === selected);
-  $("brief").innerHTML = `<p>${esc(s.description)}</p><p class="muted"><b>Mechanismus:</b> ${esc(s.mechanism)}</p>`;
+    `<button type="button" class="scenario-opt" data-id="${s.id}" aria-pressed="${!generated && s.id === selected}"><b>${esc(s.title)}</b><span class="muted">${esc(s.patient.age)} J., ${s.patient.sex === "female" ? "weiblich" : "männlich"}, ${esc(s.patient.weight_kg)} kg${s.patient.betaBlocker ? " · Betablocker" : ""}</span></button>`).join("");
+  $("mechList").innerHTML = DATA.mechanisms.mechanisms.map((m) =>
+    `<button type="button" class="mech-opt" data-mech="${m.id}" aria-pressed="${!!generated && generated.mechanismId === m.id}">${esc(m.label)}</button>`).join("");
+  const s = generated ? generated.scenario : DATA.scenarios.find((x) => x.id === selected);
+  $("brief").innerHTML = `<p>${esc(s.description)}</p>` + (generated
+    ? `<p class="muted">${esc(s.patient.age)} J., ${s.patient.sex === "female" ? "weiblich" : "männlich"}, ${esc(s.patient.weight_kg)} kg. Welche Verletzungen vorliegen, zeigt erst das Debriefing.</p>
+       <div class="row"><span class="muted">Fall-Code <span class="case-code">${esc(generated.mechanismId)}-${generated.seed}</span></span><button type="button" class="btn" id="rerollBtn">Neuer Fall</button></div>`
+    : `<p class="muted"><b>Mechanismus:</b> ${esc(s.mechanism)}</p>`);
+  if (generated) $("rerollBtn").onclick = () => roll(generated.mechanismId);
   $("modeTextbook").setAttribute("aria-pressed", mode === "Textbook");
   $("modeRegistry").setAttribute("aria-pressed", mode === "Registry");
   $("ctRadiology").setAttribute("aria-pressed", !ctInRoom);
@@ -298,7 +312,13 @@ function renderSetup() {
     ? "Lehrbuch: Vitalwerte folgen den ATLS-Schockklassen. Gut zum Lernen der Muster."
     : "Realität: an Registerdaten angelehnt. Weniger Tachykardie, späte Hypotonie, jeder Patient reagiert etwas anders.");
 }
-$("scenarioList").addEventListener("click", (e) => { const b = e.target.closest(".scenario-opt"); if (b) { selected = b.dataset.id; renderSetup(); } });
+$("scenarioList").addEventListener("click", (e) => { const b = e.target.closest(".scenario-opt"); if (b) { selected = b.dataset.id; generated = null; renderSetup(); } });
+$("mechList").addEventListener("click", (e) => { const b = e.target.closest(".mech-opt"); if (b) roll(b.dataset.mech); });
+function roll(mechanismId) {
+  const seed = 1 + Math.floor(Math.random() * 99999);
+  generated = { mechanismId, seed, scenario: E.generateScenario(DATA, mechanismId, seed) };
+  renderSetup();
+}
 $("modeTextbook").onclick = () => { mode = "Textbook"; renderSetup(); };
 $("modeRegistry").onclick = () => { mode = "Registry"; renderSetup(); };
 $("ctRadiology").onclick = () => { ctInRoom = false; renderSetup(); };
@@ -308,7 +328,7 @@ $("againBtn").onclick = () => { $("debrief").hidden = true; $("setup").hidden = 
 
 // ---------- Lauf ----------
 function start() {
-  sim = new E.Simulation(DATA, selected, mode, undefined, ctInRoom);
+  sim = new E.Simulation(DATA, generated ? generated.scenario : selected, mode, undefined, ctInRoom);
   speed = 1; paused = false; logCount = 0; imgCount = 0;
   $("imagingResults").innerHTML = "";
   renderGoals();
@@ -401,6 +421,11 @@ $("bodySvg").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key
 // ---------- Ziele ----------
 function renderGoals() {
   const s = sim.scenario;
+  if (s.generated) {
+    $("goals").innerHTML = `<div class="eyebrow" style="margin-top:10px">Lernziele</div><ul>${s.learningGoals.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>
+      <p class="muted">Die bewerteten Ziele hängen von den Verletzungen ab und werden erst im Debriefing gezeigt. Leite sie aus Mechanismus, Untersuchung und Bildgebung ab.</p>`;
+    return;
+  }
   const crit = (s.assessment || []).map((c) => {
     const when = c.type === "maxCount" ? `höchstens ${c.limit}×` : c.relativeTo ? `bis ${R(c.limit / 60 * 10) / 10} min nach Auslöser` : `bis Minute ${R(c.limit / 60 * 10) / 10}`;
     return `<li>${esc(c.description)} <span class="muted">· ${when}</span>${c.critical ? ' <span class="crit-tag">kritisch</span>' : ""}</li>`;
@@ -480,6 +505,12 @@ function showDebrief() {
     d.minSbp != null ? kv("Min. RRsys", R(d.minSbp)) : "",
     d.minSpo2 != null ? kv("Min. SpO₂", R(d.minSpo2) + " %") : "",
   ].join("");
+  const injDefs = Object.fromEntries(DATA.injuries.injuries.map((i) => [i.id, i]));
+  $("debInjuries").innerHTML = `<h2 style="margin-top:18px">Verletzungen in diesem Fall</h2><ul class="injury-list">${sim.scenario.injuries.map((si) => {
+    const def = injDefs[si.injuryId];
+    const onset = si.onsetTime_s > 0 ? ` · tritt nach ${E.clock(si.onsetTime_s)} auf` : "";
+    return `<li><b>${esc(def.name)}</b> <span class="muted">· ${esc(def.region)} · AIS ${def.aisSeverity} · Schweregrad ${R(si.severity * 100)} %${onset}</span></li>`;
+  }).join("")}</ul>` + (sim.scenario.generated ? `<p class="muted">Fall-Code <span class="case-code">${esc(sim.scenario.id.replace(/^zufall_/, "").replace(/_(\d+)$/, "-$1"))}</span></p>` : "");
   const met = d.results.filter((r) => r.outcome === "Met").length;
   const critMissed = d.results.some((r) => r.criterion.critical && r.outcome !== "Met");
   $("debScore").innerHTML = `Bewertung: ${met} von ${d.results.length} Zielen erreicht` + (critMissed ? ` <span class="crit-tag">· kritisches Ziel verfehlt</span>` : "");
