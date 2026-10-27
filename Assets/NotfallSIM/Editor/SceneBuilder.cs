@@ -137,8 +137,8 @@ namespace NotfallSIM.EditorTools
             Transform root = canvasGo.transform;
 
             // Hinweis oben links
-            var hint = Label("Hinweis", root, "<b>NotfallSIM</b> · Schockraum\nKörperregion anklicken, um sie zu untersuchen.", 24, Dim);
-            Place(hint.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -20), new Vector2(700, 80));
+            var hint = Label("Hinweis", root, "<b>NotfallSIM</b> · Schockraum\nKörperregion anklicken, um sie zu untersuchen.", 22, Dim);
+            Place(hint.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -20), new Vector2(440, 80));
 
             // Monitor oben rechts
             var monitor = Panel("Monitor", root, PanelColor);
@@ -176,15 +176,17 @@ namespace NotfallSIM.EditorTools
             var ivGrid = ButtonGrid(actions.transform, "Massnahmen-Raster");
             foreach (var def in InjuryDatabase.LoadInterventions().interventions)
             {
-                var b = MakeButton(ivGrid, def.label, ButtonColor, null, 17);
+                var b = MakeButton(ivGrid, def.label, ButtonColor, null, 15);
                 UnityEventTools.AddStringPersistentListener(b.onClick, iv.Apply, def.id);
+                b.gameObject.AddComponent<ActionButton>().Configure(sim, iv, def.id, def.label, ButtonColor);
             }
             Label("Bildgebung", actions.transform, "BILDGEBUNG", 18, Dim);
             var imgGrid = ButtonGrid(actions.transform, "Bildgebung-Raster");
             foreach (var m in InjuryDatabase.LoadImaging().modalities)
             {
-                var b = MakeButton(imgGrid, m.label, ImagingColor, null, 17);
+                var b = MakeButton(imgGrid, m.label, ImagingColor, null, 15);
                 UnityEventTools.AddStringPersistentListener(b.onClick, sim.RequestImaging, m.id);
+                b.gameObject.AddComponent<ActionButton>().Configure(sim, null, m.id, m.label, ImagingColor);
             }
             Label("Zeit", actions.transform, "ZEITRAFFER", 18, Dim);
             var speedRow = new GameObject("Zeitraffer", typeof(RectTransform));
@@ -194,7 +196,21 @@ namespace NotfallSIM.EditorTools
             speedRow.AddComponent<LayoutElement>().preferredHeight = 52;
             foreach (float s in new[] { 1f, 5f, 20f })
                 SpeedButton(speedRow.transform, sim, s);
-            MakeButton(actions.transform, "Szenario beenden", EndColor, debriefComp.EndAndShow);
+            var endRow = new GameObject("Ende", typeof(RectTransform));
+            endRow.transform.SetParent(actions.transform, false);
+            var eh = endRow.AddComponent<HorizontalLayoutGroup>();
+            eh.spacing = 8; eh.childControlWidth = true; eh.childControlHeight = true; eh.childForceExpandWidth = true;
+            endRow.AddComponent<LayoutElement>().preferredHeight = 52;
+            MakeButton(endRow.transform, "Beenden", EndColor, debriefComp.EndAndShow, 18);
+            var menuBtn = MakeButton(endRow.transform, "Hauptmenü", SpeedColor, null, 18);
+            UnityEventTools.AddStringPersistentListener(menuBtn.onClick, sim.LoadScene, SessionSetup.MainMenuScene);
+
+            // Protokoll unten in der Mitte
+            var logPanel = Panel("Protokoll", root, PanelColor);
+            Place(logPanel.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-60, 20), new Vector2(880, 250));
+            var logText = Label("Text", logPanel.transform, "<b>PROTOKOLL</b>", 17, Color.white, TextAlignmentOptions.TopLeft);
+            Stretch(logText.rectTransform, 16, 16, 12, 12);
+            logPanel.gameObject.AddComponent<EventLogPanel>().Configure(sim, logText);
 
             // Verdachtsdiagnosen oben in der Mitte: ein Button je Verletzung der Datenbank (Diagnose-Modus).
             var diag = Panel("Verdachtsdiagnosen", root, PanelColor);

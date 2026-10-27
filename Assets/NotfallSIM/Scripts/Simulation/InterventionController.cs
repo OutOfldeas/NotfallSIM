@@ -23,6 +23,9 @@ namespace NotfallSIM.Simulation
             foreach (var d in InjuryDatabase.LoadInterventions().interventions) _byId[d.id] = d;
         }
 
+        public bool IsUsed(string id) => _used.Contains(id);
+        public InterventionDefinition Get(string id) => _byId.TryGetValue(id, out var d) ? d : null;
+
         /// <summary>Für Buttons: OnClick mit String-Parameter, z. B. "beckengurt".</summary>
         public void Apply(string interventionId)
         {
@@ -32,6 +35,7 @@ namespace NotfallSIM.Simulation
                 return;
             }
             if (def.once && _used.Contains(def.id)) return;
+            if (sim.Ended || sim.IsAway || sim.Vitals.CardiacArrest) { sim.Note($"Nicht möglich: {def.label}"); return; }
 
             var ev = def.ToEvent();
             if (ev == null)

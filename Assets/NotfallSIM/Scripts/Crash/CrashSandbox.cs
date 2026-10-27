@@ -140,6 +140,13 @@ namespace NotfallSIM.Crash
             StartCoroutine(rig.Run(_p, _slowMo, OnMeasured));
         }
 
+        public void GoToMainMenu()
+        {
+            if (rig.Running) return;
+            Time.timeScale = 1;
+            SceneManager.LoadScene(Simulation.SessionSetup.MainMenuScene);
+        }
+
         public void GoToTraumaRoom()
         {
             if (_result == null) return;

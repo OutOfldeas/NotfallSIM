@@ -89,6 +89,7 @@ namespace NotfallSIM.EditorTools
             }
             MakeButton(left.transform, "Crash starten", StartColor, sandbox.StartCrash, 22);
             MakeButton(left.transform, "Kalibrieren (Referenztests)", NeutralColor, sandbox.Calibrate, 16);
+            MakeButton(left.transform, "Hauptmenü", NeutralColor, sandbox.GoToMainMenu, 16);
 
             var right = Panel("Ergebnis", root, PanelColor);
             Place(right.rectTransform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-20, -20), new Vector2(620, 0));

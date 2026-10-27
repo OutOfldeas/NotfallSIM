@@ -57,6 +57,8 @@ namespace NotfallSIM.Simulation
         // Verdachtsdiagnosen (Diagnose-Modus): Injury-IDs, die der Spieler aktuell vermutet.
         readonly HashSet<string> _suspected = new HashSet<string>();
         public bool IsSuspected(string injuryId) => _suspected.Contains(injuryId);
+        /// <summary>Maßnahme oder Bildgebung angeordnet, aber noch nicht wirksam bzw. noch kein Ergebnis.</summary>
+        public bool IsPending(string id) => _delayed.Any(d => d.iv.Id == id);
         public IEnumerable<string> Suspected => _suspected;
         public VitalSigns Vitals => Engine?.Current ?? default(VitalSigns);
 
@@ -78,6 +80,15 @@ namespace NotfallSIM.Simulation
         void Start()
         {
             Database = InjuryDatabase.Load();
+            // Auswahl aus dem Hauptmenü überschreibt die Inspector-Felder
+            if (SessionSetup.Active)
+            {
+                scenarioId = SessionSetup.ScenarioId ?? scenarioId;
+                randomMechanism = SessionSetup.RandomMechanism ?? "";
+                randomSeed = 0;
+                mode = SessionSetup.Mode;
+                ctInTraumaRoom = SessionSetup.CtInTraumaRoom;
+            }
             if (Crash.CrashHandoff.Pending != null)
             {
                 // Fall aus der Unfall-Sandbox
@@ -258,6 +269,13 @@ namespace NotfallSIM.Simulation
         }
 
         public void SetPaused(bool value) => paused = value;
+
+        /// <summary>Für Buttons (z. B. „Hauptmenü“). Setzt die Zeit zurück, falls Zeitlupe/Zeitraffer aktiv war.</summary>
+        public void LoadScene(string sceneName)
+        {
+            Time.timeScale = 1;
+            UnityEngine.SceneManagement.SceneManager.LoadScene(sceneName);
+        }
         public void SetTimeScale(float value)
         {
             timeScale = Mathf.Max(0, value);
