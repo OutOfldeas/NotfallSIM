@@ -1,0 +1,24 @@
+{
+  "id": "motorrad_beckenfraktur",
+  "title": "Motorradunfall mit Beckenfraktur",
+  "description": "35-jähriger Motorradfahrer, mit ca. 70 km/h gegen eine Leitplanke geprallt. Bei Eintreffen wach, klagt über Schmerzen im Becken und rechten Oberschenkel.",
+  "mechanism": "Hochrasanztrauma, Anprall gegen Leitplanke, Sturz vom Motorrad",
+  "patient": {
+    "sex": "male",
+    "age": 35,
+    "weight_kg": 80,
+    "height_cm": 182
+  },
+  "injuries": [
+    { "injuryId": "becken_instabil", "onsetTime_s": 0, "severity": 0.8 },
+    { "injuryId": "femur_schaft_rechts", "onsetTime_s": 0, "severity": 0.6 }
+  ],
+  "learningGoals": [
+    "Hämorrhagischen Schock anhand der Vitalparameter erkennen und einer Schockklasse zuordnen",
+    "Beckeninstabilität als Blutungsquelle identifizieren und früh stabilisieren",
+    "Restriktive Volumentherapie und frühe Gabe von Blutprodukten begründen",
+    "Femurfraktur als zusätzliche Blutungsquelle mitbedenken"
+  ],
+  "expectedCourse": "Ohne Maßnahmen progredienter hämorrhagischer Schock: zunehmende Tachykardie innerhalb weniger Minuten, Blutdruckabfall ab ca. 30 % Volumenverlust, unbehandelt Kreislaufstillstand. Beckengurt und Blutprodukte verlangsamen bzw. stabilisieren den Verlauf.",
+  "defaultTimeScale": 1
+}

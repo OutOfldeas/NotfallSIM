@@ -1,0 +1,96 @@
+{
+  "version": "0.1.0",
+  "injuries": [
+    {
+      "id": "becken_instabil",
+      "name": "Instabile Beckenringfraktur",
+      "region": "Becken",
+      "icd10": "S32.8",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "Pelvis",
+          "baseRate_mL_min": 150,
+          "maxTotalLoss_mL": 3000
+        }
+      ],
+      "clinicalFindings": [
+        "Instabilität bei vorsichtiger Beckenkompression (nur einmal prüfen)",
+        "Prellmarken bzw. Hämatom an Flanke, Leiste oder Perineum",
+        "Beinlängendifferenz und Außenrotation",
+        "Ggf. Blut am Meatus urethrae"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "note": "Schockklassen, Beckenstabilisierung im Primary Survey"
+        },
+        {
+          "citation": "DGU et al. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung, AWMF-Register-Nr. 187-023, Version 2022.",
+          "note": "Empfehlungen Beckenverletzung und Blutungskontrolle — Registernummer/Version vor Verwendung prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "baseRate und maxTotalLoss sind Spielwerte, abgeleitet aus Lehrbuch-Schätzungen des Blutverlusts bei Beckenfrakturen (ca. 1–5 L). Primärquelle für Verlaufskinetik fehlt noch. ICD-10-GM-Code und AIS-Schweregrad je nach Frakturtyp präzisieren."
+    },
+    {
+      "id": "femur_schaft_rechts",
+      "name": "Geschlossene Femurschaftfraktur rechts",
+      "region": "Oberschenkel rechts",
+      "icd10": "S72.3",
+      "aisSeverity": 3,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "RightThigh",
+          "baseRate_mL_min": 40,
+          "maxTotalLoss_mL": 1500
+        }
+      ],
+      "clinicalFindings": [
+        "Fehlstellung und Verkürzung des rechten Oberschenkels",
+        "Zunehmende Schwellung und Spannung der Oberschenkelweichteile",
+        "Starker Bewegungsschmerz, ggf. Krepitation",
+        "Durchblutung, Motorik und Sensibilität distal prüfen"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "note": "Musculoskeletal Trauma: Blutverlust bei Femurfrakturen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Blutverlust geschlossene Femurfraktur in Lehrbüchern meist mit ca. 1–1,5 L angegeben; Zahlen gegen Primärquelle prüfen."
+    },
+    {
+      "id": "spannungspneu_links",
+      "name": "Spannungspneumothorax links",
+      "region": "Thorax",
+      "icd10": "S27.0",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "TensionPneumothorax",
+          "compartment": "LeftLung",
+          "baseRate_mL_min": 0,
+          "maxTotalLoss_mL": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Abgeschwächtes bis fehlendes Atemgeräusch links",
+        "Hypersonorer Klopfschall links",
+        "Gestaute Halsvenen (bei Hypovolämie oft fehlend)",
+        "Trachealverlagerung nach rechts (Spätzeichen)"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "note": "Thoracic Trauma: Spannungspneumothorax"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Platzhalter für Phase 2 — physiologischer Effekt erst mit Pulse (SETensionPneumothorax) umsetzen. AIS-Schweregrad prüfen."
+    }
+  ]
+}
