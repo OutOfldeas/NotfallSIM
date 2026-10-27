@@ -54,6 +54,9 @@ static class Tests
         Run("Generator: gleicher Seed gleiches Szenario, Ausschlussgruppen, nie leer", GeneratorConsistency);
         Run("Generator: Häufigkeiten folgen den Wahrscheinlichkeiten", GeneratorDistribution);
         Run("Generator: gute Versorgung überlebt, keine Versorgung oft nicht", GeneratorPlayable);
+        Run("Untersuchung: Normalbefund ohne Verletzung, Verletzungsbefund erst ab Beginn", ExaminationFindings);
+        Run("Normalbefunde: jede Region der Datenbank abgedeckt", NormalFindingsComplete);
+        Run("Diagnosen: erkannt, übersehen, falscher Verdacht, verworfen", DiagnosisLogic);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -714,6 +717,54 @@ static class Tests
             Check(survivedTreated >= n * 0.9, $"{m.id}: nur {survivedTreated}/{n} überleben mit Versorgung. " + string.Join(" | ", fails.Take(3)));
             Check(survivedUntreated <= n * 0.7, $"{m.id}: {survivedUntreated}/{n} überleben ohne Versorgung — zu harmlos");
         }
+    }
+
+    // ------------------------------------------------------------ Diagnose-Modus
+
+    static FindingsDatabaseFile Findings => Load<FindingsDatabaseFile>("findings.json");
+
+    static void ExaminationFindings()
+    {
+        var defs = Injuries.injuries.ToDictionary(d => d.id);
+        var sc = new ScenarioDefinition { injuries = new[] {
+            new ScenarioInjury { injuryId = "becken_instabil", severity = 1 },
+            new ScenarioInjury { injuryId = "spannungspneu_links", severity = 1, onsetTime_s = 300 } } };
+        var normal = Findings;
+        var becken = Examination.Findings("Becken", sc, 0, id => defs[id], normal);
+        Check(becken.SequenceEqual(defs["becken_instabil"].clinicalFindings), "Becken zeigt nicht die Verletzungsbefunde");
+        var thoraxEarly = Examination.Findings("Thorax", sc, 100, id => defs[id], normal);
+        Check(thoraxEarly.SequenceEqual(normal.regions.First(r => r.region == "Thorax").normal), "Thorax vor Beginn nicht normal");
+        Check(!Examination.HasInjury("Thorax", sc, 100, id => defs[id]) && Examination.HasInjury("Thorax", sc, 300, id => defs[id]), "HasInjury");
+        Check(Examination.Findings("Thorax", sc, 300, id => defs[id], normal).Contains("Hypersonorer Klopfschall links"), "Thorax nach Beginn ohne Befund");
+    }
+
+    static void NormalFindingsComplete()
+    {
+        var regions = new HashSet<string>(Findings.regions.Select(r => r.region));
+        foreach (var inj in Injuries.injuries) Check(regions.Contains(inj.region), $"kein Normalbefund für {inj.region}");
+        foreach (var r in new[] { "Kopf", "Thorax", "Abdomen", "Becken", "Oberschenkel rechts", "Oberschenkel links", "Unterschenkel rechts", "Unterschenkel links", "Arm rechts", "Arm links" })
+            Check(regions.Contains(r), $"kein Normalbefund für {r}");
+        Check(Findings.regions.All(r => r.normal.Length > 0), "leerer Normalbefund");
+    }
+
+    static void DiagnosisLogic()
+    {
+        var defs = Injuries.injuries.ToDictionary(d => d.id);
+        var actual = new[] { new ScenarioInjury { injuryId = "milzruptur" }, new ScenarioInjury { injuryId = "becken_instabil" }, new ScenarioInjury { injuryId = "unterschenkel_offen_rechts" } };
+        Func<double, string, LogEntry> ev = (t, tag) => new LogEntry { Time_s = t, Message = tag, Tag = tag };
+        var events = new List<LogEntry> {
+            ev(10, "exam:Abdomen"), ev(20, "diagnosis:milzruptur"),
+            ev(30, "diagnosis:leberlazeration"),
+            ev(40, "diagnosis:becken_instabil"), ev(50, "diagnosis-retracted:becken_instabil"),
+            ev(60, "diagnosis:spannungspneu_links"), ev(70, "diagnosis-retracted:spannungspneu_links"),
+            ev(80, "result:Imaging:efast") };
+        var r = DiagnosisEvaluation.Evaluate(actual, events, id => defs[id], Imaging.modalities).ToDictionary(x => x.InjuryId);
+        Check(r.Count == 4, $"{r.Count} Ergebnisse statt 4");
+        Check(r["milzruptur"].Outcome == DiagnosisOutcome.Correct && r["milzruptur"].Time_s == 20 && r["milzruptur"].Examined && r["milzruptur"].ImagingShown, "Milz");
+        Check(r["becken_instabil"].Outcome == DiagnosisOutcome.Missed && !r["becken_instabil"].Examined && r["becken_instabil"].ImagingShown, "Becken (verworfen = übersehen, eFAST zeigt es)");
+        Check(r["unterschenkel_offen_rechts"].Outcome == DiagnosisOutcome.Missed && r["unterschenkel_offen_rechts"].ClinicalOnly, "Unterschenkel nur klinisch");
+        Check(r["leberlazeration"].Outcome == DiagnosisOutcome.FalsePositive, "Leber falscher Verdacht");
+        Check(!r.ContainsKey("spannungspneu_links"), "verworfener Fehlverdacht zählt");
     }
 
     // ------------------------------------------------------------ Helfer

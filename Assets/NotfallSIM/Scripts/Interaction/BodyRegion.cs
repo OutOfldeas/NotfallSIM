@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using NotfallSIM.Data;
 using NotfallSIM.Simulation;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -43,12 +44,9 @@ namespace NotfallSIM.Interaction
             if (sim == null || sim.Scenario == null || sim.Ended || sim.IsAway) return;
             double t = sim.Vitals.SimTime_s;
 
-            List<string> findings = sim.Scenario.injuries
-                .Where(si => si.onsetTime_s <= t)
-                .Select(si => sim.Database.Get(si.injuryId))
-                .Where(def => def.region == regionName)
-                .SelectMany(def => def.clinicalFindings ?? new string[0])
-                .ToList();
+            // Verletzungsbefunde oder Normalbefund (Data/Examination.cs, gleich im Browser-Prototyp).
+            List<string> findings = Examination.Findings(regionName, sim.Scenario, t, sim.Database.Get, sim.NormalFindings);
+            bool pathological = Examination.HasInjury(regionName, sim.Scenario, t, sim.Database.Get);
 
             // Neurologischer Status ist dynamisch und kommt aus der Physiologie, nicht aus der Datenbank.
             if (regionName == NeuroRegion)
@@ -58,7 +56,7 @@ namespace NotfallSIM.Interaction
                 findings.Add(v.Anisocoria ? "Pupillen anisokor: eine Pupille weit und lichtstarr" : "Pupillen isokor, prompt lichtreagibel");
             }
 
-            sim.Note($"Untersuchung: {regionName}" + (findings.Count == 0 ? " (unauffällig)" : ""), "exam:" + regionName);
+            sim.Note($"Untersuchung: {regionName}" + (pathological ? "" : " (unauffällig)"), "exam:" + regionName);
             OnExamined?.Invoke(regionName, findings);
         }
     }

@@ -31,6 +31,7 @@ namespace NotfallSIM.EditorTools
         static readonly Color ButtonColor = new Color(0.16f, 0.32f, 0.55f);
         static readonly Color ImagingColor = new Color(0.22f, 0.40f, 0.42f);
         static readonly Color SpeedColor = new Color(0.25f, 0.27f, 0.30f);
+        static readonly Color DiagnosisColor = new Color(0.62f, 0.45f, 0.12f);
         static readonly Color EndColor = new Color(0.60f, 0.18f, 0.18f);
         static readonly Color Dim = new Color(0.75f, 0.78f, 0.82f);
 
@@ -194,6 +195,21 @@ namespace NotfallSIM.EditorTools
             foreach (float s in new[] { 1f, 5f, 20f })
                 SpeedButton(speedRow.transform, sim, s);
             MakeButton(actions.transform, "Szenario beenden", EndColor, debriefComp.EndAndShow);
+
+            // Verdachtsdiagnosen oben in der Mitte: ein Button je Verletzung der Datenbank (Diagnose-Modus).
+            var diag = Panel("Verdachtsdiagnosen", root, PanelColor);
+            Place(diag.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(-120, -20), new Vector2(680, 0));
+            Vertical(diag.gameObject, 6, fit: true);
+            Label("Titel", diag.transform, "VERDACHTSDIAGNOSEN (antippen = setzen / verwerfen)", 18, Dim);
+            var diagGrid = ButtonGrid(diag.transform, "Diagnose-Raster");
+            var dg = diagGrid.GetComponent<GridLayoutGroup>();
+            dg.cellSize = new Vector2(214, 44); dg.constraintCount = 3;
+            foreach (var inj in InjuryDatabase.LoadInjuryFile().injuries.OrderBy(x => x.region).ThenBy(x => x.name))
+            {
+                var b = MakeButton(diagGrid, inj.name, SpeedColor, null, 15);
+                UnityEventTools.AddStringPersistentListener(b.onClick, sim.ToggleSuspected, inj.id);
+                b.gameObject.AddComponent<DiagnosisToggle>().Configure(sim, inj.id, b.GetComponent<Image>(), SpeedColor, DiagnosisColor);
+            }
 
             // Befunde unten rechts
             var findings = Panel("Befunde", root, PanelColor);

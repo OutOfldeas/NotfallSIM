@@ -14,6 +14,8 @@ mcs -nologo -warnaserror- \
     $SCRIPTS/Core/*.cs \
     $SCRIPTS/Data/DataModels.cs \
     $SCRIPTS/Data/ScenarioGenerator.cs \
+    $SCRIPTS/Data/Examination.cs \
+    $SCRIPTS/Data/DiagnosisEvaluation.cs \
     $SCRIPTS/Engines/MockPhysiologyEngine.cs \
     Tests/NotfallSimTests.cs
 

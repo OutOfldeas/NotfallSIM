@@ -1,3 +1,4 @@
+using NotfallSIM.Data;
 using NotfallSIM.Simulation;
 using TMPro;
 using UnityEngine;
@@ -28,7 +29,9 @@ namespace NotfallSIM.UI
             if (sim.Ended) { Show(); return; }
             sim.EndScenario();
             string dir = recorder.ExportCsv();
-            text.text = recorder.Log.BuildDebrief(sim.Scenario?.title ?? "Szenario", sim.Scenario?.assessment)
+            var diagnoses = sim.Scenario == null ? null
+                : DiagnosisEvaluation.Evaluate(sim.Scenario.injuries, recorder.Log.Events, sim.Database.Get, sim.ImagingModalities);
+            text.text = recorder.Log.BuildDebrief(sim.Scenario?.title ?? "Szenario", sim.Scenario?.assessment, diagnoses)
                         + $"\n<size=70%>Verlaufsdaten (CSV): {dir}</size>";
             Show();
         }

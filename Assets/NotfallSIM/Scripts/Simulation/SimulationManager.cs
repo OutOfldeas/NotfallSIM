@@ -48,6 +48,13 @@ namespace NotfallSIM.Simulation
         public IPhysiologyEngine Engine { get; private set; }
         public ScenarioDefinition Scenario { get; private set; }
         public InjuryDatabase Database { get; private set; }
+        public FindingsDatabaseFile NormalFindings { get; private set; }
+        public ImagingModality[] ImagingModalities { get; private set; }
+
+        // Verdachtsdiagnosen (Diagnose-Modus): Injury-IDs, die der Spieler aktuell vermutet.
+        readonly HashSet<string> _suspected = new HashSet<string>();
+        public bool IsSuspected(string injuryId) => _suspected.Contains(injuryId);
+        public IEnumerable<string> Suspected => _suspected;
         public VitalSigns Vitals => Engine?.Current ?? default(VitalSigns);
 
         /// <summary>
@@ -86,7 +93,9 @@ namespace NotfallSIM.Simulation
                 Engine.Initialize(Scenario.patient);
             }
             _pending.AddRange(Scenario.injuries);
-            foreach (var m in InjuryDatabase.LoadImaging().modalities) _imaging[m.id] = m;
+            ImagingModalities = InjuryDatabase.LoadImaging().modalities;
+            foreach (var m in ImagingModalities) _imaging[m.id] = m;
+            NormalFindings = InjuryDatabase.LoadFindings();
             Log($"Szenario '{Scenario.title}' gestartet mit {Engine.Name} (DB v{Database.Version})");
         }
 
@@ -208,6 +217,23 @@ namespace NotfallSIM.Simulation
         {
             if (IsAway) return; // Patient ist nicht im Schockraum
             Log(message, tag);
+        }
+
+        /// <summary>
+        /// Verdachtsdiagnose setzen oder zurücknehmen (für die Diagnose-Buttons). Geht auch, während der
+        /// Patient in der Bildgebung ist — Nachdenken braucht keinen Patientenkontakt.
+        /// </summary>
+        public void ToggleSuspected(string injuryId)
+        {
+            if (Ended || Database == null) return;
+            string name = Database.Get(injuryId).name;
+            if (_suspected.Remove(injuryId))
+                Log($"Verdacht verworfen: {name}", DiagnosisEvaluation.RetractPrefix + injuryId);
+            else
+            {
+                _suspected.Add(injuryId);
+                Log($"Verdachtsdiagnose: {name}", DiagnosisEvaluation.SuspectPrefix + injuryId);
+            }
         }
 
         /// <summary>Stoppt die Simulation endgültig und löst das Debriefing aus.</summary>

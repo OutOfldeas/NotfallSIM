@@ -156,6 +156,16 @@ Mit Musterversorgung überleben im Test 39–40 von 40 Fällen je Mechanismus; d
 
 Neue Verletzungen in v0.7: Milzruptur, Leberlazeration (je ca. 90–100 mL/min, Tamponade bei 2,5 L) und offene Unterschenkelfraktur mit arterieller Blutung (120 mL/min ohne Tamponade, Tourniquet stoppt sie). Neue Maßnahme: Notfall-Laparotomie (stillt Milz- und Leberblutung nach 15 min). Alle Raten sind Spielwerte.
 
+## Diagnose-Modus
+
+Jede Untersuchung liefert einen ausformulierten Befund: in verletzten Regionen die klinischen Befunde der Verletzung (ab ihrem Beginn), sonst einen Normalbefund aus `findings.json` (Secondary Survey nach ATLS). Der Spieler setzt Verdachtsdiagnosen aus allen Verletzungen der Datenbank. Bewertet wird der Stand am Ende:
+
+- **erkannt:** Verletzung lag vor und war am Ende vermutet (mit Zeitpunkt des Verdachts)
+- **übersehen:** lag vor, nicht vermutet. Hinweise: Region nicht untersucht; keine durchgeführte Bildgebung, die sie zeigt
+- **falscher Verdacht:** vermutet, lag aber nicht vor
+
+Die Diagnosebewertung steht getrennt von den Behandlungszielen. Im Browser-Prototyp zeigt das Protokoll nicht mehr an, wann eine Verletzung aktiv wird (das hätte die Diagnose verraten).
+
 ## Offene Punkte zum Prüfen
 
 - [ ] Empfehlungen und Empfehlungsgrade zu Beckengurt, Volumentherapie und permissiver Hypotension in der S3-Leitlinie (MAGICapp) nachlesen
@@ -177,6 +187,9 @@ Neue Verletzungen in v0.7: Milzruptur, Leberlazeration (je ca. 90–100 mL/min, 
 - [ ] Verletzungswahrscheinlichkeiten je Mechanismus mit TraumaRegister-DGU-Daten oder Kinematik-Studien belegen (Jahresbericht, ggf. Datenanfrage)
 - [ ] Blutungsraten von Milz- und Leberverletzung nach AAST-Grad belegen
 - [ ] Präklinischen Blutverlust gegen Registerdaten (Hb bzw. Schockindex bei Aufnahme nach Rettungszeit) plausibilisieren
+- [ ] Normalbefunde (`findings.json`) und Befundtexte der Verletzungen klinisch gegenlesen
+- [ ] Befunde zeitabhängig machen (z. B. Spannungspneu: gestaute Halsvenen erst spät; Abdomen: Distension erst mit Blutverlust; Befund nach Drainage)
+- [ ] Differenzialdiagnosen ohne Physiologie ergänzen (Hämatothorax, Aortenverletzung, Wirbelsäule), damit falsche Verdachte lehrreicher werden
 - [ ] Fehlende typische Verletzungen ergänzen: Wirbelsäule, Kalkaneus (Sturz), Aortenverletzung (Dezeleration), Rippenserie rechts
 
 ## Quellen

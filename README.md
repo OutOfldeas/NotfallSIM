@@ -46,6 +46,7 @@ Assets/
     interventions.json           Maßnahmen (Buttons, Volumina, Effektstärken, Quellen)
     imaging.json                 Bildgebung (eFAST, Röntgen, CCT, Ganzkörper-CT)
     mechanisms.json              Unfallmechanismen für Zufallsfälle (Verletzungswahrscheinlichkeiten)
+    findings.json                Normalbefunde je Körperregion (Diagnose-Modus)
     scenarios/*.json             Szenarien
 ```
 
@@ -73,6 +74,10 @@ Assets/
    `sturz_hoehe` setzen. Der Generator würfelt Patient, Verletzungsmuster, präklinischen Blutverlust und die
    passenden Bewertungsziele. *Random Seed* ≠ 0 erzeugt reproduzierbar denselben Fall wie der Fall-Code im Browser
    (z. B. Fall-Code `motorrad-4711` = Mechanismus `motorrad`, Seed `4711`).
+   **Diagnose-Modus:** Oben in der Mitte stehen alle Verletzungen der Datenbank als Verdachtsdiagnosen.
+   Antippen setzt einen Verdacht, erneutes Antippen verwirft ihn. Das Debriefing zeigt erkannte, übersehene
+   und falsch vermutete Verletzungen und bei übersehenen den Hinweis, was gefehlt hat (Region nicht untersucht,
+   keine passende Bildgebung). Unverletzte Regionen liefern einen Normalbefund statt „unauffällig“.
 7. **Modus wählen:** Feld *Mode* — *Textbook* (ATLS-Lehrbuchbild) oder *Registry* (Realitätsmodus nach
    Registerdaten mit individueller Streuung, Alter und Betablocker). Das Debriefing vergleicht beide.
 

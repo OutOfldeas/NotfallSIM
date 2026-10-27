@@ -1,0 +1,85 @@
+{
+  "version": "0.1.0",
+  "regions": [
+    {
+      "region": "Kopf",
+      "normal": [
+        "Keine Prellmarken, Wunden oder Schwellungen am Kopf",
+        "Kein Blut oder Liquor aus Nase oder Ohren"
+      ]
+    },
+    {
+      "region": "Thorax",
+      "normal": [
+        "Thorax stabil, kein Druckschmerz, keine Krepitation",
+        "Atemgeräusch beidseits seitengleich vesikulär",
+        "Klopfschall beidseits sonor, Halsvenen nicht gestaut"
+      ]
+    },
+    {
+      "region": "Abdomen",
+      "normal": [
+        "Bauchdecke weich, kein Druckschmerz, keine Abwehrspannung",
+        "Keine Prellmarken, kein Gurtzeichen"
+      ]
+    },
+    {
+      "region": "Becken",
+      "normal": [
+        "Becken stabil bei vorsichtiger Kompression",
+        "Keine Prellmarken an Flanke, Leiste oder Perineum"
+      ]
+    },
+    {
+      "region": "Oberschenkel rechts",
+      "normal": [
+        "Keine Fehlstellung, Weichteile weich",
+        "Durchblutung, Motorik und Sensibilität distal intakt"
+      ]
+    },
+    {
+      "region": "Oberschenkel links",
+      "normal": [
+        "Keine Fehlstellung, Weichteile weich",
+        "Durchblutung, Motorik und Sensibilität distal intakt"
+      ]
+    },
+    {
+      "region": "Unterschenkel rechts",
+      "normal": [
+        "Keine Wunden oder Fehlstellung",
+        "Fußpulse tastbar"
+      ]
+    },
+    {
+      "region": "Unterschenkel links",
+      "normal": [
+        "Keine Wunden oder Fehlstellung",
+        "Fußpulse tastbar"
+      ]
+    },
+    {
+      "region": "Arm rechts",
+      "normal": [
+        "Keine Fehlstellung, frei beweglich",
+        "Radialispuls tastbar"
+      ]
+    },
+    {
+      "region": "Arm links",
+      "normal": [
+        "Keine Fehlstellung, frei beweglich",
+        "Radialispuls tastbar"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+      "url": "",
+      "note": "Secondary Survey: Untersuchung von Kopf bis Fuß"
+    }
+  ],
+  "evidenceStatus": "draft",
+  "reviewNotes": "Normalbefunde je Region. Sie erscheinen, wenn in der Region keine aktive Verletzung liegt, damit eine Untersuchung nicht schon durch ihr Ergebnisformat verrät, ob etwas vorliegt."
+}

@@ -54,15 +54,24 @@ run("betablocker", { weight_kg: 65, age: 76, sex: "female", betaBlocker: true },
 
 // Zufallsszenarien (Datei als drittes Argument)
 if (process.argv[3]) {
-  const { generateScenario } = require("../../web/engine.js");
+  const { generateScenario, evaluateDiagnoses } = require("../../web/engine.js");
   const root = process.argv[4];
   const data = { injuries: JSON.parse(fs.readFileSync(root + "/injuries.json", "utf8")), mechanisms: JSON.parse(fs.readFileSync(root + "/mechanisms.json", "utf8")) };
+  const mods = JSON.parse(fs.readFileSync(root + "/imaging.json", "utf8")).modalities;
+  const byId = Object.fromEntries(data.injuries.injuries.map((d) => [d.id, d]));
+  const dxLine = (s) => {
+    const first = byId[s.injuries[0].injuryId];
+    const events = [{ time: 5, tag: "exam:" + first.region }, { time: 10, tag: "diagnosis:" + first.id }, { time: 20, tag: "diagnosis:leberlazeration" },
+      { time: 25, tag: "diagnosis:milzruptur" }, { time: 30, tag: "result:Imaging:efast" }, { time: 35, tag: "diagnosis-retracted:milzruptur" }];
+    return evaluateDiagnoses(s.injuries, events, (id) => byId[id], mods)
+      .map((r) => `${r.injuryId}:${r.outcome}:${r.time != null ? N(r.time) : "-"}:${r.examined ? 1 : 0}${r.imagingShown ? 1 : 0}${r.clinicalOnly ? 1 : 0}`).join(",");
+  };
   const lines = [];
   for (const m of data.mechanisms.mechanisms)
     for (let seed = 1; seed <= 60; seed++) {
       const s = generateScenario(data, m.id, (seed * 7919) >>> 0), p = s.patient;
       lines.push([s.id, s.description, p.sex, p.age, N(p.weight_kg), N(p.height_cm), p.betaBlocker ? "1" : "0", N(p.initialBloodLoss_mL),
-        s.injuries.map((i) => `${i.injuryId}:${N(i.severity)}:${N(i.onsetTime_s)}`).join(","), s.assessment.map((c) => c.id).join(",")].join("|"));
+        s.injuries.map((i) => `${i.injuryId}:${N(i.severity)}:${N(i.onsetTime_s)}`).join(","), s.assessment.map((c) => c.id).join(","), dxLine(s)].join("|"));
     }
   const gref = fs.readFileSync(process.argv[3], "utf8").trim().split("\n");
   const diff = gref.findIndex((l, i) => l !== lines[i]);

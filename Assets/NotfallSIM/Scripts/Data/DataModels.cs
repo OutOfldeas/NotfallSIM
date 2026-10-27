@@ -269,4 +269,23 @@ namespace NotfallSIM.Data
         public ExclusiveGroup[] exclusiveGroups;
         public MechanismDefinition[] mechanisms;
     }
+
+    // ---------- Normalbefunde (findings.json) ----------
+
+    [Serializable]
+    public class RegionFindings
+    {
+        public string region;
+        public string[] normal; // Befund ohne Verletzung in dieser Region
+    }
+
+    [Serializable]
+    public class FindingsDatabaseFile
+    {
+        public string version;
+        public RegionFindings[] regions;
+        public SourceRef[] sources;
+        public string evidenceStatus;
+        public string reviewNotes;
+    }
 }

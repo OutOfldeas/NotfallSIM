@@ -20,6 +20,7 @@ data = {
     "interventions": load(DATA_DIR / "interventions.json"),
     "imaging": load(DATA_DIR / "imaging.json"),
     "mechanisms": load(DATA_DIR / "mechanisms.json"),
+    "findings": load(DATA_DIR / "findings.json"),
     "scenarios": [load(p) for p in sorted((DATA_DIR / "scenarios").glob("*.json"))],
     "built": datetime.date.today().strftime("%d.%m.%Y"),
 }

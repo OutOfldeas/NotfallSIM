@@ -149,6 +149,13 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
 .chip.Late { background: var(--warn-bg); color: var(--warn); }
 .chip.Missed, .chip.Exceeded { background: var(--crit-bg); color: var(--crit); }
 .results .why { grid-column: 2; font-size: 13px; color: var(--muted); }
+.chip.Correct { background: var(--ok-bg); color: var(--ok); }
+.chip.FalsePositive { background: var(--warn-bg); color: var(--warn); }
+.dx-group { display: grid; gap: 4px; margin-top: 8px; }
+.dx-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dx { background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px; cursor: pointer; color: inherit; font: inherit; font-size: 14px; text-align: left; }
+.dx[aria-pressed="true"] { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); font-weight: 600; }
+.dx:disabled { opacity: .5; cursor: not-allowed; }
 .crit-tag { color: var(--crit); font-size: 12px; font-weight: 600; }
 .compare { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .compare th, .compare td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
@@ -246,6 +253,11 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
     </section>
 
     <div style="display:grid; gap:16px; min-width:0">
+      <section class="panel" aria-labelledby="dxTitle">
+        <h2 id="dxTitle">Verdachtsdiagnosen</h2>
+        <p class="muted" style="margin:4px 0 0">Antippen setzt einen Verdacht, erneutes Antippen verwirft ihn. Ausgewertet wird der Stand am Ende.</p>
+        <div id="diagnoses"></div>
+      </section>
       <section class="panel" aria-labelledby="actTitle">
         <h2 id="actTitle">Maßnahmen</h2>
         <div class="actions" id="actions"></div>
@@ -270,6 +282,7 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
     <div id="debInjuries"></div>
     <h2 style="margin-top:18px" id="debScore"></h2>
     <ul class="results" id="debResults"></ul>
+    <div id="debDiagnoses"></div>
     <div id="debCompare"></div>
     <h2 style="margin-top:18px">Zeitleiste</h2>
     <ol class="log" id="debLog" style="max-height:none"></ol>
@@ -339,7 +352,7 @@ function start() {
   $("pauseBtn").textContent = "Pause";
   document.querySelectorAll("[data-speed]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.speed === "1"));
   $("monScenario").innerHTML = `<strong>${esc(sim.scenario.title)}</strong> · ${mode === "Registry" ? "Realität" : "Lehrbuch"}`;
-  renderActions(); renderImaging(); renderAway(); renderMonitor(); renderLog();
+  renderActions(); renderDiagnoses(); renderImaging(); renderAway(); renderMonitor(); renderLog();
   try { navigator.wakeLock && navigator.wakeLock.request("screen").then((w) => (wakeLock = w)).catch(() => {}); } catch (e) {}
   lastFrame = performance.now();
   requestAnimationFrame(loop);
@@ -403,6 +416,23 @@ function renderActions() {
 $("actions").addEventListener("click", (e) => {
   const b = e.target.closest(".act"); if (!b || !sim) return;
   if (sim.apply(b.dataset.id)) { renderActions(); renderLog(); renderMonitor(); }
+});
+
+// ---------- Verdachtsdiagnosen ----------
+const REGION_ORDER = ["Kopf", "Thorax", "Abdomen", "Becken", "Oberschenkel rechts", "Oberschenkel links", "Unterschenkel rechts", "Unterschenkel links", "Arm rechts", "Arm links"];
+function renderDiagnoses() {
+  const groups = {};
+  for (const d of DATA.injuries.injuries) (groups[d.region] = groups[d.region] || []).push(d);
+  const regions = Object.keys(groups).sort((a, b) => (REGION_ORDER.indexOf(a) + 99) % 99 - (REGION_ORDER.indexOf(b) + 99) % 99);
+  const off = sim.ended;
+  $("diagnoses").innerHTML = regions.map((r) => `<div class="dx-group"><span class="eyebrow">${esc(r)}</span><div class="dx-chips">${
+    groups[r].sort((a, b) => a.name.localeCompare(b.name, "de")).map((d) =>
+      `<button type="button" class="dx" data-dx="${d.id}" aria-pressed="${sim.suspected.has(d.id)}" ${off ? "disabled" : ""}>${esc(d.name)}</button>`).join("")
+  }</div></div>`).join("");
+}
+$("diagnoses").addEventListener("click", (e) => {
+  const b = e.target.closest(".dx"); if (!b || !sim) return;
+  sim.toggleSuspected(b.dataset.dx); renderDiagnoses(); renderLog();
 });
 
 // ---------- Untersuchung ----------
@@ -482,6 +512,8 @@ function renderLog() {
   const fresh = sim.events.slice(logCount);
   logCount = sim.events.length;
   for (const ev of fresh) {
+    // Welche Verletzung wann aktiv wird, verrät die Diagnose — erst im Debriefing zeigen.
+    if (ev.tag && ev.tag.startsWith("injury:")) continue;
     const li = document.createElement("li");
     li.innerHTML = `<time>${E.clock(ev.time)}</time><span class="${logClass(ev.tag)}">${esc(ev.message)}</span>`;
     $("log").prepend(li);
@@ -506,11 +538,24 @@ function showDebrief() {
     d.minSpo2 != null ? kv("Min. SpO₂", R(d.minSpo2) + " %") : "",
   ].join("");
   const injDefs = Object.fromEntries(DATA.injuries.injuries.map((i) => [i.id, i]));
-  $("debInjuries").innerHTML = `<h2 style="margin-top:18px">Verletzungen in diesem Fall</h2><ul class="injury-list">${sim.scenario.injuries.map((si) => {
-    const def = injDefs[si.injuryId];
-    const onset = si.onsetTime_s > 0 ? ` · tritt nach ${E.clock(si.onsetTime_s)} auf` : "";
-    return `<li><b>${esc(def.name)}</b> <span class="muted">· ${esc(def.region)} · AIS ${def.aisSeverity} · Schweregrad ${R(si.severity * 100)} %${onset}</span></li>`;
-  }).join("")}</ul>` + (sim.scenario.generated ? `<p class="muted">Fall-Code <span class="case-code">${esc(sim.scenario.id.replace(/^zufall_/, "").replace(/_(\d+)$/, "-$1"))}</span></p>` : "");
+  const sev = Object.fromEntries(sim.scenario.injuries.map((si) => [si.injuryId, si.severity]));
+  $("debInjuries").innerHTML = sim.scenario.generated ? `<p class="muted">Fall-Code <span class="case-code">${esc(sim.scenario.id.replace(/^zufall_/, "").replace(/_(\d+)$/, "-$1"))}</span> · mit diesem Code lässt sich der Fall in Unity wiederholen</p>` : "";
+  const dxActual = d.diagnoses.filter((x) => x.outcome !== "FalsePositive");
+  const dxFound = dxActual.filter((x) => x.outcome === "Correct").length, dxWrong = d.diagnoses.length - dxActual.length;
+  const DX = { Correct: "erkannt", Missed: "übersehen", FalsePositive: "falscher Verdacht" };
+  $("debDiagnoses").innerHTML = `<h2 style="margin-top:18px">Diagnosen: ${dxFound} von ${dxActual.length} Verletzungen erkannt${dxWrong ? `, ${dxWrong} falscher Verdacht` : ""}</h2>
+    <ul class="results">${d.diagnoses.map((x) => {
+      let note = "";
+      if (x.outcome === "Correct") note = `Verdacht ab ${E.clock(x.time)}` + (x.onset > 0 ? `, Verletzung ab ${E.clock(x.onset)}` : "");
+      else if (x.outcome === "Missed") {
+        const hints = [];
+        if (!x.examined) hints.push(`${x.region} nicht untersucht`);
+        if (!x.clinicalOnly && !x.imagingShown) hints.push("keine Bildgebung, die sie zeigt");
+        note = hints.length ? hints.join(" · ") : "Befunde lagen vor, Verdacht nicht gestellt";
+      } else note = "lag in diesem Fall nicht vor";
+      const detail = x.outcome !== "FalsePositive" ? ` · ${esc(x.region)}, AIS ${injDefs[x.injuryId].aisSeverity}, Schweregrad ${R(sev[x.injuryId] * 100)} %` : "";
+      return `<li><span class="chip ${x.outcome}">${DX[x.outcome]}</span><span><b>${esc(x.name)}</b> <span class="muted">· ${esc(note)}${detail}</span></span></li>`;
+    }).join("")}</ul>`;
   const met = d.results.filter((r) => r.outcome === "Met").length;
   const critMissed = d.results.some((r) => r.criterion.critical && r.outcome !== "Met");
   $("debScore").innerHTML = `Bewertung: ${met} von ${d.results.length} Zielen erreicht` + (critMissed ? ` <span class="crit-tag">· kritisches Ziel verfehlt</span>` : "");

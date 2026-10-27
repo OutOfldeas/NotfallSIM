@@ -307,6 +307,7 @@
       this.samples = [this.engine.current];
       this.nextSample = 5;
       this.used = new Set();
+      this.suspected = new Set();
       this.imagingResults = [];
       this.labResults = [];
       this.ended = false;
@@ -411,19 +412,33 @@
     examine(region) {
       if (this.ended || this.isAway) return null;
       const t = this.engine.current.time;
+      // Verletzungsbefunde oder Normalbefund (wie Data/Examination.cs)
       const findings = [];
+      let pathological = false;
       for (const si of this.scenario.injuries) {
         if (si.onsetTime_s > t) continue;
         const def = this.injuries[si.injuryId];
-        if (def.region === region) findings.push(...(def.clinicalFindings || []));
+        if (def.region === region) { pathological = true; findings.push(...(def.clinicalFindings || [])); }
+      }
+      if (!findings.length && this.data.findings) {
+        const r = this.data.findings.regions.find((x) => x.region === region);
+        if (r) findings.push(...r.normal);
       }
       if (region === "Kopf") {
         const v = this.engine.current;
         findings.push(`Aktuell GCS ${v.gcs}` + (v.intubated ? " (sediert/beatmet)" : ""));
         findings.push(v.anisocoria ? "Pupillen anisokor: eine Pupille weit und lichtstarr" : "Pupillen isokor, prompt lichtreagibel");
       }
-      this.log(`Untersuchung: ${region}` + (findings.length ? "" : " (unauffällig)"), "exam:" + region);
+      this.log(`Untersuchung: ${region}` + (pathological ? "" : " (unauffällig)"), "exam:" + region);
       return findings;
+    }
+
+    /** Verdachtsdiagnose setzen oder zurücknehmen (wie SimulationManager.ToggleSuspected). */
+    toggleSuspected(injuryId) {
+      if (this.ended) return;
+      const name = this.injuries[injuryId].name;
+      if (this.suspected.has(injuryId)) { this.suspected.delete(injuryId); this.log(`Verdacht verworfen: ${name}`, "diagnosis-retracted:" + injuryId); }
+      else { this.suspected.add(injuryId); this.log(`Verdachtsdiagnose: ${name}`, "diagnosis:" + injuryId); }
     }
 
     end() {
@@ -451,10 +466,44 @@
           be: Shock.be(maxLoss),
         } : null,
         results, events: this.events.slice(),
+        diagnoses: evaluateDiagnoses(this.scenario.injuries, this.events, (id) => this.injuries[id], this.data.imaging.modalities),
       };
     }
   }
 
+
+  // ---------- Diagnose-Modus (wie Data/DiagnosisEvaluation.cs) ----------
+
+  function evaluateDiagnoses(actual, events, getInjury, modalities) {
+    const suspected = new Map();
+    for (const e of events) {
+      if (!e.tag) continue;
+      if (e.tag.startsWith("diagnosis:")) { const id = e.tag.slice(10); if (!suspected.has(id)) suspected.set(id, e.time); }
+      else if (e.tag.startsWith("diagnosis-retracted:")) suspected.delete(e.tag.slice(20));
+    }
+    const tags = new Set(events.filter((e) => e.tag).map((e) => e.tag));
+    const results = [], actualIds = new Set();
+    for (const si of actual) {
+      if (actualIds.has(si.injuryId)) continue;
+      actualIds.add(si.injuryId);
+      const def = getInjury(si.injuryId);
+      const shownBy = new Set((def.imaging || []).map((f) => f.modality));
+      const hit = suspected.has(si.injuryId);
+      results.push({
+        injuryId: def.id, name: def.name, region: def.region, outcome: hit ? "Correct" : "Missed",
+        time: hit ? suspected.get(si.injuryId) : null, onset: si.onsetTime_s,
+        examined: tags.has("exam:" + def.region),
+        imagingShown: modalities.some((m) => m.covers.some((c) => shownBy.has(c)) && tags.has("result:Imaging:" + m.id)),
+        clinicalOnly: shownBy.size === 0,
+      });
+    }
+    for (const [id, time] of suspected) {
+      if (actualIds.has(id)) continue;
+      const def = getInjury(id);
+      results.push({ injuryId: id, name: def.name, region: def.region, outcome: "FalsePositive", time, onset: 0, examined: false, imagingShown: false, clinicalOnly: false });
+    }
+    return results;
+  }
 
   // ---------- Unfallmechanismus → Zufallsszenario (wie Data/ScenarioGenerator.cs) ----------
 
@@ -535,7 +584,7 @@
     };
   }
 
-  const api = { seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
+  const api = { evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.NotfallEngine = api;
 })(typeof window !== "undefined" ? window : globalThis);

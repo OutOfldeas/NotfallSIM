@@ -58,7 +58,8 @@ namespace NotfallSIM.Core
         }
 
         /// <summary>Kurzes Debriefing mit TextMeshPro-Rich-Text. Mit Kriterien zusätzlich eine Bewertung.</summary>
-        public string BuildDebrief(string scenarioTitle, IEnumerable<NotfallSIM.Data.AssessmentCriterion> criteria = null)
+        public string BuildDebrief(string scenarioTitle, IEnumerable<NotfallSIM.Data.AssessmentCriterion> criteria = null,
+                                   IList<NotfallSIM.Data.DiagnosisResult> diagnoses = null)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"<b>Debriefing: {scenarioTitle}</b>");
@@ -103,6 +104,16 @@ namespace NotfallSIM.Core
                     sb.AppendLine("<color=#FF6060>Mindestens ein kritisches Ziel wurde verfehlt.</color>");
             }
 
+            if (diagnoses != null && diagnoses.Count > 0)
+            {
+                int found = diagnoses.Count(d => d.Outcome == NotfallSIM.Data.DiagnosisOutcome.Correct);
+                int actual = diagnoses.Count(d => d.Outcome != NotfallSIM.Data.DiagnosisOutcome.FalsePositive);
+                int wrong = diagnoses.Count - actual;
+                sb.AppendLine();
+                sb.AppendLine($"<b>Diagnosen: {found} von {actual} Verletzungen erkannt" + (wrong > 0 ? $", {wrong} falscher Verdacht" : "") + "</b>");
+                foreach (var d in diagnoses) sb.AppendLine(FormatDiagnosis(d));
+            }
+
             sb.AppendLine();
             sb.AppendLine("<b>Zeitleiste</b>");
             foreach (var e in Events)
@@ -126,6 +137,23 @@ namespace NotfallSIM.Core
                     return $"<color=#FF6060>überschritten</color>  {c.description}{star} ({r.Count}x, max. {F(c.limit)}x)";
                 default:
                     return $"<color=#FF6060>fehlt</color>  {c.description}{star} (Ziel {Clock(r.Deadline_s)})";
+            }
+        }
+
+        static string FormatDiagnosis(NotfallSIM.Data.DiagnosisResult d)
+        {
+            switch (d.Outcome)
+            {
+                case NotfallSIM.Data.DiagnosisOutcome.Correct:
+                    return $"<color=#5CDB6E>erkannt</color>  {d.Name} bei {Clock(d.Time_s.Value)}";
+                case NotfallSIM.Data.DiagnosisOutcome.FalsePositive:
+                    return $"<color=#F2C14E>falscher Verdacht</color>  {d.Name}";
+                default:
+                    var hints = new List<string>();
+                    if (!d.Examined) hints.Add($"{d.Region} nicht untersucht");
+                    if (!d.ClinicalOnly && !d.ImagingShown) hints.Add("keine Bildgebung, die sie zeigt");
+                    if (hints.Count == 0) hints.Add("Befunde lagen vor");
+                    return $"<color=#FF6060>übersehen</color>  {d.Name} ({string.Join(", ", hints)})";
             }
         }
 

@@ -42,11 +42,25 @@ static class Parity
         using (var st = new MemoryStream(Encoding.UTF8.GetBytes(File.ReadAllText(path)))) return (T)ser.ReadObject(st);
     }
 
+    /// <summary>Feste Ereignisfolge je Fall: erste Verletzung untersucht und vermutet, Leber vermutet, eFAST, Milz verworfen.</summary>
+    static string DiagnosisLine(ScenarioDefinition s, System.Collections.Generic.Dictionary<string, InjuryDefinition> defs, ImagingModality[] mods)
+    {
+        var first = defs[s.injuries[0].injuryId];
+        var events = new System.Collections.Generic.List<LogEntry> {
+            new LogEntry { Time_s = 5, Tag = "exam:" + first.region }, new LogEntry { Time_s = 10, Tag = "diagnosis:" + first.id },
+            new LogEntry { Time_s = 20, Tag = "diagnosis:leberlazeration" }, new LogEntry { Time_s = 25, Tag = "diagnosis:milzruptur" },
+            new LogEntry { Time_s = 30, Tag = "result:Imaging:efast" }, new LogEntry { Time_s = 35, Tag = "diagnosis-retracted:milzruptur" } };
+        return string.Join(",", DiagnosisEvaluation.Evaluate(s.injuries, events, id => defs[id], mods)
+            .Select(r => $"{r.InjuryId}:{r.Outcome}:{(r.Time_s.HasValue ? N(r.Time_s.Value) : "-")}:{(r.Examined ? 1 : 0)}{(r.ImagingShown ? 1 : 0)}{(r.ClinicalOnly ? 1 : 0)}"));
+    }
+
     /// <summary>Zufallsszenarien: gleicher Seed muss in C# und JS dasselbe ergeben.</summary>
     static void Generator(string root)
     {
         var mech = Load<MechanismDatabaseFile>(Path.Combine(root, "mechanisms.json"));
         var inj = Load<InjuryDatabaseFile>(Path.Combine(root, "injuries.json")).injuries;
+        var mods = Load<ImagingDatabaseFile>(Path.Combine(root, "imaging.json")).modalities;
+        var byId = inj.ToDictionary(d => d.id);
         foreach (var m in mech.mechanisms)
             for (uint seed = 1; seed <= 60; seed++)
             {
@@ -54,7 +68,8 @@ static class Parity
                 var p = s.patient;
                 Console.WriteLine(string.Join("|", s.id, s.description, p.sex, p.age, N(p.weight_kg), N(p.height_cm), p.betaBlocker ? "1" : "0", N(p.initialBloodLoss_mL),
                     string.Join(",", s.injuries.Select(i => i.injuryId + ":" + N(i.severity) + ":" + N(i.onsetTime_s))),
-                    string.Join(",", s.assessment.Select(c => c.id))));
+                    string.Join(",", s.assessment.Select(c => c.id)),
+                    DiagnosisLine(s, byId, mods)));
             }
     }
 

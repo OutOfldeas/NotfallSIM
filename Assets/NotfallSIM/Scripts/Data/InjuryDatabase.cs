@@ -38,6 +38,13 @@ namespace NotfallSIM.Data
         public static InterventionDatabaseFile LoadInterventions() =>
             JsonUtility.FromJson<InterventionDatabaseFile>(File.ReadAllText(Path.Combine(Root, "interventions.json")));
 
+        /// <summary>Rohdatei ohne Index, z. B. für den SceneBuilder im Editor.</summary>
+        public static InjuryDatabaseFile LoadInjuryFile() =>
+            JsonUtility.FromJson<InjuryDatabaseFile>(File.ReadAllText(Path.Combine(Root, "injuries.json")));
+
+        public static FindingsDatabaseFile LoadFindings() =>
+            JsonUtility.FromJson<FindingsDatabaseFile>(File.ReadAllText(Path.Combine(Root, "findings.json")));
+
         public static MechanismDatabaseFile LoadMechanisms() =>
             JsonUtility.FromJson<MechanismDatabaseFile>(File.ReadAllText(Path.Combine(Root, "mechanisms.json")));
 
