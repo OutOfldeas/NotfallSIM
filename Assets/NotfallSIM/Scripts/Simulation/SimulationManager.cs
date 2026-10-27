@@ -49,6 +49,9 @@ namespace NotfallSIM.Simulation
         public ScenarioDefinition Scenario { get; private set; }
         public InjuryDatabase Database { get; private set; }
         public FindingsDatabaseFile NormalFindings { get; private set; }
+        public DifferentialDatabaseFile Differentials { get; private set; }
+        /// <summary>Bisheriges Protokoll (z. B. für Befunde, die von Maßnahmen abhängen).</summary>
+        public IReadOnlyList<LogEntry> Events => _log;
         public ImagingModality[] ImagingModalities { get; private set; }
 
         // Verdachtsdiagnosen (Diagnose-Modus): Injury-IDs, die der Spieler aktuell vermutet.
@@ -96,6 +99,7 @@ namespace NotfallSIM.Simulation
             ImagingModalities = InjuryDatabase.LoadImaging().modalities;
             foreach (var m in ImagingModalities) _imaging[m.id] = m;
             NormalFindings = InjuryDatabase.LoadFindings();
+            Differentials = InjuryDatabase.LoadDifferentials();
             Log($"Szenario '{Scenario.title}' gestartet mit {Engine.Name} (DB v{Database.Version})");
         }
 
@@ -226,7 +230,8 @@ namespace NotfallSIM.Simulation
         public void ToggleSuspected(string injuryId)
         {
             if (Ended || Database == null) return;
-            string name = Database.Get(injuryId).name;
+            var diff = Differentials?.differentials?.FirstOrDefault(d => d.id == injuryId);
+            string name = diff != null ? diff.name : Database.Get(injuryId).name;
             if (_suspected.Remove(injuryId))
                 Log($"Verdacht verworfen: {name}", DiagnosisEvaluation.RetractPrefix + injuryId);
             else

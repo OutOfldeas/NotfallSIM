@@ -45,7 +45,12 @@ namespace NotfallSIM.Interaction
             double t = sim.Vitals.SimTime_s;
 
             // Verletzungsbefunde oder Normalbefund (Data/Examination.cs, gleich im Browser-Prototyp).
-            List<string> findings = Examination.Findings(regionName, sim.Scenario, t, sim.Database.Get, sim.NormalFindings);
+            var ctx = new ExamContext
+            {
+                Time_s = t, BodyLossFraction = sim.Vitals.BloodLossFraction,
+                Level = sim.Engine.InjuryLevel, Lost_mL = sim.Engine.InjuryBloodLoss_mL, Events = sim.Events
+            };
+            List<string> findings = Examination.Findings(regionName, sim.Scenario, sim.Database.Get, sim.NormalFindings, ctx);
             bool pathological = Examination.HasInjury(regionName, sim.Scenario, t, sim.Database.Get);
 
             // Neurologischer Status ist dynamisch und kommt aus der Physiologie, nicht aus der Datenbank.

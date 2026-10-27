@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 OUT=$(mktemp -d); trap 'rm -rf "$OUT"' EXIT
 S=Assets/NotfallSIM/Scripts
-mcs -nologo -r:System.Runtime.Serialization.dll -out:"$OUT/parity.exe" $S/Core/*.cs $S/Data/DataModels.cs $S/Data/ScenarioGenerator.cs $S/Data/DiagnosisEvaluation.cs $S/Engines/MockPhysiologyEngine.cs Tests/parity/Parity.cs
+mcs -nologo -r:System.Runtime.Serialization.dll -out:"$OUT/parity.exe" $S/Core/*.cs $S/Data/DataModels.cs $S/Data/ScenarioGenerator.cs $S/Data/DiagnosisEvaluation.cs $S/Data/Examination.cs $S/Engines/MockPhysiologyEngine.cs Tests/parity/Parity.cs
 mono "$OUT/parity.exe" > "$OUT/csharp.txt"
 D=Assets/StreamingAssets/NotfallSIM
 mono "$OUT/parity.exe" gen "$D" > "$OUT/generator.txt"

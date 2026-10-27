@@ -1,0 +1,261 @@
+{
+  "version": "0.1.0",
+  "differentials": [
+    {
+      "id": "haematothorax_links",
+      "name": "Hämatothorax links",
+      "region": "Thorax",
+      "description": "Blut im Pleuraspalt, z. B. nach Rippenfrakturen; gedämpfter Klopfschall, abgeschwächtes Atemgeräusch, Schock.",
+      "against": [
+        {
+          "injuryId": "",
+          "text": "Klopfschall war nicht gedämpft; eFAST und Röntgen Thorax hätten einen Pleuraerguss gezeigt."
+        },
+        {
+          "injuryId": "spannungspneu_links",
+          "text": "Klopfschall links war hypersonor, nicht gedämpft: Luft, nicht Blut im Pleuraspalt. Beide Bilder teilen das abgeschwächte Atemgeräusch."
+        },
+        {
+          "injuryId": "rippenserienfraktur_links",
+          "text": "Rippenfrakturen allein machen noch keinen Hämatothorax; Bildgebung ohne Erguss."
+        }
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Primary und Secondary Survey, Differenzialdiagnosen des Schocks und der Dyspnoe"
+        },
+        {
+          "citation": "DGU/DGOU. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. AWMF-Register-Nr. 187-023, Version 5.0 (2025).",
+          "url": "https://register.awmf.org/de/leitlinien/detail/187-023",
+          "note": ""
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Nur Diagnose, keine Physiologie. Texte klinisch gegenlesen."
+    },
+    {
+      "id": "perikardtamponade",
+      "name": "Perikardtamponade",
+      "region": "Thorax",
+      "description": "Blut im Herzbeutel; gestaute Halsvenen, Hypotonie, leise Herztöne (Beck-Trias).",
+      "against": [
+        {
+          "injuryId": "",
+          "text": "eFAST hätte einen Perikarderguss gezeigt; kein Hinweis darauf."
+        },
+        {
+          "injuryId": "spannungspneu_links",
+          "text": "Gestaute Halsvenen und Schock passen zu beidem, aber einseitig fehlendes Atemgeräusch und hypersonorer Klopfschall sprechen für den Spannungspneu."
+        }
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Primary und Secondary Survey, Differenzialdiagnosen des Schocks und der Dyspnoe"
+        },
+        {
+          "citation": "DGU/DGOU. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. AWMF-Register-Nr. 187-023, Version 5.0 (2025).",
+          "url": "https://register.awmf.org/de/leitlinien/detail/187-023",
+          "note": ""
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Nur Diagnose, keine Physiologie. Texte klinisch gegenlesen."
+    },
+    {
+      "id": "aortenverletzung",
+      "name": "Traumatische Aortenverletzung",
+      "region": "Thorax",
+      "description": "Dezelerationstrauma; verbreitertes Mediastinum im Röntgen, Blutdruckdifferenz zwischen den Armen.",
+      "against": [
+        {
+          "injuryId": "",
+          "text": "Kein verbreitertes Mediastinum, keine Aortenläsion in der CT."
+        },
+        {
+          "injuryId": "becken_instabil",
+          "text": "Der Schock erklärt sich durch die Beckenblutung."
+        },
+        {
+          "injuryId": "milzruptur",
+          "text": "Der Schock erklärt sich durch die intraabdominelle Blutung."
+        },
+        {
+          "injuryId": "leberlazeration",
+          "text": "Der Schock erklärt sich durch die intraabdominelle Blutung."
+        }
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Primary und Secondary Survey, Differenzialdiagnosen des Schocks und der Dyspnoe"
+        },
+        {
+          "citation": "DGU/DGOU. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. AWMF-Register-Nr. 187-023, Version 5.0 (2025).",
+          "url": "https://register.awmf.org/de/leitlinien/detail/187-023",
+          "note": ""
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Nur Diagnose, keine Physiologie. Texte klinisch gegenlesen."
+    },
+    {
+      "id": "lungenkontusion",
+      "name": "Lungenkontusion",
+      "region": "Thorax",
+      "description": "Parenchymblutung nach stumpfem Thoraxtrauma; Hypoxie, Infiltrate oft erst nach Stunden sichtbar.",
+      "against": [
+        {
+          "injuryId": "",
+          "text": "Keine Kontusionsherde in Röntgen oder CT."
+        },
+        {
+          "injuryId": "rippenserienfraktur_links",
+          "text": "Häufige Begleitverletzung der Rippenserie, hier in der Bildgebung aber nicht nachweisbar."
+        },
+        {
+          "injuryId": "spannungspneu_links",
+          "text": "Die Hypoxie erklärt sich durch den Spannungspneu und bessert sich nach der Entlastung."
+        }
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Primary und Secondary Survey, Differenzialdiagnosen des Schocks und der Dyspnoe"
+        },
+        {
+          "citation": "DGU/DGOU. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. AWMF-Register-Nr. 187-023, Version 5.0 (2025).",
+          "url": "https://register.awmf.org/de/leitlinien/detail/187-023",
+          "note": ""
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Nur Diagnose, keine Physiologie. Texte klinisch gegenlesen."
+    },
+    {
+      "id": "nierenverletzung",
+      "name": "Nierenverletzung",
+      "region": "Abdomen",
+      "description": "Flankenanprall; Flankenschmerz, Hämaturie, retroperitoneales Hämatom.",
+      "against": [
+        {
+          "injuryId": "",
+          "text": "Keine Hämaturie, keine Nierenläsion in der CT."
+        },
+        {
+          "injuryId": "milzruptur",
+          "text": "Schmerz und Prellmarke links passen auch zur Niere, aber eFAST zeigte freie Flüssigkeit intraperitoneal (Milz), nicht retroperitoneal."
+        }
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Primary und Secondary Survey, Differenzialdiagnosen des Schocks und der Dyspnoe"
+        },
+        {
+          "citation": "DGU/DGOU. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. AWMF-Register-Nr. 187-023, Version 5.0 (2025).",
+          "url": "https://register.awmf.org/de/leitlinien/detail/187-023",
+          "note": ""
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Nur Diagnose, keine Physiologie. Texte klinisch gegenlesen."
+    },
+    {
+      "id": "hohlorganverletzung",
+      "name": "Darm- oder Mesenterialverletzung",
+      "region": "Abdomen",
+      "description": "Typisch nach Gurtverletzung (Gurtzeichen); freie Luft, Peritonitis oft verzögert.",
+      "against": [
+        {
+          "injuryId": "",
+          "text": "Kein Gurtzeichen, keine freie Luft in der CT."
+        }
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Primary und Secondary Survey, Differenzialdiagnosen des Schocks und der Dyspnoe"
+        },
+        {
+          "citation": "DGU/DGOU. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. AWMF-Register-Nr. 187-023, Version 5.0 (2025).",
+          "url": "https://register.awmf.org/de/leitlinien/detail/187-023",
+          "note": ""
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Nur Diagnose, keine Physiologie. Texte klinisch gegenlesen."
+    },
+    {
+      "id": "wirbelsaeulenverletzung",
+      "name": "Instabile Wirbelsäulenverletzung",
+      "region": "Wirbelsäule",
+      "description": "Fraktur von HWS oder BWS; Nacken- oder Rückenschmerz, neurologische Ausfälle, ggf. neurogener Schock (Hypotonie mit Bradykardie).",
+      "against": [
+        {
+          "injuryId": "",
+          "text": "Keine Fraktur in der CT, Motorik und Sensibilität an allen Extremitäten intakt, kein neurogener Schock (Hypotonie hier mit Tachykardie bzw. Blutverlust)."
+        },
+        {
+          "injuryId": "becken_instabil",
+          "text": "Hypotonie mit Blutverlust aus dem Becken, nicht neurogen."
+        }
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Primary und Secondary Survey, Differenzialdiagnosen des Schocks und der Dyspnoe"
+        },
+        {
+          "citation": "DGU/DGOU. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. AWMF-Register-Nr. 187-023, Version 5.0 (2025).",
+          "url": "https://register.awmf.org/de/leitlinien/detail/187-023",
+          "note": ""
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Bis zu einer eigenen Verletzung mit Physiologie nur als Differenzialdiagnose. HWS-Immobilisation bleibt bei passendem Mechanismus trotzdem richtig."
+    },
+    {
+      "id": "diffuse_axonale_schaedigung",
+      "name": "Diffuse axonale Schädigung",
+      "region": "Kopf",
+      "description": "Scherverletzung bei Rotationstrauma; tiefe Bewusstlosigkeit ab dem Unfall ohne raumforderndes Hämatom.",
+      "against": [
+        {
+          "injuryId": "",
+          "text": "Kein Hinweis in der CCT, keine anhaltende Bewusstseinsstörung."
+        },
+        {
+          "injuryId": "sdh_akut_links",
+          "text": "Die CCT zeigt ein raumforderndes Subduralhämatom, das die Bewusstseinsstörung erklärt."
+        },
+        {
+          "injuryId": "epiduralhaematom_rechts",
+          "text": "Luzides Intervall und raumforderndes Epiduralhämatom in der CCT erklären die Eintrübung."
+        }
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Primary und Secondary Survey, Differenzialdiagnosen des Schocks und der Dyspnoe"
+        },
+        {
+          "citation": "DGU/DGOU. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. AWMF-Register-Nr. 187-023, Version 5.0 (2025).",
+          "url": "https://register.awmf.org/de/leitlinien/detail/187-023",
+          "note": ""
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Nur Diagnose, keine Physiologie. Texte klinisch gegenlesen."
+    }
+  ]
+}

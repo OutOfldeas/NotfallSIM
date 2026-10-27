@@ -15,5 +15,11 @@ namespace NotfallSIM.Core
         void ApplyInjury(InjuryEvent injury);
         void ApplyIntervention(InterventionEvent intervention);
         VitalSigns Current { get; }
+
+        /// <summary>Schwere einer Verletzung 0..1 (Spannungspneu, SHT); 0 bei Blutungen oder unbekannter Verletzung.
+        /// Grundlage für Befunde, die sich im Verlauf ändern (dynamicFindings).</summary>
+        double InjuryLevel(string injuryId);
+        /// <summary>Bisheriger Blutverlust aus dieser Verletzung in mL (ohne präklinischen Verlust).</summary>
+        double InjuryBloodLoss_mL(string injuryId);
     }
 }

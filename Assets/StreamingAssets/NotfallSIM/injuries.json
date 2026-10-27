@@ -1,5 +1,5 @@
 {
-  "version": "0.7.0",
+  "version": "0.8.0",
   "injuries": [
     {
       "id": "becken_instabil",
@@ -18,7 +18,6 @@
         }
       ],
       "clinicalFindings": [
-        "Instabilität bei vorsichtiger Beckenkompression (nur einmal prüfen)",
         "Prellmarken bzw. Hämatom an Flanke, Leiste oder Perineum",
         "Beinlängendifferenz und Außenrotation",
         "Ggf. Blut am Meatus urethrae"
@@ -41,7 +40,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Blutungskinetik (baseRate, maxTotalLoss) ist weiterhin geschätzt — es fehlen Primärdaten zum Blutverlust über die Zeit. Größenordnung plausibilisiert über Transfusionsbedarf im Schock (Devaney 2023). Szenario-Schweregrad 0,8 entspricht dem Schock-Subkollektiv, nicht der typischen Beckenfraktur. ICD-10-GM-Code und AIS je nach Frakturtyp präzisieren.",
+      "reviewNotes": "Blutungskinetik (baseRate, maxTotalLoss) ist weiterhin geschätzt — es fehlen Primärdaten zum Blutverlust über die Zeit. Größenordnung plausibilisiert über Transfusionsbedarf im Schock (Devaney 2023). Szenario-Schweregrad 0,8 entspricht dem Schock-Subkollektiv, nicht der typischen Beckenfraktur. ICD-10-GM-Code und AIS je nach Frakturtyp präzisieren. Dynamische Befunde: Nach dem Beckengurt keine erneute Stabilitätsprüfung (S3/ATLS). Hämatomschwelle didaktisch.",
       "imaging": [
         {
           "modality": "eFAST",
@@ -134,6 +133,56 @@
           "critical": false,
           "rationale": "S3 (GoR B): Volumentherapie bei unkontrollierter Blutung reduzieren (permissive Hypotension). 1000 mL entspricht dem initialen ATLS-Bolus; Obergrenze didaktisch."
         }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Instabilität bei vorsichtiger Beckenkompression (nur einmal prüfen)",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Pelvis:beckengurt",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Beckengurt sitzt auf Höhe der Trochanteren, Becken nicht erneut auf Stabilität prüfen",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:Pelvis:beckengurt",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Zunehmendes Skrotal- bzw. Perinealhämatom",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 1000,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Z. n. Angioembolisation bzw. operativer Beckenstabilisierung",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:Pelvis:angio_op",
+          "requiresTagDelay_s": 1200,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
       ]
     },
     {
@@ -180,7 +229,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Mock-Verlauf: luzides Intervall, Eintrübung, Anisokorie ab 70 % Raumforderung, Cushing-Reflex ab 80 %, Einklemmung bei 100 %. Hypotonie oder Hypoxie verdoppeln die Progression (didaktische Umsetzung von Chesnut 1993, kein gemessener Faktor). Zeitverlauf ist geschätzt.",
+      "reviewNotes": "Mock-Verlauf: luzides Intervall, Eintrübung, Anisokorie ab 70 % Raumforderung, Cushing-Reflex ab 80 %, Einklemmung bei 100 %. Hypotonie oder Hypoxie verdoppeln die Progression (didaktische Umsetzung von Chesnut 1993, kein gemessener Faktor). Zeitverlauf ist geschätzt. Dynamische Befunde: Unruhe und Erbrechen als Zeichen steigenden Hirndrucks; Schwelle didaktisch.",
       "imaging": [
         {
           "modality": "CCT",
@@ -257,6 +306,32 @@
           "critical": true,
           "rationale": "Hypotonie bei SHT mit höherer Letalität (Chesnut 1993); S3: RRsys nicht unter 90 (GoR B)."
         }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Zunehmende Unruhe und Erbrechen",
+          "minLevel": 0.4,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:NeurosurgicalDecompression",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Z. n. Notfall-Kraniotomie rechts, Hämatom entlastet",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:NeurosurgicalDecompression",
+          "requiresTagDelay_s": 600,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
       ]
     },
     {
@@ -277,7 +352,6 @@
       ],
       "clinicalFindings": [
         "Fehlstellung und Verkürzung des rechten Oberschenkels",
-        "Zunehmende Schwellung und Spannung der Oberschenkelweichteile",
         "Starker Bewegungsschmerz, ggf. Krepitation",
         "Durchblutung, Motorik und Sensibilität distal prüfen"
       ],
@@ -294,7 +368,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "v0.2: Obergrenze von 1500 auf 1000 mL und Rate von 40 auf 20 mL/min gesenkt — isolierte Femurschaftfrakturen bluten präoperativ eher 0,5–1 L. Hypotonie bei Femurfraktur spricht für eine weitere Blutungsquelle.",
+      "reviewNotes": "v0.2: Obergrenze von 1500 auf 1000 mL und Rate von 40 auf 20 mL/min gesenkt — isolierte Femurschaftfrakturen bluten präoperativ eher 0,5–1 L. Hypotonie bei Femurfraktur spricht für eine weitere Blutungsquelle. Dynamische Befunde: Schwellung als Zeichen des Blutverlusts in die Weichteile; Schwelle didaktisch.",
       "imaging": [
         {
           "modality": "CTBody",
@@ -320,6 +394,32 @@
           "critical": false,
           "rationale": "Femurfraktur als Blutungsquelle erkennen. Zeitziel didaktisch."
         }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Oberschenkel rechts deutlich geschwollen und gespannt",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 400,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Bein in Extensionsschiene, Länge weitgehend wiederhergestellt",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:RightThigh",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
       ]
     },
     {
@@ -338,11 +438,7 @@
           "initialLevel": 0
         }
       ],
-      "clinicalFindings": [
-        "Druckschmerz im rechten Oberbauch",
-        "Prellmarke am rechten Rippenbogen",
-        "Zunehmende Distension des Abdomens"
-      ],
+      "clinicalFindings": [],
       "sources": [
         {
           "citation": "Yoganandan N, Pintar FA, Gennarelli TA, Maltese MR. Patterns of abdominal injuries in frontal and side impacts. Annu Proc Assoc Adv Automot Med. 2000;44:17-36.",
@@ -356,7 +452,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Blutungsrate und Obergrenze didaktisch (Spielwerte).",
+      "reviewNotes": "Blutungsrate und Obergrenze didaktisch (Spielwerte). Dynamische Befunde: Distension erst nach relevantem Verlust; Schwelle didaktisch.",
       "imaging": [
         {
           "modality": "eFAST",
@@ -454,6 +550,56 @@
           "critical": false,
           "rationale": "S3 (GoR B): Volumentherapie bei unkontrollierter Blutung reduzieren (permissive Hypotension). 1000 mL entspricht dem initialen ATLS-Bolus; Obergrenze didaktisch."
         }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Druckschmerz im rechten Oberbauch",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "untilTagDelay_s": 900
+        },
+        {
+          "text": "Prellmarke am rechten Rippenbogen",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "untilTagDelay_s": 900
+        },
+        {
+          "text": "Zunehmende Distension des Abdomens",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 800,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "untilTagDelay_s": 900
+        },
+        {
+          "text": "Z. n. Notfall-Laparotomie mit Leber-Packing (Laparostoma)",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "requiresTagDelay_s": 900,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
       ]
     },
     {
@@ -472,11 +618,7 @@
           "initialLevel": 0
         }
       ],
-      "clinicalFindings": [
-        "Druckschmerz und Abwehrspannung im linken Oberbauch",
-        "Prellmarke an der linken Flanke",
-        "Schmerzausstrahlung in die linke Schulter (Kehr-Zeichen)"
-      ],
+      "clinicalFindings": [],
       "sources": [
         {
           "citation": "Yoganandan N, Pintar FA, Gennarelli TA, Maltese MR. Patterns of abdominal injuries in frontal and side impacts. Annu Proc Assoc Adv Automot Med. 2000;44:17-36.",
@@ -490,7 +632,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Blutungsrate und Obergrenze didaktisch (Spielwerte). Spontanstillstand und nicht-operatives Management nicht modelliert.",
+      "reviewNotes": "Blutungsrate und Obergrenze didaktisch (Spielwerte). Spontanstillstand und nicht-operatives Management nicht modelliert. Dynamische Befunde: Distension erst nach relevantem Verlust (klinisch unzuverlässig); Schwelle didaktisch.",
       "imaging": [
         {
           "modality": "eFAST",
@@ -588,6 +730,68 @@
           "critical": false,
           "rationale": "S3 (GoR B): Volumentherapie bei unkontrollierter Blutung reduzieren (permissive Hypotension). 1000 mL entspricht dem initialen ATLS-Bolus; Obergrenze didaktisch."
         }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Druckschmerz und Abwehrspannung im linken Oberbauch",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "untilTagDelay_s": 900
+        },
+        {
+          "text": "Prellmarke an der linken Flanke",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "untilTagDelay_s": 900
+        },
+        {
+          "text": "Schmerzausstrahlung in die linke Schulter (Kehr-Zeichen)",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "untilTagDelay_s": 900
+        },
+        {
+          "text": "Zunehmende Distension des Abdomens",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 800,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "untilTagDelay_s": 900
+        },
+        {
+          "text": "Z. n. Notfall-Laparotomie mit Splenektomie, Abdomen mit Tüchern gepackt (Laparostoma)",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "requiresTagDelay_s": 900,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
       ]
     },
     {
@@ -629,7 +833,8 @@
           "imageCredit": ""
         }
       ],
-      "criteria": []
+      "criteria": [],
+      "dynamicFindings": []
     },
     {
       "id": "sdh_akut_links",
@@ -756,6 +961,20 @@
           "critical": true,
           "rationale": "Raumforderndes SDH: Notfall-Kraniotomie direkt nach CT. 5 min didaktisch."
         }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Z. n. Notfall-Kraniotomie links, Hämatom entlastet",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:NeurosurgicalDecompression",
+          "requiresTagDelay_s": 600,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
       ]
     },
     {
@@ -774,13 +993,7 @@
           "initialLevel": 0
         }
       ],
-      "clinicalFindings": [
-        "Zunehmende Dyspnoe und Tachypnoe, Patient unruhig",
-        "Abgeschwächtes bis fehlendes Atemgeräusch links",
-        "Hypersonorer Klopfschall links",
-        "Gestaute Halsvenen (bei Hypovolämie oft fehlend)",
-        "Trachealverlagerung nach rechts (Spätzeichen, oft nicht tastbar)"
-      ],
+      "clinicalFindings": [],
       "sources": [
         {
           "citation": "Roberts DJ, et al. Clinical Presentation of Patients With Tension Pneumothorax: A Systematic Review. Ann Surg. 2015;261(6):1068-1078.",
@@ -799,7 +1012,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Mock-Modell für spontan atmende Patienten: Spannung steigt linear (progressionRate × Schweregrad), früh Hypoxie, Tachypnoe, Tachykardie; Blutdruckabfall erst ab 60 % Spannung; bei 100 % obstruktiver Stillstand. Zeitverlauf ist eine didaktische Setzung — echte Verläufe sind sehr variabel. Beatmete Patienten dekompensieren deutlich schneller (Phase 2).",
+      "reviewNotes": "Mock-Modell für spontan atmende Patienten: Spannung steigt linear (progressionRate × Schweregrad), früh Hypoxie, Tachypnoe, Tachykardie; Blutdruckabfall erst ab 60 % Spannung; bei 100 % obstruktiver Stillstand. Zeitverlauf ist eine didaktische Setzung — echte Verläufe sind sehr variabel. Beatmete Patienten dekompensieren deutlich schneller (Phase 2). Dynamische Befunde: Leitbefunde bis zur Drainage; Halsvenen bei Hypovolämie (> 15 % Verlust) flach; Trachealverlagerung erst spät. Schwellen sind didaktische Setzungen am Mock-Level 0..1.",
       "imaging": [
         {
           "modality": "eFAST",
@@ -867,6 +1080,116 @@
           "critical": true,
           "rationale": "Nadel versagt häufig (Ahmad 2025); Drainage definitiv. 15 min didaktisch."
         }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Abgeschwächtes bis fehlendes Atemgeräusch links",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:LeftLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Hypersonorer Klopfschall links",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:LeftLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Zunehmende Dyspnoe und Tachypnoe, Patient unruhig",
+          "minLevel": 0.2,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:LeftLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Gestaute Halsvenen",
+          "minLevel": 0.5,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 0.15,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:LeftLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Halsvenen flach",
+          "minLevel": 0.5,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0.15,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:LeftLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Trachea nach rechts verlagert (Spätzeichen)",
+          "minLevel": 0.8,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:LeftLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Nach Entlastungspunktion links hörbares Entweichen von Luft, Atmung leichter",
+          "minLevel": 0,
+          "maxLevel": 0.19,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:NeedleDecompression:LeftLung",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:LeftLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Trotz Entlastungspunktion links weiter zunehmende Spannung (Kanüle zu kurz oder abgeknickt?)",
+          "minLevel": 0.2,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:NeedleDecompression:LeftLung",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:LeftLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Thoraxdrainage links liegt und fördert Luft, Atemgeräusch links wieder hörbar",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:ChestDrain:LeftLung",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
       ]
     },
     {
@@ -886,8 +1209,7 @@
         }
       ],
       "clinicalFindings": [
-        "Offene Unterschenkelfraktur rechts mit pulsierend spritzender Blutung",
-        "Knochenfragmente in der Wunde sichtbar, Fehlstellung",
+        "Offene Unterschenkelfraktur rechts, Knochenfragmente in der Wunde, Fehlstellung",
         "Fußpulse rechts nicht tastbar"
       ],
       "sources": [
@@ -931,6 +1253,32 @@
           "onlyAfterReference": false,
           "critical": true,
           "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Pulsierend spritzende Blutung aus der Wunde",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Extremity",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Tourniquet am rechten Oberschenkel, Blutung steht. Anlagezeit dokumentieren",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:Extremity",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
         }
       ]
     }

@@ -30,7 +30,7 @@ namespace NotfallSIM.UI
             sim.EndScenario();
             string dir = recorder.ExportCsv();
             var diagnoses = sim.Scenario == null ? null
-                : DiagnosisEvaluation.Evaluate(sim.Scenario.injuries, recorder.Log.Events, sim.Database.Get, sim.ImagingModalities);
+                : DiagnosisEvaluation.Evaluate(sim.Scenario.injuries, recorder.Log.Events, sim.Database.Get, sim.ImagingModalities, sim.Differentials);
             text.text = recorder.Log.BuildDebrief(sim.Scenario?.title ?? "Szenario", sim.Scenario?.assessment, diagnoses)
                         + $"\n<size=70%>Verlaufsdaten (CSV): {dir}</size>";
             Show();

@@ -57,6 +57,9 @@ static class Tests
         Run("Untersuchung: Normalbefund ohne Verletzung, Verletzungsbefund erst ab Beginn", ExaminationFindings);
         Run("Normalbefunde: jede Region der Datenbank abgedeckt", NormalFindingsComplete);
         Run("Diagnosen: erkannt, übersehen, falscher Verdacht, verworfen", DiagnosisLogic);
+        Run("Dynamische Befunde: Spätzeichen, Hypovolämie, nach Drainage und OP", DynamicFindings);
+        Run("Dynamische Befunde: Bedingungen gültig, Tags erreichbar", DynamicFindingsValid);
+        Run("Differenzialdiagnosen: eindeutige IDs, Argumente gültig, spezifisches Argument bevorzugt", Differentials);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -730,12 +733,70 @@ static class Tests
             new ScenarioInjury { injuryId = "becken_instabil", severity = 1 },
             new ScenarioInjury { injuryId = "spannungspneu_links", severity = 1, onsetTime_s = 300 } } };
         var normal = Findings;
-        var becken = Examination.Findings("Becken", sc, 0, id => defs[id], normal);
-        Check(becken.SequenceEqual(defs["becken_instabil"].clinicalFindings), "Becken zeigt nicht die Verletzungsbefunde");
-        var thoraxEarly = Examination.Findings("Thorax", sc, 100, id => defs[id], normal);
+        Func<double, ExamContext> ctx = t => new ExamContext { Time_s = t, Events = new List<LogEntry>() };
+        var becken = Examination.Findings("Becken", sc, id => defs[id], normal, ctx(0));
+        Check(becken.Contains("Beinlängendifferenz und Außenrotation") && becken.Any(x => x.StartsWith("Instabilität")), "Becken zeigt nicht die Verletzungsbefunde");
+        var thoraxEarly = Examination.Findings("Thorax", sc, id => defs[id], normal, ctx(100));
         Check(thoraxEarly.SequenceEqual(normal.regions.First(r => r.region == "Thorax").normal), "Thorax vor Beginn nicht normal");
         Check(!Examination.HasInjury("Thorax", sc, 100, id => defs[id]) && Examination.HasInjury("Thorax", sc, 300, id => defs[id]), "HasInjury");
-        Check(Examination.Findings("Thorax", sc, 300, id => defs[id], normal).Contains("Hypersonorer Klopfschall links"), "Thorax nach Beginn ohne Befund");
+        Check(Examination.Findings("Thorax", sc, id => defs[id], normal, ctx(300)).Contains("Hypersonorer Klopfschall links"), "Thorax nach Beginn ohne Befund");
+    }
+
+    /// <summary>Spannungspneu: Spätzeichen erst spät, Halsvenen bei Hypovolämie flach, nach Drainage andere Befunde.</summary>
+    static void DynamicFindings()
+    {
+        var defs = Injuries.injuries.ToDictionary(d => d.id);
+        var tpDef = defs["spannungspneu_links"];
+        var sc = new ScenarioDefinition { injuries = new[] { new ScenarioInjury { injuryId = tpDef.id, severity = 0.8 } } };
+        var e = new MockPhysiologyEngine(1);
+        e.Initialize(new PatientProfile { weight_kg = 80 });
+        foreach (var ev in ToEvents(tpDef, sc.injuries[0])) e.ApplyInjury(ev);
+        var log = new List<LogEntry>();
+        Func<List<string>> exam = () => Examination.Findings("Thorax", sc, id => defs[id], Findings, new ExamContext
+        {
+            Time_s = e.Current.SimTime_s, BodyLossFraction = e.Current.BloodLossFraction,
+            Level = e.InjuryLevel, Lost_mL = e.InjuryBloodLoss_mL, Events = log
+        });
+        e.Advance(0.1);
+        var early = exam();
+        Check(early.Contains("Hypersonorer Klopfschall links") && !early.Any(x => x.StartsWith("Trachea")) && !early.Contains("Gestaute Halsvenen"), "früh: " + string.Join(" | ", early));
+        Advance(e, 1200);
+        var late = exam();
+        Check(e.InjuryLevel(tpDef.id) > 0.8 && late.Any(x => x.StartsWith("Trachea")) && late.Contains("Gestaute Halsvenen"), $"spät (Level {e.InjuryLevel(tpDef.id):F2}): " + string.Join(" | ", late));
+        log.Add(new LogEntry { Time_s = e.Current.SimTime_s, Tag = "intervention:ChestDrain:LeftLung:drainage_li" });
+        e.ApplyIntervention(Interventions.interventions.First(i => i.id == "drainage_li").ToEvent());
+        e.Advance(0.1);
+        var drained = exam();
+        Check(drained.Count == 1 && drained[0].StartsWith("Thoraxdrainage links liegt"), "nach Drainage: " + string.Join(" | ", drained));
+
+        // Hypovolämie: Halsvenen flach statt gestaut
+        var flat = Examination.Findings("Thorax", sc, id => defs[id], Findings, new ExamContext
+            { Time_s = 1200, BodyLossFraction = 0.3, Level = id => 0.9, Events = new List<LogEntry>() });
+        Check(flat.Contains("Halsvenen flach") && !flat.Contains("Gestaute Halsvenen"), "Hypovolämie");
+        // Blutung: Distension erst ab Verlust, OP-Befund erst nach Wirkzeit
+        var mz = new ScenarioDefinition { injuries = new[] { new ScenarioInjury { injuryId = "milzruptur", severity = 1 } } };
+        var lap = new List<LogEntry> { new LogEntry { Time_s = 100, Tag = "intervention:HemorrhageControl:Spleen,Liver:laparotomie" } };
+        Func<double, double, List<string>> abd = (t, lost) => Examination.Findings("Abdomen", mz, id => defs[id], Findings,
+            new ExamContext { Time_s = t, Lost_mL = id => lost, Events = lap });
+        Check(!abd(200, 300).Contains("Zunehmende Distension des Abdomens") && abd(200, 900).Contains("Zunehmende Distension des Abdomens"), "Distension");
+        Check(!abd(500, 0).Any(x => x.StartsWith("Z. n.")) && abd(1000, 0).Any(x => x.StartsWith("Z. n.")), "OP-Befund");
+    }
+
+    static void DynamicFindingsValid()
+    {
+        var tags = new HashSet<string>();
+        foreach (var iv in Interventions.interventions)
+        {
+            var ev = iv.ToEvent();
+            tags.Add($"intervention:{ev.Type}:{ev.TargetCompartment ?? ev.Compound ?? ""}:{ev.Id}");
+        }
+        foreach (var inj in Injuries.injuries)
+            foreach (var d in inj.dynamicFindings)
+            {
+                Check(!string.IsNullOrEmpty(d.text) && d.minLevel <= d.maxLevel && d.minBodyLoss <= d.maxBodyLoss, $"{inj.id}: ungültige Bedingung '{d.text}'");
+                foreach (var t in new[] { d.requiresTag, d.untilTag }.Where(x => !string.IsNullOrEmpty(x)))
+                    Check(tags.Any(x => x.StartsWith(t, StringComparison.Ordinal)), $"{inj.id}: Tag {t} wird nie erzeugt");
+            }
     }
 
     static void NormalFindingsComplete()
@@ -765,6 +826,28 @@ static class Tests
         Check(r["unterschenkel_offen_rechts"].Outcome == DiagnosisOutcome.Missed && r["unterschenkel_offen_rechts"].ClinicalOnly, "Unterschenkel nur klinisch");
         Check(r["leberlazeration"].Outcome == DiagnosisOutcome.FalsePositive, "Leber falscher Verdacht");
         Check(!r.ContainsKey("spannungspneu_links"), "verworfener Fehlverdacht zählt");
+    }
+
+    static void Differentials()
+    {
+        var diffs = Load<DifferentialDatabaseFile>("differentials.json");
+        var defs = Injuries.injuries.ToDictionary(d => d.id);
+        var ids = diffs.differentials.Select(d => d.id).Concat(defs.Keys).ToList();
+        Check(ids.Count == ids.Distinct().Count(), "ID doppelt zwischen Verletzungen und Differenzialdiagnosen");
+        foreach (var d in diffs.differentials)
+        {
+            Check(d.against.Any(a => string.IsNullOrEmpty(a.injuryId)), $"{d.id}: kein allgemeines Gegenargument");
+            foreach (var a in d.against.Where(a => !string.IsNullOrEmpty(a.injuryId)))
+                Check(defs.ContainsKey(a.injuryId), $"{d.id}: unbekannte Verletzung {a.injuryId}");
+            Check(d.sources.Length > 0, $"{d.id}: keine Quelle");
+        }
+        var actual = new[] { new ScenarioInjury { injuryId = "spannungspneu_links" } };
+        var events = new List<LogEntry> { new LogEntry { Time_s = 5, Tag = "diagnosis:haematothorax_links" }, new LogEntry { Time_s = 6, Tag = "diagnosis:hohlorganverletzung" },
+                                          new LogEntry { Time_s = 7, Tag = "diagnosis:milzruptur" } };
+        var r = DiagnosisEvaluation.Evaluate(actual, events, id => defs[id], Imaging.modalities, diffs).ToDictionary(x => x.InjuryId);
+        Check(r["haematothorax_links"].IsDifferential && r["haematothorax_links"].Against.Length == 1 && r["haematothorax_links"].Against[0].Contains("hypersonor"), "spezifisches Argument fehlt");
+        Check(r["hohlorganverletzung"].Against[0].Contains("Gurtzeichen"), "allgemeines Argument fehlt");
+        Check(!r["milzruptur"].IsDifferential && r["milzruptur"].Against[0].StartsWith("Typische Befunde fehlten"), "Fehlverdacht auf Verletzung ohne Hinweis");
     }
 
     // ------------------------------------------------------------ Helfer

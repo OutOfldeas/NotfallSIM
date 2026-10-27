@@ -204,11 +204,14 @@ namespace NotfallSIM.EditorTools
             var diagGrid = ButtonGrid(diag.transform, "Diagnose-Raster");
             var dg = diagGrid.GetComponent<GridLayoutGroup>();
             dg.cellSize = new Vector2(214, 44); dg.constraintCount = 3;
-            foreach (var inj in InjuryDatabase.LoadInjuryFile().injuries.OrderBy(x => x.region).ThenBy(x => x.name))
+            // Verletzungen und Differenzialdiagnosen gemischt und gleich aussehend — sonst wäre es zu einfach.
+            var candidates = InjuryDatabase.LoadInjuryFile().injuries.Select(x => new { x.id, x.name, x.region })
+                .Concat(InjuryDatabase.LoadDifferentials().differentials.Select(x => new { x.id, x.name, x.region }));
+            foreach (var c in candidates.OrderBy(x => x.region).ThenBy(x => x.name))
             {
-                var b = MakeButton(diagGrid, inj.name, SpeedColor, null, 15);
-                UnityEventTools.AddStringPersistentListener(b.onClick, sim.ToggleSuspected, inj.id);
-                b.gameObject.AddComponent<DiagnosisToggle>().Configure(sim, inj.id, b.GetComponent<Image>(), SpeedColor, DiagnosisColor);
+                var b = MakeButton(diagGrid, c.name, SpeedColor, null, 15);
+                UnityEventTools.AddStringPersistentListener(b.onClick, sim.ToggleSuspected, c.id);
+                b.gameObject.AddComponent<DiagnosisToggle>().Configure(sim, c.id, b.GetComponent<Image>(), SpeedColor, DiagnosisColor);
             }
 
             // Befunde unten rechts

@@ -42,6 +42,9 @@ namespace NotfallSIM.Data
         public static InjuryDatabaseFile LoadInjuryFile() =>
             JsonUtility.FromJson<InjuryDatabaseFile>(File.ReadAllText(Path.Combine(Root, "injuries.json")));
 
+        public static DifferentialDatabaseFile LoadDifferentials() =>
+            JsonUtility.FromJson<DifferentialDatabaseFile>(File.ReadAllText(Path.Combine(Root, "differentials.json")));
+
         public static FindingsDatabaseFile LoadFindings() =>
             JsonUtility.FromJson<FindingsDatabaseFile>(File.ReadAllText(Path.Combine(Root, "findings.json")));
 

@@ -132,6 +132,19 @@
       return true;
     }
 
+    /** Schwere 0..1 (Spannungspneu, SHT) bzw. Blutverlust einer Verletzung — für dynamische Befunde. */
+    injuryLevel(injuryId) {
+      let level = 0;
+      for (const t of Object.values(this.tension)) if (t.inj.injuryId === injuryId) level = Math.max(level, t.level);
+      for (const b of Object.values(this.brain)) if (b.inj.injuryId === injuryId) level = Math.max(level, b.level);
+      return level;
+    }
+    injuryBloodLoss(injuryId) {
+      let lost = 0;
+      for (const b of Object.values(this.bleeds)) if (b.inj.injuryId === injuryId) lost += b.lost;
+      return lost;
+    }
+
     applyInjury(inj) {
       if (inj.effect === "Hemorrhage") this.bleeds[inj.compartment] = { inj, multiplier: 1, lost: 0 };
       else if (inj.effect === "TensionPneumothorax") this.tension[inj.compartment] = { inj, level: 0, rateFactor: 1, drained: false };
@@ -327,7 +340,7 @@
           const si = this.pending[i];
           if (si.onsetTime_s > t) continue;
           const def = this.injuries[si.injuryId];
-          for (const e of def.effects) this.engine.applyInjury({ effect: e.effectType, compartment: e.compartment, severity: si.severity,
+          for (const e of def.effects) this.engine.applyInjury({ injuryId: si.injuryId, effect: e.effectType, compartment: e.compartment, severity: si.severity,
             baseRate_mL_min: e.baseRate_mL_min, maxTotalLoss_mL: e.maxTotalLoss_mL, progressionRate_per_min: e.progressionRate_per_min, initialLevel: e.initialLevel || 0 });
           this.log(`Verletzung aktiv: ${def.name}`, "injury:" + si.injuryId);
           this.pending.splice(i, 1);
@@ -412,18 +425,11 @@
     examine(region) {
       if (this.ended || this.isAway) return null;
       const t = this.engine.current.time;
-      // Verletzungsbefunde oder Normalbefund (wie Data/Examination.cs)
-      const findings = [];
-      let pathological = false;
-      for (const si of this.scenario.injuries) {
-        if (si.onsetTime_s > t) continue;
-        const def = this.injuries[si.injuryId];
-        if (def.region === region) { pathological = true; findings.push(...(def.clinicalFindings || [])); }
-      }
-      if (!findings.length && this.data.findings) {
-        const r = this.data.findings.regions.find((x) => x.region === region);
-        if (r) findings.push(...r.normal);
-      }
+      // Verletzungsbefunde (fest und dynamisch) oder Normalbefund (wie Data/Examination.cs)
+      const v = this.engine.current;
+      const findings = examFindings(region, this.scenario, (id) => this.injuries[id], this.data.findings, {
+        time: t, bodyLoss: v.loss, level: (id) => this.engine.injuryLevel(id), lost: (id) => this.engine.injuryBloodLoss(id), events: this.events });
+      const pathological = this.scenario.injuries.some((si) => si.onsetTime_s <= t && this.injuries[si.injuryId].region === region);
       if (region === "Kopf") {
         const v = this.engine.current;
         findings.push(`Aktuell GCS ${v.gcs}` + (v.intubated ? " (sediert/beatmet)" : ""));
@@ -436,7 +442,8 @@
     /** Verdachtsdiagnose setzen oder zurücknehmen (wie SimulationManager.ToggleSuspected). */
     toggleSuspected(injuryId) {
       if (this.ended) return;
-      const name = this.injuries[injuryId].name;
+      const diff = this.data.differentials && this.data.differentials.differentials.find((d) => d.id === injuryId);
+      const name = diff ? diff.name : this.injuries[injuryId].name;
       if (this.suspected.has(injuryId)) { this.suspected.delete(injuryId); this.log(`Verdacht verworfen: ${name}`, "diagnosis-retracted:" + injuryId); }
       else { this.suspected.add(injuryId); this.log(`Verdachtsdiagnose: ${name}`, "diagnosis:" + injuryId); }
     }
@@ -466,15 +473,44 @@
           be: Shock.be(maxLoss),
         } : null,
         results, events: this.events.slice(),
-        diagnoses: evaluateDiagnoses(this.scenario.injuries, this.events, (id) => this.injuries[id], this.data.imaging.modalities),
+        diagnoses: evaluateDiagnoses(this.scenario.injuries, this.events, (id) => this.injuries[id], this.data.imaging.modalities, this.data.differentials),
       };
     }
   }
 
 
+  // ---------- Untersuchung (wie Data/Examination.cs) ----------
+
+  function findingApplies(d, injuryId, ctx) {
+    const level = ctx.level ? ctx.level(injuryId) : 0;
+    if (level < d.minLevel - 1e-9 || level > d.maxLevel + 1e-9) return false;
+    if ((ctx.lost ? ctx.lost(injuryId) : 0) < d.minLost_mL) return false;
+    if (ctx.bodyLoss < d.minBodyLoss || ctx.bodyLoss > d.maxBodyLoss) return false;
+    const first = (prefix) => { const e = (ctx.events || []).find((x) => x.tag && x.tag.startsWith(prefix)); return e ? e.time : null; };
+    if (d.requiresTag) { const t = first(d.requiresTag); if (t === null || ctx.time - t < d.requiresTagDelay_s) return false; }
+    if (d.untilTag) { const t = first(d.untilTag); if (t !== null && ctx.time - t >= (d.untilTagDelay_s || 0)) return false; }
+    return true;
+  }
+
+  function examFindings(region, scenario, getInjury, normal, ctx) {
+    const findings = [];
+    for (const si of scenario.injuries) {
+      if (si.onsetTime_s > ctx.time) continue;
+      const def = getInjury(si.injuryId);
+      if (def.region !== region) continue;
+      findings.push(...(def.clinicalFindings || []));
+      for (const d of def.dynamicFindings || []) if (findingApplies(d, def.id, ctx)) findings.push(d.text);
+    }
+    if (!findings.length && normal) {
+      const r = normal.regions.find((x) => x.region === region);
+      if (r) findings.push(...r.normal);
+    }
+    return findings;
+  }
+
   // ---------- Diagnose-Modus (wie Data/DiagnosisEvaluation.cs) ----------
 
-  function evaluateDiagnoses(actual, events, getInjury, modalities) {
+  function evaluateDiagnoses(actual, events, getInjury, modalities, differentials) {
     const suspected = new Map();
     for (const e of events) {
       if (!e.tag) continue;
@@ -494,13 +530,23 @@
         time: hit ? suspected.get(si.injuryId) : null, onset: si.onsetTime_s,
         examined: tags.has("exam:" + def.region),
         imagingShown: modalities.some((m) => m.covers.some((c) => shownBy.has(c)) && tags.has("result:Imaging:" + m.id)),
-        clinicalOnly: shownBy.size === 0,
+        clinicalOnly: shownBy.size === 0, isDifferential: false, against: [],
       });
     }
     for (const [id, time] of suspected) {
       if (actualIds.has(id)) continue;
+      const diff = differentials && differentials.differentials.find((d) => d.id === id);
+      if (diff) {
+        const specific = diff.against.filter((x) => x.injuryId && actualIds.has(x.injuryId)).map((x) => x.text);
+        results.push({ injuryId: id, name: diff.name, region: diff.region, outcome: "FalsePositive", time, onset: 0, examined: false, imagingShown: false, clinicalOnly: false,
+          isDifferential: true, against: specific.length ? specific : diff.against.filter((x) => !x.injuryId).map((x) => x.text) });
+        continue;
+      }
       const def = getInjury(id);
-      results.push({ injuryId: id, name: def.name, region: def.region, outcome: "FalsePositive", time, onset: 0, examined: false, imagingShown: false, clinicalOnly: false });
+      const typical = (def.clinicalFindings || []).concat((def.dynamicFindings || [])
+        .filter((d) => !d.requiresTag && d.minLevel <= 0 && d.minLost_mL <= 0).map((d) => d.text)).slice(0, 2);
+      results.push({ injuryId: id, name: def.name, region: def.region, outcome: "FalsePositive", time, onset: 0, examined: false, imagingShown: false, clinicalOnly: false,
+        isDifferential: false, against: typical.length ? ["Typische Befunde fehlten: " + typical.join("; ") + "."] : [] });
     }
     return results;
   }
@@ -584,7 +630,7 @@
     };
   }
 
-  const api = { evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
+  const api = { examFindings, evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.NotfallEngine = api;
 })(typeof window !== "undefined" ? window : globalThis);

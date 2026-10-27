@@ -58,13 +58,14 @@ if (process.argv[3]) {
   const root = process.argv[4];
   const data = { injuries: JSON.parse(fs.readFileSync(root + "/injuries.json", "utf8")), mechanisms: JSON.parse(fs.readFileSync(root + "/mechanisms.json", "utf8")) };
   const mods = JSON.parse(fs.readFileSync(root + "/imaging.json", "utf8")).modalities;
+  const diffs = JSON.parse(fs.readFileSync(root + "/differentials.json", "utf8"));
   const byId = Object.fromEntries(data.injuries.injuries.map((d) => [d.id, d]));
   const dxLine = (s) => {
     const first = byId[s.injuries[0].injuryId];
     const events = [{ time: 5, tag: "exam:" + first.region }, { time: 10, tag: "diagnosis:" + first.id }, { time: 20, tag: "diagnosis:leberlazeration" },
-      { time: 25, tag: "diagnosis:milzruptur" }, { time: 30, tag: "result:Imaging:efast" }, { time: 35, tag: "diagnosis-retracted:milzruptur" }];
-    return evaluateDiagnoses(s.injuries, events, (id) => byId[id], mods)
-      .map((r) => `${r.injuryId}:${r.outcome}:${r.time != null ? N(r.time) : "-"}:${r.examined ? 1 : 0}${r.imagingShown ? 1 : 0}${r.clinicalOnly ? 1 : 0}`).join(",");
+      { time: 25, tag: "diagnosis:milzruptur" }, { time: 26, tag: "diagnosis:aortenverletzung" }, { time: 30, tag: "result:Imaging:efast" }, { time: 35, tag: "diagnosis-retracted:milzruptur" }];
+    return evaluateDiagnoses(s.injuries, events, (id) => byId[id], mods, diffs)
+      .map((r) => `${r.injuryId}:${r.outcome}:${r.time != null ? N(r.time) : "-"}:${r.examined ? 1 : 0}${r.imagingShown ? 1 : 0}${r.clinicalOnly ? 1 : 0}${r.isDifferential ? 1 : 0}:${r.against.join(" ")}`).join(",");
   };
   const lines = [];
   for (const m of data.mechanisms.mechanisms)
@@ -73,13 +74,49 @@ if (process.argv[3]) {
       lines.push([s.id, s.description, p.sex, p.age, N(p.weight_kg), N(p.height_cm), p.betaBlocker ? "1" : "0", N(p.initialBloodLoss_mL),
         s.injuries.map((i) => `${i.injuryId}:${N(i.severity)}:${N(i.onsetTime_s)}`).join(","), s.assessment.map((c) => c.id).join(","), dxLine(s)].join("|"));
     }
+  // Befundverlauf wie ExamCourse in Parity.cs
+  {
+    const { examFindings } = require("../../web/engine.js");
+    const normal = JSON.parse(fs.readFileSync(root + "/findings.json", "utf8"));
+    const sc = { injuries: [{ injuryId: "spannungspneu_links", severity: 0.8, onsetTime_s: 60 }, { injuryId: "milzruptur", severity: 0.9, onsetTime_s: 0 }, { injuryId: "becken_instabil", severity: 0.7, onsetTime_s: 0 }] };
+    const e = new MockEngine(3, "Textbook");
+    e.initialize({ weight_kg: 80, age: 40, sex: "male" });
+    const log = [];
+    const plan = { 3000: ["beckengurt"], 6000: ["nadel_li"], 9000: ["laparotomie", "drainage_li"] };
+    const ivs = {
+      beckengurt: iv("HemorrhageControl", { id: "beckengurt", target: "Pelvis", rateMultiplier: 0.5 }),
+      nadel_li: iv("NeedleDecompression", { id: "nadel_li", target: "LeftLung", successProbability: 1 }),
+      laparotomie: iv("HemorrhageControl", { id: "laparotomie", target: "Spleen,Liver", rateMultiplier: 0.05 }),
+      drainage_li: iv("ChestDrain", { id: "drainage_li", target: "LeftLung" }) };
+    let tpOn = false;
+    for (let step = 0; step <= 21000; step++) {
+      const t = step / 10;
+      for (const si of sc.injuries) {
+        const due = si.injuryId === "spannungspneu_links" ? (!tpOn && t >= si.onsetTime_s) : step === 0;
+        if (!due) continue;
+        if (si.injuryId === "spannungspneu_links") tpOn = true;
+        for (const x of byId[si.injuryId].effects) e.applyInjury({ injuryId: si.injuryId, effect: x.effectType, compartment: x.compartment, severity: si.severity,
+          baseRate_mL_min: x.baseRate_mL_min, maxTotalLoss_mL: x.maxTotalLoss_mL, progressionRate_per_min: x.progressionRate_per_min, initialLevel: x.initialLevel || 0 });
+      }
+      for (const id of plan[step] || []) {
+        const v = ivs[id];
+        log.push({ time: t, tag: `intervention:${v.type}:${v.target}:${v.id}` });
+        if (id !== "laparotomie") e.applyIntervention(v);
+      }
+      if (step % 600 === 0) {
+        const ctx = { time: t, bodyLoss: e.current.loss, level: (id) => e.injuryLevel(id), lost: (id) => e.injuryBloodLoss(id), events: log };
+        for (const region of ["Thorax", "Abdomen", "Becken"]) lines.push(`exam|${N(t)}|${region}|` + examFindings(region, sc, (id) => byId[id], normal, ctx).join(" / "));
+      }
+      e.advance(0.1);
+    }
+  }
   const gref = fs.readFileSync(process.argv[3], "utf8").trim().split("\n");
   const diff = gref.findIndex((l, i) => l !== lines[i]);
   if (gref.length !== lines.length || diff >= 0) {
     console.log(`Zufallsszenarien weichen ab (Zeile ${diff + 1}):\n  C#: ${gref[diff]}\n  JS: ${lines[diff]}`);
     process.exit(1);
   }
-  console.log(`${lines.length} Zufallsszenarien identisch`);
+  console.log(`${lines.filter((l) => !l.startsWith("exam|")).length} Zufallsszenarien und ${lines.filter((l) => l.startsWith("exam|")).length} Befunde im Verlauf identisch`);
 }
 
 const ref = fs.readFileSync(process.argv[2], "utf8").trim().split("\n").map((l) => l.split(";"));

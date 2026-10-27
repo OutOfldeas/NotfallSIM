@@ -18,6 +18,8 @@ namespace NotfallSIM.Data
         public bool Examined;         // Region untersucht?
         public bool ImagingShown;     // Bildgebung gemacht, die diese Verletzung zeigt?
         public bool ClinicalOnly;     // Verletzung zeigt sich in keiner Bildgebung, nur klinisch
+        public bool IsDifferential;   // falscher Verdacht auf eine Differenzialdiagnose ohne Physiologie
+        public string[] Against = new string[0]; // was gegen einen falschen Verdacht sprach
     }
 
     /// <summary>
@@ -31,7 +33,8 @@ namespace NotfallSIM.Data
         public const string RetractPrefix = "diagnosis-retracted:";
 
         public static List<DiagnosisResult> Evaluate(IEnumerable<ScenarioInjury> actual, IReadOnlyList<LogEntry> events,
-                                                     Func<string, InjuryDefinition> getInjury, IEnumerable<ImagingModality> modalities)
+                                                     Func<string, InjuryDefinition> getInjury, IEnumerable<ImagingModality> modalities,
+                                                     DifferentialDatabaseFile differentials = null)
         {
             // Stand der Verdachte am Ende, mit dem Zeitpunkt, seit dem er besteht.
             var suspected = new Dictionary<string, double>();
@@ -75,9 +78,23 @@ namespace NotfallSIM.Data
             }
             foreach (var id in order.Where(x => !actualIds.Contains(x)))
             {
+                var diff = differentials?.differentials?.FirstOrDefault(d => d.id == id);
+                if (diff != null)
+                {
+                    // Spezifische Argumente zu vorliegenden Verletzungen zuerst, sonst das allgemeine.
+                    var specific = diff.against.Where(x => !string.IsNullOrEmpty(x.injuryId) && actualIds.Contains(x.injuryId)).Select(x => x.text).ToArray();
+                    results.Add(new DiagnosisResult { InjuryId = id, Name = diff.name, Region = diff.region, IsDifferential = true,
+                        Outcome = DiagnosisOutcome.FalsePositive, Time_s = suspected[id],
+                        Against = specific.Length > 0 ? specific : diff.against.Where(x => string.IsNullOrEmpty(x.injuryId)).Select(x => x.text).ToArray() });
+                    continue;
+                }
                 var def = getInjury(id);
+                // Falscher Verdacht auf eine modellierte Verletzung: deren Leitbefunde fehlten.
+                var typical = (def.clinicalFindings ?? new string[0]).Concat((def.dynamicFindings ?? new DynamicFinding[0])
+                    .Where(d => string.IsNullOrEmpty(d.requiresTag) && d.minLevel <= 0 && d.minLost_mL <= 0).Select(d => d.text)).Take(2).ToArray();
                 results.Add(new DiagnosisResult { InjuryId = id, Name = def.name, Region = def.region,
-                    Outcome = DiagnosisOutcome.FalsePositive, Time_s = suspected[id] });
+                    Outcome = DiagnosisOutcome.FalsePositive, Time_s = suspected[id],
+                    Against = typical.Length > 0 ? new[] { "Typische Befunde fehlten: " + string.Join("; ", typical) + "." } : new string[0] });
             }
             return results;
         }

@@ -164,6 +164,10 @@ Jede Untersuchung liefert einen ausformulierten Befund: in verletzten Regionen d
 - **übersehen:** lag vor, nicht vermutet. Hinweise: Region nicht untersucht; keine durchgeführte Bildgebung, die sie zeigt
 - **falscher Verdacht:** vermutet, lag aber nicht vor
 
+**Dynamische Befunde** (`dynamicFindings`): Ein Befund erscheint nur unter Bedingungen — Schwere der Verletzung (Mock-Level 0..1), Blutverlust aus der Verletzung, Gesamtblutverlust, vor oder nach einer Maßnahme (optional mit Verzögerung). Beispiele: Gestaute Halsvenen beim Spannungspneu erst ab Level 0,5 und nur bei < 15 % Blutverlust, sonst flach; Trachealverlagerung ab 0,8; nach der Drainage nur noch der Drainagebefund; Distension des Abdomens ab 800 mL Verlust aus Milz oder Leber; nach dem Beckengurt keine erneute Stabilitätsprüfung. Alle Schwellen sind didaktische Setzungen.
+
+**Differenzialdiagnosen** (`differentials.json`): Hämatothorax, Perikardtamponade, Aortenverletzung, Lungenkontusion, Nierenverletzung, Darm-/Mesenterialverletzung, instabile Wirbelsäulenverletzung, diffuse axonale Schädigung. Sie stehen ununterscheidbar zwischen den Verletzungen. Bei falschem Verdacht zeigt das Debriefing, was dagegen sprach — bevorzugt das Argument zur tatsächlich vorliegenden Verletzung (z. B. Hämatothorax vs. Spannungspneu: hypersonorer statt gedämpfter Klopfschall). Bei falschem Verdacht auf eine modellierte Verletzung nennt es deren fehlende Leitbefunde.
+
 Die Diagnosebewertung steht getrennt von den Behandlungszielen. Im Browser-Prototyp zeigt das Protokoll nicht mehr an, wann eine Verletzung aktiv wird (das hätte die Diagnose verraten).
 
 ## Offene Punkte zum Prüfen
@@ -188,8 +192,9 @@ Die Diagnosebewertung steht getrennt von den Behandlungszielen. Im Browser-Proto
 - [ ] Blutungsraten von Milz- und Leberverletzung nach AAST-Grad belegen
 - [ ] Präklinischen Blutverlust gegen Registerdaten (Hb bzw. Schockindex bei Aufnahme nach Rettungszeit) plausibilisieren
 - [ ] Normalbefunde (`findings.json`) und Befundtexte der Verletzungen klinisch gegenlesen
-- [ ] Befunde zeitabhängig machen (z. B. Spannungspneu: gestaute Halsvenen erst spät; Abdomen: Distension erst mit Blutverlust; Befund nach Drainage)
-- [ ] Differenzialdiagnosen ohne Physiologie ergänzen (Hämatothorax, Aortenverletzung, Wirbelsäule), damit falsche Verdachte lehrreicher werden
+- [x] Befunde zeitabhängig machen (dynamicFindings, v0.8)
+- [x] Differenzialdiagnosen ohne Physiologie ergänzen (differentials.json)
+- [ ] Review-Tabelle aller Befundtexte durch Nutzer und Arzt abarbeiten, Ergebnisse in die Daten übernehmen
 - [ ] Fehlende typische Verletzungen ergänzen: Wirbelsäule, Kalkaneus (Sturz), Aortenverletzung (Dezeleration), Rippenserie rechts
 
 ## Quellen

@@ -94,6 +94,11 @@ namespace NotfallSIM.Engines
             };
         }
 
+        // Für dynamische Befunde. VERIFY: Pulse liefert Kompartiment-Blutverluste über Data Requests
+        // (z. B. "TotalBloodLost" je Hemorrhage-Kompartiment) — bis dahin grob 0 bzw. aus der Gesamtbilanz.
+        public double InjuryLevel(string injuryId) => 0; // Spannungspneu und SHT noch nicht angebunden
+        public double InjuryBloodLoss_mL(string injuryId) => 0;
+
         public void ApplyInjury(InjuryEvent injury)
         {
             switch (injury.Effect)

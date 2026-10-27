@@ -42,6 +42,26 @@ namespace NotfallSIM.Data
         public string evidenceStatus;     // "draft" | "reviewed" | "validated"
         public string reviewNotes;
         public AssessmentCriterion[] criteria; // Bewertungsvorlagen für generierte Szenarien
+        public DynamicFinding[] dynamicFindings; // Befunde, die vom Verlauf oder von Maßnahmen abhängen
+    }
+
+    /// <summary>
+    /// Ein Untersuchungsbefund mit Bedingung. Er erscheint nur, wenn alle Bedingungen erfüllt sind.
+    /// Tags werden wie in der Bewertung als Präfix verglichen (z. B. "intervention:ChestDrain:LeftLung").
+    /// </summary>
+    [Serializable]
+    public class DynamicFinding
+    {
+        public string text;
+        public double minLevel;           // Schwere der Verletzung 0..1 (Spannungspneu, SHT)
+        public double maxLevel = 1;
+        public double minLost_mL;         // Blutverlust aus dieser Verletzung
+        public double minBodyLoss;        // Blutverlust des ganzen Körpers als Anteil (z. B. Halsvenen nur ohne Hypovolämie)
+        public double maxBodyLoss = 1;
+        public string requiresTag;        // erst nach diesem Ereignis …
+        public double requiresTagDelay_s; // … und so viele Sekunden danach (z. B. Wirkung der OP)
+        public string untilTag;           // nicht mehr nach diesem Ereignis …
+        public double untilTagDelay_s;    // … sobald so viele Sekunden vergangen sind (z. B. bis die OP wirkt)
     }
 
     [Serializable]
@@ -287,5 +307,35 @@ namespace NotfallSIM.Data
         public SourceRef[] sources;
         public string evidenceStatus;
         public string reviewNotes;
+    }
+
+    // ---------- Differenzialdiagnosen (differentials.json) ----------
+
+    [Serializable]
+    public class DifferentialArgument
+    {
+        public string injuryId; // "" = gilt allgemein, sonst nur wenn diese Verletzung vorliegt
+        public string text;     // was gegen die Differenzialdiagnose spricht
+    }
+
+    /// <summary>Diagnose ohne Physiologie: erscheint in der Verdachtsliste, damit falsche Verdachte lehrreich werden.</summary>
+    [Serializable]
+    public class DifferentialDefinition
+    {
+        public string id;
+        public string name;
+        public string region;
+        public string description;
+        public DifferentialArgument[] against;
+        public SourceRef[] sources;
+        public string evidenceStatus;
+        public string reviewNotes;
+    }
+
+    [Serializable]
+    public class DifferentialDatabaseFile
+    {
+        public string version;
+        public DifferentialDefinition[] differentials;
     }
 }

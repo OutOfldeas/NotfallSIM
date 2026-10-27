@@ -419,10 +419,11 @@ $("actions").addEventListener("click", (e) => {
 });
 
 // ---------- Verdachtsdiagnosen ----------
-const REGION_ORDER = ["Kopf", "Thorax", "Abdomen", "Becken", "Oberschenkel rechts", "Oberschenkel links", "Unterschenkel rechts", "Unterschenkel links", "Arm rechts", "Arm links"];
+const REGION_ORDER = ["Kopf", "Thorax", "Abdomen", "Becken", "Wirbelsäule", "Oberschenkel rechts", "Oberschenkel links", "Unterschenkel rechts", "Unterschenkel links", "Arm rechts", "Arm links"];
 function renderDiagnoses() {
   const groups = {};
-  for (const d of DATA.injuries.injuries) (groups[d.region] = groups[d.region] || []).push(d);
+  // Verletzungen und Differenzialdiagnosen gemischt und gleich aussehend
+  for (const d of DATA.injuries.injuries.concat(DATA.differentials.differentials)) (groups[d.region] = groups[d.region] || []).push(d);
   const regions = Object.keys(groups).sort((a, b) => (REGION_ORDER.indexOf(a) + 99) % 99 - (REGION_ORDER.indexOf(b) + 99) % 99);
   const off = sim.ended;
   $("diagnoses").innerHTML = regions.map((r) => `<div class="dx-group"><span class="eyebrow">${esc(r)}</span><div class="dx-chips">${
@@ -552,7 +553,7 @@ function showDebrief() {
         if (!x.examined) hints.push(`${x.region} nicht untersucht`);
         if (!x.clinicalOnly && !x.imagingShown) hints.push("keine Bildgebung, die sie zeigt");
         note = hints.length ? hints.join(" · ") : "Befunde lagen vor, Verdacht nicht gestellt";
-      } else note = "lag in diesem Fall nicht vor";
+      } else note = "lag in diesem Fall nicht vor" + (x.against.length ? ". Dagegen sprach: " + x.against.join(" ") : "");
       const detail = x.outcome !== "FalsePositive" ? ` · ${esc(x.region)}, AIS ${injDefs[x.injuryId].aisSeverity}, Schweregrad ${R(sev[x.injuryId] * 100)} %` : "";
       return `<li><span class="chip ${x.outcome}">${DX[x.outcome]}</span><span><b>${esc(x.name)}</b> <span class="muted">· ${esc(note)}${detail}</span></span></li>`;
     }).join("")}</ul>`;

@@ -42,16 +42,66 @@ static class Parity
         using (var st = new MemoryStream(Encoding.UTF8.GetBytes(File.ReadAllText(path)))) return (T)ser.ReadObject(st);
     }
 
+    /// <summary>Befundverlauf: Spannungspneu, Milz und Becken mit Nadel, Gurt, Drainage und Laparotomie.</summary>
+    static void ExamCourse(System.Collections.Generic.Dictionary<string, InjuryDefinition> defs, FindingsDatabaseFile normal)
+    {
+        var sc = new ScenarioDefinition { injuries = new[] {
+            new ScenarioInjury { injuryId = "spannungspneu_links", severity = 0.8, onsetTime_s = 60 },
+            new ScenarioInjury { injuryId = "milzruptur", severity = 0.9 },
+            new ScenarioInjury { injuryId = "becken_instabil", severity = 0.7 } } };
+        var e = new MockPhysiologyEngine(3, PhysiologyMode.Textbook);
+        e.Initialize(new PatientProfile { weight_kg = 80, age = 40 });
+        var log = new System.Collections.Generic.List<LogEntry>();
+        var plan = new System.Collections.Generic.Dictionary<int, string[]> {
+            { 3000, new[] { "beckengurt" } }, { 6000, new[] { "nadel_li" } }, { 9000, new[] { "laparotomie", "drainage_li" } } };
+        var ivs = new System.Collections.Generic.Dictionary<string, InterventionEvent> {
+            { "beckengurt", new InterventionEvent { Id = "beckengurt", Type = InterventionType.HemorrhageControl, TargetCompartment = "Pelvis", RateMultiplier = 0.5 } },
+            { "nadel_li", new InterventionEvent { Id = "nadel_li", Type = InterventionType.NeedleDecompression, TargetCompartment = "LeftLung", SuccessProbability = 1 } },
+            { "laparotomie", new InterventionEvent { Id = "laparotomie", Type = InterventionType.HemorrhageControl, TargetCompartment = "Spleen,Liver", RateMultiplier = 0.05 } },
+            { "drainage_li", new InterventionEvent { Id = "drainage_li", Type = InterventionType.ChestDrain, TargetCompartment = "LeftLung" } } };
+        bool tpOn = false;
+        for (int step = 0; step <= 21000; step++)
+        {
+            double t = step / 10.0;
+            foreach (var si in sc.injuries)
+                if (si.injuryId == "spannungspneu_links" ? (!tpOn && t >= si.onsetTime_s) : step == 0)
+                {
+                    if (si.injuryId == "spannungspneu_links") tpOn = true;
+                    var def = defs[si.injuryId];
+                    foreach (var x in def.effects)
+                        e.ApplyInjury(new InjuryEvent { InjuryId = def.id, Effect = (InjuryEffectType)Enum.Parse(typeof(InjuryEffectType), x.effectType),
+                            Compartment = x.compartment, Severity = si.severity, BaseRate_mL_min = x.baseRate_mL_min, MaxTotalLoss_mL = x.maxTotalLoss_mL,
+                            ProgressionRate_per_min = x.progressionRate_per_min, InitialLevel = x.initialLevel });
+                }
+            string[] ids;
+            if (plan.TryGetValue(step, out ids))
+                foreach (var id in ids)
+                {
+                    var iv = ivs[id];
+                    log.Add(new LogEntry { Time_s = t, Tag = $"intervention:{iv.Type}:{iv.TargetCompartment}:{iv.Id}" });
+                    if (id == "laparotomie") continue; // Wirkung im Befund über requiresTagDelay
+                    e.ApplyIntervention(iv);
+                }
+            if (step % 600 == 0)
+            {
+                var ctx = new ExamContext { Time_s = t, BodyLossFraction = e.Current.BloodLossFraction, Level = e.InjuryLevel, Lost_mL = e.InjuryBloodLoss_mL, Events = log };
+                foreach (var region in new[] { "Thorax", "Abdomen", "Becken" })
+                    Console.WriteLine($"exam|{N(t)}|{region}|" + string.Join(" / ", Examination.Findings(region, sc, id => defs[id], normal, ctx)));
+            }
+            e.Advance(0.1);
+        }
+    }
+
     /// <summary>Feste Ereignisfolge je Fall: erste Verletzung untersucht und vermutet, Leber vermutet, eFAST, Milz verworfen.</summary>
-    static string DiagnosisLine(ScenarioDefinition s, System.Collections.Generic.Dictionary<string, InjuryDefinition> defs, ImagingModality[] mods)
+    static string DiagnosisLine(ScenarioDefinition s, System.Collections.Generic.Dictionary<string, InjuryDefinition> defs, ImagingModality[] mods, DifferentialDatabaseFile diffs)
     {
         var first = defs[s.injuries[0].injuryId];
         var events = new System.Collections.Generic.List<LogEntry> {
             new LogEntry { Time_s = 5, Tag = "exam:" + first.region }, new LogEntry { Time_s = 10, Tag = "diagnosis:" + first.id },
-            new LogEntry { Time_s = 20, Tag = "diagnosis:leberlazeration" }, new LogEntry { Time_s = 25, Tag = "diagnosis:milzruptur" },
+            new LogEntry { Time_s = 20, Tag = "diagnosis:leberlazeration" }, new LogEntry { Time_s = 25, Tag = "diagnosis:milzruptur" }, new LogEntry { Time_s = 26, Tag = "diagnosis:aortenverletzung" },
             new LogEntry { Time_s = 30, Tag = "result:Imaging:efast" }, new LogEntry { Time_s = 35, Tag = "diagnosis-retracted:milzruptur" } };
-        return string.Join(",", DiagnosisEvaluation.Evaluate(s.injuries, events, id => defs[id], mods)
-            .Select(r => $"{r.InjuryId}:{r.Outcome}:{(r.Time_s.HasValue ? N(r.Time_s.Value) : "-")}:{(r.Examined ? 1 : 0)}{(r.ImagingShown ? 1 : 0)}{(r.ClinicalOnly ? 1 : 0)}"));
+        return string.Join(",", DiagnosisEvaluation.Evaluate(s.injuries, events, id => defs[id], mods, diffs)
+            .Select(r => $"{r.InjuryId}:{r.Outcome}:{(r.Time_s.HasValue ? N(r.Time_s.Value) : "-")}:{(r.Examined ? 1 : 0)}{(r.ImagingShown ? 1 : 0)}{(r.ClinicalOnly ? 1 : 0)}{(r.IsDifferential ? 1 : 0)}:{string.Join(" ", r.Against)}"));
     }
 
     /// <summary>Zufallsszenarien: gleicher Seed muss in C# und JS dasselbe ergeben.</summary>
@@ -61,6 +111,7 @@ static class Parity
         var inj = Load<InjuryDatabaseFile>(Path.Combine(root, "injuries.json")).injuries;
         var mods = Load<ImagingDatabaseFile>(Path.Combine(root, "imaging.json")).modalities;
         var byId = inj.ToDictionary(d => d.id);
+        var diffs = Load<DifferentialDatabaseFile>(Path.Combine(root, "differentials.json"));
         foreach (var m in mech.mechanisms)
             for (uint seed = 1; seed <= 60; seed++)
             {
@@ -69,8 +120,9 @@ static class Parity
                 Console.WriteLine(string.Join("|", s.id, s.description, p.sex, p.age, N(p.weight_kg), N(p.height_cm), p.betaBlocker ? "1" : "0", N(p.initialBloodLoss_mL),
                     string.Join(",", s.injuries.Select(i => i.injuryId + ":" + N(i.severity) + ":" + N(i.onsetTime_s))),
                     string.Join(",", s.assessment.Select(c => c.id)),
-                    DiagnosisLine(s, byId, mods)));
+                    DiagnosisLine(s, byId, mods, diffs)));
             }
+        ExamCourse(byId, Load<FindingsDatabaseFile>(Path.Combine(root, "findings.json")));
     }
 
     static void Main(string[] args)

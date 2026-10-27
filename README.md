@@ -47,6 +47,7 @@ Assets/
     imaging.json                 Bildgebung (eFAST, Röntgen, CCT, Ganzkörper-CT)
     mechanisms.json              Unfallmechanismen für Zufallsfälle (Verletzungswahrscheinlichkeiten)
     findings.json                Normalbefunde je Körperregion (Diagnose-Modus)
+    differentials.json           Differenzialdiagnosen ohne Physiologie, mit „spricht dagegen“
     scenarios/*.json             Szenarien
 ```
 
@@ -78,6 +79,9 @@ Assets/
    Antippen setzt einen Verdacht, erneutes Antippen verwirft ihn. Das Debriefing zeigt erkannte, übersehene
    und falsch vermutete Verletzungen und bei übersehenen den Hinweis, was gefehlt hat (Region nicht untersucht,
    keine passende Bildgebung). Unverletzte Regionen liefern einen Normalbefund statt „unauffällig“.
+   Befunde ändern sich im Verlauf (`dynamicFindings` in `injuries.json`: Schwere, Blutverlust, Maßnahmen).
+   Zwischen den Verletzungen stehen Differenzialdiagnosen ohne Physiologie; ein falscher Verdacht zeigt,
+   was dagegen sprach.
 7. **Modus wählen:** Feld *Mode* — *Textbook* (ATLS-Lehrbuchbild) oder *Registry* (Realitätsmodus nach
    Registerdaten mit individueller Streuung, Alter und Betablocker). Das Debriefing vergleicht beide.
 

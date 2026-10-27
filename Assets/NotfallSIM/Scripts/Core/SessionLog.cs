@@ -147,7 +147,8 @@ namespace NotfallSIM.Core
                 case NotfallSIM.Data.DiagnosisOutcome.Correct:
                     return $"<color=#5CDB6E>erkannt</color>  {d.Name} bei {Clock(d.Time_s.Value)}";
                 case NotfallSIM.Data.DiagnosisOutcome.FalsePositive:
-                    return $"<color=#F2C14E>falscher Verdacht</color>  {d.Name}";
+                    return $"<color=#F2C14E>falscher Verdacht</color>  {d.Name}" +
+                           (d.Against.Length > 0 ? $"\n      <size=85%>Dagegen sprach: {string.Join(" ", d.Against)}</size>" : "");
                 default:
                     var hints = new List<string>();
                     if (!d.Examined) hints.Add($"{d.Region} nicht untersucht");

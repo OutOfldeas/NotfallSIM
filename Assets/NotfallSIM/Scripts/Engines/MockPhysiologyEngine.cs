@@ -112,6 +112,21 @@ namespace NotfallSIM.Engines
 
         double Uniform(double min, double max) => min + _rng.NextDouble() * (max - min);
 
+        public double InjuryLevel(string injuryId)
+        {
+            double level = 0;
+            foreach (var t in _tension.Values) if (t.Injury.InjuryId == injuryId) level = Math.Max(level, t.Level);
+            foreach (var b in _brain.Values) if (b.Injury.InjuryId == injuryId) level = Math.Max(level, b.Level);
+            return level;
+        }
+
+        public double InjuryBloodLoss_mL(string injuryId)
+        {
+            double lost = 0;
+            foreach (var b in _bleeds.Values) if (b.Injury.InjuryId == injuryId) lost += b.Lost_mL;
+            return lost;
+        }
+
         public bool Initialize(PatientProfile patient)
         {
             _baselineVolume = _volume = patient.EstimatedBloodVolume_mL;
