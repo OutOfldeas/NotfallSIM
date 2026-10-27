@@ -1,0 +1,768 @@
+<title>NotfallSIM Schockraum</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: Patientenmonitor oben fixiert (wie im Schockraum), darunter Patient, Maßnahmen, Protokoll — eine Spalte am Handy, zwei ab Tablet. */
+:root {
+  --bg: #e9eeec; --surface: #ffffff; --surface-2: #f3f6f5; --line: #d3dbd8;
+  --fg: #16201e; --muted: #5a6865; --accent: #1d6b63; --accent-fg: #ffffff;
+  --ok: #2f7d4a; --warn: #a8660f; --crit: #bf2d26;
+  --ok-bg: #e2f1e6; --warn-bg: #f8ecd9; --crit-bg: #f9e3e1;
+  --skin: #e7c3a7; --cloth: #9fb1c7; --region-stroke: #6f7f7b;
+  /* Monitor ist ein Gerät: in beiden Themes dunkel */
+  --mon-bg: #050908; --mon-line: #1b2624; --mon-label: #8a9a96;
+  --mon-hr: #45e07c; --mon-bp: #ff6464; --mon-spo2: #4cc9f2; --mon-rr: #f3d34e; --mon-co2: #f0b54a; --mon-alarm: #ff3b30;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1413; --surface: #161e1d; --surface-2: #1d2726; --line: #2b3735;
+  --fg: #e2eae8; --muted: #93a39f; --accent: #4fb3a6; --accent-fg: #06110f;
+  --ok: #5cc27e; --warn: #e2a24c; --crit: #ff7a70;
+  --ok-bg: #173022; --warn-bg: #33270f; --crit-bg: #3a1a18;
+  --skin: #a8846a; --cloth: #55687f; --region-stroke: #8fa19c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0e1413; --surface: #161e1d; --surface-2: #1d2726; --line: #2b3735;
+  --fg: #e2eae8; --muted: #93a39f; --accent: #4fb3a6; --accent-fg: #06110f;
+  --ok: #5cc27e; --warn: #e2a24c; --crit: #ff7a70;
+  --ok-bg: #173022; --warn-bg: #33270f; --crit-bg: #3a1a18;
+  --skin: #a8846a; --cloth: #55687f; --region-stroke: #8fa19c; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--mon-bg); }
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Monitor ---------- */
+.monitor { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--mon-bg); color: #e8f0ee;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 10px 12px;
+  border-bottom: 1px solid var(--mon-line); }
+.mon-inner { max-width: 1100px; margin: 0 auto; display: grid; gap: 8px; }
+.mon-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-family: var(--font-mono); font-size: 12px; color: var(--mon-label); }
+.mon-head strong { color: #e8f0ee; font-weight: 500; }
+.mon-clock { font-variant-numeric: tabular-nums; color: #e8f0ee; font-size: 15px; }
+.vitals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.vital { border-top: 2px solid currentColor; padding-top: 4px; min-width: 0; }
+.vital .lab { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; opacity: .85; display: flex; justify-content: space-between; }
+.vital .val { font-family: var(--font-display); font-weight: 600; font-size: clamp(26px, 7.5vw, 48px); line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vital.bp .val { font-size: clamp(20px, 5.2vw, 38px); }
+.vital .sub { font-family: var(--font-mono); font-size: 11px; opacity: .8; font-variant-numeric: tabular-nums; }
+.v-hr { color: var(--mon-hr); } .v-bp { color: var(--mon-bp); } .v-spo2 { color: var(--mon-spo2); } .v-rr { color: var(--mon-rr); } .v-co2 { color: var(--mon-co2); }
+.vital.alarm .val { color: #fff; background: var(--mon-alarm); border-radius: 3px; padding-inline: 3px; animation: blink 1s steps(2, start) infinite; }
+@keyframes blink { 50% { background: transparent; color: var(--mon-alarm); } }
+@media (prefers-reduced-motion: reduce) { .vital.alarm .val { animation: none; } }
+.mon-arrest { font-family: var(--font-display); font-size: 28px; color: var(--mon-alarm); letter-spacing: .04em; text-align: center; }
+
+/* ---------- Seite ---------- */
+main { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 40px; display: grid; gap: 16px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+.panel h2 { margin: 0 0 10px; font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: .02em; text-wrap: balance; }
+.eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.grid-2 { display: grid; gap: 16px; }
+@media (min-width: 760px) { .grid-2 { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); } }
+
+/* Setup */
+.scenarios { display: grid; gap: 8px; }
+.scenario-opt { text-align: left; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; cursor: pointer; display: grid; gap: 2px; }
+.scenario-opt[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.scenario-opt b { font-weight: 600; }
+.seg { display: inline-grid; grid-auto-flow: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { background: var(--surface-2); border: 0; padding: 8px 14px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; cursor: pointer; font-weight: 500; }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn.danger { color: var(--crit); border-color: var(--crit); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.brief { display: grid; gap: 6px; margin-top: 12px; }
+.brief p { margin: 0; max-width: 65ch; }
+
+/* Patient */
+.body-wrap { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 420px) { .body-wrap { grid-template-columns: minmax(0, 120px) minmax(0, 1fr); } }
+svg.body { width: 100%; height: auto; display: block; }
+.region { cursor: pointer; }
+.region path, .region rect, .region ellipse { stroke: var(--region-stroke); stroke-width: 1.2; transition: filter .15s; }
+.region:hover path, .region:hover rect, .region:hover ellipse, .region:focus-visible path, .region:focus-visible rect, .region:focus-visible ellipse { filter: brightness(1.12); stroke: var(--accent); stroke-width: 2.2; }
+.region.examined rect, .region.examined ellipse { stroke: var(--accent); stroke-dasharray: 3 2; }
+.region:focus { outline: none; }
+.skin { fill: var(--skin); } .cloth { fill: var(--cloth); }
+.findings { min-height: 140px; }
+.findings ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.findings .lab-result { margin-top: 10px; padding: 8px 10px; border-radius: 6px; background: var(--surface-2); font-family: var(--font-mono); font-size: 13px; }
+
+/* Maßnahmen */
+.actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.act { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; text-align: left; cursor: pointer; display: grid; gap: 2px; min-height: 58px; }
+.act:hover:not(:disabled) { border-color: var(--accent); }
+.act small { color: var(--muted); font-size: 12px; }
+.act.done { border-color: var(--ok); }
+.act.done small { color: var(--ok); }
+.act:disabled { opacity: .5; cursor: not-allowed; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+
+/* Protokoll */
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 280px; overflow-y: auto; font-size: 13.5px; }
+.log li { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 8px; padding: 3px 0; border-bottom: 1px dashed var(--line); }
+.log time { font-family: var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.log .state { color: var(--crit); }
+.log .result { color: var(--accent); }
+
+/* Debriefing */
+.outcome { display: flex; flex-wrap: wrap; gap: 10px 22px; }
+.kv { display: grid; gap: 0; }
+.kv .k { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.kv .v { font-family: var(--font-display); font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.results { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.results li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: start; }
+.chip { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.chip.Met { background: var(--ok-bg); color: var(--ok); }
+.chip.Late { background: var(--warn-bg); color: var(--warn); }
+.chip.Missed, .chip.Exceeded { background: var(--crit-bg); color: var(--crit); }
+.results .why { grid-column: 2; font-size: 13px; color: var(--muted); }
+.crit-tag { color: var(--crit); font-size: 12px; font-weight: 600; }
+.compare { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.compare th, .compare td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.compare th { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.notice { font-size: 13px; color: var(--muted); max-width: 70ch; }
+</style>
+
+<header class="monitor" aria-live="off">
+  <div class="mon-inner">
+    <div class="mon-head">
+      <span id="monScenario"><strong>NotfallSIM</strong> · Szenario wählen</span>
+      <span class="mon-clock" id="monClock">00:00</span>
+    </div>
+    <div class="vitals" id="vitals">
+      <div class="vital v-hr" id="vHr"><div class="lab"><span>HF</span><span>/min</span></div><div class="val">--</div></div>
+      <div class="vital v-bp bp" id="vBp"><div class="lab"><span>RR</span><span>mmHg</span></div><div class="val">--/--</div><div class="sub" id="vMap">MAD --</div></div>
+      <div class="vital v-spo2" id="vSpo2"><div class="lab"><span>SpO₂</span><span>%</span></div><div class="val">--</div></div>
+      <div class="vital v-rr" id="vRr"><div class="lab"><span>AF</span><span>/min</span></div><div class="val">--</div></div>
+      <div class="vital v-co2" id="vCo2"><div class="lab"><span>etCO₂</span><span>mmHg</span></div><div class="val">--</div></div>
+    </div>
+    <div class="mon-arrest" id="monArrest" hidden>ASYSTOLIE / PEA – KEIN PULS</div>
+  </div>
+</header>
+
+<main>
+  <!-- Auswahl -->
+  <section class="panel" id="setup" aria-labelledby="setupTitle">
+    <div class="eyebrow">Prüfwerkzeug · Mock-Physiologie wie im Unity-Projekt</div>
+    <h2 id="setupTitle">Szenario wählen</h2>
+    <div class="scenarios" id="scenarioList" role="group" aria-label="Szenarien"></div>
+    <div class="brief" id="brief"></div>
+    <div class="row" style="margin-top:14px">
+      <span class="eyebrow">Physiologie</span>
+      <div class="seg" role="group" aria-label="Modus">
+        <button type="button" id="modeTextbook" aria-pressed="true">Lehrbuch</button>
+        <button type="button" id="modeRegistry" aria-pressed="false">Realität</button>
+      </div>
+      <button type="button" class="btn primary" id="startBtn">Szenario starten</button>
+    </div>
+    <p class="notice" id="modeNote"></p>
+  </section>
+
+  <!-- Laufendes Szenario -->
+  <section class="panel" id="controlsPanel" hidden>
+    <div class="controls">
+      <div class="row">
+        <button type="button" class="btn" id="pauseBtn">Pause</button>
+        <div class="seg" role="group" aria-label="Zeitraffer">
+          <button type="button" data-speed="1" aria-pressed="true">1×</button>
+          <button type="button" data-speed="5" aria-pressed="false">5×</button>
+          <button type="button" data-speed="20" aria-pressed="false">20×</button>
+        </div>
+      </div>
+      <button type="button" class="btn danger" id="endBtn">Szenario beenden</button>
+    </div>
+  </section>
+
+  <div class="grid-2" id="runView" hidden>
+    <section class="panel" aria-labelledby="patTitle">
+      <h2 id="patTitle">Patient</h2>
+      <div class="body-wrap">
+        <svg class="body" viewBox="0 0 160 400" role="group" aria-label="Körperregionen zum Untersuchen" id="bodySvg">
+          <g class="region" data-region="Kopf" tabindex="0" role="button" aria-label="Kopf untersuchen"><ellipse class="skin" cx="80" cy="34" rx="22" ry="27"/></g>
+          <g class="region" data-region="Arm rechts" tabindex="0" role="button" aria-label="Arm rechts untersuchen"><rect class="skin" x="14" y="72" width="20" height="132" rx="10"/></g>
+          <g class="region" data-region="Arm links" tabindex="0" role="button" aria-label="Arm links untersuchen"><rect class="skin" x="126" y="72" width="20" height="132" rx="10"/></g>
+          <g class="region" data-region="Thorax" tabindex="0" role="button" aria-label="Thorax untersuchen"><rect class="cloth" x="38" y="66" width="84" height="80" rx="12"/></g>
+          <g class="region" data-region="Abdomen" tabindex="0" role="button" aria-label="Abdomen untersuchen"><rect class="cloth" x="42" y="148" width="76" height="52" rx="8"/></g>
+          <g class="region" data-region="Becken" tabindex="0" role="button" aria-label="Becken untersuchen"><rect class="cloth" x="40" y="202" width="80" height="42" rx="10"/></g>
+          <g class="region" data-region="Oberschenkel rechts" tabindex="0" role="button" aria-label="Oberschenkel rechts untersuchen"><rect class="cloth" x="42" y="246" width="36" height="74" rx="14"/></g>
+          <g class="region" data-region="Oberschenkel links" tabindex="0" role="button" aria-label="Oberschenkel links untersuchen"><rect class="cloth" x="82" y="246" width="36" height="74" rx="14"/></g>
+          <g class="region" data-region="Unterschenkel rechts" tabindex="0" role="button" aria-label="Unterschenkel rechts untersuchen"><rect class="cloth" x="45" y="322" width="30" height="70" rx="12"/></g>
+          <g class="region" data-region="Unterschenkel links" tabindex="0" role="button" aria-label="Unterschenkel links untersuchen"><rect class="cloth" x="85" y="322" width="30" height="70" rx="12"/></g>
+          <text x="80" y="398" text-anchor="middle" font-size="9" fill="currentColor" opacity=".55" font-family="IBM Plex Mono, monospace">re ←  → li</text>
+        </svg>
+        <div class="findings" aria-live="polite">
+          <div class="eyebrow">Befund</div>
+          <div id="findings"><p class="muted" style="margin:6px 0 0">Tippe eine Körperregion an, um sie zu untersuchen. Rechts und links sind aus Sicht des Patienten.</p></div>
+          <div class="lab-result" id="labResult" hidden></div>
+        </div>
+      </div>
+    </section>
+
+    <div style="display:grid; gap:16px; min-width:0">
+      <section class="panel" aria-labelledby="actTitle">
+        <h2 id="actTitle">Maßnahmen</h2>
+        <div class="actions" id="actions"></div>
+      </section>
+      <section class="panel" aria-labelledby="logTitle">
+        <h2 id="logTitle">Protokoll</h2>
+        <ol class="log" id="log" reversed></ol>
+      </section>
+    </div>
+  </div>
+
+  <!-- Debriefing -->
+  <section class="panel" id="debrief" hidden aria-labelledby="debTitle">
+    <div class="eyebrow" id="debMode"></div>
+    <h2 id="debTitle">Debriefing</h2>
+    <div class="outcome" id="debOutcome"></div>
+    <h2 style="margin-top:18px" id="debScore"></h2>
+    <ul class="results" id="debResults"></ul>
+    <div id="debCompare"></div>
+    <h2 style="margin-top:18px">Zeitleiste</h2>
+    <ol class="log" id="debLog" style="max-height:none"></ol>
+    <div class="row" style="margin-top:14px"><button type="button" class="btn primary" id="againBtn">Neues Szenario</button></div>
+  </section>
+
+  <p class="notice">Experimentelles Lernwerkzeug, kein Medizinprodukt. Werte stammen aus einem vereinfachten, literaturgestützten Modell im Entwurfsstatus. Daten: <span id="dataVersion"></span>.</p>
+</main>
+
+<script>// NotfallSIM – Browser-Prototyp: JavaScript-Port der Mock-Physiologie und Simulationslogik.
+// Quelle der Wahrheit bleibt der C#-Code in Assets/NotfallSIM/Scripts. Dieser Port wird mit
+// web/compare_with_csharp.sh gegen die C#-Version abgeglichen. Keine Abhängigkeiten, läuft in Node und im Browser.
+(function (root) {
+  "use strict";
+
+  // ---------------------------------------------------------------- ShockTables (Core/ShockTables.cs)
+  const LossPoints = [0.0, 0.15, 0.30, 0.40, 0.50, 0.58];
+  const T = {
+    Textbook: { hr: [75, 98, 118, 138, 150, 110], sbp: [120, 120, 112, 88, 70, 50], dbp: [78, 84, 82, 62, 45, 30], rr: [14, 18, 26, 34, 40, 40] },
+    Registry: { hr: [84, 88, 92, 96, 97, 90], sbp: [135, 129, 119, 105, 92, 70], dbp: [80, 78, 74, 66, 56, 42], rr: [15, 17, 20, 24, 28, 30] },
+  };
+  const EtCo2 = [38, 37, 33, 27, 20, 14];
+  const SpO2Air = [97, 97, 96, 95, 92, 88];
+  const BaseExcess = [0, -2, -6, -10, -14, -18];
+  const Lactate = [1.0, 1.8, 3.2, 4.8, 6.8, 9.0];
+
+  function interp(x, points, table) {
+    if (x <= points[0]) return table[0];
+    for (let i = 1; i < points.length; i++) {
+      if (x <= points[i]) {
+        const t = (x - points[i - 1]) / (points[i] - points[i - 1]);
+        return table[i - 1] + t * (table[i] - table[i - 1]);
+      }
+    }
+    return table[table.length - 1];
+  }
+  const loss = (x, table) => interp(x, LossPoints, table);
+  const Shock = {
+    hr: (m, f) => loss(f, T[m].hr), sbp: (m, f) => loss(f, T[m].sbp),
+    dbp: (m, f) => loss(f, T[m].dbp), rr: (m, f) => loss(f, T[m].rr),
+    be: (f) => loss(f, BaseExcess), lactate: (f) => loss(f, Lactate),
+  };
+
+  // C# Math.Round rundet halbe Werte zur geraden Zahl; für identische GCS-Werte nachgebildet.
+  function roundHalfEven(x) {
+    const r = Math.round(x);
+    return Math.abs(x % 1) === 0.5 && r % 2 !== 0 ? r - 1 : r;
+  }
+
+  // Einfacher, reproduzierbarer Zufallsgenerator (mulberry32). Folgen weichen von C# System.Random ab.
+  function rng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ---------------------------------------------------------------- Mock-Engine (Engines/MockPhysiologyEngine.cs)
+  const C = {
+    ArrestThreshold: 0.60,
+    Retention: { BalancedCrystalloid: 0.3, Saline: 0.3, Blood: 1.0 },
+    TpMaxHrAdd: 30, TpMaxRrAdd: 12, TpMaxSpO2Drop: 25, TpMaxEtCo2Drop: 6,
+    TpHypotensionOnset: 0.6, TpMaxSbpDrop: 50, TpLevelAfterNeedle: 0.15, TpRateAfterNeedle: 0.2,
+    TbiPoints: [0.0, 0.3, 0.5, 0.7, 0.85, 1.0], TbiGcs: [15, 14, 11, 8, 5, 3], ShockGcs: [15, 15, 15, 14, 12, 9],
+    TbiAnisocoriaLevel: 0.7, TbiCushingLevel: 0.8, TbiSecondaryInsultFactor: 2.0,
+    TbiOsmotherapyReduction: 0.15, TbiLevelAfterSurgery: 0.4,
+    AirwayMaxSpO2Drop: 15, AirwayMaxEtCo2Rise: 10, TpFactorWhenVentilated: 3.0,
+  };
+
+  function bloodVolume(p) { return p.weight_kg * (String(p.sex).toLowerCase() === "female" ? 65 : 70); }
+
+  class MockEngine {
+    constructor(seed, mode) {
+      this.mode = mode === "Registry" ? "Registry" : "Textbook";
+      this.random = rng(seed == null ? Math.floor(Math.random() * 2 ** 31) : seed);
+    }
+    get name() { return this.mode === "Registry" ? "Mock (Realitätsmodus)" : "Mock (Lehrbuchmodus)"; }
+    uniform(min, max) { return min + this.random() * (max - min); }
+
+    initialize(patient) {
+      this.baselineVolume = this.volume = bloodVolume(patient);
+      this.time = 0;
+      this.bleeds = {}; this.tension = {}; this.brain = {}; this.infusions = [];
+      this.oxygen = this.arrest = this.intubated = false;
+      this.hrBaseOffset = 0; this.hrResponse = 1; this.sbpOffset = 0;
+      if (this.mode === "Registry") {
+        this.hrBaseOffset = this.uniform(-12, 12);
+        this.hrResponse = this.uniform(0.5, 1.5);
+        this.sbpOffset = this.uniform(-10, 10) + (patient.age >= 65 ? 15 : 0);
+      }
+      if (patient.betaBlocker) this.hrResponse *= 0.25;
+      this.current = null;
+      this.updateVitals();
+      this.baselineMap = this.current.map;
+      return true;
+    }
+
+    applyInjury(inj) {
+      if (inj.effect === "Hemorrhage") this.bleeds[inj.compartment] = { inj, multiplier: 1, lost: 0 };
+      else if (inj.effect === "TensionPneumothorax") this.tension[inj.compartment] = { inj, level: 0, rateFactor: 1, drained: false };
+      else if (inj.effect === "TraumaticBrainInjury") this.brain[inj.compartment] = { inj, level: 0, stopped: false };
+    }
+
+    applyIntervention(iv) {
+      switch (iv.type) {
+        case "HemorrhageControl": { const b = this.bleeds[iv.target]; if (b) b.multiplier = Math.min(b.multiplier, iv.rateMultiplier); break; }
+        case "FluidInfusion": this.infusions.push({ compound: iv.compound, remaining: iv.volume_mL, rate: iv.rate_mL_min }); break;
+        case "Oxygen": this.oxygen = true; break;
+        case "NeedleDecompression": {
+          const t = this.tension[iv.target];
+          if (t && !t.drained && this.random() < iv.successProbability) {
+            t.level = Math.min(t.level, C.TpLevelAfterNeedle);
+            t.rateFactor = Math.min(t.rateFactor, C.TpRateAfterNeedle);
+          }
+          break;
+        }
+        case "Intubation": this.intubated = true; break;
+        case "Osmotherapy": for (const b of Object.values(this.brain)) b.level = Math.max(0, b.level - C.TbiOsmotherapyReduction); break;
+        case "NeurosurgicalDecompression": for (const b of Object.values(this.brain)) { b.level = Math.min(b.level, C.TbiLevelAfterSurgery); b.stopped = true; } break;
+        case "ChestDrain": { const t = this.tension[iv.target]; if (t) { t.level = 0; t.drained = true; } break; }
+      }
+    }
+
+    advance(dt) {
+      if (dt <= 0) return;
+      this.time += dt;
+      const minutes = dt / 60;
+      const cur = this.current;
+      if (!this.arrest) {
+        const pressureFactor = Math.sqrt(Math.max(0, cur.map / this.baselineMap));
+        for (const b of Object.values(this.bleeds)) {
+          let rate = b.inj.baseRate_mL_min * b.inj.severity * b.multiplier * pressureFactor;
+          if (b.inj.maxTotalLoss_mL > 0) rate *= Math.max(0, 1 - b.lost / b.inj.maxTotalLoss_mL);
+          const l = rate * minutes; b.lost += l; this.volume -= l;
+        }
+        for (const t of Object.values(this.tension)) {
+          if (t.drained) continue;
+          const rate = t.inj.progressionRate_per_min * t.inj.severity * t.rateFactor * (this.intubated ? C.TpFactorWhenVentilated : 1);
+          t.level = Math.min(1, t.level + rate * minutes);
+        }
+        const insult = cur.sbp < 90 || cur.spo2 < 90;
+        for (const b of Object.values(this.brain)) {
+          if (b.stopped) continue;
+          const rate = b.inj.progressionRate_per_min * b.inj.severity * (insult ? C.TbiSecondaryInsultFactor : 1);
+          b.level = Math.min(1, b.level + rate * minutes);
+        }
+      }
+      for (const inf of this.infusions) {
+        const given = Math.min(inf.rate * minutes, inf.remaining);
+        inf.remaining -= given;
+        const ret = C.Retention[inf.compound] != null ? C.Retention[inf.compound] : 0.3;
+        this.volume += given * ret;
+      }
+      this.infusions = this.infusions.filter((i) => i.remaining > 0);
+      this.volume = Math.max(0, Math.min(this.volume, this.baselineVolume * 1.1));
+      this.updateVitals();
+    }
+
+    updateVitals() {
+      const f = Math.max(0, 1 - this.volume / this.baselineVolume);
+      let tp = 0; for (const t of Object.values(this.tension)) tp = Math.max(tp, t.level);
+      let tbi = 0; for (const b of Object.values(this.brain)) tbi = Math.max(tbi, b.level);
+      if (f >= C.ArrestThreshold || tp >= 1 || tbi >= 1) this.arrest = true;
+      if (this.arrest) {
+        this.current = { time: this.time, hr: 0, sbp: 0, dbp: 0, map: 0, rr: 0, spo2: 0, etco2: 5, bv: this.volume, loss: f,
+          arrest: true, gcs: 3, be: -20, lactate: 12, anisocoria: tbi >= C.TbiAnisocoriaLevel, intubated: this.intubated };
+        return;
+      }
+      const m = this.mode;
+      const gcs = Math.min(interp(tbi, C.TbiPoints, C.TbiGcs), loss(f, C.ShockGcs));
+      const airway = !this.intubated && gcs <= 8 ? Math.min(1, (8 - gcs) / 5 + 0.2) : 0;
+      const cushing = tbi > C.TbiCushingLevel ? (tbi - C.TbiCushingLevel) / (1 - C.TbiCushingLevel) : 0;
+      const sbpDrop = tp > C.TpHypotensionOnset ? (tp - C.TpHypotensionOnset) / (1 - C.TpHypotensionOnset) * C.TpMaxSbpDrop : 0;
+      const hr0 = Shock.hr(m, 0);
+      const hr = hr0 + this.hrBaseOffset + (Shock.hr(m, f) - hr0) * this.hrResponse;
+      const sbp = Shock.sbp(m, f) + this.sbpOffset - sbpDrop + 50 * cushing;
+      const dbp = Shock.dbp(m, f) + this.sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing;
+      let spo2 = loss(f, SpO2Air) - C.TpMaxSpO2Drop * tp - C.AirwayMaxSpO2Drop * airway + (this.oxygen ? 3 : 0) + (this.intubated ? 3 : 0);
+      spo2 = Math.max(50, Math.min(100, spo2));
+      this.current = {
+        time: this.time,
+        hr: hr + C.TpMaxHrAdd * tp - 35 * cushing,
+        sbp, dbp, map: dbp + (sbp - dbp) / 3,
+        rr: this.intubated ? 14 : Shock.rr(m, f) + C.TpMaxRrAdd * tp - 6 * airway - 6 * cushing,
+        spo2,
+        etco2: loss(f, EtCo2) - C.TpMaxEtCo2Drop * tp + C.AirwayMaxEtCo2Rise * airway,
+        be: Shock.be(f), lactate: Shock.lactate(f),
+        gcs: roundHalfEven(gcs), anisocoria: tbi >= C.TbiAnisocoriaLevel, intubated: this.intubated,
+        bv: this.volume, loss: f, arrest: false,
+      };
+    }
+  }
+
+  // ---------------------------------------------------------------- StateWatcher (Core/StateWatcher.cs)
+  const StateTags = { Hypotension: "state:hypotension", Hypoxia: "state:hypoxia", GcsDrop: "state:gcs13", Gcs8: "state:gcs8", Anisocoria: "state:anisocoria" };
+  class StateWatcher {
+    constructor() { this.hypo = this.hypox = this.g13 = this.g8 = this.aniso = false; }
+    check(v) {
+      const out = [];
+      if (v.arrest) return out;
+      if (!this.hypo && v.sbp < 90) { this.hypo = true; out.push(["Hypotonie (RRsys < 90 mmHg)", StateTags.Hypotension]); }
+      else if (this.hypo && v.sbp >= 95) this.hypo = false;
+      if (!this.hypox && v.spo2 < 90) { this.hypox = true; out.push(["Hypoxie (SpO2 < 90 %)", StateTags.Hypoxia]); }
+      else if (this.hypox && v.spo2 >= 92) this.hypox = false;
+      if (!this.g13 && v.gcs > 0 && v.gcs <= 13) { this.g13 = true; out.push([`Bewusstseinsminderung (GCS ${v.gcs})`, StateTags.GcsDrop]); }
+      if (!this.g8 && v.gcs > 0 && v.gcs <= 8) { this.g8 = true; out.push([`Bewusstlos (GCS ${v.gcs})`, StateTags.Gcs8]); }
+      if (!this.aniso && v.anisocoria) { this.aniso = true; out.push(["Anisokorie", StateTags.Anisocoria]); }
+      return out;
+    }
+  }
+
+  // ---------------------------------------------------------------- Assessment (Core/Assessment.cs)
+  function evaluate(criteria, events) {
+    const matches = (tag, prefixes) => tag != null && prefixes.some((p) => tag.startsWith(p));
+    return (criteria || []).map((c) => {
+      const matching = events.filter((e) => matches(e.tag, c.tags));
+      const r = { criterion: c, count: matching.length, time: null, deadline: 0, outcome: "" };
+      if (c.type === "maxCount") { r.outcome = matching.length <= c.limit ? "Met" : "Exceeded"; return r; }
+      let start = 0;
+      if (c.relativeTo) {
+        const refs = events.filter((e) => matches(e.tag, [c.relativeTo]));
+        if (!refs.length) { r.outcome = "NotApplicable"; return r; }
+        start = Math.min(...refs.map((e) => e.time));
+      }
+      r.deadline = start + c.limit;
+      const rel = c.onlyAfterReference ? matching.filter((e) => e.time >= start) : matching;
+      r.time = rel.length ? Math.min(...rel.map((e) => e.time)) : null;
+      r.outcome = r.time == null ? "Missed" : r.time <= r.deadline ? "Met" : "Late";
+      return r;
+    });
+  }
+
+  function shockClass(f) { return f < 0.15 ? "I" : f < 0.30 ? "II" : f < 0.40 ? "III" : "IV"; }
+
+  // ---------------------------------------------------------------- Simulation (Simulation/SimulationManager.cs)
+  const clock = (s) => { const t = Math.floor(s); return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`; };
+  const de1 = (x) => x.toFixed(1).replace(".", ",");
+
+  class Simulation {
+    constructor(data, scenarioId, mode, seed) {
+      this.data = data;
+      this.scenario = data.scenarios.find((s) => s.id === scenarioId);
+      this.injuries = Object.fromEntries(data.injuries.injuries.map((i) => [i.id, i]));
+      this.interventions = Object.fromEntries(data.interventions.interventions.map((i) => [i.id, i]));
+      this.engine = new MockEngine(seed, mode);
+      this.engine.initialize(this.scenario.patient);
+      this.pending = this.scenario.injuries.slice();
+      this.delayed = [];
+      this.watcher = new StateWatcher();
+      this.events = [];
+      this.samples = [this.engine.current];
+      this.nextSample = 5;
+      this.used = new Set();
+      this.ended = false;
+      this.step = 0.1;
+      this.log(`Szenario „${this.scenario.title}“ gestartet (${this.engine.name})`, null);
+    }
+    get vitals() { return this.engine.current; }
+    log(message, tag) { this.events.push({ time: this.engine.current.time, message, tag }); }
+
+    /** Rückt um dt Sekunden in Schritten von 0,1 s vor (wie SimulationManager.Update). */
+    advance(dt) {
+      let remaining = dt;
+      while (remaining > 1e-9 && !this.ended && !this.engine.current.arrest) {
+        const t = this.engine.current.time;
+        for (let i = this.pending.length - 1; i >= 0; i--) {
+          const si = this.pending[i];
+          if (si.onsetTime_s > t) continue;
+          const def = this.injuries[si.injuryId];
+          for (const e of def.effects) this.engine.applyInjury({ effect: e.effectType, compartment: e.compartment, severity: si.severity,
+            baseRate_mL_min: e.baseRate_mL_min, maxTotalLoss_mL: e.maxTotalLoss_mL, progressionRate_per_min: e.progressionRate_per_min });
+          this.log(`Verletzung aktiv: ${def.name}`, "injury:" + si.injuryId);
+          this.pending.splice(i, 1);
+        }
+        for (let i = this.delayed.length - 1; i >= 0; i--) {
+          const d = this.delayed[i];
+          if (d.due > t) continue;
+          if (d.result) this.log(d.result, "result:" + d.iv.type);
+          else { this.engine.applyIntervention(d.iv); this.log(`Wirksam: ${d.label}`, "effect:" + d.iv.type); }
+          this.delayed.splice(i, 1);
+        }
+        this.engine.advance(this.step);
+        for (const [msg, tag] of this.watcher.check(this.engine.current)) this.log(msg, tag);
+        if (this.engine.current.time >= this.nextSample) { this.samples.push(this.engine.current); this.nextSample += 5; }
+        remaining -= this.step;
+      }
+      if (this.engine.current.arrest && !this.arrestLogged) { this.arrestLogged = true; this.samples.push(this.engine.current); this.log("Kreislaufstillstand", "arrest"); }
+    }
+
+    /** Wie InterventionController.Apply: Definition aus interventions.json. Gibt false zurück, wenn nicht (mehr) möglich. */
+    apply(id) {
+      const def = this.interventions[id];
+      if (!def || this.ended || this.engine.current.arrest) return false;
+      if (def.once && this.used.has(id)) return false;
+      this.used.add(id);
+      const iv = { type: def.type, target: def.target || null, compound: def.compound || null, volume_mL: def.volume_mL,
+        rate_mL_min: def.rate_mL_min, rateMultiplier: def.rateMultiplier, successProbability: def.successProbability };
+      const tag = `intervention:${iv.type}:${iv.target || iv.compound || ""}`;
+      const label = def.logLabel || def.label;
+      const v = this.engine.current;
+      if (iv.type === "BloodGas") {
+        const result = `BGA-Ergebnis (abgenommen ${clock(v.time)}): BE ${v.be >= 0 ? "+" : ""}${de1(v.be)} mmol/L, Laktat ${de1(v.lactate)} mmol/L`;
+        this.delayed.push({ due: v.time + def.effectDelay_s, iv, label, result });
+        this.log(`Maßnahme: ${label}`, tag);
+        return true;
+      }
+      if (def.effectDelay_s > 0) {
+        this.delayed.push({ due: v.time + def.effectDelay_s, iv, label, result: null });
+        this.log(`Angeordnet: ${label} (wirksam in ca. ${Math.round(def.effectDelay_s / 60)} min)`, tag);
+        return true;
+      }
+      this.engine.applyIntervention(iv);
+      this.log(`Maßnahme: ${label}`, tag);
+      return true;
+    }
+
+    /** Wie BodyRegion.Examine. */
+    examine(region) {
+      if (this.ended) return [];
+      const t = this.engine.current.time;
+      const findings = [];
+      for (const si of this.scenario.injuries) {
+        if (si.onsetTime_s > t) continue;
+        const def = this.injuries[si.injuryId];
+        if (def.region === region) findings.push(...(def.clinicalFindings || []));
+      }
+      if (region === "Kopf") {
+        const v = this.engine.current;
+        findings.push(`Aktuell GCS ${v.gcs}` + (v.intubated ? " (sediert/beatmet)" : ""));
+        findings.push(v.anisocoria ? "Pupillen anisokor: eine Pupille weit und lichtstarr" : "Pupillen isokor, prompt lichtreagibel");
+      }
+      this.log(`Untersuchung: ${region}` + (findings.length ? "" : " (unauffällig)"), "exam:" + region);
+      return findings;
+    }
+
+    end() {
+      if (this.ended) return;
+      this.samples.push(this.engine.current);
+      this.log("Szenario beendet", "end");
+      this.ended = true;
+    }
+
+    /** Daten fürs Debriefing (SessionLog.BuildDebrief), strukturiert statt als Rich-Text. */
+    debrief() {
+      const s = this.samples, last = this.engine.current;
+      const alive = s.filter((v) => !v.arrest);
+      const maxLoss = Math.max(...s.map((v) => v.loss));
+      const results = evaluate(this.scenario.assessment, this.events).filter((r) => r.outcome !== "NotApplicable");
+      return {
+        mode: this.engine.mode, duration: last.time, arrest: last.arrest, last,
+        maxLoss, shockClass: shockClass(maxLoss),
+        maxHr: alive.length ? Math.max(...alive.map((v) => v.hr)) : null,
+        minSbp: alive.length ? Math.min(...alive.map((v) => v.sbp)) : null,
+        minSpo2: alive.length ? Math.min(...alive.map((v) => v.spo2)) : null,
+        comparison: maxLoss >= 0.15 ? {
+          textbook: { hr: Shock.hr("Textbook", maxLoss), sbp: Shock.sbp("Textbook", maxLoss) },
+          registry: { hr: Shock.hr("Registry", maxLoss), sbp: Shock.sbp("Registry", maxLoss) },
+          be: Shock.be(maxLoss),
+        } : null,
+        results, events: this.events.slice(),
+      };
+    }
+  }
+
+  const api = { MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.NotfallEngine = api;
+})(typeof window !== "undefined" ? window : globalThis);
+</script>
+<script>
+const DATA = {"injuries": {"version": "0.4.0", "injuries": [{"id": "becken_instabil", "name": "Instabile Beckenringfraktur", "region": "Becken", "icd10": "S32.8", "aisSeverity": 4, "effects": [{"effectType": "Hemorrhage", "compartment": "Pelvis", "baseRate_mL_min": 150, "maxTotalLoss_mL": 3000, "progressionRate_per_min": 0}], "clinicalFindings": ["Instabilität bei vorsichtiger Beckenkompression (nur einmal prüfen)", "Prellmarken bzw. Hämatom an Flanke, Leiste oder Perineum", "Beinlängendifferenz und Außenrotation", "Ggf. Blut am Meatus urethrae"], "sources": [{"citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.", "url": "", "note": "Schockklassen, Beckenstabilisierung im Primary Survey"}, {"citation": "DGU/DGOU. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung, AWMF-Register-Nr. 187-023, Version 5.0 (verabschiedet 11/2025). Digitale Fassung: MAGICapp.", "url": "https://app.magicapp.org/#/guideline/8812", "note": "Empfehlungen zu Beckenverletzung und Blutungskontrolle — Empfehlungstext und Grad im Kapitel Schockraum noch nachlesen"}, {"citation": "Devaney GL, Tarrant SM, Weaver N, King KL, Balogh ZJ. Major Pelvic Ring Injuries: Fewer Transfusions Without Deaths from Bleeding During the Last Decade. World J Surg. 2023;47(5):1136-1143.", "url": "https://doi.org/10.1007/s00268-023-06897-7", "note": "144 operativ versorgte instabile Beckenringverletzungen: ca. 1/3 im traumatischen Schock, dort median 6 EK in 24 h; keine Blutungstoten"}], "evidenceStatus": "draft", "reviewNotes": "Blutungskinetik (baseRate, maxTotalLoss) ist weiterhin geschätzt — es fehlen Primärdaten zum Blutverlust über die Zeit. Größenordnung plausibilisiert über Transfusionsbedarf im Schock (Devaney 2023). Szenario-Schweregrad 0,8 entspricht dem Schock-Subkollektiv, nicht der typischen Beckenfraktur. ICD-10-GM-Code und AIS je nach Frakturtyp präzisieren."}, {"id": "femur_schaft_rechts", "name": "Geschlossene Femurschaftfraktur rechts", "region": "Oberschenkel rechts", "icd10": "S72.3", "aisSeverity": 3, "effects": [{"effectType": "Hemorrhage", "compartment": "RightThigh", "baseRate_mL_min": 20, "maxTotalLoss_mL": 1000, "progressionRate_per_min": 0}], "clinicalFindings": ["Fehlstellung und Verkürzung des rechten Oberschenkels", "Zunehmende Schwellung und Spannung der Oberschenkelweichteile", "Starker Bewegungsschmerz, ggf. Krepitation", "Durchblutung, Motorik und Sensibilität distal prüfen"], "sources": [{"citation": "Lieurance R, Benjamin JB, Rappaport WD. Blood loss and transfusion in patients with isolated femur fractures. J Orthop Trauma. 1992;6(2):175-179.", "url": "https://www.crisis-medicine.com/femur-fracture-blood-loss/", "note": "53 isolierte Femurschaftfrakturen: geschätzter Verlust präoperativ Ø ca. 740 mL, gesamt inkl. OP Ø ca. 1,2 L. Zahlen bisher nur aus Sekundärquelle (Link), Volltext prüfen"}, {"citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.", "url": "", "note": "Musculoskeletal Trauma: Femurfraktur als Blutungsquelle"}], "evidenceStatus": "draft", "reviewNotes": "v0.2: Obergrenze von 1500 auf 1000 mL und Rate von 40 auf 20 mL/min gesenkt — isolierte Femurschaftfrakturen bluten präoperativ eher 0,5–1 L. Hypotonie bei Femurfraktur spricht für eine weitere Blutungsquelle."}, {"id": "rippenserienfraktur_links", "name": "Rippenserienfraktur links (Rippen 4–7)", "region": "Thorax", "icd10": "S22.4", "aisSeverity": 3, "effects": [], "clinicalFindings": ["Druckschmerz und Krepitation über den Rippen 4–7 links", "Prellmarke an der linken Thoraxwand", "Schmerzbedingt flache Atmung"], "sources": [{"citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.", "url": "", "note": "Thoracic Trauma: Rippenfrakturen als Hinweis auf intrathorakale Verletzungen"}], "evidenceStatus": "draft", "reviewNotes": "Ohne eigenen physiologischen Effekt im Mock — dient als Befund und Mechanismus-Hinweis. Schmerzbedingte Hypoventilation ggf. in Phase 2 ergänzen."}, {"id": "spannungspneu_links", "name": "Spannungspneumothorax links", "region": "Thorax", "icd10": "S27.0", "aisSeverity": 4, "effects": [{"effectType": "TensionPneumothorax", "compartment": "LeftLung", "baseRate_mL_min": 0, "maxTotalLoss_mL": 0, "progressionRate_per_min": 0.06}], "clinicalFindings": ["Zunehmende Dyspnoe und Tachypnoe, Patient unruhig", "Abgeschwächtes bis fehlendes Atemgeräusch links", "Hypersonorer Klopfschall links", "Gestaute Halsvenen (bei Hypovolämie oft fehlend)", "Trachealverlagerung nach rechts (Spätzeichen, oft nicht tastbar)"], "sources": [{"citation": "Roberts DJ, et al. Clinical Presentation of Patients With Tension Pneumothorax: A Systematic Review. Ann Surg. 2015;261(6):1068-1078.", "url": "https://doi.org/10.1097/SLA.0000000000001073", "note": "Spontanatmung: Hypoxie bei ca. 50 %, Hypotonie und Stillstand deutlich seltener als unter Beatmung (OR Hypotonie 12,6, Stillstand 17,7 beatmet vs. spontan)"}, {"citation": "Ahmad SJS, et al. Meta-analysis of the optimal needle length and decompression site for tension pneumothorax and consensus recommendations on current ATLS and ETC guidelines. World J Emerg Surg. 2025;20:39.", "url": "https://doi.org/10.1186/s13017-025-00613-7", "note": "Nadeldekompression: kombinierte Versagerrate ca. 43 %; Nadellänge wichtiger als Punktionsort"}, {"citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.", "url": "", "note": "Thoracic Trauma: Spannungspneumothorax, Entlastung 4./5. ICR vordere bis mittlere Axillarlinie"}], "evidenceStatus": "draft", "reviewNotes": "Mock-Modell für spontan atmende Patienten: Spannung steigt linear (progressionRate × Schweregrad), früh Hypoxie, Tachypnoe, Tachykardie; Blutdruckabfall erst ab 60 % Spannung; bei 100 % obstruktiver Stillstand. Zeitverlauf ist eine didaktische Setzung — echte Verläufe sind sehr variabel. Beatmete Patienten dekompensieren deutlich schneller (Phase 2)."}, {"id": "epiduralhaematom_rechts", "name": "Epiduralhämatom rechts temporal", "region": "Kopf", "icd10": "S06.4", "aisSeverity": 4, "effects": [{"effectType": "TraumaticBrainInjury", "compartment": "Brain", "baseRate_mL_min": 0, "maxTotalLoss_mL": 0, "progressionRate_per_min": 0.05}], "clinicalFindings": ["Prellmarke und Schwellung temporal rechts", "Laut Zeugen kurz bewusstlos, danach wach (luzides Intervall)", "Kopfschmerzen, Übelkeit, Amnesie für das Ereignis"], "sources": [{"citation": "Chesnut RM, et al. The role of secondary brain injury in determining outcome from severe head injury. J Trauma. 1993;34(2):216-222.", "url": "https://www.qxmd.com/r/8459458", "note": "717 Patienten mit schwerem SHT: Hypotonie (RRsys < 90) bei 34,6 %, verbunden mit 150 % höherer Letalität; Hypoxie unabhängig mit schlechterem Outcome assoziiert"}, {"citation": "Böttiger BW, et al. DGAInfo zur S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. Anästh Intensivmed. 2011;52:S693-S700.", "url": "https://www.ai-online.info/images/ai-ausgabe/2011/11-2011/supplement-10-2011/2011_11_S693-S700_SUPPLEMENT%20Nr.%2010%20-%202011%20-%20Trauma-Update%20%20S3-Leitlinie%20Polytrauma.pdf", "note": "SHT: Normoxie, Normokapnie, Normotonie (GoR A); RRsys nicht unter 90 mmHg (GoR B); permissive Hypotension bei ZNS-Verletzung kontraindiziert; Intubation bei schwerem SHT (präklinisch GCS < 9, GoR B). Stand 2011, gegen Version 5.0 prüfen"}, {"citation": "Brain Trauma Foundation. Guidelines for the Management of Severe Traumatic Brain Injury, 4th ed. 2016.", "url": "https://em.umaryland.edu/educational_pearls/3108/", "note": "RRsys ≥ 110 mmHg (15–49 J. und > 70 J.) bzw. ≥ 100 mmHg (50–69 J.), Level III; Zusammenfassung über Sekundärquelle"}, {"citation": "Extradural hematoma: analysis of 146 cases. Childs Nerv Syst. 1993;9(2):96-99.", "url": "https://doi.org/10.1007/BF00305316", "note": "Luzides Intervall bei ca. 37 % — Kollektiv Kinder 1–16 J., nur eingeschränkt übertragbar"}], "evidenceStatus": "draft", "reviewNotes": "Mock-Verlauf: luzides Intervall, Eintrübung, Anisokorie ab 70 % Raumforderung, Cushing-Reflex ab 80 %, Einklemmung bei 100 %. Hypotonie oder Hypoxie verdoppeln die Progression (didaktische Umsetzung von Chesnut 1993, kein gemessener Faktor). Zeitverlauf ist geschätzt."}]}, "interventions": {"version": "0.3.0", "interventions": [{"id": "o2", "label": "O2 über Maske", "logLabel": "O2 über Maske", "type": "Oxygen", "target": "", "compound": "", "volume_mL": 0, "rate_mL_min": 0, "rateMultiplier": 1, "successProbability": 1, "once": true, "effectDelay_s": 0, "sources": [], "evidenceStatus": "draft", "reviewNotes": "Im Mock pauschal +3 Prozentpunkte SpO2."}, {"id": "beckengurt", "label": "Beckengurt anlegen", "logLabel": "Beckengurt angelegt", "type": "HemorrhageControl", "target": "Pelvis", "compound": "", "volume_mL": 0, "rate_mL_min": 0, "rateMultiplier": 0.5, "successProbability": 1, "once": true, "effectDelay_s": 0, "sources": [{"citation": "BestBETs. Pelvic compression devices: Panacea or myth?", "url": "https://www.bestbets.org/bets/pelvic-compression-devices-panacea-or-myth/", "note": "Nur kleine Beobachtungsstudien mit widersprüchlichen Ergebnissen; kein belastbarer Effekt auf Blutung oder Letalität"}], "evidenceStatus": "draft", "reviewNotes": "rateMultiplier 0,5 ist eine didaktische Setzung, keine Messgröße."}, {"id": "vel_500", "label": "500 mL VEL", "logLabel": "500 mL Vollelektrolytlösung", "type": "FluidInfusion", "target": "", "compound": "BalancedCrystalloid", "volume_mL": 500, "rate_mL_min": 100, "rateMultiplier": 1, "successProbability": 1, "once": false, "effectDelay_s": 0, "sources": [{"citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.", "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf", "note": "Balancierte isotone Vollelektrolytlösungen (GoR B), keine isotone NaCl-Lösung (GoR A)"}], "evidenceStatus": "draft", "reviewNotes": "Laufrate 100 mL/min entspricht grob einer Druckinfusion; prüfen."}, {"id": "ek", "label": "1 EK transfundieren", "logLabel": "1 Erythrozytenkonzentrat", "type": "FluidInfusion", "target": "", "compound": "Blood", "volume_mL": 300, "rate_mL_min": 50, "rateMultiplier": 1, "successProbability": 1, "once": false, "effectDelay_s": 0, "sources": [], "evidenceStatus": "draft", "reviewNotes": "Volumen eines EK (ca. 250–350 mL) und Laufrate gegen Querschnitts-Leitlinie Hämotherapie prüfen. Im Mock vollständig intravasal wirksam, Hämoglobin wird nicht modelliert."}, {"id": "txa", "label": "Tranexamsäure 1 g", "logLabel": "Tranexamsäure 1 g i. v.", "type": "Medication", "target": "", "compound": "TXA", "volume_mL": 0, "rate_mL_min": 0, "rateMultiplier": 1, "successProbability": 1, "once": true, "effectDelay_s": 0, "sources": [{"citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.", "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf", "note": "Bei massiver Blutung früh 1 g über 10 min (GoR A), nicht später als 3 h nach Trauma (GoR B)"}], "evidenceStatus": "draft", "reviewNotes": "Im Mock ohne physiologischen Effekt (Fibrinolyse nicht modelliert); zählt für die Bewertung."}, {"id": "nadel_li", "label": "Nadeldekompression li.", "logLabel": "Nadeldekompression links", "type": "NeedleDecompression", "target": "LeftLung", "compound": "", "volume_mL": 0, "rate_mL_min": 0, "rateMultiplier": 1, "successProbability": 0.57, "once": false, "effectDelay_s": 0, "sources": [{"citation": "Ahmad SJS, et al. Meta-analysis of the optimal needle length and decompression site for tension pneumothorax and consensus recommendations on current ATLS and ETC guidelines. World J Emerg Surg. 2025;20:39.", "url": "https://doi.org/10.1186/s13017-025-00613-7", "note": "Kombinierte Versagerrate ca. 43 % (sehr heterogene, überwiegend retrospektive Daten)"}], "evidenceStatus": "draft", "reviewNotes": "Bei Erfolg sinkt die Spannung auf 15 % und steigt danach mit 20 % der Rate weiter (Re-Spannung möglich)."}, {"id": "drainage_li", "label": "Thoraxdrainage li.", "logLabel": "Thoraxdrainage links", "type": "ChestDrain", "target": "LeftLung", "compound": "", "volume_mL": 0, "rate_mL_min": 0, "rateMultiplier": 1, "successProbability": 1, "once": true, "effectDelay_s": 0, "sources": [], "evidenceStatus": "draft", "reviewNotes": "Im Mock sofortige und vollständige Entlastung; Anlagezeit wird noch nicht simuliert."}, {"id": "intubation", "label": "Intubation + Beatmung", "logLabel": "Notfallnarkose, Intubation und Beatmung", "type": "Intubation", "target": "", "compound": "", "volume_mL": 0, "rate_mL_min": 0, "rateMultiplier": 1, "successProbability": 1, "once": true, "effectDelay_s": 0, "sources": [{"citation": "Böttiger BW, et al. DGAInfo zur S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. Anästh Intensivmed. 2011;52:S693-S700.", "url": "https://www.ai-online.info/images/ai-ausgabe/2011/11-2011/supplement-10-2011/2011_11_S693-S700_SUPPLEMENT%20Nr.%2010%20-%202011%20-%20Trauma-Update%20%20S3-Leitlinie%20Polytrauma.pdf", "note": "Intubation bei schwerem SHT (präklinisch GCS < 9, GoR B; innerklinisch bewusstlose Patienten GCS ≤ 8, GoR A); RSI und Präoxygenierung GoR A"}], "evidenceStatus": "draft", "reviewNotes": "Im Mock: Atemweg gesichert, keine Hypoventilation mehr. Überdruckbeatmung verschärft einen unentlasteten Spannungspneumothorax (Faktor 3, didaktisch nach Roberts 2015). Narkoseinduzierte Hypotonie noch nicht modelliert."}, {"id": "osmotherapie", "label": "Osmotherapie", "logLabel": "Osmotherapie (hypertone NaCl-Lösung)", "type": "Osmotherapy", "target": "", "compound": "", "volume_mL": 0, "rate_mL_min": 0, "rateMultiplier": 1, "successProbability": 1, "once": true, "effectDelay_s": 0, "sources": [{"citation": "Böttiger BW, et al. DGAInfo zur S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. Anästh Intensivmed. 2011;52:S693-S700.", "url": "https://www.ai-online.info/images/ai-ausgabe/2011/11-2011/supplement-10-2011/2011_11_S693-S700_SUPPLEMENT%20Nr.%2010%20-%202011%20-%20Trauma-Update%20%20S3-Leitlinie%20Polytrauma.pdf", "note": "Bei Verdacht auf Herniation können Hyperventilation, Mannitol oder hypertone Kochsalzlösung eingesetzt werden (GoR 0)"}], "evidenceStatus": "draft", "reviewNotes": "Überbrückende Maßnahme; im Mock einmalig 15 % weniger Raumforderung."}, {"id": "kraniotomie", "label": "Neurochirurgie: Kraniotomie", "logLabel": "Notfall-Kraniotomie (CT und Neurochirurgie)", "type": "NeurosurgicalDecompression", "target": "", "compound": "", "volume_mL": 0, "rate_mL_min": 0, "rateMultiplier": 1, "successProbability": 1, "once": true, "effectDelay_s": 600, "sources": [], "evidenceStatus": "draft", "reviewNotes": "Wirkt nach 10 min (CT, Transport, OP-Beginn) — didaktische Setzung; reale Intervalle aus TR-DGU bzw. Neurochirurgie prüfen. Danach stoppt die Raumforderung bei höchstens 40 %."}, {"id": "bga", "label": "BGA abnehmen", "logLabel": "Arterielle BGA abgenommen", "type": "BloodGas", "target": "", "compound": "", "volume_mL": 0, "rate_mL_min": 0, "rateMultiplier": 1, "successProbability": 1, "once": false, "effectDelay_s": 120, "sources": [{"citation": "Mutschler M, et al. Renaissance of base deficit for the initial assessment of trauma patients. Crit Care. 2013;17:R42.", "url": "https://doi.org/10.1186/cc12555", "note": "Base Deficit stratifiziert Transfusionsbedarf und Letalität besser als die ATLS-Klassifikation aus Vitalparametern"}], "evidenceStatus": "draft", "reviewNotes": "Ergebnis nach 2 min mit den Werten zum Abnahmezeitpunkt. Laktat-Werte im Mock sind didaktische Setzungen."}]}, "scenarios": [{"id": "motorrad_beckenfraktur", "title": "Motorradunfall mit Beckenfraktur", "description": "35-jähriger Motorradfahrer, mit ca. 70 km/h gegen eine Leitplanke geprallt. Bei Eintreffen wach, klagt über Schmerzen im Becken und rechten Oberschenkel.", "mechanism": "Hochrasanztrauma, Anprall gegen Leitplanke, Sturz vom Motorrad", "patient": {"sex": "male", "age": 35, "weight_kg": 80, "height_cm": 182, "betaBlocker": false}, "injuries": [{"injuryId": "becken_instabil", "onsetTime_s": 0, "severity": 0.8}, {"injuryId": "femur_schaft_rechts", "onsetTime_s": 0, "severity": 0.6}], "learningGoals": ["Hämorrhagischen Schock anhand der Vitalparameter erkennen und einer Schockklasse zuordnen", "Beckeninstabilität als Blutungsquelle identifizieren und früh stabilisieren", "Restriktive Volumentherapie und frühe Gabe von Blutprodukten begründen", "Femurfraktur als zusätzliche Blutungsquelle mitbedenken"], "expectedCourse": "Ohne Maßnahmen progredienter hämorrhagischer Schock: zunehmende Tachykardie innerhalb weniger Minuten, Blutdruckabfall ab ca. 30 % Volumenverlust, unbehandelt Kreislaufstillstand. Beckengurt und Blutprodukte verlangsamen bzw. stabilisieren den Verlauf.", "defaultTimeScale": 1, "assessment": [{"id": "o2", "description": "Sauerstoff gegeben", "type": "deadline", "tags": ["intervention:Oxygen"], "limit": 120, "relativeTo": "", "onlyAfterReference": false, "critical": false, "rationale": "Basismaßnahme im Primary Survey (B). Kein belegtes Zeitziel — didaktische Setzung."}, {"id": "becken_untersucht", "description": "Becken untersucht", "type": "deadline", "tags": ["exam:Becken"], "limit": 180, "relativeTo": "", "onlyAfterReference": false, "critical": false, "rationale": "Teil der C-Untersuchung im Primary Survey; Instabilität nur einmal vorsichtig prüfen. Zeitziel didaktisch."}, {"id": "oberschenkel_untersucht", "description": "Oberschenkel untersucht", "type": "deadline", "tags": ["exam:Oberschenkel rechts", "exam:Oberschenkel links"], "limit": 300, "relativeTo": "", "onlyAfterReference": false, "critical": false, "rationale": "Femurfraktur als zusätzliche Blutungsquelle erkennen. Zeitziel didaktisch."}, {"id": "beckengurt", "description": "Beckengurt angelegt", "type": "deadline", "tags": ["intervention:HemorrhageControl:Pelvis"], "limit": 300, "relativeTo": "", "onlyAfterReference": false, "critical": true, "rationale": "S3-Leitlinie (GoR A): bei instabilem Beckenring mit hämodynamischer Instabilität mechanische Notfallstabilisierung. Muss im Primary Survey und vor der CT erfolgen (Ganzkörper-CT laut TR-DGU 2016 im Mittel 22 min nach Aufnahme). 5 min = didaktische Konkretisierung."}, {"id": "bga", "description": "BGA mit Base Excess abgenommen", "type": "deadline", "tags": ["intervention:BloodGas"], "limit": 600, "relativeTo": "", "onlyAfterReference": false, "critical": false, "rationale": "Base Excess zeigt den Schock verlässlicher als HF und Blutdruck (Mutschler 2013, TR-DGU); ATLS 10th ed. führt ihn in der Schockklassen-Tabelle. Zeitziel didaktisch."}, {"id": "blut", "description": "Blutprodukte begonnen", "type": "deadline", "tags": ["intervention:FluidInfusion:Blood"], "limit": 600, "relativeTo": "", "onlyAfterReference": false, "critical": true, "rationale": "Jede Minute Verzögerung bis zur ersten Transfusion ist in Beobachtungsstudien mit höherer Letalität assoziiert (u. a. Duchesne 2024: OR 1,11 pro Minute, penetrierendes Trauma; frühere Studien ca. 2 % pro Minute). 10 min = didaktische Setzung."}, {"id": "txa", "description": "Tranexamsäure gegeben", "type": "deadline", "tags": ["intervention:Medication:TXA"], "limit": 600, "relativeTo": "", "onlyAfterReference": false, "critical": false, "rationale": "S3-Leitlinie (GoR A): bei massiver Blutung früh 1 g über 10 min; nicht später als 3 h nach Trauma (GoR B). Präklinisch kann sie bereits gegeben sein. 10 min = didaktische Setzung."}, {"id": "kristalloid_restriktiv", "description": "Kristalloide restriktiv (max. 1000 mL)", "type": "maxCount", "tags": ["intervention:FluidInfusion:BalancedCrystalloid"], "limit": 2, "relativeTo": "", "onlyAfterReference": false, "critical": false, "rationale": "S3-Leitlinie (GoR B): Volumentherapie bei unkontrollierter Blutung reduzieren, Ziel RRsys ca. 90 mmHg bzw. MAD 65 mmHg bis zur Blutstillung. 1000 mL entspricht dem initialen Bolus nach ATLS 10th ed.; als Obergrenze didaktische Setzung."}]}, {"id": "pkw_spannungspneu", "title": "PKW-Unfall mit Thoraxtrauma", "description": "45-jähriger PKW-Fahrer, Frontalkollision mit ca. 50 km/h, Gurt angelegt, Airbag ausgelöst. Bei Übergabe wach, klagt über Schmerzen links thorakal. Präklinisch stabil.", "mechanism": "Frontalkollision, Gurt- und Lenkradanprall links thorakal", "patient": {"sex": "male", "age": 45, "weight_kg": 85, "height_cm": 178, "betaBlocker": false}, "injuries": [{"injuryId": "rippenserienfraktur_links", "onsetTime_s": 0, "severity": 1.0}, {"injuryId": "spannungspneu_links", "onsetTime_s": 90, "severity": 0.8}], "learningGoals": ["Verschlechterung eines zunächst stabilen Patienten durch wiederholte Re-Evaluation erkennen", "Spannungspneumothorax klinisch diagnostizieren, ohne auf Bildgebung zu warten", "Hypoxie und Tachypnoe als Frühzeichen beim spontan atmenden Patienten einordnen", "Nach Nadeldekompression den Erfolg prüfen und die Thoraxdrainage als definitive Versorgung anlegen"], "expectedCourse": "Ab ca. 1,5 Minuten entwickelt sich links ein Spannungspneumothorax. Zuerst fallen SpO2 und steigen Atem- und Herzfrequenz, der Blutdruck bleibt lange stabil. Unbehandelt fällt der Blutdruck etwa 14 Minuten nach Szenariostart, nach rund 22 Minuten folgt ein obstruktiver Kreislaufstillstand. Die Nadeldekompression versagt in etwa 4 von 10 Fällen; die Thoraxdrainage entlastet definitiv.", "defaultTimeScale": 1, "assessment": [{"id": "o2", "description": "Sauerstoff gegeben", "type": "deadline", "tags": ["intervention:Oxygen"], "limit": 120, "relativeTo": "", "onlyAfterReference": false, "critical": false, "rationale": "Basismaßnahme im Primary Survey (B). Kein belegtes Zeitziel — didaktische Setzung."}, {"id": "thorax_untersucht", "description": "Thorax untersucht", "type": "deadline", "tags": ["exam:Thorax"], "limit": 150, "relativeTo": "injury:spannungspneu_links", "onlyAfterReference": false, "critical": false, "rationale": "S3-Leitlinie (GoR B): Diagnose klinisch (einseitig fehlendes Atemgeräusch plus typische Symptome). Zeitziel didaktisch, gezählt ab Beginn des Spannungspneus."}, {"id": "entlastung", "description": "Thorax entlastet (Nadel oder Drainage)", "type": "deadline", "tags": ["intervention:NeedleDecompression:LeftLung", "intervention:ChestDrain:LeftLung"], "limit": 360, "relativeTo": "injury:spannungspneu_links", "onlyAfterReference": false, "critical": true, "rationale": "Nach klinischer Diagnose sofort entlasten, nicht auf Bildgebung warten (ATLS). Im Modell fällt die SpO2 etwa 6 min nach Beginn unter 90 %; Ziel: vorher entlasten (didaktische Setzung)."}, {"id": "drainage", "description": "Thoraxdrainage angelegt", "type": "deadline", "tags": ["intervention:ChestDrain:LeftLung"], "limit": 900, "relativeTo": "injury:spannungspneu_links", "onlyAfterReference": false, "critical": true, "rationale": "Nadeldekompression versagt in ca. 43 % (Ahmad 2025) und überbrückt nur; Drainage als definitive Versorgung. 15 min ab Beginn = didaktische Setzung."}]}, {"id": "escooter_sht", "title": "E-Scooter-Sturz mit Schädel-Hirn-Trauma", "description": "24-jähriger E-Scooter-Fahrer, ohne Helm gestürzt, Kopfanprall rechts temporal. Laut Zeugen kurz bewusstlos, bei Übergabe wach und orientiert, klagt über Kopfschmerzen.", "mechanism": "Sturz vom E-Scooter ohne Helm, Kopfanprall auf Bordsteinkante", "patient": {"sex": "male", "age": 24, "weight_kg": 78, "height_cm": 181, "betaBlocker": false}, "injuries": [{"injuryId": "epiduralhaematom_rechts", "onsetTime_s": 0, "severity": 0.9}], "learningGoals": ["Luzides Intervall und Unfallmechanismus als Warnzeichen erkennen, obwohl der Patient zunächst wach ist", "GCS und Pupillen wiederholt kontrollieren und eine Verschlechterung früh bemerken", "Sekundäre Hirnschädigung durch Hypoxie und Hypotonie konsequent vermeiden", "Bei GCS ≤ 8 den Atemweg sichern; bei Anisokorie überbrückend handeln und die Neurochirurgie früh einbinden"], "expectedCourse": "Zunächst wach (luzides Intervall). Ab etwa 7 Minuten Eintrübung, nach ca. 15 Minuten GCS 8 und Anisokorie, danach Cushing-Reflex. Ohne Maßnahmen Einklemmung nach rund 20 Minuten; ohne gesicherten Atemweg früher, weil die Hypoxie den Verlauf beschleunigt. Die Kraniotomie wirkt 10 Minuten nach Anordnung.", "defaultTimeScale": 1, "assessment": [{"id": "o2", "description": "Sauerstoff gegeben", "type": "deadline", "tags": ["intervention:Oxygen"], "limit": 120, "relativeTo": "", "onlyAfterReference": false, "critical": false, "rationale": "Basismaßnahme im Primary Survey; Normoxie bei SHT (S3, GoR A). Zeitziel didaktisch."}, {"id": "neuro_untersucht", "description": "GCS und Pupillen geprüft", "type": "deadline", "tags": ["exam:Kopf"], "limit": 180, "relativeTo": "", "onlyAfterReference": false, "critical": false, "rationale": "D-Teil des Primary Survey. Zeitziel didaktisch."}, {"id": "neuro_reevaluation", "description": "Neurostatus nach Eintrübung erneut geprüft", "type": "deadline", "tags": ["exam:Kopf"], "limit": 120, "relativeTo": "state:gcs13", "onlyAfterReference": true, "critical": false, "rationale": "Nach GCS-Abfall erneut untersuchen; zählt jede Untersuchung des Kopfes. Zeitziel didaktisch."}, {"id": "kraniotomie", "description": "Neurochirurgie früh eingebunden", "type": "deadline", "tags": ["intervention:NeurosurgicalDecompression"], "limit": 240, "relativeTo": "state:gcs13", "onlyAfterReference": false, "critical": true, "rationale": "GCS-Abfall nach luzidem Intervall ist ein Notfall; CT und Neurochirurgie sofort. 4 min nach Eintrübung = didaktische Setzung."}, {"id": "intubation", "description": "Atemweg gesichert bei GCS ≤ 8", "type": "deadline", "tags": ["intervention:Intubation"], "limit": 180, "relativeTo": "state:gcs8", "onlyAfterReference": false, "critical": true, "rationale": "S3: bewusstlose Patienten (GCS ≤ 8) intubieren (innerklinisch GoR A). 3 min = didaktische Setzung."}, {"id": "osmotherapie", "description": "Osmotherapie bei Anisokorie", "type": "deadline", "tags": ["intervention:Osmotherapy"], "limit": 180, "relativeTo": "state:anisocoria", "onlyAfterReference": false, "critical": false, "rationale": "Überbrückend bei Herniationszeichen (S3, GoR 0). Zeitziel didaktisch."}, {"id": "keine_hypoxie", "description": "Keine Hypoxie (SpO2 < 90 %)", "type": "maxCount", "tags": ["state:hypoxia"], "limit": 0, "relativeTo": "", "onlyAfterReference": false, "critical": true, "rationale": "Hypoxie verschlechtert das Outcome nach SHT unabhängig (Chesnut 1993); SpO2 < 90 % vermeiden (S3, GoR A)."}, {"id": "keine_hypotonie", "description": "Keine Hypotonie (RRsys < 90 mmHg)", "type": "maxCount", "tags": ["state:hypotension"], "limit": 0, "relativeTo": "", "onlyAfterReference": false, "critical": true, "rationale": "Hypotonie bei schwerem SHT mit 150 % höherer Letalität verbunden (Chesnut 1993); RRsys nicht unter 90 mmHg (S3, GoR B)."}]}, {"id": "fussgaengerin_becken_betablocker", "title": "Ältere Fußgängerin mit Beckenfraktur", "description": "76-jährige Fußgängerin, von einem abbiegenden PKW mit ca. 30 km/h erfasst. Bei Eintreffen wach, klagt über Schmerzen im Becken. Dauermedikation laut Angehörigen: Bisoprolol, Ramipril.", "mechanism": "Fußgängerin von PKW erfasst, seitlicher Anprall, Sturz auf die Straße", "patient": {"sex": "female", "age": 76, "weight_kg": 65, "height_cm": 163, "betaBlocker": true}, "injuries": [{"injuryId": "becken_instabil", "onsetTime_s": 0, "severity": 0.6}], "learningGoals": ["Erkennen, dass Betablocker die Tachykardie maskieren und eine normale Herzfrequenz einen Schock nicht ausschließt", "Einen bei vorbestehender Hypertonie scheinbar normalen Blutdruck kritisch bewerten", "Base Excess und Laktat als frühe Schockmarker nutzen", "Instabiles Becken auch bei geringerer Energie (ältere Patientin) früh stabilisieren"], "expectedCourse": "Progrediente Beckenblutung. Durch Betablocker steigt die Herzfrequenz kaum; im Realitätsmodus liegt der Blutdruck wegen vorbestehender Hypertonie anfangs höher. Base Excess und Laktat verschlechtern sich früher als die Vitalwerte vermuten lassen.", "defaultTimeScale": 1, "assessment": [{"id": "o2", "description": "Sauerstoff gegeben", "type": "deadline", "tags": ["intervention:Oxygen"], "limit": 120, "relativeTo": "", "onlyAfterReference": false, "critical": false, "rationale": "Basismaßnahme im Primary Survey (B). Kein belegtes Zeitziel — didaktische Setzung."}, {"id": "becken_untersucht", "description": "Becken untersucht", "type": "deadline", "tags": ["exam:Becken"], "limit": 180, "relativeTo": "", "onlyAfterReference": false, "critical": false, "rationale": "Teil der C-Untersuchung im Primary Survey; Instabilität nur einmal vorsichtig prüfen. Zeitziel didaktisch."}, {"id": "beckengurt", "description": "Beckengurt angelegt", "type": "deadline", "tags": ["intervention:HemorrhageControl:Pelvis"], "limit": 300, "relativeTo": "", "onlyAfterReference": false, "critical": true, "rationale": "S3-Leitlinie (GoR A): bei instabilem Beckenring mit hämodynamischer Instabilität mechanische Notfallstabilisierung. Muss im Primary Survey und vor der CT erfolgen (Ganzkörper-CT laut TR-DGU 2016 im Mittel 22 min nach Aufnahme). 5 min = didaktische Konkretisierung."}, {"id": "bga", "description": "BGA mit Base Excess abgenommen", "type": "deadline", "tags": ["intervention:BloodGas"], "limit": 300, "relativeTo": "", "onlyAfterReference": false, "critical": true, "rationale": "Bei Betablockade ist die Herzfrequenz kein verlässlicher Schockindikator; der Base Excess deckt den Schock früher auf (Mutschler 2013). 5 min = didaktische Setzung."}, {"id": "blut", "description": "Blutprodukte begonnen", "type": "deadline", "tags": ["intervention:FluidInfusion:Blood"], "limit": 600, "relativeTo": "", "onlyAfterReference": false, "critical": true, "rationale": "Jede Minute Verzögerung bis zur ersten Transfusion ist in Beobachtungsstudien mit höherer Letalität assoziiert (u. a. Duchesne 2024: OR 1,11 pro Minute, penetrierendes Trauma; frühere Studien ca. 2 % pro Minute). 10 min = didaktische Setzung."}, {"id": "txa", "description": "Tranexamsäure gegeben", "type": "deadline", "tags": ["intervention:Medication:TXA"], "limit": 600, "relativeTo": "", "onlyAfterReference": false, "critical": false, "rationale": "S3-Leitlinie (GoR A): bei massiver Blutung früh 1 g über 10 min; nicht später als 3 h nach Trauma (GoR B). Präklinisch kann sie bereits gegeben sein. 10 min = didaktische Setzung."}, {"id": "kristalloid_restriktiv", "description": "Kristalloide restriktiv (max. 1000 mL)", "type": "maxCount", "tags": ["intervention:FluidInfusion:BalancedCrystalloid"], "limit": 2, "relativeTo": "", "onlyAfterReference": false, "critical": false, "rationale": "S3-Leitlinie (GoR B): Volumentherapie bei unkontrollierter Blutung reduzieren, Ziel RRsys ca. 90 mmHg bzw. MAD 65 mmHg bis zur Blutstillung. 1000 mL entspricht dem initialen Bolus nach ATLS 10th ed.; als Obergrenze didaktische Setzung."}]}], "built": "27.10.2026"};
+const E = window.NotfallEngine;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const R = (x) => Math.round(x);
+
+let selected = DATA.scenarios[0].id, mode = "Textbook";
+let sim = null, speed = 1, paused = false, lastFrame = 0, lastRender = 0, wakeLock = null, logCount = 0;
+
+$("dataVersion").textContent = `Verletzungen v${DATA.injuries.version}, Maßnahmen v${DATA.interventions.version}, Stand ${DATA.built}`;
+
+// ---------- Auswahl ----------
+function renderSetup() {
+  $("scenarioList").innerHTML = DATA.scenarios.map((s) =>
+    `<button type="button" class="scenario-opt" data-id="${s.id}" aria-pressed="${s.id === selected}"><b>${esc(s.title)}</b><span class="muted">${esc(s.patient.age)} J., ${s.patient.sex === "female" ? "weiblich" : "männlich"}, ${esc(s.patient.weight_kg)} kg${s.patient.betaBlocker ? " · Betablocker" : ""}</span></button>`).join("");
+  const s = DATA.scenarios.find((x) => x.id === selected);
+  $("brief").innerHTML = `<p>${esc(s.description)}</p><p class="muted"><b>Mechanismus:</b> ${esc(s.mechanism)}</p>`;
+  $("modeTextbook").setAttribute("aria-pressed", mode === "Textbook");
+  $("modeRegistry").setAttribute("aria-pressed", mode === "Registry");
+  $("modeNote").textContent = mode === "Textbook"
+    ? "Lehrbuch: Vitalwerte folgen den ATLS-Schockklassen. Gut zum Lernen der Muster."
+    : "Realität: an Registerdaten angelehnt. Weniger Tachykardie, späte Hypotonie, jeder Patient reagiert etwas anders.";
+}
+$("scenarioList").addEventListener("click", (e) => { const b = e.target.closest(".scenario-opt"); if (b) { selected = b.dataset.id; renderSetup(); } });
+$("modeTextbook").onclick = () => { mode = "Textbook"; renderSetup(); };
+$("modeRegistry").onclick = () => { mode = "Registry"; renderSetup(); };
+$("startBtn").onclick = start;
+$("againBtn").onclick = () => { $("debrief").hidden = true; $("setup").hidden = false; sim = null; resetMonitor(); renderSetup(); window.scrollTo({ top: 0 }); };
+
+// ---------- Lauf ----------
+function start() {
+  sim = new E.Simulation(DATA, selected, mode);
+  speed = 1; paused = false; logCount = 0;
+  $("log").innerHTML = ""; $("labResult").hidden = true;
+  $("findings").innerHTML = `<p class="muted" style="margin:6px 0 0">Tippe eine Körperregion an, um sie zu untersuchen. Rechts und links sind aus Sicht des Patienten.</p>`;
+  document.querySelectorAll(".region").forEach((r) => r.classList.remove("examined"));
+  $("setup").hidden = true; $("controlsPanel").hidden = false; $("runView").hidden = false; $("debrief").hidden = true;
+  $("pauseBtn").textContent = "Pause";
+  document.querySelectorAll("[data-speed]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.speed === "1"));
+  $("monScenario").innerHTML = `<strong>${esc(sim.scenario.title)}</strong> · ${mode === "Registry" ? "Realität" : "Lehrbuch"}`;
+  renderActions(); renderMonitor(); renderLog();
+  try { navigator.wakeLock && navigator.wakeLock.request("screen").then((w) => (wakeLock = w)).catch(() => {}); } catch (e) {}
+  lastFrame = performance.now();
+  requestAnimationFrame(loop);
+}
+
+function loop(now) {
+  if (!sim || sim.ended) return;
+  const dt = Math.min(0.25, (now - lastFrame) / 1000);
+  lastFrame = now;
+  if (!paused && !sim.vitals.arrest) sim.advance(dt * speed);
+  if (now - lastRender > 400) { lastRender = now; renderMonitor(); renderLog(); renderActions(); }
+  requestAnimationFrame(loop);
+}
+
+$("pauseBtn").onclick = () => { paused = !paused; $("pauseBtn").textContent = paused ? "Weiter" : "Pause"; };
+document.querySelectorAll("[data-speed]").forEach((b) => b.onclick = () => {
+  speed = Number(b.dataset.speed);
+  document.querySelectorAll("[data-speed]").forEach((x) => x.setAttribute("aria-pressed", x === b));
+});
+$("endBtn").onclick = () => { if (!sim) return; sim.end(); renderMonitor(); showDebrief(); };
+
+// ---------- Monitor ----------
+function setVital(id, text, alarm) {
+  const el = $(id); el.querySelector(".val").textContent = text; el.classList.toggle("alarm", !!alarm);
+}
+function resetMonitor() {
+  ["vHr", "vSpo2", "vRr", "vCo2"].forEach((id) => setVital(id, "--", false));
+  setVital("vBp", "--/--", false); $("vMap").textContent = "MAD --"; $("monClock").textContent = "00:00";
+  $("monArrest").hidden = true; $("vitals").hidden = false;
+  $("monScenario").innerHTML = "<strong>NotfallSIM</strong> · Szenario wählen";
+}
+function renderMonitor() {
+  const v = sim.vitals;
+  $("monClock").textContent = E.clock(v.time);
+  $("monArrest").hidden = !v.arrest;
+  if (v.arrest) {
+    ["vHr", "vSpo2", "vRr"].forEach((id) => setVital(id, "---", true));
+    setVital("vBp", "---", true); $("vMap").textContent = "MAD ---"; setVital("vCo2", R(v.etco2), true);
+    return;
+  }
+  setVital("vHr", R(v.hr), v.hr > 120 || v.hr < 50);
+  setVital("vBp", `${R(v.sbp)}/${R(v.dbp)}`, v.sbp < 90);
+  $("vMap").textContent = `MAD ${R(v.map)}`;
+  setVital("vSpo2", R(v.spo2), v.spo2 < 90);
+  setVital("vRr", R(v.rr), v.rr > 30 || v.rr < 8);
+  setVital("vCo2", R(v.etco2), v.etco2 < 25 || v.etco2 > 50);
+}
+
+// ---------- Maßnahmen ----------
+function renderActions() {
+  const pendingIds = new Set(sim.delayed.map((d) => d.iv.type));
+  $("actions").innerHTML = DATA.interventions.interventions.map((d) => {
+    const used = sim.used.has(d.id), blocked = (d.once && used) || sim.ended || sim.vitals.arrest;
+    const running = pendingIds.has(d.type) && used;
+    let note = d.effectDelay_s > 0 ? `wirkt nach ${R(d.effectDelay_s / 60)} min` : (d.once ? "einmalig" : "wiederholbar");
+    if (running) note = d.type === "BloodGas" ? "Analyse läuft …" : "angeordnet …";
+    else if (used && d.once) note = "erledigt";
+    return `<button type="button" class="act${used && d.once ? " done" : ""}" data-id="${d.id}" ${blocked ? "disabled" : ""}><span>${esc(d.label)}</span><small>${note}</small></button>`;
+  }).join("");
+}
+$("actions").addEventListener("click", (e) => {
+  const b = e.target.closest(".act"); if (!b || !sim) return;
+  if (sim.apply(b.dataset.id)) { renderActions(); renderLog(); renderMonitor(); }
+});
+
+// ---------- Untersuchung ----------
+function examine(g) {
+  if (!sim || sim.ended) return;
+  const region = g.dataset.region;
+  const f = sim.examine(region);
+  g.classList.add("examined");
+  $("findings").innerHTML = `<b>${esc(region)}</b>` + (f.length ? `<ul>${f.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p style="margin:6px 0 0">Unauffällig.</p>`);
+  renderLog();
+}
+$("bodySvg").addEventListener("click", (e) => { const g = e.target.closest(".region"); if (g) examine(g); });
+$("bodySvg").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { const g = e.target.closest(".region"); if (g) { e.preventDefault(); examine(g); } } });
+
+// ---------- Protokoll ----------
+function logClass(tag) { return !tag ? "" : tag.startsWith("state") || tag === "arrest" ? "state" : tag.startsWith("result") ? "result" : ""; }
+function renderLog() {
+  if (sim.events.length === logCount) return;
+  const fresh = sim.events.slice(logCount);
+  logCount = sim.events.length;
+  for (const ev of fresh) {
+    const li = document.createElement("li");
+    li.innerHTML = `<time>${E.clock(ev.time)}</time><span class="${logClass(ev.tag)}">${esc(ev.message)}</span>`;
+    $("log").prepend(li);
+    if (ev.tag && ev.tag.startsWith("result")) { $("labResult").hidden = false; $("labResult").textContent = ev.message; }
+  }
+}
+
+// ---------- Debriefing ----------
+const OUT = { Met: "erfüllt", Late: "verspätet", Missed: "fehlt", Exceeded: "überschritten" };
+function showDebrief() {
+  const d = sim.debrief();
+  try { wakeLock && wakeLock.release(); } catch (e) {}
+  $("controlsPanel").hidden = true; $("runView").hidden = true; $("debrief").hidden = false;
+  $("debMode").textContent = `${sim.scenario.title} · ${d.mode === "Registry" ? "Realitätsmodus" : "Lehrbuchmodus"}`;
+  const kv = (k, v) => `<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  $("debOutcome").innerHTML = [
+    kv("Dauer", E.clock(d.duration)),
+    kv("Ausgang", d.arrest ? "Stillstand" : "lebt"),
+    d.maxLoss >= 0.05 ? kv("Max. Blutverlust", `${R(d.maxLoss * 100)} % · Kl. ${d.shockClass}`) : "",
+    d.maxHr != null ? kv("Max. HF", R(d.maxHr)) : "",
+    d.minSbp != null ? kv("Min. RRsys", R(d.minSbp)) : "",
+    d.minSpo2 != null ? kv("Min. SpO₂", R(d.minSpo2) + " %") : "",
+  ].join("");
+  const met = d.results.filter((r) => r.outcome === "Met").length;
+  const critMissed = d.results.some((r) => r.criterion.critical && r.outcome !== "Met");
+  $("debScore").innerHTML = `Bewertung: ${met} von ${d.results.length} Zielen erreicht` + (critMissed ? ` <span class="crit-tag">· kritisches Ziel verfehlt</span>` : "");
+  $("debResults").innerHTML = d.results.map((r) => {
+    const c = r.criterion;
+    const when = c.type === "maxCount" ? `${r.count}× (max. ${c.limit}×)` : r.time != null ? `bei ${E.clock(r.time)}, Ziel ${E.clock(r.deadline)}` : `Ziel ${E.clock(r.deadline)}`;
+    return `<li><span class="chip ${r.outcome}">${OUT[r.outcome]}</span><span><b>${esc(c.description)}</b>${c.critical ? ' <span class="crit-tag">kritisch</span>' : ""} <span class="muted">· ${when}</span></span><span class="why">${esc(c.rationale)}</span></li>`;
+  }).join("");
+  $("debCompare").innerHTML = d.comparison ? `<h2 style="margin-top:18px">Lehrbuch vs. Realität bei ${R(d.maxLoss * 100)} % Blutverlust</h2>
+    <div style="overflow-x:auto"><table class="compare"><thead><tr><th>Modell</th><th>HF</th><th>RRsys</th><th>Base Excess</th></tr></thead><tbody>
+    <tr><td>Lehrbuch (ATLS)</td><td>${R(d.comparison.textbook.hr)}</td><td>${R(d.comparison.textbook.sbp)}</td><td>${E.de1(d.comparison.be)}</td></tr>
+    <tr><td>Registerdaten</td><td>${R(d.comparison.registry.hr)}</td><td>${R(d.comparison.registry.sbp)}</td><td>${E.de1(d.comparison.be)}</td></tr></tbody></table></div>
+    <p class="notice">Der Base Excess verschlechtert sich in beiden Modellen gleich. Er zeigt den Schock oft verlässlicher als Herzfrequenz und Blutdruck.</p>` : "";
+  $("debLog").innerHTML = d.events.map((ev) => `<li><time>${E.clock(ev.time)}</time><span class="${logClass(ev.tag)}">${esc(ev.message)}</span></li>`).join("");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+renderSetup();
+</script>

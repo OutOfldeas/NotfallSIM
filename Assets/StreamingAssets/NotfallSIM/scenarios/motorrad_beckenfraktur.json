@@ -40,6 +40,7 @@
       ],
       "limit": 120,
       "relativeTo": "",
+      "onlyAfterReference": false,
       "critical": false,
       "rationale": "Basismaßnahme im Primary Survey (B). Kein belegtes Zeitziel — didaktische Setzung."
     },
@@ -52,6 +53,7 @@
       ],
       "limit": 180,
       "relativeTo": "",
+      "onlyAfterReference": false,
       "critical": false,
       "rationale": "Teil der C-Untersuchung im Primary Survey; Instabilität nur einmal vorsichtig prüfen. Zeitziel didaktisch."
     },
@@ -65,6 +67,7 @@
       ],
       "limit": 300,
       "relativeTo": "",
+      "onlyAfterReference": false,
       "critical": false,
       "rationale": "Femurfraktur als zusätzliche Blutungsquelle erkennen. Zeitziel didaktisch."
     },
@@ -77,6 +80,7 @@
       ],
       "limit": 300,
       "relativeTo": "",
+      "onlyAfterReference": false,
       "critical": true,
       "rationale": "S3-Leitlinie (GoR A): bei instabilem Beckenring mit hämodynamischer Instabilität mechanische Notfallstabilisierung. Muss im Primary Survey und vor der CT erfolgen (Ganzkörper-CT laut TR-DGU 2016 im Mittel 22 min nach Aufnahme). 5 min = didaktische Konkretisierung."
     },
@@ -89,6 +93,7 @@
       ],
       "limit": 600,
       "relativeTo": "",
+      "onlyAfterReference": false,
       "critical": false,
       "rationale": "Base Excess zeigt den Schock verlässlicher als HF und Blutdruck (Mutschler 2013, TR-DGU); ATLS 10th ed. führt ihn in der Schockklassen-Tabelle. Zeitziel didaktisch."
     },
@@ -101,6 +106,7 @@
       ],
       "limit": 600,
       "relativeTo": "",
+      "onlyAfterReference": false,
       "critical": true,
       "rationale": "Jede Minute Verzögerung bis zur ersten Transfusion ist in Beobachtungsstudien mit höherer Letalität assoziiert (u. a. Duchesne 2024: OR 1,11 pro Minute, penetrierendes Trauma; frühere Studien ca. 2 % pro Minute). 10 min = didaktische Setzung."
     },
@@ -113,6 +119,7 @@
       ],
       "limit": 600,
       "relativeTo": "",
+      "onlyAfterReference": false,
       "critical": false,
       "rationale": "S3-Leitlinie (GoR A): bei massiver Blutung früh 1 g über 10 min; nicht später als 3 h nach Trauma (GoR B). Präklinisch kann sie bereits gegeben sein. 10 min = didaktische Setzung."
     },
@@ -125,6 +132,7 @@
       ],
       "limit": 2,
       "relativeTo": "",
+      "onlyAfterReference": false,
       "critical": false,
       "rationale": "S3-Leitlinie (GoR B): Volumentherapie bei unkontrollierter Blutung reduzieren, Ziel RRsys ca. 90 mmHg bzw. MAD 65 mmHg bis zur Blutstillung. 1000 mL entspricht dem initialen Bolus nach ATLS 10th ed.; als Obergrenze didaktische Setzung."
     }

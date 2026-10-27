@@ -78,6 +78,14 @@ erreichbar ist), die Verläufe des Mock-Modells und die Bewertungslogik. Braucht
 
 Neue Maßnahme: Eintrag in `interventions.json`, danach Szene über das Menü neu erzeugen — der Button entsteht automatisch.
 
+## Browser-Prototyp
+
+`web/` enthält eine spielbare Webversion der Mock-Physiologie zum Prüfen der Szenarien ohne Unity, z. B. am Handy.
+`python3 web/build_prototype.py` bettet `web/engine.js` und alle JSON-Dateien in `web/dist/notfallsim.html` ein.
+`Tests/parity/run_parity.sh` prüft, dass `engine.js` exakt dieselben Verläufe rechnet wie die C#-Mock-Engine
+(Lehrbuchmodus; Zufallsfolgen im Realitätsmodus unterscheiden sich). Quelle der Wahrheit bleibt der C#-Code:
+Änderungen an der Physiologie immer in beiden Implementierungen nachziehen, der Abgleich in CI fällt sonst rot aus.
+
 ## Pulse anbinden
 
 1. *Pulse Physiology Engine* aus dem Unity Asset Store (kostenlos) importieren.

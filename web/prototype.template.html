@@ -1,0 +1,405 @@
+<title>NotfallSIM Schockraum</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: Patientenmonitor oben fixiert (wie im Schockraum), darunter Patient, Maßnahmen, Protokoll — eine Spalte am Handy, zwei ab Tablet. */
+:root {
+  --bg: #e9eeec; --surface: #ffffff; --surface-2: #f3f6f5; --line: #d3dbd8;
+  --fg: #16201e; --muted: #5a6865; --accent: #1d6b63; --accent-fg: #ffffff;
+  --ok: #2f7d4a; --warn: #a8660f; --crit: #bf2d26;
+  --ok-bg: #e2f1e6; --warn-bg: #f8ecd9; --crit-bg: #f9e3e1;
+  --skin: #e7c3a7; --cloth: #9fb1c7; --region-stroke: #6f7f7b;
+  /* Monitor ist ein Gerät: in beiden Themes dunkel */
+  --mon-bg: #050908; --mon-line: #1b2624; --mon-label: #8a9a96;
+  --mon-hr: #45e07c; --mon-bp: #ff6464; --mon-spo2: #4cc9f2; --mon-rr: #f3d34e; --mon-co2: #f0b54a; --mon-alarm: #ff3b30;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1413; --surface: #161e1d; --surface-2: #1d2726; --line: #2b3735;
+  --fg: #e2eae8; --muted: #93a39f; --accent: #4fb3a6; --accent-fg: #06110f;
+  --ok: #5cc27e; --warn: #e2a24c; --crit: #ff7a70;
+  --ok-bg: #173022; --warn-bg: #33270f; --crit-bg: #3a1a18;
+  --skin: #a8846a; --cloth: #55687f; --region-stroke: #8fa19c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0e1413; --surface: #161e1d; --surface-2: #1d2726; --line: #2b3735;
+  --fg: #e2eae8; --muted: #93a39f; --accent: #4fb3a6; --accent-fg: #06110f;
+  --ok: #5cc27e; --warn: #e2a24c; --crit: #ff7a70;
+  --ok-bg: #173022; --warn-bg: #33270f; --crit-bg: #3a1a18;
+  --skin: #a8846a; --cloth: #55687f; --region-stroke: #8fa19c; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--mon-bg); }
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Monitor ---------- */
+.monitor { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--mon-bg); color: #e8f0ee;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 10px 12px;
+  border-bottom: 1px solid var(--mon-line); }
+.mon-inner { max-width: 1100px; margin: 0 auto; display: grid; gap: 8px; }
+.mon-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-family: var(--font-mono); font-size: 12px; color: var(--mon-label); }
+.mon-head strong { color: #e8f0ee; font-weight: 500; }
+.mon-clock { font-variant-numeric: tabular-nums; color: #e8f0ee; font-size: 15px; }
+.vitals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.vital { border-top: 2px solid currentColor; padding-top: 4px; min-width: 0; }
+.vital .lab { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; opacity: .85; display: flex; justify-content: space-between; }
+.vital .val { font-family: var(--font-display); font-weight: 600; font-size: clamp(26px, 7.5vw, 48px); line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vital.bp .val { font-size: clamp(20px, 5.2vw, 38px); }
+.vital .sub { font-family: var(--font-mono); font-size: 11px; opacity: .8; font-variant-numeric: tabular-nums; }
+.v-hr { color: var(--mon-hr); } .v-bp { color: var(--mon-bp); } .v-spo2 { color: var(--mon-spo2); } .v-rr { color: var(--mon-rr); } .v-co2 { color: var(--mon-co2); }
+.vital.alarm .val { color: #fff; background: var(--mon-alarm); border-radius: 3px; padding-inline: 3px; animation: blink 1s steps(2, start) infinite; }
+@keyframes blink { 50% { background: transparent; color: var(--mon-alarm); } }
+@media (prefers-reduced-motion: reduce) { .vital.alarm .val { animation: none; } }
+.mon-arrest { font-family: var(--font-display); font-size: 28px; color: var(--mon-alarm); letter-spacing: .04em; text-align: center; }
+
+/* ---------- Seite ---------- */
+main { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 40px; display: grid; gap: 16px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+.panel h2 { margin: 0 0 10px; font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: .02em; text-wrap: balance; }
+.eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.grid-2 { display: grid; gap: 16px; }
+@media (min-width: 760px) { .grid-2 { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); } }
+
+/* Setup */
+.scenarios { display: grid; gap: 8px; }
+.scenario-opt { text-align: left; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; cursor: pointer; display: grid; gap: 2px; }
+.scenario-opt[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.scenario-opt b { font-weight: 600; }
+.seg { display: inline-grid; grid-auto-flow: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { background: var(--surface-2); border: 0; padding: 8px 14px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; cursor: pointer; font-weight: 500; }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn.danger { color: var(--crit); border-color: var(--crit); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.brief { display: grid; gap: 6px; margin-top: 12px; }
+.brief p { margin: 0; max-width: 65ch; }
+
+/* Patient */
+.body-wrap { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 420px) { .body-wrap { grid-template-columns: minmax(0, 120px) minmax(0, 1fr); } }
+svg.body { width: 100%; height: auto; display: block; }
+.region { cursor: pointer; }
+.region path, .region rect, .region ellipse { stroke: var(--region-stroke); stroke-width: 1.2; transition: filter .15s; }
+.region:hover path, .region:hover rect, .region:hover ellipse, .region:focus-visible path, .region:focus-visible rect, .region:focus-visible ellipse { filter: brightness(1.12); stroke: var(--accent); stroke-width: 2.2; }
+.region.examined rect, .region.examined ellipse { stroke: var(--accent); stroke-dasharray: 3 2; }
+.region:focus { outline: none; }
+.skin { fill: var(--skin); } .cloth { fill: var(--cloth); }
+.findings { min-height: 140px; }
+.findings ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.findings .lab-result { margin-top: 10px; padding: 8px 10px; border-radius: 6px; background: var(--surface-2); font-family: var(--font-mono); font-size: 13px; }
+
+/* Maßnahmen */
+.actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.act { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; text-align: left; cursor: pointer; display: grid; gap: 2px; min-height: 58px; }
+.act:hover:not(:disabled) { border-color: var(--accent); }
+.act small { color: var(--muted); font-size: 12px; }
+.act.done { border-color: var(--ok); }
+.act.done small { color: var(--ok); }
+.act:disabled { opacity: .5; cursor: not-allowed; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+
+/* Protokoll */
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 280px; overflow-y: auto; font-size: 13.5px; }
+.log li { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 8px; padding: 3px 0; border-bottom: 1px dashed var(--line); }
+.log time { font-family: var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.log .state { color: var(--crit); }
+.log .result { color: var(--accent); }
+
+/* Debriefing */
+.outcome { display: flex; flex-wrap: wrap; gap: 10px 22px; }
+.kv { display: grid; gap: 0; }
+.kv .k { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.kv .v { font-family: var(--font-display); font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.results { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.results li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: start; }
+.chip { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.chip.Met { background: var(--ok-bg); color: var(--ok); }
+.chip.Late { background: var(--warn-bg); color: var(--warn); }
+.chip.Missed, .chip.Exceeded { background: var(--crit-bg); color: var(--crit); }
+.results .why { grid-column: 2; font-size: 13px; color: var(--muted); }
+.crit-tag { color: var(--crit); font-size: 12px; font-weight: 600; }
+.compare { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.compare th, .compare td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.compare th { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.notice { font-size: 13px; color: var(--muted); max-width: 70ch; }
+</style>
+
+<header class="monitor" aria-live="off">
+  <div class="mon-inner">
+    <div class="mon-head">
+      <span id="monScenario"><strong>NotfallSIM</strong> · Szenario wählen</span>
+      <span class="mon-clock" id="monClock">00:00</span>
+    </div>
+    <div class="vitals" id="vitals">
+      <div class="vital v-hr" id="vHr"><div class="lab"><span>HF</span><span>/min</span></div><div class="val">--</div></div>
+      <div class="vital v-bp bp" id="vBp"><div class="lab"><span>RR</span><span>mmHg</span></div><div class="val">--/--</div><div class="sub" id="vMap">MAD --</div></div>
+      <div class="vital v-spo2" id="vSpo2"><div class="lab"><span>SpO₂</span><span>%</span></div><div class="val">--</div></div>
+      <div class="vital v-rr" id="vRr"><div class="lab"><span>AF</span><span>/min</span></div><div class="val">--</div></div>
+      <div class="vital v-co2" id="vCo2"><div class="lab"><span>etCO₂</span><span>mmHg</span></div><div class="val">--</div></div>
+    </div>
+    <div class="mon-arrest" id="monArrest" hidden>ASYSTOLIE / PEA – KEIN PULS</div>
+  </div>
+</header>
+
+<main>
+  <!-- Auswahl -->
+  <section class="panel" id="setup" aria-labelledby="setupTitle">
+    <div class="eyebrow">Prüfwerkzeug · Mock-Physiologie wie im Unity-Projekt</div>
+    <h2 id="setupTitle">Szenario wählen</h2>
+    <div class="scenarios" id="scenarioList" role="group" aria-label="Szenarien"></div>
+    <div class="brief" id="brief"></div>
+    <div class="row" style="margin-top:14px">
+      <span class="eyebrow">Physiologie</span>
+      <div class="seg" role="group" aria-label="Modus">
+        <button type="button" id="modeTextbook" aria-pressed="true">Lehrbuch</button>
+        <button type="button" id="modeRegistry" aria-pressed="false">Realität</button>
+      </div>
+      <button type="button" class="btn primary" id="startBtn">Szenario starten</button>
+    </div>
+    <p class="notice" id="modeNote"></p>
+  </section>
+
+  <!-- Laufendes Szenario -->
+  <section class="panel" id="controlsPanel" hidden>
+    <div class="controls">
+      <div class="row">
+        <button type="button" class="btn" id="pauseBtn">Pause</button>
+        <div class="seg" role="group" aria-label="Zeitraffer">
+          <button type="button" data-speed="1" aria-pressed="true">1×</button>
+          <button type="button" data-speed="5" aria-pressed="false">5×</button>
+          <button type="button" data-speed="20" aria-pressed="false">20×</button>
+        </div>
+      </div>
+      <button type="button" class="btn danger" id="endBtn">Szenario beenden</button>
+    </div>
+  </section>
+
+  <div class="grid-2" id="runView" hidden>
+    <section class="panel" aria-labelledby="patTitle">
+      <h2 id="patTitle">Patient</h2>
+      <div class="body-wrap">
+        <svg class="body" viewBox="0 0 160 400" role="group" aria-label="Körperregionen zum Untersuchen" id="bodySvg">
+          <g class="region" data-region="Kopf" tabindex="0" role="button" aria-label="Kopf untersuchen"><ellipse class="skin" cx="80" cy="34" rx="22" ry="27"/></g>
+          <g class="region" data-region="Arm rechts" tabindex="0" role="button" aria-label="Arm rechts untersuchen"><rect class="skin" x="14" y="72" width="20" height="132" rx="10"/></g>
+          <g class="region" data-region="Arm links" tabindex="0" role="button" aria-label="Arm links untersuchen"><rect class="skin" x="126" y="72" width="20" height="132" rx="10"/></g>
+          <g class="region" data-region="Thorax" tabindex="0" role="button" aria-label="Thorax untersuchen"><rect class="cloth" x="38" y="66" width="84" height="80" rx="12"/></g>
+          <g class="region" data-region="Abdomen" tabindex="0" role="button" aria-label="Abdomen untersuchen"><rect class="cloth" x="42" y="148" width="76" height="52" rx="8"/></g>
+          <g class="region" data-region="Becken" tabindex="0" role="button" aria-label="Becken untersuchen"><rect class="cloth" x="40" y="202" width="80" height="42" rx="10"/></g>
+          <g class="region" data-region="Oberschenkel rechts" tabindex="0" role="button" aria-label="Oberschenkel rechts untersuchen"><rect class="cloth" x="42" y="246" width="36" height="74" rx="14"/></g>
+          <g class="region" data-region="Oberschenkel links" tabindex="0" role="button" aria-label="Oberschenkel links untersuchen"><rect class="cloth" x="82" y="246" width="36" height="74" rx="14"/></g>
+          <g class="region" data-region="Unterschenkel rechts" tabindex="0" role="button" aria-label="Unterschenkel rechts untersuchen"><rect class="cloth" x="45" y="322" width="30" height="70" rx="12"/></g>
+          <g class="region" data-region="Unterschenkel links" tabindex="0" role="button" aria-label="Unterschenkel links untersuchen"><rect class="cloth" x="85" y="322" width="30" height="70" rx="12"/></g>
+          <text x="80" y="398" text-anchor="middle" font-size="9" fill="currentColor" opacity=".55" font-family="IBM Plex Mono, monospace">re ←  → li</text>
+        </svg>
+        <div class="findings" aria-live="polite">
+          <div class="eyebrow">Befund</div>
+          <div id="findings"><p class="muted" style="margin:6px 0 0">Tippe eine Körperregion an, um sie zu untersuchen. Rechts und links sind aus Sicht des Patienten.</p></div>
+          <div class="lab-result" id="labResult" hidden></div>
+        </div>
+      </div>
+    </section>
+
+    <div style="display:grid; gap:16px; min-width:0">
+      <section class="panel" aria-labelledby="actTitle">
+        <h2 id="actTitle">Maßnahmen</h2>
+        <div class="actions" id="actions"></div>
+      </section>
+      <section class="panel" aria-labelledby="logTitle">
+        <h2 id="logTitle">Protokoll</h2>
+        <ol class="log" id="log" reversed></ol>
+      </section>
+    </div>
+  </div>
+
+  <!-- Debriefing -->
+  <section class="panel" id="debrief" hidden aria-labelledby="debTitle">
+    <div class="eyebrow" id="debMode"></div>
+    <h2 id="debTitle">Debriefing</h2>
+    <div class="outcome" id="debOutcome"></div>
+    <h2 style="margin-top:18px" id="debScore"></h2>
+    <ul class="results" id="debResults"></ul>
+    <div id="debCompare"></div>
+    <h2 style="margin-top:18px">Zeitleiste</h2>
+    <ol class="log" id="debLog" style="max-height:none"></ol>
+    <div class="row" style="margin-top:14px"><button type="button" class="btn primary" id="againBtn">Neues Szenario</button></div>
+  </section>
+
+  <p class="notice">Experimentelles Lernwerkzeug, kein Medizinprodukt. Werte stammen aus einem vereinfachten, literaturgestützten Modell im Entwurfsstatus. Daten: <span id="dataVersion"></span>.</p>
+</main>
+
+<script>/*ENGINE*/</script>
+<script>
+const DATA = /*DATA*/null;
+const E = window.NotfallEngine;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const R = (x) => Math.round(x);
+
+let selected = DATA.scenarios[0].id, mode = "Textbook";
+let sim = null, speed = 1, paused = false, lastFrame = 0, lastRender = 0, wakeLock = null, logCount = 0;
+
+$("dataVersion").textContent = `Verletzungen v${DATA.injuries.version}, Maßnahmen v${DATA.interventions.version}, Stand ${DATA.built}`;
+
+// ---------- Auswahl ----------
+function renderSetup() {
+  $("scenarioList").innerHTML = DATA.scenarios.map((s) =>
+    `<button type="button" class="scenario-opt" data-id="${s.id}" aria-pressed="${s.id === selected}"><b>${esc(s.title)}</b><span class="muted">${esc(s.patient.age)} J., ${s.patient.sex === "female" ? "weiblich" : "männlich"}, ${esc(s.patient.weight_kg)} kg${s.patient.betaBlocker ? " · Betablocker" : ""}</span></button>`).join("");
+  const s = DATA.scenarios.find((x) => x.id === selected);
+  $("brief").innerHTML = `<p>${esc(s.description)}</p><p class="muted"><b>Mechanismus:</b> ${esc(s.mechanism)}</p>`;
+  $("modeTextbook").setAttribute("aria-pressed", mode === "Textbook");
+  $("modeRegistry").setAttribute("aria-pressed", mode === "Registry");
+  $("modeNote").textContent = mode === "Textbook"
+    ? "Lehrbuch: Vitalwerte folgen den ATLS-Schockklassen. Gut zum Lernen der Muster."
+    : "Realität: an Registerdaten angelehnt. Weniger Tachykardie, späte Hypotonie, jeder Patient reagiert etwas anders.";
+}
+$("scenarioList").addEventListener("click", (e) => { const b = e.target.closest(".scenario-opt"); if (b) { selected = b.dataset.id; renderSetup(); } });
+$("modeTextbook").onclick = () => { mode = "Textbook"; renderSetup(); };
+$("modeRegistry").onclick = () => { mode = "Registry"; renderSetup(); };
+$("startBtn").onclick = start;
+$("againBtn").onclick = () => { $("debrief").hidden = true; $("setup").hidden = false; sim = null; resetMonitor(); renderSetup(); window.scrollTo({ top: 0 }); };
+
+// ---------- Lauf ----------
+function start() {
+  sim = new E.Simulation(DATA, selected, mode);
+  speed = 1; paused = false; logCount = 0;
+  $("log").innerHTML = ""; $("labResult").hidden = true;
+  $("findings").innerHTML = `<p class="muted" style="margin:6px 0 0">Tippe eine Körperregion an, um sie zu untersuchen. Rechts und links sind aus Sicht des Patienten.</p>`;
+  document.querySelectorAll(".region").forEach((r) => r.classList.remove("examined"));
+  $("setup").hidden = true; $("controlsPanel").hidden = false; $("runView").hidden = false; $("debrief").hidden = true;
+  $("pauseBtn").textContent = "Pause";
+  document.querySelectorAll("[data-speed]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.speed === "1"));
+  $("monScenario").innerHTML = `<strong>${esc(sim.scenario.title)}</strong> · ${mode === "Registry" ? "Realität" : "Lehrbuch"}`;
+  renderActions(); renderMonitor(); renderLog();
+  try { navigator.wakeLock && navigator.wakeLock.request("screen").then((w) => (wakeLock = w)).catch(() => {}); } catch (e) {}
+  lastFrame = performance.now();
+  requestAnimationFrame(loop);
+}
+
+function loop(now) {
+  if (!sim || sim.ended) return;
+  const dt = Math.min(0.25, (now - lastFrame) / 1000);
+  lastFrame = now;
+  if (!paused && !sim.vitals.arrest) sim.advance(dt * speed);
+  if (now - lastRender > 400) { lastRender = now; renderMonitor(); renderLog(); renderActions(); }
+  requestAnimationFrame(loop);
+}
+
+$("pauseBtn").onclick = () => { paused = !paused; $("pauseBtn").textContent = paused ? "Weiter" : "Pause"; };
+document.querySelectorAll("[data-speed]").forEach((b) => b.onclick = () => {
+  speed = Number(b.dataset.speed);
+  document.querySelectorAll("[data-speed]").forEach((x) => x.setAttribute("aria-pressed", x === b));
+});
+$("endBtn").onclick = () => { if (!sim) return; sim.end(); renderMonitor(); showDebrief(); };
+
+// ---------- Monitor ----------
+function setVital(id, text, alarm) {
+  const el = $(id); el.querySelector(".val").textContent = text; el.classList.toggle("alarm", !!alarm);
+}
+function resetMonitor() {
+  ["vHr", "vSpo2", "vRr", "vCo2"].forEach((id) => setVital(id, "--", false));
+  setVital("vBp", "--/--", false); $("vMap").textContent = "MAD --"; $("monClock").textContent = "00:00";
+  $("monArrest").hidden = true; $("vitals").hidden = false;
+  $("monScenario").innerHTML = "<strong>NotfallSIM</strong> · Szenario wählen";
+}
+function renderMonitor() {
+  const v = sim.vitals;
+  $("monClock").textContent = E.clock(v.time);
+  $("monArrest").hidden = !v.arrest;
+  if (v.arrest) {
+    ["vHr", "vSpo2", "vRr"].forEach((id) => setVital(id, "---", true));
+    setVital("vBp", "---", true); $("vMap").textContent = "MAD ---"; setVital("vCo2", R(v.etco2), true);
+    return;
+  }
+  setVital("vHr", R(v.hr), v.hr > 120 || v.hr < 50);
+  setVital("vBp", `${R(v.sbp)}/${R(v.dbp)}`, v.sbp < 90);
+  $("vMap").textContent = `MAD ${R(v.map)}`;
+  setVital("vSpo2", R(v.spo2), v.spo2 < 90);
+  setVital("vRr", R(v.rr), v.rr > 30 || v.rr < 8);
+  setVital("vCo2", R(v.etco2), v.etco2 < 25 || v.etco2 > 50);
+}
+
+// ---------- Maßnahmen ----------
+function renderActions() {
+  const pendingIds = new Set(sim.delayed.map((d) => d.iv.type));
+  $("actions").innerHTML = DATA.interventions.interventions.map((d) => {
+    const used = sim.used.has(d.id), blocked = (d.once && used) || sim.ended || sim.vitals.arrest;
+    const running = pendingIds.has(d.type) && used;
+    let note = d.effectDelay_s > 0 ? `wirkt nach ${R(d.effectDelay_s / 60)} min` : (d.once ? "einmalig" : "wiederholbar");
+    if (running) note = d.type === "BloodGas" ? "Analyse läuft …" : "angeordnet …";
+    else if (used && d.once) note = "erledigt";
+    return `<button type="button" class="act${used && d.once ? " done" : ""}" data-id="${d.id}" ${blocked ? "disabled" : ""}><span>${esc(d.label)}</span><small>${note}</small></button>`;
+  }).join("");
+}
+$("actions").addEventListener("click", (e) => {
+  const b = e.target.closest(".act"); if (!b || !sim) return;
+  if (sim.apply(b.dataset.id)) { renderActions(); renderLog(); renderMonitor(); }
+});
+
+// ---------- Untersuchung ----------
+function examine(g) {
+  if (!sim || sim.ended) return;
+  const region = g.dataset.region;
+  const f = sim.examine(region);
+  g.classList.add("examined");
+  $("findings").innerHTML = `<b>${esc(region)}</b>` + (f.length ? `<ul>${f.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p style="margin:6px 0 0">Unauffällig.</p>`);
+  renderLog();
+}
+$("bodySvg").addEventListener("click", (e) => { const g = e.target.closest(".region"); if (g) examine(g); });
+$("bodySvg").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { const g = e.target.closest(".region"); if (g) { e.preventDefault(); examine(g); } } });
+
+// ---------- Protokoll ----------
+function logClass(tag) { return !tag ? "" : tag.startsWith("state") || tag === "arrest" ? "state" : tag.startsWith("result") ? "result" : ""; }
+function renderLog() {
+  if (sim.events.length === logCount) return;
+  const fresh = sim.events.slice(logCount);
+  logCount = sim.events.length;
+  for (const ev of fresh) {
+    const li = document.createElement("li");
+    li.innerHTML = `<time>${E.clock(ev.time)}</time><span class="${logClass(ev.tag)}">${esc(ev.message)}</span>`;
+    $("log").prepend(li);
+    if (ev.tag && ev.tag.startsWith("result")) { $("labResult").hidden = false; $("labResult").textContent = ev.message; }
+  }
+}
+
+// ---------- Debriefing ----------
+const OUT = { Met: "erfüllt", Late: "verspätet", Missed: "fehlt", Exceeded: "überschritten" };
+function showDebrief() {
+  const d = sim.debrief();
+  try { wakeLock && wakeLock.release(); } catch (e) {}
+  $("controlsPanel").hidden = true; $("runView").hidden = true; $("debrief").hidden = false;
+  $("debMode").textContent = `${sim.scenario.title} · ${d.mode === "Registry" ? "Realitätsmodus" : "Lehrbuchmodus"}`;
+  const kv = (k, v) => `<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  $("debOutcome").innerHTML = [
+    kv("Dauer", E.clock(d.duration)),
+    kv("Ausgang", d.arrest ? "Stillstand" : "lebt"),
+    d.maxLoss >= 0.05 ? kv("Max. Blutverlust", `${R(d.maxLoss * 100)} % · Kl. ${d.shockClass}`) : "",
+    d.maxHr != null ? kv("Max. HF", R(d.maxHr)) : "",
+    d.minSbp != null ? kv("Min. RRsys", R(d.minSbp)) : "",
+    d.minSpo2 != null ? kv("Min. SpO₂", R(d.minSpo2) + " %") : "",
+  ].join("");
+  const met = d.results.filter((r) => r.outcome === "Met").length;
+  const critMissed = d.results.some((r) => r.criterion.critical && r.outcome !== "Met");
+  $("debScore").innerHTML = `Bewertung: ${met} von ${d.results.length} Zielen erreicht` + (critMissed ? ` <span class="crit-tag">· kritisches Ziel verfehlt</span>` : "");
+  $("debResults").innerHTML = d.results.map((r) => {
+    const c = r.criterion;
+    const when = c.type === "maxCount" ? `${r.count}× (max. ${c.limit}×)` : r.time != null ? `bei ${E.clock(r.time)}, Ziel ${E.clock(r.deadline)}` : `Ziel ${E.clock(r.deadline)}`;
+    return `<li><span class="chip ${r.outcome}">${OUT[r.outcome]}</span><span><b>${esc(c.description)}</b>${c.critical ? ' <span class="crit-tag">kritisch</span>' : ""} <span class="muted">· ${when}</span></span><span class="why">${esc(c.rationale)}</span></li>`;
+  }).join("");
+  $("debCompare").innerHTML = d.comparison ? `<h2 style="margin-top:18px">Lehrbuch vs. Realität bei ${R(d.maxLoss * 100)} % Blutverlust</h2>
+    <div style="overflow-x:auto"><table class="compare"><thead><tr><th>Modell</th><th>HF</th><th>RRsys</th><th>Base Excess</th></tr></thead><tbody>
+    <tr><td>Lehrbuch (ATLS)</td><td>${R(d.comparison.textbook.hr)}</td><td>${R(d.comparison.textbook.sbp)}</td><td>${E.de1(d.comparison.be)}</td></tr>
+    <tr><td>Registerdaten</td><td>${R(d.comparison.registry.hr)}</td><td>${R(d.comparison.registry.sbp)}</td><td>${E.de1(d.comparison.be)}</td></tr></tbody></table></div>
+    <p class="notice">Der Base Excess verschlechtert sich in beiden Modellen gleich. Er zeigt den Schock oft verlässlicher als Herzfrequenz und Blutdruck.</p>` : "";
+  $("debLog").innerHTML = d.events.map((ev) => `<li><time>${E.clock(ev.time)}</time><span class="${logClass(ev.tag)}">${esc(ev.message)}</span></li>`).join("");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+renderSetup();
+</script>

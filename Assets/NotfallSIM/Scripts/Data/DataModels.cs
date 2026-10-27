@@ -129,6 +129,9 @@ namespace NotfallSIM.Data
         /// <summary>Optional: Tag-Präfix, ab dessen erstem Auftreten "deadline" zählt (z. B. Beginn einer Verletzung).
         /// Tritt es nie auf, ist das Kriterium nicht anwendbar.</summary>
         public string relativeTo;
+        /// <summary>Nur bei relativeTo: true = nur Maßnahmen ab dem Bezugsereignis zählen (z. B. Re-Evaluation).
+        /// false = frühere Maßnahmen gelten als rechtzeitig (z. B. Neurochirurgie schon vor der Eintrübung gerufen).</summary>
+        public bool onlyAfterReference;
         public bool critical;
         public string rationale;
     }

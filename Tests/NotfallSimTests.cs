@@ -223,11 +223,14 @@ static class Tests
             new AssessmentCriterion { id = "b", type = "deadline", tags = new[] { "exam:Thorax" }, limit = 60 },
             new AssessmentCriterion { id = "c", type = "maxCount", tags = new[] { "intervention:FluidInfusion:BalancedCrystalloid" }, limit = 2 },
             new AssessmentCriterion { id = "d", type = "deadline", tags = new[] { "x" }, limit = 10, relativeTo = "injury:nie" },
+            new AssessmentCriterion { id = "e", type = "deadline", tags = new[] { "exam:Thorax" }, limit = 60, relativeTo = "injury:tp", onlyAfterReference = true },
+            new AssessmentCriterion { id = "f", type = "deadline", tags = new[] { "exam:Thorax" }, limit = 60, relativeTo = "injury:tp" },
         };
         var events = new List<LogEntry>
         {
             new LogEntry { Time_s = 100, Tag = "injury:tp" },
-            new LogEntry { Time_s = 120, Tag = "exam:Thorax" },
+            new LogEntry { Time_s = 50, Tag = "exam:Thorax" },
+            new LogEntry { Time_s = 200, Tag = "exam:Thorax" },
             new LogEntry { Time_s = 350, Tag = "intervention:ChestDrain:LeftLung" },
             new LogEntry { Time_s = 10, Tag = "intervention:FluidInfusion:BalancedCrystalloid" },
             new LogEntry { Time_s = 20, Tag = "intervention:FluidInfusion:BalancedCrystalloid" },
@@ -235,7 +238,9 @@ static class Tests
         };
         var r = Assessment.Evaluate(criteria, events).ToDictionary(x => x.Criterion.id);
         Check(r["a"].Outcome == CriterionOutcome.Met && r["a"].Deadline_s == 400, $"a: {r["a"].Outcome}, Ziel {r["a"].Deadline_s}");
-        Check(r["b"].Outcome == CriterionOutcome.Late, $"b: {r["b"].Outcome}");
+        Check(r["b"].Outcome == CriterionOutcome.Met, $"b: {r["b"].Outcome}");
+        Check(r["e"].Outcome == CriterionOutcome.Late && r["e"].Time_s == 200, $"e: {r["e"].Outcome} bei {r["e"].Time_s}");
+        Check(r["f"].Outcome == CriterionOutcome.Met && r["f"].Time_s == 50, $"f: {r["f"].Outcome} bei {r["f"].Time_s}");
         Check(r["c"].Outcome == CriterionOutcome.Exceeded && r["c"].Count == 3, $"c: {r["c"].Outcome}");
         Check(r["d"].Outcome == CriterionOutcome.NotApplicable, $"d: {r["d"].Outcome}");
     }

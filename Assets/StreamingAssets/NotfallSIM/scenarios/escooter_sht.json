@@ -35,6 +35,7 @@
       ],
       "limit": 120,
       "relativeTo": "",
+      "onlyAfterReference": false,
       "critical": false,
       "rationale": "Basismaßnahme im Primary Survey; Normoxie bei SHT (S3, GoR A). Zeitziel didaktisch."
     },
@@ -47,6 +48,7 @@
       ],
       "limit": 180,
       "relativeTo": "",
+      "onlyAfterReference": false,
       "critical": false,
       "rationale": "D-Teil des Primary Survey. Zeitziel didaktisch."
     },
@@ -59,6 +61,7 @@
       ],
       "limit": 120,
       "relativeTo": "state:gcs13",
+      "onlyAfterReference": true,
       "critical": false,
       "rationale": "Nach GCS-Abfall erneut untersuchen; zählt jede Untersuchung des Kopfes. Zeitziel didaktisch."
     },
@@ -71,6 +74,7 @@
       ],
       "limit": 240,
       "relativeTo": "state:gcs13",
+      "onlyAfterReference": false,
       "critical": true,
       "rationale": "GCS-Abfall nach luzidem Intervall ist ein Notfall; CT und Neurochirurgie sofort. 4 min nach Eintrübung = didaktische Setzung."
     },
@@ -83,6 +87,7 @@
       ],
       "limit": 180,
       "relativeTo": "state:gcs8",
+      "onlyAfterReference": false,
       "critical": true,
       "rationale": "S3: bewusstlose Patienten (GCS ≤ 8) intubieren (innerklinisch GoR A). 3 min = didaktische Setzung."
     },
@@ -95,6 +100,7 @@
       ],
       "limit": 180,
       "relativeTo": "state:anisocoria",
+      "onlyAfterReference": false,
       "critical": false,
       "rationale": "Überbrückend bei Herniationszeichen (S3, GoR 0). Zeitziel didaktisch."
     },
@@ -107,6 +113,7 @@
       ],
       "limit": 0,
       "relativeTo": "",
+      "onlyAfterReference": false,
       "critical": true,
       "rationale": "Hypoxie verschlechtert das Outcome nach SHT unabhängig (Chesnut 1993); SpO2 < 90 % vermeiden (S3, GoR A)."
     },
@@ -119,6 +126,7 @@
       ],
       "limit": 0,
       "relativeTo": "",
+      "onlyAfterReference": false,
       "critical": true,
       "rationale": "Hypotonie bei schwerem SHT mit 150 % höherer Letalität verbunden (Chesnut 1993); RRsys nicht unter 90 mmHg (S3, GoR B)."
     }
