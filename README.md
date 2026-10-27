@@ -100,19 +100,27 @@ tools/anatomy/                   Aufbereitung der Anatomie (Python), erzeugt bod
 
 ## Schockraum: Patient und Röntgenblick
 
-Der Patient ist ein anatomisches Modell (Haut, ca. 330 Knochen, Organe, große Gefäße und schematische Nerven),
+Der Patient ist ein anatomisches Modell (Haut, ca. 210 Knochen, Organe mit Zwerchfell, Großhirnrinde, große Gefäße und schematische Nerven),
 zur Laufzeit aus `anatomy/body.bin` aufgebaut und auf die Größe aus dem Szenario skaliert. Er atmet mit der
 Atemfrequenz aus der Physiologie (beim Spannungspneu links hebt sich die linke Thoraxseite kaum), wird mit dem
 Blutverlust blass und bei niedriger Sättigung zyanotisch. Der Monitor zeigt EKG, Pulskurve und Kapnografie;
 der QRS-Ton wird mit sinkender Sättigung tiefer.
 
-*Röntgenblick* macht die Haut durchsichtig; die Ebenen Knochen, Organe, Gefäße und Nerven lassen sich einzeln
-schalten, mit der Maus über einer Struktur steht ihr Name. Nach Szenarioende schaltet sich der Röntgenblick ein
-und markiert die tatsächlichen Verletzungen rot (`anatomy/anatomy.json`).
+*Röntgenblick* (Feld oben rechts neben dem Monitor) macht die Haut durchsichtig; die Ebenen Knochen, Organe,
+Gefäße und Nerven lassen sich einzeln schalten (abgedunkelter Knopf = ausgeblendet), mit der Maus über einer Struktur
+steht ihr deutscher Name. Nach Szenarioende schaltet sich der Röntgenblick ein und markiert die tatsächlichen
+Verletzungen rot (`anatomy/anatomy.json`; SDH/EDH: Rinde und Kalotte der betroffenen Seite).
 
 Anatomiedaten neu erzeugen (nur nötig bei Änderungen an der Auswahl): BodyParts3D-STL-Dateien herunterladen,
-dann `python3 tools/anatomy/build_anatomy.py --bp3d <Ordner>` (braucht `trimesh`, `scipy`, `scikit-image`,
+dann `python3 tools/anatomy/build_anatomy.py --bp3d <Ordner>` (braucht `trimesh`, `rtree`, `scipy`, `scikit-image`,
 `fast-simplification`). Fehlt `body.bin`, erscheint ein Platzhalter aus Grundkörpern.
+
+Prüfen ohne Unity:
+- `python3 tools/anatomy/check_anatomy.py <body.bin>` — 74 Lagebeziehungen (Seiten, Wirbelhöhen, vorn/hinten,
+  Trigonum femorale, Rückenmark im Wirbelkanal, alles innerhalb der Haut, Bahnen nicht durch Knochen)
+- `python3 tools/anatomy/check_patient.py <body.bin>` — rechnet die Rückenlage auf der Trage wie Unity nach
+- `python3 tools/anatomy/pose_check.py <body.bin> <Ordner>` — Ragdoll-Haltungen der Sandbox als GLB
+- `Tests/run_tests.sh` prüft zusätzlich Umlaufrichtung der Dreiecke, Hautgewichte, Atmungsrichtung und Bezeichnungen
 
 **Lizenz der Anatomiedaten:** BodyParts3D, © The Database Center for Life Science, lizenziert unter
 [CC BY-SA 2.1 Japan](https://creativecommons.org/licenses/by-sa/2.1/jp/deed.de). `body.bin` ist eine Bearbeitung

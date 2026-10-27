@@ -67,6 +67,7 @@ namespace NotfallSIM.EditorTools
 
             EnsureFolder(SceneFolder);
             EditorSceneManager.SaveScene(scene, ScenePath);
+            AssetDatabase.SaveAssets(); // geänderte Materialien (Farben, Textur, Leuchten) auf die Platte schreiben
             AddToBuildSettings(ScenePath);
             Selection.activeGameObject = simGo;
             Debug.Log($"[NotfallSIM] Szene erstellt: {ScenePath} — Play drücken zum Starten.");
@@ -146,8 +147,9 @@ namespace NotfallSIM.EditorTools
             Transform root = canvasGo.transform;
 
             // Hinweis oben links
-            var hint = Label("Hinweis", root, "<b>NotfallSIM</b> · Schockraum\nKörperregion anklicken, um sie zu untersuchen.", 22, Dim);
-            Place(hint.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -20), new Vector2(440, 80));
+            // (links daneben, bei x 24–174, setzt PauseMenu zur Laufzeit den Knopf „Menü (Esc)“)
+            var hint = Label("Hinweis", root, "<b>Schockraum</b>\nRegion anklicken = untersuchen\nRechte Maus: Kamera drehen", 18, Dim);
+            Place(hint.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(190, -16), new Vector2(290, 84));
 
             // Monitor oben rechts
             var monitor = Panel("Monitor", root, PanelColor);
@@ -169,23 +171,25 @@ namespace NotfallSIM.EditorTools
             var status = Label("Status", monitor.transform, "", 20, Dim);
             monitor.gameObject.AddComponent<VitalsMonitor>().Configure(sim, hr, bp, rr, spo2, co2, time, status);
 
-            // Röntgenblick oben links unter dem Hinweis
+            // Röntgenblick oben rechts zwischen Verdachtsdiagnosen (bis x 1180) und Monitor (ab x 1500), Bezug 1920×1080
             var xr = Panel("Röntgenblick", root, PanelColor);
-            Place(xr.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -100), new Vector2(440, 0));
+            Place(xr.rectTransform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-430, -20), new Vector2(300, 0));
             Vertical(xr.gameObject, 6, fit: true);
             var xrToggle = MakeButton(xr.transform, "Röntgenblick", new Color(0.18f, 0.36f, 0.55f), patient.ToggleXRay, 18);
             var layers = ButtonGrid(xr.transform, "Ebenen");
-            var lg = layers.GetComponent<GridLayoutGroup>(); lg.cellSize = new Vector2(100, 38); lg.constraintCount = 4;
+            var lg = layers.GetComponent<GridLayoutGroup>(); lg.cellSize = new Vector2(131, 38); lg.constraintCount = 2;
             string[] layerIds = { "bone", "organ", "vessel", "nerve" }, layerNames = { "Knochen", "Organe", "Gefäße", "Nerven" };
+            var layerImages = new Image[layerIds.Length];
             for (int i = 0; i < layerIds.Length; i++)
             {
-                var b = MakeButton(layers, layerNames[i], SpeedColor, null, 14);
+                var b = MakeButton(layers, layerNames[i], SpeedColor, null, 15);
                 UnityEventTools.AddStringPersistentListener(b.onClick, patient.ToggleLayer, layerIds[i]);
+                layerImages[i] = b.GetComponent<Image>();
             }
-            MakeButton(xr.transform, "Verletzungen zeigen (nach Ende)", SpeedColor, patient.ToggleInjuries, 15);
-            var hover = Label("Struktur", xr.transform, "", 18, new Color(1f, 0.9f, 0.5f));
-            hover.gameObject.AddComponent<LayoutElement>().preferredHeight = 26;
-            patient.Configure(sim, hover, xrToggle.GetComponentInChildren<TMP_Text>());
+            MakeButton(xr.transform, "Verletzungen (nach Ende)", SpeedColor, patient.ToggleInjuries, 15);
+            var hover = Label("Struktur", xr.transform, "", 17, new Color(1f, 0.9f, 0.5f));
+            hover.gameObject.AddComponent<LayoutElement>().preferredHeight = 44; // zwei Zeilen für lange Namen
+            patient.Configure(sim, hover, xrToggle.GetComponentInChildren<TMP_Text>(), layerIds, layerImages);
 
             // Debriefing-Panel (früh anlegen, der Beenden-Button braucht es)
             var debriefComp = canvasGo.AddComponent<DebriefPanel>();

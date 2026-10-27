@@ -88,8 +88,9 @@ namespace NotfallSIM.Crash
             return BuildPrimitive(hipCenter, facing, pose, height_m, mass_kg, male, invertKneeFlexion, headScale);
         }
 
-        /// <summary>Gelenkstellungen je Haltung relativ zur Ruhelage (aufrecht, Arme hängend). Positiver x-Winkel = Vorderseite nach unten.</summary>
-        static Quaternion PoseRotation(RagdollPose pose, string seg)
+        /// <summary>Gelenkstellungen je Haltung relativ zur Ruhelage (aufrecht, Arme hängend). Positiver x-Winkel = Vorderseite nach unten.
+        /// <paramref name="upAxis"/>: Segmentachse in Ruhelage, vom distalen zum proximalen Ende (für Drehungen um die eigene Achse).</summary>
+        static Quaternion PoseRotation(RagdollPose pose, string seg, Vector3 upAxis)
         {
             bool right = seg.EndsWith("rechts");
             float side = right ? 1 : -1;
@@ -98,15 +99,17 @@ namespace NotfallSIM.Crash
                 case RagdollPose.Seated:
                     if (seg.StartsWith("Oberschenkel")) return Quaternion.Euler(-90, 0, 0);
                     if (seg.StartsWith("Unterschenkel")) return Quaternion.Euler(90, 0, 0);
-                    if (seg.StartsWith("Oberarm")) return Quaternion.Euler(-40, 0, side * 6);
-                    // Hände am Lenkrad: Ellbogen gebeugt, Unterarm proniert (Handflächen zum Lenkrad)
-                    if (seg.StartsWith("Unterarm")) return Quaternion.Euler(-55, 0, 0) * Quaternion.Euler(0, -side * 80, 0);
+                    // Schulter: 40° Anteversion, leicht abduziert, 22° Innenrotation → Hände etwa 19 cm seitlich (Lenkradkranz)
+                    if (seg.StartsWith("Oberarm")) return Quaternion.Euler(-40, 0, side * 6) * Quaternion.AngleAxis(-side * 22, upAxis);
+                    // Hände am Lenkrad: Ellbogen gebeugt, Unterarm um die eigene Achse halb proniert (Handflächen zueinander).
+                    // Nur 50°: Die Hand ist Teil des Unterarmsegments, stärkere Drehung verdrillt die Haut am Ellbogen.
+                    if (seg.StartsWith("Unterarm")) return Quaternion.Euler(-55, 0, 0) * Quaternion.AngleAxis(-side * 50, upAxis);
                     return Quaternion.identity;
                 case RagdollPose.Straddling:
                     if (seg.StartsWith("Oberschenkel")) return Quaternion.Euler(-75, 0, side * 14);
                     if (seg.StartsWith("Unterschenkel")) return Quaternion.Euler(70, 0, -side * 6);
                     if (seg.StartsWith("Oberarm")) return Quaternion.Euler(-62, 0, side * 7);
-                    if (seg.StartsWith("Unterarm")) return Quaternion.Euler(-18, 0, 0) * Quaternion.Euler(0, -side * 80, 0);
+                    if (seg.StartsWith("Unterarm")) return Quaternion.Euler(-18, 0, 0) * Quaternion.AngleAxis(-side * 30, upAxis);
                     if (seg == "Abdomen") return Quaternion.Euler(14, 0, 0);
                     if (seg == "Thorax") return Quaternion.Euler(10, 0, 0);
                     return Quaternion.identity;
@@ -137,12 +140,13 @@ namespace NotfallSIM.Crash
                 int p = string.IsNullOrEmpty(s.parent) ? -1 : data.SegmentIndex(s.parent);
                 Vector3 joint = AnatomyBuilder.V(s.joint) * k, end = AnatomyBuilder.V(s.end) * k;
                 Vector3 pos; Quaternion rot;
-                if (p < 0) { pos = hipCenter; rot = facing * PoseRotation(pose, s.name); }
+                Vector3 upAxis = (joint - end).normalized;
+                if (p < 0) { pos = hipCenter; rot = facing * PoseRotation(pose, s.name, upAxis); }
                 else
                 {
                     Vector3 parentJoint = AnatomyBuilder.V(h.segments[p].joint) * k;
                     pos = rbs[p].position + worldRot[p] * (joint - parentJoint);
-                    rot = worldRot[p] * PoseRotation(pose, s.name);
+                    rot = worldRot[p] * PoseRotation(pose, s.name, upAxis);
                 }
                 worldRot[i] = rot;
                 var go = new GameObject(s.name);
@@ -158,11 +162,16 @@ namespace NotfallSIM.Crash
                     float r = s.radius * k;
                     float len = axis.magnitude;
                     if (s.name.StartsWith("Unterschenkel")) { axis += new Vector3(0, -(AnatomyBuilder.V(s.end).y - h.floorY) * k * 0.8f, 0); len = axis.magnitude; }
-                    var c = go.AddComponent<CapsuleCollider>();
+                    // Kapsel entlang der Segmentachse (Unterarm ist ~20° gegen die Senkrechte geneigt) — als Kind-Kollider,
+                    // gehört weiter zum Rigidbody des Segments (Verbundkollider)
+                    var cgo = new GameObject("Kollider");
+                    cgo.transform.SetParent(go.transform, false);
+                    cgo.transform.localPosition = axis / 2;
+                    cgo.transform.localRotation = Quaternion.FromToRotation(Vector3.up, axis / len);
+                    var c = cgo.AddComponent<CapsuleCollider>();
                     c.direction = 1;
-                    c.center = axis / 2;
                     c.radius = r;
-                    c.height = len + 2 * r * 0.5f;
+                    c.height = len + r;
                     vis = GameObject.CreatePrimitive(PrimitiveType.Capsule);
                     vis.transform.SetParent(go.transform, false);
                     vis.transform.localPosition = axis / 2;

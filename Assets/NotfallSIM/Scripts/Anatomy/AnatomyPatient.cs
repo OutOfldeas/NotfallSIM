@@ -21,6 +21,8 @@ namespace NotfallSIM.Anatomy
         [SerializeField] float mattressTop = 0.84f;
         [SerializeField] TMP_Text hoverLabel;
         [SerializeField] TMP_Text xrayButtonLabel;
+        [SerializeField] string[] layerButtonIds = new string[0];
+        [SerializeField] UnityEngine.UI.Image[] layerButtons = new UnityEngine.UI.Image[0];
 
         static readonly Color SkinTone = new Color(0.86f, 0.67f, 0.55f), Pale = new Color(0.86f, 0.80f, 0.76f), Cyanotic = new Color(0.60f, 0.64f, 0.78f);
 
@@ -36,9 +38,10 @@ namespace NotfallSIM.Anatomy
 
         public bool XRay => _xrayOn;
 
-        public void Configure(SimulationManager simulation, TMP_Text hover, TMP_Text xrayLabel)
+        public void Configure(SimulationManager simulation, TMP_Text hover, TMP_Text xrayLabel, string[] layerIds = null, UnityEngine.UI.Image[] layerImages = null)
         {
             sim = simulation; hoverLabel = hover; xrayButtonLabel = xrayLabel;
+            layerButtonIds = layerIds ?? new string[0]; layerButtons = layerImages ?? new UnityEngine.UI.Image[0];
         }
 
         void Start()
@@ -87,15 +90,15 @@ namespace NotfallSIM.Anatomy
             return m;
         }
 
-        /// <summary>Rückenlage: Kopf Richtung +z, Bauch nach oben, Arme leicht abgespreizt neben dem Körper.</summary>
+        /// <summary>Rückenlage: Kopf Richtung +z, Bauch nach oben, Arme neben dem Körper auf der Liegefläche.</summary>
         void Pose()
         {
             var root = _rig.Root.transform;
             root.localRotation = Quaternion.Euler(0, 0, 180) * Quaternion.Euler(90, 0, 0);
-            _rig.Bone("Oberarm rechts").localRotation = Quaternion.Euler(10, 0, 5);
-            _rig.Bone("Oberarm links").localRotation = Quaternion.Euler(10, 0, -5);
-            _rig.Bone("Unterarm rechts").localRotation = Quaternion.Euler(4, 0, 0);
-            _rig.Bone("Unterarm links").localRotation = Quaternion.Euler(4, 0, 0);
+            // Arme nach dorsal (auf die Matratze) und leicht adduziert, damit sie innerhalb der Liegefläche liegen
+            // (geprüft außerhalb von Unity: Arme bis 0,31 m seitlich, Rückseite auf der Matratze, Hände 3 cm neben dem Becken)
+            _rig.Bone("Oberarm rechts").localRotation = Quaternion.Euler(14, 0, -4);
+            _rig.Bone("Oberarm links").localRotation = Quaternion.Euler(14, 0, 4);
             // Auf die Matratze legen. Nach der Drehung gilt: Welt-y = Modell-z (vorn oben), Welt-z = Modell-y (Kopf).
             // Der hinterste Hautpunkt (Rücken/Gesäß) liegt damit auf der Liegefläche.
             var pos = _rig.Data.Meshes[0].Positions;
@@ -151,11 +154,10 @@ namespace NotfallSIM.Anatomy
         {
             if (_rig == null) return;
             _xrayOn = !_xrayOn;
-            var mats = _rig.Skin.sharedMaterials;
             _rig.Skin.sharedMaterials = _xrayOn ? new[] { _xray, _xray } : new[] { _skin, _shorts };
             _rig.Skin.shadowCastingMode = _xrayOn ? UnityEngine.Rendering.ShadowCastingMode.Off : UnityEngine.Rendering.ShadowCastingMode.On;
-            ApplyLayers();
             if (_xrayOn && !_collidersBuilt) BuildPartColliders();
+            ApplyLayers();
             if (xrayButtonLabel) xrayButtonLabel.text = _xrayOn ? "Röntgenblick aus" : "Röntgenblick";
             if (!_xrayOn && hoverLabel) hoverLabel.text = "";
         }
@@ -182,7 +184,14 @@ namespace NotfallSIM.Anatomy
         void ApplyLayers()
         {
             foreach (var p in _rig.Parts)
+            {
                 p.Renderer.enabled = _xrayOn && (_layerOn[Group(p.Info.layer)] || (_injuriesShown && _injured.Contains(p)));
+                if (p.Collider) p.Collider.enabled = p.Renderer.enabled; // ausgeblendete Ebenen verdecken den Mauszeiger nicht
+            }
+            // Ebenen-Knöpfe: ausgeschaltete Ebene abgedunkelt
+            for (int i = 0; i < layerButtons.Length && i < layerButtonIds.Length; i++)
+                if (layerButtons[i] && _layerOn.TryGetValue(layerButtonIds[i], out var on))
+                    layerButtons[i].color = on ? new Color(0.25f, 0.27f, 0.30f) : new Color(0.10f, 0.11f, 0.12f);
         }
 
         void BuildPartColliders()
@@ -190,8 +199,9 @@ namespace NotfallSIM.Anatomy
             _collidersBuilt = true;
             foreach (var p in _rig.Parts)
             {
-                var mc = p.Renderer.gameObject.AddComponent<MeshCollider>();
-                mc.sharedMesh = p.Filter.sharedMesh;
+                p.Collider = p.Renderer.gameObject.AddComponent<MeshCollider>();
+                p.Collider.sharedMesh = p.Filter.sharedMesh;
+                p.Collider.enabled = p.Renderer.enabled;
                 p.Renderer.gameObject.layer = 2; // Ignore Raycast: stört die Untersuchungsklicks nicht
             }
         }
@@ -201,6 +211,8 @@ namespace NotfallSIM.Anatomy
         void Update()
         {
             if (_rig == null || sim == null || sim.Engine == null) return;
+            if (_xrayOn && hoverLabel && _cam) Hover();
+            if (sim.Paused) return; // Pause: Atmung steht
             var v = sim.Vitals;
 
             // Atmung: Brustkorb rechts/links und Bauch; beim Spannungspneu hebt sich die betroffene Seite kaum
@@ -218,8 +230,6 @@ namespace NotfallSIM.Anatomy
             float cyan = Mathf.Clamp01((92f - (float)v.SpO2_percent) / 20f);
             if (v.CardiacArrest) { pale = 1; cyan = Mathf.Max(cyan, 0.5f); }
             _skin.color = Color.Lerp(Color.Lerp(SkinTone, Pale, pale * 0.8f), Cyanotic, cyan * 0.7f);
-
-            if (_xrayOn && hoverLabel && _cam) Hover();
         }
 
         void Hover()

@@ -42,8 +42,8 @@ namespace NotfallSIM.UI
             var mb = (RectTransform)menuButton.transform;
             mb.anchorMin = mb.anchorMax = new Vector2(0, 1);
             mb.pivot = new Vector2(0, 1);
-            mb.anchoredPosition = new Vector2(470, -20);
-            mb.sizeDelta = new Vector2(140, 44);
+            mb.anchoredPosition = new Vector2(24, -20);   // oben links vor dem Hinweistext (SceneBuilder)
+            mb.sizeDelta = new Vector2(150, 44);
 
             _overlay = RuntimeUi.Panel(root, "Overlay", new Color(0, 0, 0, 0.6f)).gameObject;
             RuntimeUi.Place((RectTransform)_overlay.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);

@@ -23,6 +23,7 @@ namespace NotfallSIM.Anatomy
         public AnatomyMeshInfo Info;
         public MeshRenderer Renderer;
         public MeshFilter Filter;
+        public MeshCollider Collider;   // nur im Röntgenblick, für den Namen unter der Maus
     }
 
     /// <summary>

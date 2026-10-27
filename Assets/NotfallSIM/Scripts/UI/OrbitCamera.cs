@@ -22,7 +22,8 @@ namespace NotfallSIM.UI
             if (mouse != null)
             {
                 delta = mouse.delta.ReadValue() * 0.1f;
-                scroll = mouse.scroll.ReadValue().y / 120f;
+                scroll = mouse.scroll.ReadValue().y;
+                if (Mathf.Abs(scroll) >= 10f) scroll /= 120f; // ältere Input-System-Versionen liefern 120 je Raste
                 rotate = mouse.rightButton.isPressed;
                 pan = mouse.middleButton.isPressed;
             }

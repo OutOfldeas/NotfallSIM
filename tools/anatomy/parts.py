@@ -16,9 +16,10 @@ LAYERS = {
     "organ": [r"^wall of heart$", r"lobe of (left |right )?lung", r"^trachea$", r"^bronchus$", r"^esophagus$", r"^liver$",
               r"gallbladder", r"^spleen$", r"^stomach$", r"pancreas, nsn", r"duodenum", r"jejunum", r"ileum",
               r"colon, nsn", r"^rectum$", r"kidney", r"adrenal gland", r"ureter", r"urinary bladder", r"prostate",
-              r"eyeball", r"thyroid cartilage", r"lobe of thymus"],
+              r"eyeball", r"thyroid cartilage", r"lobe of thymus", r"^diaphragm$"],
     "brain": [r"white matter structure of cerebral hemisphere", r"^cerebellum$", r"^pons$", r"medulla oblongata",
-              r"midbrain, nsn", r"corpus callosum", r"thalamus$", r"optic nerve", r"optic chiasm"],
+              r"midbrain, nsn", r"corpus callosum", r"thalamus$", r"optic nerve", r"optic chiasm",
+              r"gyrus$", r"gyri straight gyrus$", r"^(right|left) insula$", r"parietal lobule precuneus$"],  # Rinde (Gyri)
     "artery": [r"aorta", r"brachiocephalic artery", r"common carotid", r"subclavian artery", r"celiac artery",
                r"mesenteric artery", r"renal artery", r"iliac artery", r"splenic artery", r"common hepatic artery",
                r"pulmonary artery", r"gastric artery"],
@@ -26,7 +27,9 @@ LAYERS = {
              r"iliac vein", r"splenic vein", r"mesenteric vein", r"pulmonary vein"],
 }
 EXCLUDE = [r"intervertebral disk", r"stylohyoid", r"temporalis", r"zygomaticus", r"nasalis", r"head of", r"conch", r"tibialis", r"fibularis", r"tendon", r"muscle",
-           r"opponens", r"palatine", r"lacrimal"]
+           r"opponens", r"palatine", r"lacrimal",
+           r"geniohyoid", r"mylohyoid", r"omohyoid", r"sternohyoid", r"thyrohyoid",  # Zungenbeinmuskeln, keine Knochen
+           r"stria medullaris"]
 
 
 def select(names):

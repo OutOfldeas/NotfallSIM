@@ -201,13 +201,19 @@ Die Sandbox misst am Ragdoll wie an einem Crashtest-Dummy und übersetzt die Wer
 
 Haut, Knochen, Organe und große Gefäße stammen aus **BodyParts3D** (Mitsuhashi et al. 2009, Datenbank des Database Center for Life Science, Japan), einem Modell eines erwachsenen Mannes (Körperhöhe im Modell 1,66 m, im Spiel auf die Patientengröße skaliert). `tools/anatomy/build_anatomy.py` wählt ca. 330 Strukturen aus, vereinfacht sie, vernetzt die Haut neu (Voxel-Hülle, geschlossen) und schreibt `StreamingAssets/NotfallSIM/anatomy/body.bin`.
 
+**Prüfung der Lagebeziehungen** (`tools/anatomy/check_anatomy.py`, 74 Regeln, alle erfüllt): Seiten (Leber, Gallenblase, V. cava inferior rechts; Milz, Magen, Aorta descendens links; Lungenlappen), Höhen (Nieren Th12–L3, rechte tiefer; Nebennieren auf dem oberen Pol; Leberkuppel unter dem Herzen; Trachealbifurkation Th5; Schildknorpel C5; Aortenbifurkation L4; Truncus coeliacus Th12 über A. mesenterica sup./inf.; Harnblase im kleinen Becken, Prostata darunter), vorn/hinten (Ösophagus hinter der Trachea; Nieren retroperitoneal; Pankreas hinter dem Magen; Rektum hinter der Blase; V. renalis sinistra vor der Aorta; V. subclavia vor der A. subclavia), Hals (V. jugularis interna lateral der A. carotis), Extremitäten (N.–A.–V. femoralis von lateral nach medial; N. ischiadicus hinter dem Femur; A. poplitea in der Kniekehle; A. brachialis medial des Humerus; N. radialis im Sulcus; N. ulnaris hinter dem Epicondylus medialis; A. radialis/ulnaris auf ihrer Seite), Rückenmark im Wirbelkanal C1–L1, alle Strukturen innerhalb der Haut, ergänzte Bahnen nicht durch Knochen. Die Lage der BodyParts3D-Organe zueinander stammt aus den Originaldaten; die Prüfung stellt vor allem sicher, dass die Umrechnung nach Unity nichts spiegelt und die ergänzten Bahnen stimmen. Benachbarte Organe berühren sich teils mit wenigen Millimetern Überlappung (Segmentierung der Originaldaten).
+
+**Behobene Fehler (28.10.2026):** Dreiecke waren für Unity nach innen orientiert (Spiegelung bei der Umrechnung), dadurch Atmung an der Rückenseite; Hand-Haut zu 10–30 % am Becken gewichtet (Hände blieben beim Bewegen der Arme zurück); innere Oberarmhaut zu 30–50 % am Thorax (Nerven traten auf der Trage aus der Haut); Rückenmark lag in den Wirbelkörpern; N. ulnaris und A. tibialis posterior teils außerhalb der Haut; ergänzte Bahnen folgten Gelenkbewegungen nicht (jetzt je Segment geteilt); fünf Zungenbeinmuskeln waren als Knochen geführt; viele Bezeichnungen englisch; Arme lagen auf der Trage über den Rand hinaus und schwebten 2 cm über der Matratze.
+
 - **Lizenz:** CC BY-SA 2.1 Japan. `body.bin` ist eine Bearbeitung und steht damit unter derselben Lizenz; Namensnennung im Hauptmenü und im Dateikopf. Der Programmcode ist davon nicht betroffen.
-- **Ergänzt, nicht aus BodyParts3D:** Nerven (Rückenmark, Plexus brachialis mit N. medianus, ulnaris, radialis; N. femoralis, N. ischiadicus) und Extremitätengefäße als schematische Röhren entlang anatomischer Landmarken. Verlauf didaktisch, nicht vermessen.
+- **Ergänzt, nicht aus BodyParts3D:** Nerven (Rückenmark, Plexus brachialis mit N. medianus, ulnaris, radialis; N. femoralis, N. ischiadicus) und Extremitätengefäße als schematische Röhren entlang anatomischer Landmarken. Das Rückenmark verläuft durch die aus jedem Wirbel bestimmte Kanalmitte (größter umschlossener Freiraum im Querschnitt) von der Medulla oblongata bis L1. Alle Bahnen werden innerhalb der Haut und außerhalb der Knochen gehalten und je Segment geteilt, damit sie Gelenkbewegungen folgen. Verlauf didaktisch, nicht vermessen.
+- **Gehirn:** Marklager, Hirnstamm, Kleinhirn, Thalamus und 33 Gyri der Großhirnrinde (BodyParts3D enthält nicht alle Windungen, z. B. fehlt der Okzipitalpol; dort ist das Marklager sichtbar). Abstand Rinde–Kalotte im Median 4 mm.
+- **Zwerchfell** aus BodyParts3D (Kuppel auf Höhe der Leberkuppel).
 - **Skelett:** 12 Segmente; Gelenkzentren aus den Knochen bestimmt (Hüfte aus dem Acetabulum, Knie zwischen den Femurkondylen usw.). Massen je Segment nach de Leva (1996), getrennt nach Geschlecht. Dieselben Segmente nutzt die Unfall-Sandbox.
 - **Atmung:** drei Blendshapes (Thorax rechts, Thorax links, Abdomen). Beim Spannungspneu links hebt sich die linke Seite kaum noch.
 - **Verletzungen im Röntgenblick** (`anatomy/anatomy.json`): Zuordnung Verletzung → Strukturen, z. B. Beckenfraktur → Os coxae und Sakrum, Rippenserie links → Rippen 4–7 links. Erst nach Szenarioende sichtbar.
 
-**Grenzen:** ein Körperbau für alle Patienten (Frauen und Kinder nur skaliert), Organe in Ruhelage und ohne Verformung, Weichteile ohne Masse.
+**Grenzen:** ein Körperbau für alle Patienten (Frauen und Kinder nur skaliert), Organe in Ruhelage und ohne Verformung, Weichteile ohne Masse. Die Haut folgt den Segmenten mit linearer Gewichtung zweier benachbarter Segmente. In BodyParts3D liegen Oberarme und Oberschenkel innen an; die Haut ist dort verbunden. Weiche Übergänge verteilen die Dehnung, bei starkem Abspreizen (Motorrad-Sitz) entsteht eine kleine Achselfalte; eine harte Trennung wurde getestet und reißt sichtbar auf. Hand und Unterarm sind ein Segment (keine Handgelenksbewegung).
 
 ## Offene Punkte zum Prüfen
 
@@ -243,6 +249,7 @@ Haut, Knochen, Organe und große Gefäße stammen aus **BodyParts3D** (Mitsuhash
 - [ ] Halsverletzung (HWS) mit Physiologie in die Datenbank aufnehmen, dann Nij zuordnen
 - [ ] Fehlende typische Verletzungen ergänzen: Wirbelsäule, Kalkaneus (Sturz), Aortenverletzung (Dezeleration), Rippenserie rechts
 - [ ] Anatomie: Zuordnung Verletzung → Strukturen (`anatomy.json`) und schematische Nervenverläufe gegenlesen
+- [ ] SDH/EDH als eigene Hämatom-Form (Sichel/Linse) zwischen Kalotte und Rinde darstellen statt Rinde einzufärben
 - [ ] Weibliches Anatomiemodell (z. B. Z-Anatomy, ebenfalls CC BY-SA) für Patientinnen prüfen
 
 ## Quellen

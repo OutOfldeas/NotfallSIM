@@ -39,7 +39,7 @@ LAYER_COLORS = {  # RGBA 0..1
 ORGAN_COLORS = [(r'heart', (0.70, 0.12, 0.14, 1)), (r'lung', (0.93, 0.62, 0.64, 1)), (r'liver', (0.48, 0.20, 0.14, 1)),
                 (r'spleen', (0.45, 0.16, 0.30, 1)), (r'kidney', (0.55, 0.22, 0.18, 1)), (r'stomach|duoden|jejun|ileum|colon|rectum', (0.92, 0.70, 0.60, 1)),
                 (r'gallbladder', (0.35, 0.55, 0.25, 1)), (r'pancreas', (0.93, 0.80, 0.55, 1)), (r'bladder|ureter|prostate', (0.90, 0.80, 0.50, 1)),
-                (r'trachea|bronch|esophag|thyroid', (0.85, 0.75, 0.70, 1)), (r'eyeball', (0.95, 0.95, 0.95, 1)), (r'adrenal|thymus', (0.90, 0.75, 0.40, 1))]
+                (r'trachea|bronch|esophag|thyroid', (0.85, 0.75, 0.70, 1)), (r'^diaphragm$', (0.66, 0.26, 0.24, 1)), (r'eyeball', (0.95, 0.95, 0.95, 1)), (r'adrenal|thymus', (0.90, 0.75, 0.40, 1))]
 
 
 def to_unity(v):
@@ -155,6 +155,7 @@ SEGMENTS = [  # Name, Region (Untersuchung/Sensor), Eltern, proximales Gelenk, d
     ('Unterschenkel links', 'Unterschenkel links', 'Oberschenkel links', 'Knie links', 'Sprunggelenk links', 0.0570, 0.0610),
 ]
 LIMB = lambda name: name.startswith(('Ober', 'Unter'))
+LIMB_PRIORITY = 0.6
 
 
 def smoothstep(a, b, x):
@@ -165,6 +166,7 @@ def smoothstep(a, b, x):
 def segment_scores(p, J, radii):
     """Zugehörigkeit von Punkten p (N×3, Unity) zu den Segmenten; Rückgabe N×S."""
     S = np.zeros((len(p), len(SEGMENTS)))
+    limb = np.zeros(len(p))   # Nähe zur Achse von Oberarm/Oberschenkel unterhalb von Achsel bzw. Leiste (0…1)
     for k, (name, _, parent, a, b, *_m) in enumerate(SEGMENTS):
         A, B = J[a], J[b]
         if name.startswith('Unterschenkel'):  # Fuß gehört zum Unterschenkel
@@ -176,29 +178,62 @@ def segment_scores(p, J, radii):
         sigma = radii[name] * (1.3 if LIMB(name) else 1.25)
         s = np.exp(-(d / sigma) ** 2)
         if parent is not None:
-            s *= smoothstep(-0.20, 0.0, t) if LIMB(name) else smoothstep(-0.10, 0.05, t)  # proximal des Gelenks: Elternsegment
-        if name in ('Oberarm rechts', 'Oberarm links', 'Oberschenkel rechts', 'Oberschenkel links', 'Abdomen'):
+            s *= smoothstep(-0.20, 0.0, t) if LIMB(name) else smoothstep(-0.30, 0.15, t)  # proximal des Gelenks: Elternsegment (Rumpf: breiter Übergang)
+        if name in ('Oberarm rechts', 'Oberarm links', 'Oberschenkel rechts', 'Oberschenkel links'):
             s *= 1 - smoothstep(0.95, 1.08, t)        # distal davon das Kindsegment
+        if name == 'Abdomen':
+            s *= 1 - smoothstep(0.85, 1.3, t)
         if name == 'Thorax':
             s *= 1 - smoothstep(1.0, 1.12, t)
         if name == 'Becken':
-            s *= 1 - smoothstep(0.95, 1.1, t)
+            s *= 1 - smoothstep(0.85, 1.25, t)
+        if name.startswith(('Oberarm', 'Oberschenkel')):
+            limb = np.maximum(limb, smoothstep(0.15, 0.35, t) * (1 - smoothstep(1.25, 1.6, d / radii[name])))
         S[:, k] = s
+    # Haut am inneren Oberarm/Oberschenkel liegt in BodyParts3D am Rumpf an (Haut verbunden). Rumpfanteil dort
+    # abschwächen, aber nicht auf null: harte Grenzen reißen beim Abspreizen als Hautsegel auf.
+    for k, (name, *_r) in enumerate(SEGMENTS):
+        if name in ('Becken', 'Abdomen', 'Thorax'):
+            S[:, k] *= 1 - LIMB_PRIORITY * limb
     return S
+
+
+def segment_radii(p, J):
+    """Mittlerer Abstand der Hautpunkte zur Segmentachse (mittleres Drittel des Segments)."""
+    radii = {}
+    for name, _, parent, a_, b_, *_m in SEGMENTS:
+        A, B = J[a_], J[b_]; ab = B - A
+        t = ((p - A) @ ab) / (ab @ ab)
+        sel_t = (t > 0.25) & (t < 0.75)
+        d = np.linalg.norm(p - (A + np.clip(t, 0, 1)[:, None] * ab), axis=1)
+        near = d[sel_t]
+        near = near[near < (0.25 if not LIMB(name) else 0.12)]
+        radii[name] = float(np.percentile(near, 50)) if len(near) else 0.05
+    return radii
+
+
+def adjacency():
+    """Nachbarschaft im Skelett (Eltern–Kind). Gewichte dürfen nur zwischen Nachbarn mischen — sonst hängt z. B.
+    die Hand mit 20 % am Becken, neben dem sie in Ruhelage liegt, und bleibt beim Bewegen des Arms zurück."""
+    names = [s_[0] for s_ in SEGMENTS]
+    A = np.zeros((len(SEGMENTS), len(SEGMENTS)))
+    for k, (name, _, parent, *_r) in enumerate(SEGMENTS):
+        if parent:
+            pk = names.index(parent); A[k, pk] = A[pk, k] = 1
+    return A
 
 
 def skin_weights(p, J, radii):
     S = segment_scores(p, J, radii)
-    order = np.argsort(-S, axis=1)[:, :2]
-    w = np.take_along_axis(S, order, axis=1)
+    first = S.argmax(1)
+    S2 = S * adjacency()[first]                       # nur Nachbarsegmente des dominanten Segments
+    second = S2.argmax(1)
+    w = np.c_[S[np.arange(len(p)), first], S2[np.arange(len(p)), second]]
     w = np.maximum(w, 1e-9)
-    w = w ** 1.0  # weiche Übergänge an den Gelenken
-    w /= w.sum(1, keepdims=True)
-    # Fallback: kaum Zugehörigkeit → nächstes Segment allein
-    weak = S.max(1) < 1e-4
-    if weak.any():
-        w[weak] = [1, 0]
-    return order.astype(np.uint8), w
+    w /= w.sum(1, keepdims=True)                      # weiche Übergänge an den Gelenken
+    weak = S.max(1) < 1e-4                            # kaum Zugehörigkeit → dominantes Segment allein
+    w[weak] = [1, 0]
+    return np.c_[first, second].astype(np.uint8), w
 
 
 # ------------------------------------------------------------------ Röhren (Nerven, Gefäße der Extremitäten)
@@ -214,26 +249,154 @@ def catmull(points, n=6):
     return np.array(out)
 
 
-def tube(points, r0, r1=None, sides=8):
-    path = catmull(points)
-    r1 = r0 if r1 is None else r1
+def tube(path, radii, sides=8):
+    """Röhre um eine Mittellinie (bereits abgetastet). Dreiecke so orientiert, dass die Normalen nach außen zeigen
+    (Unity: Kreuzprodukt (b−a)×(c−a) zeigt zur Vorderseite)."""
+    path = np.asarray(path, float); n = len(path)
     verts, faces = [], []
-    n = len(path)
     for i, c in enumerate(path):
         tdir = path[min(i + 1, n - 1)] - path[max(i - 1, 0)]
         tdir /= np.linalg.norm(tdir) + 1e-12
         ref = np.array([0, 0, 1.0]) if abs(tdir[2]) < 0.9 else np.array([1.0, 0, 0])
         u = np.cross(tdir, ref); u /= np.linalg.norm(u); w = np.cross(tdir, u)
-        r = r0 + (r1 - r0) * i / (n - 1)
         for k in range(sides):
             a = 2 * np.pi * k / sides
-            verts.append(c + r * (np.cos(a) * u + np.sin(a) * w))
+            verts.append(c + radii[i] * (np.cos(a) * u + np.sin(a) * w))
     for i in range(n - 1):
         for k in range(sides):
             a, b = i * sides + k, i * sides + (k + 1) % sides
             c_, d = a + sides, b + sides
-            faces += [[a, c_, b], [b, c_, d]]
-    return trimesh.Trimesh(np.array(verts), np.array(faces), process=False)
+            faces += [[a, b, c_], [b, d, c_]]
+    verts, faces = np.array(verts), np.array(faces)
+    # Kontrolle: Flächennormalen zeigen von der Mittellinie weg
+    fc = verts[faces].mean(1); fn = np.cross(verts[faces[:, 1]] - verts[faces[:, 0]], verts[faces[:, 2]] - verts[faces[:, 0]])
+    ring = np.repeat(np.arange(n - 1), 2 * sides)
+    good = (np.einsum('ij,ij->i', fn, fc - path[ring]) > 0).mean()
+    assert good > 0.95, f'Röhre falsch orientiert ({good:.0%} der Flächen außen, {n} Ringe)'
+    return verts, faces
+
+
+def orient_outward(pos, faces):
+    """Dreiecke so drehen, dass das umschlossene Volumen positiv ist (Normalen außen). Die Abbildung
+    BodyParts3D → Unity spiegelt (Determinante −1) und kehrt damit die Umlaufrichtung um."""
+    c = pos.mean(0); a, b, d = pos[faces[:, 0]] - c, pos[faces[:, 1]] - c, pos[faces[:, 2]] - c
+    vol = np.einsum('ij,ij->i', a, np.cross(b, d)).sum()
+    return faces[:, ::-1].copy() if vol < 0 else faces
+
+
+# ------------------------------------------------------------------ Wirbelkanal
+
+def _slice(pos, tri, y):
+    """Schnitt eines Meshes mit der Ebene y = const → Strecken in (x, z)."""
+    d = pos[tri, 1] - y
+    s = np.sign(d); cut = (s.min(1) < 0) & (s.max(1) > 0)
+    segs = []
+    for t, dd in zip(tri[cut], d[cut]):
+        pts = []
+        for i, j in ((0, 1), (1, 2), (2, 0)):
+            if (dd[i] < 0) != (dd[j] < 0):
+                f = dd[i] / (dd[i] - dd[j]); q = pos[t[i]] + f * (pos[t[j]] - pos[t[i]]); pts.append(q[[0, 2]])
+        if len(pts) == 2: segs.append(pts)
+    return np.array(segs)
+
+
+def canal_center(pos, tri):
+    """Mitte des Wirbelkanals: größter freier, rundum von Knochen umschlossener Kreis in einem waagerechten Schnitt."""
+    y0, y1 = pos[:, 1].min(), pos[:, 1].max()
+    best = None
+    dirs = np.array([[np.cos(a), np.sin(a)] for a in np.linspace(0, 2 * np.pi, 12, endpoint=False)])
+    for y in np.linspace(y0 + 0.25 * (y1 - y0), y0 + 0.75 * (y1 - y0), 7):
+        S = _slice(pos, tri, y)
+        if len(S) < 10: continue
+        xm = (pos[:, 0].min() + pos[:, 0].max()) / 2
+        gx, gz = np.meshgrid(np.arange(xm - 0.014, xm + 0.014, 0.001), np.arange(pos[:, 2].min(), pos[:, 2].max(), 0.001))
+        q = np.c_[gx.ravel(), gz.ravel()]
+        a, b = S[:, 0], S[:, 1]; e = b - a
+        hits = np.zeros((len(q), len(dirs)), int)
+        for k, dvec in enumerate(dirs):
+            den = dvec[0] * e[:, 1] - dvec[1] * e[:, 0]
+            w = a[None] - q[:, None]
+            t = (w[..., 0] * e[:, 1] - w[..., 1] * e[:, 0]) / np.where(np.abs(den) < 1e-12, np.nan, den)
+            u = (w[..., 0] * dvec[1] - w[..., 1] * dvec[0]) / np.where(np.abs(den) < 1e-12, np.nan, den)
+            hits[:, k] = ((t > 0) & (t < 0.04) & (u >= 0) & (u <= 1)).sum(1)
+        enclosed = (hits > 0).all(1)
+        outside = ((hits % 2) == 0).mean(1) > 0.6       # gerade Schnittzahl → nicht im Knochen
+        cand = enclosed & outside
+        if not cand.any(): continue
+        # Abstand zur nächsten Strecke
+        qq = q[cand][:, None]; t = np.clip(((qq - a[None]) * e[None]).sum(2) / ((e * e).sum(1)[None] + 1e-12), 0, 1)
+        dist = np.linalg.norm(qq - (a[None] + t[..., None] * e[None]), axis=2).min(1)
+        i = dist.argmax()
+        if best is None or dist[i] > best[1]:
+            best = (np.array([q[cand][i][0], y, q[cand][i][1]]), dist[i])
+    return best
+
+
+# ------------------------------------------------------------------ Leitungsbahnen an Haut und Knochen anpassen
+
+def constrain_path(path, radii, skin_tm, bone_tm, margin_skin=0.004, margin_bone=0.0015, iters=8):
+    """Schematische Bahn innerhalb der Haut und außerhalb der Knochen halten (iterativ projizieren, leicht glätten)."""
+    p = np.array(path, float)
+    for it in range(iters + 1):
+        c, dist, tid = trimesh.proximity.closest_point(skin_tm, p)
+        n = skin_tm.face_normals[tid]; depth = -np.sign(np.einsum('ij,ij->i', p - c, n)) * dist
+        need = radii + margin_skin; bad = depth < need
+        p[bad] = c[bad] - n[bad] * need[bad, None]
+        c, dist, tid = trimesh.proximity.closest_point(bone_tm, p)
+        n = bone_tm.face_normals[tid]; clear = np.sign(np.einsum('ij,ij->i', p - c, n)) * dist
+        need = radii + margin_bone; bad = clear < need
+        p[bad] = c[bad] + n[bad] * need[bad, None]
+        if it < iters:
+            p[1:-1] = 0.25 * p[:-2] + 0.5 * p[1:-1] + 0.25 * p[2:]
+    return p
+
+
+def inflate_skin(skin_tm, points, margin=0.0015, radius=0.015, rounds=3):
+    """Haut dort leicht nach außen schieben, wo Knochen (Finger-, Zehenspitzen) nach dem Vereinfachen herausragen."""
+    from scipy.spatial import cKDTree
+    v = skin_tm.vertices.copy()
+    near = cKDTree(v).query(points)[0] < 0.02
+    pts = points[near]
+    for _ in range(rounds):
+        tm = trimesh.Trimesh(v, skin_tm.faces, process=False)
+        sd = trimesh.proximity.signed_distance(tm, pts)           # positiv = innen
+        out = sd < margin
+        if not out.any(): break
+        c, _, _ = trimesh.proximity.closest_point(tm, pts[out])
+        push = margin - sd[out]
+        tree = cKDTree(v); vn = tm.vertex_normals
+        disp = np.zeros(len(v))
+        for ci, pu in zip(c, push):
+            idx = tree.query_ball_point(ci, radius)
+            if not idx: continue
+            dd = np.linalg.norm(v[idx] - ci, axis=1) / radius
+            disp[idx] = np.maximum(disp[idx], pu * (1 - smoothstep(0, 1, dd)) * 1.2)
+        v = v + vn * disp[:, None]
+    return trimesh.Trimesh(v, skin_tm.faces, process=False), int(near.sum())
+
+
+def resample(path, radii, step=0.008):
+    """Gleichmäßig nach Bogenlänge neu abtasten (entfernt Doppelpunkte und Knicke nach dem Projizieren)."""
+    d = np.r_[0, np.cumsum(np.linalg.norm(np.diff(path, axis=0), axis=1))]
+    keep = np.r_[True, np.diff(d) > 1e-6]
+    path, radii, d = path[keep], radii[keep], d[keep]
+    n = max(2, int(np.ceil(d[-1] / step)) + 1)
+    t = np.linspace(0, d[-1], n)
+    return np.c_[[np.interp(t, d, path[:, k]) for k in range(3)]].T, np.interp(t, d, radii)
+
+
+def split_by_segment(path, radii, J, seg_radii):
+    """Bahn in Stücke je Segment teilen (gleiche Zuordnung wie die Hautgewichte), damit sie Gelenkbewegungen folgt."""
+    seg = segment_scores(path, J, seg_radii).argmax(1)
+    for i in range(1, len(seg) - 1):                  # Ausreißer glätten
+        if seg[i - 1] == seg[i + 1] != seg[i]: seg[i] = seg[i - 1]
+    pieces, start = [], 0
+    for i in range(1, len(seg) + 1):
+        if i == len(seg) or seg[i] != seg[start]:
+            a, b = max(start - 1, 0), min(i + 1, len(seg))   # ein Ring Überlappung zum Nachbarn
+            if b - a >= 2: pieces.append((int(seg[start]), path[a:b], radii[a:b]))
+            start = i
+    return pieces
 
 
 def schematic_paths(J, bones, U):
@@ -245,9 +408,18 @@ def schematic_paths(J, bones, U):
     vert_names = [f'{o} cervical vertebra' for o in ('third', 'fourth', 'fifth', 'sixth', 'seventh')] + \
                  [f'{o} thoracic vertebra' for o in ('first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth')] + \
                  ['first lumbar vertebra', 'second lumbar vertebra']
-    spine = [cen('atlas') + [0, 0.03, -0.005], cen('atlas'), cen('axis')] + [cen(n) for n in vert_names]
-    # Wirbelkanal: Wirbelschwerpunkte liegen etwa auf Höhe der Bogenwurzeln; leicht nach dorsal
-    out.append(('Rückenmark', 'nerve', [p + np.array([0, 0, -0.012]) for p in spine], 0.0055, 0.004))
+    # Rückenmark in der Mitte des Wirbelkanals (aus den Wirbeln bestimmt), von der Medulla oblongata bis L1 (Conus)
+    canal = []
+    for n in ['atlas', 'axis'] + vert_names[:-1]:
+        b = bones[n]; cc = canal_center(U(b.vertices), b.faces)
+        if cc is not None and 0.003 < cc[1] < 0.016:
+            # Atlas: vorn im Kanal liegt der Dens axis, das Mark im hinteren Teil
+            canal.append(cc[0] + ([0, 0, -0.005] if n == 'atlas' else 0))
+        else: print('  Wirbelkanal nicht gefunden:', n, None if cc is None else round(cc[1] * 1000, 1))
+    med = V('medulla oblongata'); top = med[med[:, 1].argmin()]
+    l1 = U(bones['first lumbar vertebra'].vertices); l1c = canal_center(l1, bones['first lumbar vertebra'].faces)[0]
+    cord = [top] + canal + [l1c + [0, -0.012, 0]]
+    out.append(('Rückenmark', 'nerve', cord, 0.0055, 0.0035))
     for side, s, sx in (('rechts', 'right', 1), ('links', 'left', -1)):
         hip, knee, ankle = J[f'Hüfte {side}'], J[f'Knie {side}'], J[f'Sprunggelenk {side}']
         sh, el, wr = J[f'Schulter {side}'], J[f'Ellbogen {side}'], J[f'Handgelenk {side}']
@@ -313,39 +485,56 @@ def main():
     J = {k: U(v[None])[0] for k, v in J_bp.items()}
     print('Gelenke', {k: np.round(v, 3).tolist() for k, v in J.items()})
 
-    skin_bp = clean_skin(load(args.bp3d, SKIN), faces=args.skin_faces)
-    skin = trimesh.Trimesh(U(skin_bp.vertices), skin_bp.faces, process=False)
-    print(f'Haut {len(skin.vertices)} Ecken, {time.time() - t0:.0f} s')
+    # Anatomie zuerst (vereinfacht, Unity-Koordinaten, Normalen außen) — die Haut wird danach an die Knochen angepasst
+    parts = []
+    for pid, (layer, name) in sorted(sel.items(), key=lambda x: (x[1][0], x[1][1])):
+        m = raw[pid]
+        area = m.area
+        if layer == 'bone': target = int(np.clip(area / 20, 400, 6000))      # Röntgenblick aus der Nähe: Facetten vermeiden
+        elif re.search(r'gyr|insula|lobule', name): target = int(np.clip(area / 15, 900, 5000))   # Rinde: Windungen erhalten
+        elif name == 'diaphragm': target = 4000                                                  # dünne Platte
+        elif layer in ('organ', 'brain'): target = int(np.clip(area / 40, 600, 8000))
+        else: target = int(np.clip(area / 50, 300, 4000))
+        m = simplify(m.copy(), target)
+        pos = U(m.vertices)
+        faces = orient_outward(pos, np.asarray(m.faces))
+        color = LAYER_COLORS[layer]
+        if layer == 'organ':
+            for pat, col in ORGAN_COLORS:
+                if re.search(pat, name): color = col; break
+        parts.append((name, layer, pos, faces, color))
+    bone_tm = trimesh.util.concatenate([trimesh.Trimesh(q, f, process=False) for n_, l_, q, f, c_ in parts if l_ == 'bone'])
+    print(f'{len(parts)} Teile vereinfacht, {time.time() - t0:.0f} s')
+
+    raw_skin = load(args.bp3d, SKIN)
+    # Hinweis: In BodyParts3D liegen Oberarme und Oberschenkel innen an; die Haut ist dort verbunden. Weiche
+    # Gewichte (Rumpf/Glied gemischt) verteilen die Dehnung beim Bewegen — eine harte Trennung reißt sichtbar auf.
+    skin_bp = clean_skin(raw_skin, faces=args.skin_faces)
+    sv = U(skin_bp.vertices)
+    skin = trimesh.Trimesh(sv, orient_outward(sv, np.asarray(skin_bp.faces)), process=False)
+    assert skin.volume > 0, 'Haut falsch orientiert'
+    skin, n_near = inflate_skin(skin, bone_tm.vertices)
+    print(f'Haut {len(skin.vertices)} Ecken (an {n_near} hautnahen Knochenpunkten geprüft), {time.time() - t0:.0f} s')
 
     # Segmentradien aus der Haut: mittlerer Abstand zur Achse der zugehörigen Hautpunkte
-    radii = {}
     p = skin.vertices
-    for name, _, parent, a, b, *_m in SEGMENTS:
-        A, B = J[a], J[b]; ab = B - A
-        t = ((p - A) @ ab) / (ab @ ab)
-        sel_t = (t > 0.25) & (t < 0.75)
-        d = np.linalg.norm(p - (A + np.clip(t, 0, 1)[:, None] * ab), axis=1)
-        near = d[sel_t]
-        near = near[near < (0.25 if not LIMB(name) else 0.12)]
-        radii[name] = float(np.percentile(near, 50)) if len(near) else 0.05
+    radii = segment_radii(p, J)
     bones_idx, w = skin_weights(p, J, radii)
     dominant = bones_idx[:, 0]
 
     # Kollisionsformen je Segment (Ruhelage, Achsen = Körperachsen)
     segs = []
-    for k, (name, region, parent, a, b, mm, mf) in enumerate(SEGMENTS):
+    for k, (name, region, parent, a_, b_, mm, mf) in enumerate(SEGMENTS):
         pts = p[dominant == k]
-        lo, hi = pts.min(0), pts.max(0)
-        A, B = J[a], J[b]
+        A, B = J[a_], J[b_]
         q = np.percentile(pts, [3, 97], axis=0)
         seg = {'name': name, 'region': region, 'parent': parent or '', 'joint': A.tolist(), 'end': B.tolist(),
                'massMale': mm, 'massFemale': mf, 'radius': radii[name] * 0.92, 'capsule': LIMB(name),
                'boxCenter': ((q[0] + q[1]) / 2 - A).tolist(), 'boxSize': (q[1] - q[0]).tolist()}
         segs.append(seg)
 
-    # Atmungs-Blendshapes (Vorderseite Thorax rechts/links, Abdomen)
+    # Atmungs-Blendshapes (Vorderseite Thorax rechts/links, Abdomen) — entlang der äußeren Normalen
     n = skin.vertex_normals
-    thor = segs[2]; abd = segs[1]
     def band(y, a, b): return smoothstep(a - 0.03, a + 0.03, y) * (1 - smoothstep(b - 0.03, b + 0.03, y))
     front = np.clip(n[:, 2], 0, 1) ** 0.7
     chest = band(p[:, 1], J['T12/L1'][1] - 0.02, J['C7/T1'][1] - 0.04) * front * (w[:, 0] * (dominant == 2) + 0.3 * (dominant == 1))
@@ -353,6 +542,8 @@ def main():
     belly = band(p[:, 1], J['L4/L5'][1] - 0.06, J['T12/L1'][1] + 0.02) * front * ((dominant == 1) | (dominant == 0))
     shapes = {'AtmungThoraxRechts': (n * (chest * side * 0.009)[:, None]), 'AtmungThoraxLinks': (n * (chest * (1 - side) * 0.009)[:, None]),
               'AtmungAbdomen': (n * (belly * 0.012)[:, None])}
+    for k_, d_ in shapes.items():  # Einatmung hebt die Vorderseite (z nimmt zu)
+        assert d_[:, 2].sum() > 0, k_
 
     # Haut in zwei Teilmeshes: Haut und Unterhose (Becken-/Oberschenkelband)
     fc = skin.faces; fcen = p[fc].mean(1)
@@ -363,9 +554,9 @@ def main():
     meshes, entries = [], []
     def add(entry, pos, faces, **extra):
         short = len(pos) < 65535
-        meshes.append({'pos': pos, 'idx': faces.reshape(-1), 'short': short, **extra})
-        entry.update({'vertexCount': int(len(pos)), 'indexCount': int(faces.size), 'shortIndex': short})
-        entry.setdefault('submeshes', [int(faces.size)])
+        meshes.append({'pos': np.asarray(pos), 'idx': np.asarray(faces).reshape(-1), 'short': short, **extra})
+        entry.update({'vertexCount': int(len(pos)), 'indexCount': int(np.asarray(faces).size), 'shortIndex': short})
+        entry.setdefault('submeshes', [int(np.asarray(faces).size)])
         entries.append(entry)
     add({'name': 'Haut', 'label': 'Haut', 'layer': 'skin', 'segment': -1, 'color': LAYER_COLORS['skin'],
          'submeshes': [int(fc[~shorts].size), int(fc[shorts].size)], 'weights': True, 'blendShapes': list(shapes)},
@@ -373,26 +564,24 @@ def main():
 
     # Anatomie
     counts = {}
-    for pid, (layer, name) in sorted(sel.items(), key=lambda x: (x[1][0], x[1][1])):
-        m = raw[pid]
-        area = m.area
-        if layer == 'bone': target = int(np.clip(area / 60, 120, 5000))
-        elif layer in ('organ', 'brain'): target = int(np.clip(area / 80, 400, 8000))
-        else: target = int(np.clip(area / 80, 200, 3000))
-        m = simplify(m.copy(), target)
-        pos = U(m.vertices)
-        color = LAYER_COLORS[layer]
-        if layer == 'organ':
-            for pat, col in ORGAN_COLORS:
-                if re.search(pat, name): color = col; break
+    for name, layer, pos, faces, color in parts:
         segk = int(np.argmax(segment_scores(pos.mean(0)[None], J, radii)[0]))
-        add({'name': name, 'label': german(name), 'layer': layer, 'segment': segk, 'color': color, 'weights': False, 'blendShapes': []}, pos, m.faces)
-        counts[layer] = counts.get(layer, 0) + len(m.faces)
+        add({'name': name, 'label': german(name), 'layer': layer, 'segment': segk, 'color': color, 'weights': False, 'blendShapes': []}, pos, faces)
+        counts[layer] = counts.get(layer, 0) + len(faces)
+    # Schematische Bahnen: innerhalb der Haut, außerhalb der Knochen, je Segment ein Stück (folgt den Gelenken)
     for name, layer, pts, r0, r1 in schematic_paths(J, by_name, U):
-        m = tube(pts, r0, r1)
-        add({'name': name, 'label': name, 'layer': layer, 'segment': int(np.argmax(segment_scores(np.mean(pts, 0)[None], J, radii)[0])),
-             'color': LAYER_COLORS[layer], 'weights': False, 'blendShapes': [], 'schematic': True}, np.asarray(m.vertices), np.asarray(m.faces))
-        counts[layer] = counts.get(layer, 0) + len(m.faces)
+        path = catmull(pts)
+        rad = np.linspace(r0, r1, len(path))
+        path, rad = resample(path, rad)
+        # 8 mm unter der Haut: die Haut am inneren Oberarm ist mit dem Rumpf verbunden und folgt Armbewegungen nur
+        # teilweise — so bleiben die Bahnen auch auf der Trage (Arme leicht bewegt) innerhalb der Haut
+        path = constrain_path(path, rad, skin, bone_tm, margin_skin=0.008)
+        path, rad = resample(path, rad)
+        for segk, piece, prad in split_by_segment(path, rad, J, radii):
+            verts, faces = tube(piece, prad)
+            add({'name': name, 'label': name, 'layer': layer, 'segment': segk, 'color': LAYER_COLORS[layer],
+                 'weights': False, 'blendShapes': [], 'schematic': True}, verts, faces)
+            counts[layer] = counts.get(layer, 0) + len(faces)
     print('Dreiecke je Ebene', counts)
 
     header = {
@@ -414,7 +603,7 @@ def main():
         for e, m in zip(entries, meshes):
             if not filter_fn(e): continue
             pos = m['pos'] * np.array([-1, 1, 1])
-            f = m['idx'].reshape(-1, 3)  # Spiegelung x kehrt die Orientierung bereits um
+            f = m['idx'].reshape(-1, 3)[:, ::-1]  # Spiegelung x (three.js rechtshändig) → Umlaufrichtung umkehren
             tm = trimesh.Trimesh(pos, f, process=False)
             col = np.array(e['color']) * 255
             if e['layer'] == 'skin' and skin_alpha is not None: col[3] = skin_alpha
@@ -426,7 +615,7 @@ def main():
     # Gewichtsvorschau: Haut nach dominantem Segment eingefärbt
     pal = np.array([[230, 80, 80], [230, 160, 60], [220, 220, 70], [120, 200, 90], [80, 180, 220], [60, 100, 220], [150, 90, 220], [220, 90, 200],
                     [110, 110, 110], [200, 200, 200], [90, 60, 40], [40, 160, 140]], np.uint8)
-    tm = trimesh.Trimesh(p * np.array([-1, 1, 1]), fc, process=False)
+    tm = trimesh.Trimesh(p * np.array([-1, 1, 1]), fc[:, ::-1], process=False)
     tm.visual.vertex_colors = np.c_[pal[dominant], np.full(len(p), 255, np.uint8)]
     tm.export(os.path.join(PREVIEW, 'gewichte.glb'))
     json.dump({'joints': header['joints'], 'segments': segs}, open(os.path.join(PREVIEW, 'skelett.json'), 'w'), ensure_ascii=False, indent=1)

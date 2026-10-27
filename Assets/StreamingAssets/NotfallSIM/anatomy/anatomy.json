@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "injuries": [
     {
       "injuryId": "becken_instabil",
@@ -56,18 +56,24 @@
     {
       "injuryId": "sdh_akut_links",
       "meshes": [
-        "white matter structure of cerebral hemisphere",
+        "^left (superior|middle) frontal gyrus$",
+        "^left (pre|post)central gyrus$",
+        "^left (supramarginal|angular) gyrus$",
+        "^left superior parietal lobule precuneus$",
+        "^(anterior|posterior) part of left superior temporal gyrus$",
+        "^left (middle|inferior) temporal gyrus$",
         "^left parietal bone$"
       ],
-      "note": "Subduralhämatom links"
+      "note": "Subduralhämatom links: Großhirnkonvexität links (Rinde) und Scheitelbein links"
     },
     {
       "injuryId": "epiduralhaematom_rechts",
       "meshes": [
         "^right temporal bone$",
-        "white matter structure of cerebral hemisphere"
+        "^(anterior|posterior) part of right superior temporal gyrus$",
+        "^right (middle|inferior) temporal gyrus$"
       ],
-      "note": "Epiduralhämatom rechts temporal"
+      "note": "Epiduralhämatom rechts temporal: Schläfenbein rechts und Temporallappen rechts"
     }
   ]
 }

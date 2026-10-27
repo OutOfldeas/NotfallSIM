@@ -887,6 +887,45 @@ static class Tests
             Check(names.Contains(r), "Segment fehlt: " + r);
         foreach (var sg in data.Header.segments)
             Check(sg.parent == "" || names.Contains(sg.parent), sg.name + ": Elternsegment");
+
+        // Umlaufrichtung wie Unity sie erwartet: (b−a)×(c−a) zeigt nach außen ⇒ eingeschlossenes Volumen positiv.
+        // (Die Abbildung BodyParts3D → Unity spiegelt; ohne Umdrehen sähe man in Unity die Innenseiten.)
+        foreach (var m in data.Meshes)
+        {
+            double cx = 0, cy = 0, cz = 0; int n = m.Info.vertexCount;
+            for (int i = 0; i < n; i++) { cx += m.Positions[3 * i]; cy += m.Positions[3 * i + 1]; cz += m.Positions[3 * i + 2]; }
+            cx /= n; cy /= n; cz /= n;
+            double vol = 0;
+            for (int t = 0; t < m.Indices.Length; t += 3)
+            {
+                int a = 3 * m.Indices[t], b = 3 * m.Indices[t + 1], c = 3 * m.Indices[t + 2];
+                double ax = m.Positions[a] - cx, ay = m.Positions[a + 1] - cy, az = m.Positions[a + 2] - cz;
+                double bx = m.Positions[b] - cx, by = m.Positions[b + 1] - cy, bz = m.Positions[b + 2] - cz;
+                double qx = m.Positions[c] - cx, qy = m.Positions[c + 1] - cy, qz = m.Positions[c + 2] - cz;
+                vol += ax * (by * qz - bz * qy) - ay * (bx * qz - bz * qx) + az * (bx * qy - by * qx);
+            }
+            Check(vol > 0, m.Info.name + ": Dreiecke nach innen orientiert");
+        }
+        // Hautgewichte nur zwischen benachbarten Segmenten (sonst hängt z. B. die Hand am Becken)
+        var segIdx = data.Header.segments.Select((x, i) => new { x.name, i }).ToDictionary(x => x.name, x => x.i);
+        Func<int, int, bool> adjacent = (a, b) => a == b
+            || data.Header.segments[a].parent != "" && segIdx[data.Header.segments[a].parent] == b
+            || data.Header.segments[b].parent != "" && segIdx[data.Header.segments[b].parent] == a;
+        int foreign = 0;
+        for (int i = 0; i < skin.Info.vertexCount; i++)
+            if (skin.Weight0[i] < 250 && !adjacent(skin.Bones[2 * i], skin.Bones[2 * i + 1])) foreign++;
+        Check(foreign == 0, $"{foreign} Hautecken mischen nicht benachbarte Segmente");
+        // Einatmung hebt die Vorderseite (Blendshape-Deltas entlang der äußeren Normalen)
+        for (int s = 0; s < skin.BlendShapes.Count; s++)
+        {
+            double dz = 0; var d = skin.BlendShapes[s];
+            for (int i = 0; i < skin.Info.vertexCount; i++) dz += d[3 * i + 2];
+            Check(dz > 0, skin.Info.blendShapes[s] + ": bewegt die Haut nach innen");
+        }
+        // Deutsche Bezeichnungen für den Röntgenblick
+        foreach (var m in data.Meshes)
+            Check(!System.Text.RegularExpressions.Regex.IsMatch(m.Info.label, @"\b(of|left|right|bone|phalanx|metacarpal|metatarsal|nsn)\b"), "englische Bezeichnung: " + m.Info.label);
+
         // Anatomie-Zuordnung der Verletzungen: jedes Muster trifft mindestens ein Mesh
         var map = Load<AnatomyInjuryMapFile>("anatomy/anatomy.json");
         foreach (var e in map.injuries)

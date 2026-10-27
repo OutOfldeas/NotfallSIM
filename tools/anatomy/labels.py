@@ -11,15 +11,30 @@ FIXED = {
     'eyeball': 'Augapfel', 'middle lobe of lung': 'Mittellappen rechte Lunge', 'sacrum': 'Kreuzbein', 'atlas': 'Atlas (HWK 1)', 'axis': 'Axis (HWK 2)',
     'manubrium': 'Manubrium sterni', 'body of sternum': 'Brustbein', 'xiphoid process': 'Schwertfortsatz', 'mandible': 'Unterkiefer',
     'frontal bone': 'Stirnbein', 'occipital bone': 'Hinterhauptsbein', 'sphenoid bone': 'Keilbein', 'ethmoid': 'Siebbein', 'vomer': 'Pflugscharbein',
-    'hyoid bone': 'Zungenbein', 'white matter structure of cerebral hemisphere': 'Großhirn', 'cerebellum': 'Kleinhirn', 'pons': 'Pons',
+    'hyoid bone': 'Zungenbein', 'white matter structure of cerebral hemisphere': 'Großhirn (Marklager)', 'cerebellum': 'Kleinhirn', 'pons': 'Pons',
     'medulla oblongata': 'Medulla oblongata', 'midbrain, nsn': 'Mittelhirn', 'corpus callosum': 'Balken', 'optic chiasm': 'Sehnervenkreuzung',
     'ascending aorta': 'Aorta ascendens', 'arch of aorta': 'Aortenbogen', 'descending aorta': 'Aorta descendens', 'brachiocephalic artery, nsn': 'Truncus brachiocephalicus',
     'celiac artery': 'Truncus coeliacus', 'superior mesenteric artery': 'A. mesenterica superior', 'inferior mesenteric artery': 'A. mesenterica inferior',
-    'splenic artery': 'A. splenica', 'common hepatic artery': 'A. hepatica communis', 'pulmonary artery': 'Truncus pulmonalis', 'left gastric artery': 'A. gastrica sinistra',
+    'splenic artery': 'A. splenica', 'common hepatic artery': 'A. hepatica communis', 'pulmonary artery': 'A. pulmonalis (Truncus und Äste)', 'left gastric artery': 'A. gastrica sinistra',
     'superior vena cava': 'V. cava superior', 'inferior vena cava': 'V. cava inferior', 'pulmonary vein': 'Lungenvenen', 'splenic vein': 'V. splenica',
-    'superior mesenteric vein': 'V. mesenterica superior',
+    'superior mesenteric vein': 'V. mesenterica superior', 'diaphragm': 'Zwerchfell',
 }
+DIGIT = {'thumb': 'Daumen', 'index finger': 'Zeigefinger', 'middle finger': 'Mittelfinger', 'ring finger': 'Ringfinger',
+         'little finger': 'Kleinfinger', 'big toe': 'Großzehe', 'second toe': '2. Zehe', 'third toe': '3. Zehe', 'fourth toe': '4. Zehe',
+         'little toe': 'Kleinzehe'}
+PHAL = {'distal': 'Endglied', 'middle': 'Mittelglied', 'proximal': 'Grundglied'}
+GYRI = {'superior frontal gyrus': 'Gyrus frontalis superior', 'middle frontal gyrus': 'Gyrus frontalis medius', 'precentral gyrus': 'Gyrus praecentralis',
+        'postcentral gyrus': 'Gyrus postcentralis', 'supramarginal gyrus': 'Gyrus supramarginalis', 'angular gyrus': 'Gyrus angularis',
+        'middle temporal gyrus': 'Gyrus temporalis medius', 'inferior temporal gyrus': 'Gyrus temporalis inferior', 'fusiform gyrus': 'Gyrus fusiformis',
+        'accessory short gyrus': 'Gyrus brevis insulae', 'parahippocampal gyrus': 'Gyrus parahippocampalis', 'cingulate gyrus': 'Gyrus cinguli',
+        'insula': 'Insel', 'superior parietal lobule precuneus': 'Lobulus parietalis superior / Präcuneus'}
 PATTERNS = [
+    (r'^(distal|middle|proximal) phalanx of (right|left) (.+)$', lambda m: f'{PHAL[m[1]]} {DIGIT[m[3]]} {SIDE[m[2]]}'),
+    (r'^(right|left) (\w+) (metacarpal|metatarsal) bone$', lambda m: f'{ORD[m[2]]} {"Mittelhand" if m[3] == "metacarpal" else "Mittelfuß"}knochen {SIDE[m[1]]}'),
+    (r'^sesamoid bone of (right|left) foot$', lambda m: f'Sesambein Großzehe {SIDE[m[1]]}'),
+    (r'^(anterior|posterior) part of (right|left) superior temporal gyrus$', lambda m: f'Gyrus temporalis superior, {"vorderer" if m[1] == "anterior" else "hinterer"} Teil {SIDE[m[2]]}'),
+    (r'^(right|left) (.+gyrus|insula|superior parietal lobule precuneus)$', lambda m: f'{GYRI[m[2]]} {SIDE[m[1]]}'),
+    (r'^orbital gyri straight gyrus$', lambda m: 'Gyri orbitales / Gyrus rectus'),
     (r'^(\w+) (\w+) rib$', lambda m: f'{ORD[m[2]]} Rippe {SIDE[m[1]]}'),
     (r'^(\w+) (\w+) costal cartilage$', lambda m: f'{ORD[m[2]]} Rippenknorpel {SIDE[m[1]]}'),
     (r'^(\w+) costal cartilage$', lambda m: f'Rippenknorpel {SIDE[m[1]]}'),

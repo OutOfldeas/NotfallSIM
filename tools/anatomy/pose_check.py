@@ -10,18 +10,23 @@ def euler(x, y, z):  # Unity: Quaternion.Euler = Ry · Rx · Rz
     Rz = np.array([[np.cos(z), -np.sin(z), 0], [np.sin(z), np.cos(z), 0], [0, 0, 1]])
     return Ry @ Rx @ Rz
 
-def pose_rot(pose, seg):
+def axis_angle(axis, deg):  # Unity Quaternion.AngleAxis (Rodrigues)
+    a = np.asarray(axis, float); a /= np.linalg.norm(a); t = np.radians(deg)
+    K = np.array([[0, -a[2], a[1]], [a[2], 0, -a[0]], [-a[1], a[0], 0]])
+    return np.eye(3) + np.sin(t) * K + (1 - np.cos(t)) * K @ K
+
+def pose_rot(pose, seg, up=(0, 1, 0)):
     side = 1 if seg.endswith('rechts') else -1
     if pose == 'Seated':
         if seg.startswith('Oberschenkel'): return euler(-90, 0, 0)
         if seg.startswith('Unterschenkel'): return euler(90, 0, 0)
-        if seg.startswith('Oberarm'): return euler(-40, 0, side * 6)
-        if seg.startswith('Unterarm'): return euler(-55, 0, 0) @ euler(0, -side * 80, 0)
+        if seg.startswith('Oberarm'): return euler(-40, 0, side * 6) @ axis_angle(up, -side * 22)
+        if seg.startswith('Unterarm'): return euler(-55, 0, 0) @ axis_angle(up, -side * 50)
     if pose == 'Straddling':
         if seg.startswith('Oberschenkel'): return euler(-75, 0, side * 14)
         if seg.startswith('Unterschenkel'): return euler(70, 0, -side * 6)
         if seg.startswith('Oberarm'): return euler(-62, 0, side * 7)
-        if seg.startswith('Unterarm'): return euler(-18, 0, 0) @ euler(0, -side * 80, 0)
+        if seg.startswith('Unterarm'): return euler(-18, 0, 0) @ axis_angle(up, -side * 30)
         if seg == 'Abdomen': return euler(14, 0, 0)
         if seg == 'Thorax': return euler(10, 0, 0)
     if pose == 'Standing' and seg.startswith('Oberarm'): return euler(0, 0, side * 4)
@@ -42,10 +47,11 @@ def fk(h, pose, H, hip):
     R, T = [None] * len(segs), [None] * len(segs)
     for i, s in enumerate(segs):
         j = np.array(s['joint']) * k
-        if not s['parent']: R[i] = pose_rot(pose, s['name']); T[i] = np.array(hip)
+        up = np.array(s['joint']) - np.array(s['end'])
+        if not s['parent']: R[i] = pose_rot(pose, s['name'], up); T[i] = np.array(hip)
         else:
             p = idx[s['parent']]; pj = np.array(segs[p]['joint']) * k
-            R[i] = R[p] @ pose_rot(pose, s['name']); T[i] = T[p] + R[p] @ (j - pj)
+            R[i] = R[p] @ pose_rot(pose, s['name'], up); T[i] = T[p] + R[p] @ (j - pj)
     return k, R, T, idx
 
 def skin(h, P, bones, w0, k, R, T):
@@ -69,6 +75,7 @@ if __name__ == '__main__':
         world = skin(h, P, bones, w0, k, R, T)
         print(pose, 'Hand rechts', tip('Unterarm rechts').round(3), 'Knie', T[idx['Unterschenkel rechts']].round(3), 'Sprunggelenk', tip('Unterschenkel rechts').round(3),
               'Haut min y', world[:, 1].min().round(3), 'Kopf oben', world[:, 1].max().round(3))
-        m = trimesh.Trimesh(world * np.array([-1, 1, 1]), I, process=False); m.visual.vertex_colors = [220, 175, 150, 255]
+        m = trimesh.Trimesh(world * np.array([-1, 1, 1]), I[:, ::-1], process=False)  # x spiegeln (three.js) → Umlauf umkehren
+        m.visual.vertex_colors = [220, 175, 150, 255]
         m.export(f'{out_dir}/pose_{pose}.glb')
     print('Knie–Sohle', round(knee_to_sole, 3), 'Hüfte–Knie', round(hip_to_knee, 3))
