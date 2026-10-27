@@ -170,8 +170,9 @@ namespace NotfallSIM.EditorTools
             Vertical(actions.gameObject, 8, fit: true);
             Label("Titel", actions.transform, "MASSNAHMEN", 18, Dim);
             MakeButton(actions.transform, "Beckengurt anlegen", ButtonColor, iv.ApplyPelvicBinder);
-            MakeButton(actions.transform, "500 mL Kristalloid", ButtonColor, iv.GiveCrystalloid);
+            MakeButton(actions.transform, "500 mL VEL", ButtonColor, iv.GiveCrystalloid);
             MakeButton(actions.transform, "1 EK transfundieren", ButtonColor, iv.GiveBloodUnit);
+            MakeButton(actions.transform, "Tranexamsäure 1 g", ButtonColor, iv.GiveTranexamicAcid);
             MakeButton(actions.transform, "O2 über Maske", ButtonColor, iv.GiveOxygen);
             MakeButton(actions.transform, "Nadeldekompression li.", ButtonColor, iv.NeedleDecompressionLeft);
             MakeButton(actions.transform, "Thoraxdrainage li.", ButtonColor, iv.ChestDrainLeft);

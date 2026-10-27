@@ -1,6 +1,6 @@
 # Literaturnotizen
 
-Stand: 27.10.2026 · Datenbank-Version 0.3.0
+Stand: 27.10.2026 · Datenbank-Version 0.3.0 · Szenarien v0.4
 
 Hier steht, worauf die Zahlen im Modell beruhen und wie belastbar sie sind.
 Jede Änderung an `injuries.json` oder an den Modelltabellen sollte hier nachvollziehbar sein.
@@ -55,22 +55,27 @@ Eine Meta-Analyse (Ahmad et al. 2025) fand eine kombinierte Versagerrate von etw
 ATLS empfiehlt den 4./5. ICR zwischen vorderer und mittlerer Axillarlinie, das ETC weiterhin den 2. ICR medioklavikulär.
 Im Spiel versagt die Punktion daher zufällig in etwa 4 von 10 Fällen. Lernziel: Erfolg prüfen und die Thoraxdrainage anlegen.
 
-## Bewertungskriterien im Debriefing (Entwurf)
+## Bewertungskriterien im Debriefing
 
-Die Zeitziele sind didaktische Setzungen und stehen im Feld `assessment` der Szenario-Dateien. Gezählt wird ab Szenariostart.
+Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist nur *dass* und *in welcher Reihenfolge* gehandelt werden soll; konkrete Minutenwerte geben weder Leitlinie noch Studien vor. Die Minuten bleiben daher didaktische Setzungen, sind aber jetzt an belegten Ankern ausgerichtet.
 
-| Szenario | Ziel | Zeit | Kritisch |
-|---|---|---|---|
-| Beckenfraktur | Sauerstoff gegeben | 2 min | nein |
-| Beckenfraktur | Becken untersucht | 3 min | nein |
-| Beckenfraktur | Oberschenkel untersucht | 5 min | nein |
-| Beckenfraktur | Beckengurt angelegt | 5 min | ja |
-| Beckenfraktur | Blutprodukte begonnen | 10 min | ja |
-| Beckenfraktur | Kristalloide max. 1000 mL | — | nein |
-| Spannungspneu | Sauerstoff gegeben | 2 min | nein |
-| Spannungspneu | Thorax untersucht | 4 min | nein |
-| Spannungspneu | Thorax entlastet (Nadel oder Drainage) | 8 min | ja |
-| Spannungspneu | Thoraxdrainage angelegt | 15 min | ja |
+| Szenario | Ziel | Zeit | Kritisch | Anker |
+|---|---|---|---|---|
+| Becken | Sauerstoff | 2 min | nein | ABCDE-Logik |
+| Becken | Becken untersucht | 3 min | nein | ABCDE-Logik |
+| Becken | Oberschenkel untersucht | 5 min | nein | ABCDE-Logik |
+| Becken | Beckengurt | 5 min | ja | S3 (GoR A); vor CT, die im Mittel ca. 22 min nach Aufnahme erfolgt (TR-DGU 2016) |
+| Becken | Blutprodukte | 10 min | ja | Letalität steigt pro Minute Verzögerung (Duchesne 2024: OR 1,11/min) |
+| Becken | Tranexamsäure | 10 min | nein | S3 (GoR A): früh, spätestens 3 h nach Trauma |
+| Becken | Kristalloide max. 1000 mL | – | nein | S3 (GoR B): restriktiv, RRsys ca. 90 mmHg; ATLS: 1 L Initialbolus |
+| Thorax | Sauerstoff | 2 min | nein | ABCDE-Logik |
+| Thorax | Thorax untersucht | 2,5 min ab Beginn | nein | S3 (GoR B): klinische Diagnose |
+| Thorax | Entlastung | 6 min ab Beginn | ja | Sofort nach klinischer Diagnose; im Modell SpO2 < 90 % nach ca. 6 min |
+| Thorax | Thoraxdrainage | 15 min ab Beginn | ja | Nadel versagt in ca. 43 % (Ahmad 2025) |
+
+Änderungen in v0.4: Beim Thoraxtrauma zählen die Ziele jetzt ab Beginn des Spannungspneus statt ab Szenariostart. Kristalloid ist jetzt eine balancierte Vollelektrolytlösung (S3, GoR A: keine isotone NaCl-Lösung). Tranexamsäure ist als Maßnahme und Ziel dazugekommen.
+
+**Bessere Datenquellen für echte Zeitziele:** die aktuellen Jahresberichte des TraumaRegister DGU (Schockraumintervalle), die Langfassung der S3-Leitlinie auf MAGICapp und ein Expertenkonsens erfahrener Schockraumleiter (z. B. Delphi-Befragung).
 
 ## Offene Punkte zum Prüfen
 
@@ -99,5 +104,9 @@ Die Zeitziele sind didaktische Setzungen und stehen im Feld `assessment` der Sze
 
 12. Roberts DJ, et al. Clinical Presentation of Patients With Tension Pneumothorax: A Systematic Review. *Ann Surg*. 2015;261(6):1068-1078. [doi:10.1097/SLA.0000000000001073](https://doi.org/10.1097/SLA.0000000000001073)
 13. Ahmad SJS, et al. Meta-analysis of the optimal needle length and decompression site for tension pneumothorax and consensus recommendations on current ATLS and ETC guidelines. *World J Emerg Surg*. 2025;20:39. [doi:10.1186/s13017-025-00613-7](https://doi.org/10.1186/s13017-025-00613-7)
+
+14. Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. *Bayerisches Ärzteblatt*. 2017;(1-2):8-14. [PDF](https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf) — Empfehlungen und Empfehlungsgrade der Version 2016; in der aktuellen Version 5.0 prüfen
+15. Deutsches Ärzteblatt. Unfallchirurgen melden mehr Schwerverletzte (TraumaRegister DGU, Jahresbericht 2016). 15.09.2017. [Artikel](https://www.aerzteblatt.de/news/unfallchirurgen-melden-mehr-schwerverletzte-3f5de2e0-a89d-4b1b-a311-ebff9ae5bffd)
+16. Duchesne J, McLafferty BJ, Broome JM, et al. Every minute matters: Improving outcomes for penetrating trauma through prehospital advanced resuscitative care. *J Trauma Acute Care Surg*. 2024. [doi:10.1097/TA.0000000000004363](https://doi.org/10.1097/TA.0000000000004363)
 
 Angaben ohne Link (4, 8, 9) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.

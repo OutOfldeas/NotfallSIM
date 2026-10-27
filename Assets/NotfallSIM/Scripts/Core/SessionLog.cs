@@ -79,7 +79,7 @@ namespace NotfallSIM.Core
                 sb.AppendLine($"Max. HF: {F(alive.Max(s => s.HeartRate_bpm))} · Min. RRsys: {F(alive.Min(s => s.SystolicBP_mmHg))} mmHg" +
                               $" · Min. SpO2: {F(alive.Min(s => s.SpO2_percent))} %");
 
-            var results = Assessment.Evaluate(criteria, Events);
+            var results = Assessment.Evaluate(criteria, Events).Where(r => r.Outcome != CriterionOutcome.NotApplicable).ToList();
             if (results.Count > 0)
             {
                 int passed = results.Count(r => r.Passed);
@@ -106,13 +106,13 @@ namespace NotfallSIM.Core
                 case CriterionOutcome.Met:
                     return c.type == "maxCount"
                         ? $"<color=#5CDB6E>erfüllt</color>  {c.description}{star} ({r.Count}x)"
-                        : $"<color=#5CDB6E>erfüllt</color>  {c.description}{star} bei {Clock(r.Time_s.Value)} (Ziel {Clock(c.limit)})";
+                        : $"<color=#5CDB6E>erfüllt</color>  {c.description}{star} bei {Clock(r.Time_s.Value)} (Ziel {Clock(r.Deadline_s)})";
                 case CriterionOutcome.Late:
-                    return $"<color=#F2C14E>verspätet</color>  {c.description}{star} bei {Clock(r.Time_s.Value)} (Ziel {Clock(c.limit)})";
+                    return $"<color=#F2C14E>verspätet</color>  {c.description}{star} bei {Clock(r.Time_s.Value)} (Ziel {Clock(r.Deadline_s)})";
                 case CriterionOutcome.Exceeded:
                     return $"<color=#FF6060>überschritten</color>  {c.description}{star} ({r.Count}x, max. {F(c.limit)}x)";
                 default:
-                    return $"<color=#FF6060>fehlt</color>  {c.description}{star} (Ziel {Clock(c.limit)})";
+                    return $"<color=#FF6060>fehlt</color>  {c.description}{star} (Ziel {Clock(r.Deadline_s)})";
             }
         }
 

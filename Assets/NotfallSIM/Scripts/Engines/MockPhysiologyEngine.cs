@@ -41,7 +41,7 @@ namespace NotfallSIM.Engines
         // Anteil eines Infusionsvolumens, der (vereinfachend) intravasal wirksam bleibt.
         static readonly Dictionary<string, double> Retention = new Dictionary<string, double>
         {
-            { "Saline", 0.3 }, { "RingerAcetate", 0.3 }, { "Blood", 1.0 }
+            { "BalancedCrystalloid", 0.3 }, { "Saline", 0.3 }, { "Blood", 1.0 }
         };
 
         class Bleed

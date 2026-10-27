@@ -82,6 +82,9 @@ namespace NotfallSIM.Data
         public string type;
         public string[] tags;
         public double limit;
+        /// <summary>Optional: Tag-Präfix, ab dessen erstem Auftreten "deadline" zählt (z. B. Beginn einer Verletzung).
+        /// Tritt es nie auf, ist das Kriterium nicht anwendbar.</summary>
+        public string relativeTo;
         public bool critical;
         public string rationale;
     }

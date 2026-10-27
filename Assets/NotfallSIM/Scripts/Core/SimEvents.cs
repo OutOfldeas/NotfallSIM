@@ -47,7 +47,8 @@ namespace NotfallSIM.Core
         FluidInfusion,       // Kristalloide, Blut
         Oxygen,
         NeedleDecompression, // Entlastungspunktion, kann versagen
-        ChestDrain           // Thoraxdrainage, definitive Entlastung
+        ChestDrain,          // Thoraxdrainage, definitive Entlastung
+        Medication           // z. B. Tranexamsäure; im Mock ohne physiologischen Effekt
     }
 
     public class InterventionEvent
@@ -56,7 +57,7 @@ namespace NotfallSIM.Core
         public string TargetCompartment;  // HemorrhageControl: Blutungsort; Entlastung: "LeftLung"/"RightLung"
         public double RateMultiplier = 1; // für HemorrhageControl: 0 = Blutung gestoppt
         public double SuccessProbability = 1; // für NeedleDecompression
-        public string Compound;           // für FluidInfusion: "Saline", "Blood"
+        public string Compound;           // FluidInfusion: "BalancedCrystalloid", "Blood"; Medication: z. B. "TXA"
         public double Volume_mL;
         public double Rate_mL_min;
     }

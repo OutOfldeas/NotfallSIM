@@ -5,7 +5,7 @@ using NotfallSIM.Data;
 
 namespace NotfallSIM.Core
 {
-    public enum CriterionOutcome { Met, Late, Missed, Exceeded }
+    public enum CriterionOutcome { Met, Late, Missed, Exceeded, NotApplicable }
 
     public class CriterionResult
     {
@@ -13,6 +13,7 @@ namespace NotfallSIM.Core
         public CriterionOutcome Outcome;
         public double? Time_s;   // Zeitpunkt der ersten passenden Maßnahme (deadline)
         public int Count;       // Anzahl passender Ereignisse (maxCount)
+        public double Deadline_s; // absolutes Zeitziel ab Szenariostart (deadline)
         public bool Passed => Outcome == CriterionOutcome.Met;
     }
 
@@ -35,9 +36,17 @@ namespace NotfallSIM.Core
                 }
                 else // "deadline"
                 {
+                    double start = 0;
+                    if (!string.IsNullOrEmpty(c.relativeTo))
+                    {
+                        var refs = events.Where(e => Matches(e.Tag, new[] { c.relativeTo })).ToList();
+                        if (refs.Count == 0) { r.Outcome = CriterionOutcome.NotApplicable; results.Add(r); continue; }
+                        start = refs.Min(e => e.Time_s);
+                    }
+                    r.Deadline_s = start + c.limit;
                     r.Time_s = matching.Count > 0 ? matching.Min(e => e.Time_s) : (double?)null;
                     r.Outcome = r.Time_s == null ? CriterionOutcome.Missed
-                              : r.Time_s <= c.limit ? CriterionOutcome.Met
+                              : r.Time_s <= r.Deadline_s ? CriterionOutcome.Met
                               : CriterionOutcome.Late;
                 }
                 results.Add(r);

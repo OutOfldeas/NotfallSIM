@@ -44,13 +44,21 @@ namespace NotfallSIM.Simulation
             }, "Beckengurt angelegt");
         }
 
+        // Balancierte Vollelektrolytlösung: S3-Leitlinie empfiehlt balancierte Kristalloide, keine isotone NaCl-Lösung.
         public void GiveCrystalloid() => sim.ApplyIntervention(new InterventionEvent
         {
             Type = InterventionType.FluidInfusion,
-            Compound = "Saline",
+            Compound = "BalancedCrystalloid",
             Volume_mL = crystalloidVolume_mL,
             Rate_mL_min = crystalloidRate_mL_min
-        }, $"{crystalloidVolume_mL:F0} mL Kristalloid");
+        }, $"{crystalloidVolume_mL:F0} mL Vollelektrolytlösung");
+
+        // S3-Leitlinie: bei massiver Blutung früh 1 g über 10 min, nicht später als 3 h nach Trauma.
+        public void GiveTranexamicAcid() => sim.ApplyIntervention(new InterventionEvent
+        {
+            Type = InterventionType.Medication,
+            Compound = "TXA"
+        }, "Tranexamsäure 1 g i. v.");
 
         public void GiveBloodUnit() => sim.ApplyIntervention(new InterventionEvent
         {

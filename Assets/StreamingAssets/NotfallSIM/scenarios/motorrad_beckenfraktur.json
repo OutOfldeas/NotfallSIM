@@ -39,7 +39,7 @@
       ],
       "limit": 120,
       "critical": false,
-      "rationale": "Basismaßnahme im Primary Survey (B). [Zeitziel: didaktische Setzung, Entwurf]"
+      "rationale": "Basismaßnahme im Primary Survey (B). Kein belegtes Zeitziel — didaktische Setzung."
     },
     {
       "id": "becken_untersucht",
@@ -50,7 +50,7 @@
       ],
       "limit": 180,
       "critical": false,
-      "rationale": "Im C-Teil nach Blutungsquellen suchen; Beckeninstabilität nur einmal vorsichtig prüfen. [Zeitziel: didaktische Setzung, Entwurf]"
+      "rationale": "Teil der C-Untersuchung im Primary Survey; Instabilität nur einmal vorsichtig prüfen. Zeitziel didaktisch."
     },
     {
       "id": "oberschenkel_untersucht",
@@ -62,7 +62,7 @@
       ],
       "limit": 300,
       "critical": false,
-      "rationale": "Femurfraktur als zusätzliche Blutungsquelle erkennen. [Zeitziel: didaktische Setzung, Entwurf]"
+      "rationale": "Femurfraktur als zusätzliche Blutungsquelle erkennen. Zeitziel didaktisch."
     },
     {
       "id": "beckengurt",
@@ -73,7 +73,7 @@
       ],
       "limit": 300,
       "critical": true,
-      "rationale": "Bei Verdacht auf instabile Beckenverletzung mit Schockzeichen früh stabilisieren. Wirksamkeit nur schwach belegt (s. docs/LITERATUR.md). [Zeitziel: didaktische Setzung, Entwurf]"
+      "rationale": "S3-Leitlinie (GoR A): bei instabilem Beckenring mit hämodynamischer Instabilität mechanische Notfallstabilisierung. Muss im Primary Survey und vor der CT erfolgen (Ganzkörper-CT laut TR-DGU 2016 im Mittel 22 min nach Aufnahme). 5 min = didaktische Konkretisierung."
     },
     {
       "id": "blut",
@@ -84,18 +84,29 @@
       ],
       "limit": 600,
       "critical": true,
-      "rationale": "Ab Schockklasse III Blutprodukte statt weiterer Kristalloide. [Zeitziel: didaktische Setzung, Entwurf]"
+      "rationale": "Jede Minute Verzögerung bis zur ersten Transfusion ist in Beobachtungsstudien mit höherer Letalität assoziiert (u. a. Duchesne 2024: OR 1,11 pro Minute, penetrierendes Trauma; frühere Studien ca. 2 % pro Minute). 10 min = didaktische Setzung."
+    },
+    {
+      "id": "txa",
+      "description": "Tranexamsäure gegeben",
+      "type": "deadline",
+      "tags": [
+        "intervention:Medication:TXA"
+      ],
+      "limit": 600,
+      "critical": false,
+      "rationale": "S3-Leitlinie (GoR A): bei massiver Blutung früh 1 g über 10 min; nicht später als 3 h nach Trauma (GoR B). Präklinisch kann sie bereits gegeben sein. 10 min = didaktische Setzung."
     },
     {
       "id": "kristalloid_restriktiv",
       "description": "Kristalloide restriktiv (max. 1000 mL)",
       "type": "maxCount",
       "tags": [
-        "intervention:FluidInfusion:Saline"
+        "intervention:FluidInfusion:BalancedCrystalloid"
       ],
       "limit": 2,
       "critical": false,
-      "rationale": "Restriktive Volumentherapie bei unkontrollierter Blutung; Grenzwert mit S3-Leitlinie abgleichen. [Zeitziel: didaktische Setzung, Entwurf]"
+      "rationale": "S3-Leitlinie (GoR B): Volumentherapie bei unkontrollierter Blutung reduzieren, Ziel RRsys ca. 90 mmHg bzw. MAD 65 mmHg bis zur Blutstillung. 1000 mL entspricht dem initialen Bolus nach ATLS 10th ed.; als Obergrenze didaktische Setzung."
     }
   ]
 }

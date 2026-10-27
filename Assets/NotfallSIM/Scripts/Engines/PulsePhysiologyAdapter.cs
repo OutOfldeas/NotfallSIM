@@ -117,7 +117,7 @@ namespace NotfallSIM.Engines
                     break;
                 case InterventionType.FluidInfusion:
                     var infusion = new SESubstanceCompoundInfusion();
-                    infusion.SetCompound(iv.Compound); // "Saline", "Blood" (Namen laut Pulse-Substanzdateien, VERIFY)
+                    infusion.SetCompound(PulseCompound(iv.Compound));
                     infusion.GetBagVolume().SetValue(iv.Volume_mL, VolumeUnit.mL);
                     infusion.GetRate().SetValue(iv.Rate_mL_min, VolumePerTimeUnit.mL_Per_min);
                     _pulse.ProcessAction(infusion);
@@ -130,6 +130,17 @@ namespace NotfallSIM.Engines
                     // TODO Phase 2: SENeedleDecompression bzw. Thoraxdrainage, inkl. Versagerrate wie im Mock.
                     Debug.LogWarning($"[Pulse] Maßnahme {iv.Type} noch nicht angebunden.");
                     break;
+            }
+        }
+
+        // Interne Namen -> Pulse-Substanzdateien. VERIFY gegen den Ordner substances/ der Asset-Version.
+        static string PulseCompound(string compound)
+        {
+            switch (compound)
+            {
+                case "BalancedCrystalloid": return "LactatedRingers";
+                case "Blood": return "Blood";
+                default: return compound;
             }
         }
 
