@@ -66,7 +66,8 @@ namespace NotfallSIM.Data
                     Severity = si.severity,
                     BaseRate_mL_min = e.baseRate_mL_min,
                     MaxTotalLoss_mL = e.maxTotalLoss_mL,
-                    ProgressionRate_per_min = e.progressionRate_per_min
+                    ProgressionRate_per_min = e.progressionRate_per_min,
+                    InitialLevel = e.initialLevel
                 };
             }
         }

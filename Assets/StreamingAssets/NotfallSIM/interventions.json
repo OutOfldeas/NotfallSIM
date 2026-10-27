@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "interventions": [
     {
       "id": "o2",
@@ -183,6 +183,29 @@
       "sources": [],
       "evidenceStatus": "draft",
       "reviewNotes": "Gerinnung wird im Mock nicht modelliert; zählt für Protokoll und spätere Bewertung."
+    },
+    {
+      "id": "noradrenalin",
+      "label": "Noradrenalin",
+      "logLabel": "Noradrenalin über Perfusor",
+      "type": "Vasopressor",
+      "target": "",
+      "compound": "Noradrenalin",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": true,
+      "effectDelay_s": 0,
+      "sources": [
+        {
+          "citation": "Rossaint R, Afshari A, Bouillon B, et al. The European guideline on management of major bleeding and coagulopathy following trauma: sixth edition. Crit Care. 2023;27:80.",
+          "url": "https://doi.org/10.1186/s13054-023-04327-7",
+          "note": "Noradrenalin zusätzlich zur Volumentherapie, wenn das Blutdruckziel nicht erreicht wird (Grade 1C)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Im Mock +20/+12 mmHg (didaktisch). Über den höheren MAD steigt auch der Blutfluss aus unversorgten Blutungsquellen — Noradrenalin ersetzt keine Blutstillung."
     },
     {
       "id": "waerme",

@@ -56,6 +56,13 @@ static class Parity
             if (s == 9000) e.ApplyIntervention(Iv(InterventionType.Intubation));
             if (s == 9600) e.ApplyIntervention(Iv(InterventionType.NeurosurgicalDecompression));
         }, 1800);
+        var sdh = new InjuryEvent { Effect = InjuryEffectType.TraumaticBrainInjury, Compartment = "Brain", Severity = 1.0, ProgressionRate_per_min = 0.018, InitialLevel = 0.45 };
+        Run("polytrauma_noradrenalin", new PatientProfile { weight_kg = 85, age = 42, initialBloodLoss_mL = 1500 }, (e, s) =>
+        {
+            if (s == 0) { e.ApplyInjury(sdh); e.ApplyInjury(Bleed("Pelvis", 0.7, 150, 3000)); e.ApplyInjury(Bleed("RightThigh", 0.6, 20, 1000)); }
+            if (s == 6000) e.ApplyIntervention(Iv(InterventionType.Intubation));
+            if (s == 7000) e.ApplyIntervention(Iv(InterventionType.Vasopressor));
+        }, 1800);
         Run("betablocker", new PatientProfile { weight_kg = 65, age = 76, sex = "female", betaBlocker = true },
             (e, s) => { if (s == 0) e.ApplyInjury(Bleed("Pelvis", 0.6, 150, 3000)); }, 1800);
     }

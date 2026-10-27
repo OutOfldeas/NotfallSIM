@@ -1,6 +1,6 @@
 # Literaturnotizen
 
-Stand: 27.10.2026 · Datenbank-Version 0.5.0 · Maßnahmen v0.5.0 · Bildgebung v0.1.0
+Stand: 27.10.2026 · Datenbank-Version 0.6.0 · Maßnahmen v0.6.0 · Bildgebung v0.1.0
 
 Hier steht, worauf die Zahlen im Modell beruhen und wie belastbar sie sind.
 Jede Änderung an `injuries.json` oder an den Modelltabellen sollte hier nachvollziehbar sein.
@@ -23,6 +23,9 @@ Jede Änderung an `injuries.json` oder an den Modelltabellen sollte hier nachvol
 | Kalium | +0,6 mmol/L je 0,1 pH unter 7,40 | Faustregel | Lehrbuch |
 | Ionisiertes Calcium | −0,06 mmol/L je 300 mL Blutprodukt (Citrat) | geschätzt | didaktisch |
 | Glukose | 110 → 200 mg/dL mit der Schockschwere | geschätzt | didaktisch |
+| Noradrenalin | RRsys +20, RRdia +12 mmHg; mehr Druck = mehr Blutfluss aus Läsionen | Richtung gut, Größe geschätzt | Rossaint 2023 (Indikation), Wirkung didaktisch |
+| Akutes Subduralhämatom | GCS ca. 12 bei Ankunft, GCS ≤ 8 nach ca. 12 min | geschätzt | didaktisch |
+| Präklinischer Blutverlust (Polytrauma) | 1,5 L bei ca. 60 min Rettungszeit | plausibel | TR-DGU: Ø 66 min bis Schockraum |
 | Femurschaft, Blutverlust | max. 1000 mL, 20 mL/min | mäßig | Lieurance 1992 (Sekundärquelle) |
 | Becken instabil, Blutverlust | max. 3000 mL, 150 mL/min | schwach (geschätzt) | Plausibilisiert über Transfusionsbedarf (Devaney 2023) |
 | Beckengurt-Effekt | Blutungsrate × 0,5 | schwach | Widersprüchliche Beobachtungsstudien |
@@ -88,6 +91,11 @@ Die S3-Leitlinie (Stand 2011) fordert beim SHT Normoxie, Normokapnie und Normoto
 Daraus entsteht ein didaktisch wertvoller Zielkonflikt für spätere Kombinationsszenarien: Beckenblutung verlangt permissive Hypotension, das SHT verbietet sie.
 Ein luzides Intervall ist kein verlässliches Zeichen: In einer Serie von 146 operierten Epiduralhämatomen (Kinder) trat es nur bei etwa 37 % auf.
 
+**Polytrauma: der Zielkonflikt beim Blutdruck.**
+Die europäische Blutungsleitlinie (Rossaint et al. 2023) empfiehlt ohne Hirnverletzung eine restriktive Volumentherapie mit RRsys 80–90 mmHg bis zur Blutstillung (Grade 1B), beim schweren SHT (GCS ≤ 8) dagegen einen MAD ≥ 80 mmHg (Grade 1C). Reicht die Volumentherapie nicht, soll Noradrenalin ergänzt werden (Grade 1C); Tranexamsäure so früh wie möglich, spätestens 3 h nach Trauma (Grade 1A).
+Das Polytrauma-Szenario (akutes Subduralhämatom, instabiles Becken, Femur- und Rippenfrakturen, 1,5 L präklinischer Blutverlust) setzt genau das um: Ein eigenes Zustandsereignis meldet MAD < 80 bei GCS ≤ 8, und die Bewertung verlangt null solche Episoden. Noradrenalin hebt im Modell den Druck, erhöht aber über den höheren MAD auch den Blutverlust — es ersetzt keine Blutstillung.
+Durchgespielte Strategien: unbehandelt Stillstand nach ca. 19 min; nur Blutungsversorgung ohne Atemweg und Neurochirurgie Stillstand nach ca. 24 min; vollständige Versorgung mit CT im Schockraum überlebt, mit CT in der Radiologie nur knapp und mit Hypoxie im CT.
+
 ## Bewertungskriterien im Debriefing
 
 Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist nur *dass* und *in welcher Reihenfolge* gehandelt werden soll; konkrete Minutenwerte geben weder Leitlinie noch Studien vor. Die Minuten bleiben daher didaktische Setzungen, sind aber jetzt an belegten Ankern ausgerichtet.
@@ -113,6 +121,13 @@ Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist
 | SHT | Osmotherapie | 3 min ab Anisokorie | nein | S3, GoR 0 |
 | SHT | Keine Hypoxie | 0 Episoden | ja | Chesnut 1993; S3, GoR A |
 | SHT | Keine Hypotonie | 0 Episoden | ja | Chesnut 1993; S3, GoR B |
+| Polytrauma | Beckengurt / Blut / TXA | 5 / 10 / 10 min | ja / ja / nein | wie Beckenszenario; Rossaint 2023 |
+| Polytrauma | Atemweg bei GCS ≤ 8 | 3 min ab GCS ≤ 8 | ja | S3, GoR A |
+| Polytrauma | Keine Hypoxie | 0 Episoden | ja | Chesnut 1993 |
+| Polytrauma | MAD ≥ 80 beim schweren SHT | 0 Episoden | ja | Rossaint 2023, Grade 1C |
+| Polytrauma | Bildgebung Kopf | 15 min | nein | didaktisch |
+| Polytrauma | Neurochirurgie nach CT | 5 min ab CT-Befund | ja | didaktisch |
+| Polytrauma | Kein CT-Transport im Schock | 0 | nein | ATLS; S3, GoR B |
 
 Änderungen in v0.4: Beim Thoraxtrauma zählen die Ziele jetzt ab Beginn des Spannungspneus statt ab Szenariostart. Kristalloid ist jetzt eine balancierte Vollelektrolytlösung (S3, GoR A: keine isotone NaCl-Lösung). Tranexamsäure ist als Maßnahme und Ziel dazugekommen.
 
@@ -134,6 +149,8 @@ Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist
 - [ ] Laktatwerte je Schockklasse mit Literatur belegen
 - [ ] Transkapilläre Rückfüllung modellieren, damit das Hb über Stunden auch ohne Infusion sinkt
 - [ ] Calcium-Abfall je Blutprodukt und Hämatokrit des EK mit Literatur belegen
+- [ ] Polytrauma-Szenario klinisch durchspielen: Ist der Zeitdruck realistisch, sind die Prioritäten richtig gewichtet?
+- [ ] Narkoseinduzierte Hypotonie bei der Intubation modellieren (relevant beim Polytrauma)
 
 ## Quellen
 
@@ -160,5 +177,7 @@ Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist
 18. Böttiger BW, et al. DGAInfo zur S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. *Anästh Intensivmed*. 2011;52:S693-S700. [PDF](https://www.ai-online.info/images/ai-ausgabe/2011/11-2011/supplement-10-2011/2011_11_S693-S700_SUPPLEMENT%20Nr.%2010%20-%202011%20-%20Trauma-Update%20%20S3-Leitlinie%20Polytrauma.pdf)
 19. Brain Trauma Foundation. *Guidelines for the Management of Severe Traumatic Brain Injury*, 4th ed. 2016. (Zusammenfassung: [UMEM](https://em.umaryland.edu/educational_pearls/3108/))
 20. Extradural hematoma: analysis of 146 cases. *Childs Nerv Syst*. 1993;9(2):96-99. [doi:10.1007/BF00305316](https://doi.org/10.1007/BF00305316)
+
+21. Rossaint R, Afshari A, Bouillon B, et al. The European guideline on management of major bleeding and coagulopathy following trauma: sixth edition. *Crit Care*. 2023;27:80. [doi:10.1186/s13054-023-04327-7](https://doi.org/10.1186/s13054-023-04327-7)
 
 Angaben ohne Link (4, 8, 9) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.

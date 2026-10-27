@@ -23,7 +23,7 @@ data = {
     "built": datetime.date.today().strftime("%d.%m.%Y"),
 }
 # Reihenfolge: zuerst die Grundszenarien, dann Varianten
-order = ["motorrad_beckenfraktur", "pkw_spannungspneu", "escooter_sht"]
+order = ["motorrad_beckenfraktur", "pkw_spannungspneu", "escooter_sht", "pkw_polytrauma"]
 data["scenarios"].sort(key=lambda s: (order.index(s["id"]) if s["id"] in order else len(order), s["id"]))
 
 # Bilder aus web/images als data:-URI einbetten (Artifacts dürfen keine externen Bilder laden).

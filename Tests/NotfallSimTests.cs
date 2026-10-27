@@ -47,6 +47,9 @@ static class Tests
         Run("BGA: Normalwerte beim unverletzten Patienten", BgaBaseline);
         Run("BGA: Hb bleibt bei akuter Blutung gleich, Kristalloide verdünnen, EK hebt", BgaHemoglobin);
         Run("BGA: metabolische Azidose im Schock, Hyperkapnie bei ungeschütztem Atemweg", BgaAcidBase);
+        Run("Noradrenalin: hebt den MAD, erhöht aber den Blutverlust", VasopressorTradeOff);
+        Run("Polytrauma: präklinischer Blutverlust und akutes SDH bei Ankunft", PolytraumaArrival);
+        Run("Zustandsereignis: MAD < 80 nur bei schwerem SHT", MapLowTbiState);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -110,7 +113,7 @@ static class Tests
             possible.Add("exam:" + inj.region);
         }
         foreach (var st in StateTags.All) possible.Add(st);
-        foreach (var m in Imaging.modalities) possible.Add("imaging:" + m.id);
+        foreach (var m in Imaging.modalities) { possible.Add("imaging:" + m.id); possible.Add("result:Imaging:" + m.id); }
         possible.Add("warning:unstable-transport");
         foreach (var s in Scenarios)
             foreach (var c in s.assessment ?? new AssessmentCriterion[0])
@@ -512,6 +515,48 @@ static class Tests
         t.ApplyIntervention(new InterventionEvent { Type = InterventionType.Intubation });
         t.Advance(0.1);
         Check(Math.Abs(t.Current.PaCO2 - 38) < 0.5 && t.Current.PaO2 > 200, $"beatmet: pCO2 {t.Current.PaCO2:F0}, pO2 {t.Current.PaO2:F0}");
+    }
+
+    // ------------------------------------------------------------ Polytrauma
+
+    static void VasopressorTradeOff()
+    {
+        Func<bool, MockPhysiologyEngine> make = na =>
+        {
+            var e = Bleeding(PhysiologyMode.Textbook, 1);
+            Advance(e, 300);
+            if (na) e.ApplyIntervention(new InterventionEvent { Type = InterventionType.Vasopressor });
+            e.Advance(0.1);
+            return e;
+        };
+        var without = make(false); var with = make(true);
+        Check(with.Current.MeanArterialPressure_mmHg > without.Current.MeanArterialPressure_mmHg + 10, "MAD steigt nicht");
+        Advance(without, 300); Advance(with, 300);
+        Check(with.Current.BloodLossFraction > without.Current.BloodLossFraction, $"Verlust mit {with.Current.BloodLossFraction:P1}, ohne {without.Current.BloodLossFraction:P1}");
+    }
+
+    static void PolytraumaArrival()
+    {
+        var e = new MockPhysiologyEngine(1);
+        e.Initialize(new PatientProfile { weight_kg = 85, age = 42, initialBloodLoss_mL = 1500 });
+        Check(e.Current.BloodLossFraction > 0.24 && e.Current.BloodLossFraction < 0.26, $"Verlust bei Ankunft {e.Current.BloodLossFraction:P0}");
+        Check(Math.Abs(e.Current.Hb - 14.5) < 0.05 && e.Current.BaseExcess < -3, $"Hb {e.Current.Hb:F1}, BE {e.Current.BaseExcess:F1}");
+        e.ApplyInjury(new InjuryEvent { Effect = InjuryEffectType.TraumaticBrainInjury, Compartment = "Brain", Severity = 1, ProgressionRate_per_min = 0.018, InitialLevel = 0.45 });
+        e.Advance(0.1);
+        Check(e.Current.GCS == 12, $"GCS bei Ankunft {e.Current.GCS}");
+        var s = Scenarios.First(x => x.id == "pkw_polytrauma");
+        Check(s.patient.initialBloodLoss_mL > 0 && s.injuries.Length >= 3, "Szenario unvollständig");
+    }
+
+    static void MapLowTbiState()
+    {
+        var w = new StateWatcher();
+        Func<double, double, int> count = (map, gcs) => w.Check(new VitalSigns { SystolicBP_mmHg = 120, MeanArterialPressure_mmHg = map, SpO2_percent = 97, GCS = gcs })
+            .Count(x => x.tag == StateTags.MapLowTbi);
+        Check(count(70, 12) == 0, "ohne schweres SHT ausgelöst");
+        Check(count(70, 7) == 1, "bei GCS 7 und MAD 70 nicht ausgelöst");
+        Check(count(78, 7) == 0, "doppelt ausgelöst");
+        Check(count(86, 7) == 0 && count(75, 7) == 1, "Hysterese");
     }
 
     // ------------------------------------------------------------ Helfer

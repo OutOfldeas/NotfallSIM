@@ -79,6 +79,8 @@ namespace NotfallSIM.Engines
         const double TbiOsmotherapyReduction = 0.15, TbiLevelAfterSurgery = 0.4;
         const double AirwayMaxSpO2Drop = 15, AirwayMaxEtCo2Rise = 10; // ungeschützter Atemweg bei GCS <= 8
         const double TpFactorWhenVentilated = 3.0;       // Überdruckbeatmung verschärft Spannungspneu (Roberts 2015)
+        // Noradrenalin: Blutdruckanstieg (didaktische Setzung). Über den höheren MAD steigt auch der Blutfluss aus Läsionen.
+        const double VasopressorSbpRise = 20, VasopressorDbpRise = 12;
 
         class BrainInjury
         {
@@ -99,7 +101,7 @@ namespace NotfallSIM.Engines
         // Kristalloide verdünnen, EKs bringen Erythrozyten. Transkapilläre Rückfüllung ist nicht modelliert.
         const double EkHematocrit = 0.6;
         double _redCellVolume, _transfused_mL;
-        bool _oxygen, _arrest, _intubated;
+        bool _oxygen, _arrest, _intubated, _vasopressor;
 
         /// <param name="seed">Fester Seed macht Zufallsereignisse (z. B. Versagen der Punktion) reproduzierbar.</param>
         public MockPhysiologyEngine(int? seed = null, PhysiologyMode mode = PhysiologyMode.Textbook)
@@ -118,7 +120,7 @@ namespace NotfallSIM.Engines
             _tension.Clear();
             _brain.Clear();
             _infusions.Clear();
-            _oxygen = _arrest = _intubated = false;
+            _oxygen = _arrest = _intubated = _vasopressor = false;
             // Lehrbuch: idealisierter Patient. Register: Ausgangswerte und Reaktionsstärke streuen.
             _hrBaseOffset = 0; _hrResponse = 1; _sbpOffset = 0;
             if (Mode == PhysiologyMode.Registry)
@@ -133,7 +135,15 @@ namespace NotfallSIM.Engines
             _redCellVolume = _volume * hb0 * 3 / 100;   // Hkt ≈ 3 × Hb
             _transfused_mL = 0;
             UpdateVitals();
-            _baselineMap = Current.MeanArterialPressure_mmHg;
+            _baselineMap = Current.MeanArterialPressure_mmHg; // Bezug: gesunder Ausgangszustand
+            // Präklinischer Blutverlust: Vollblut, das Hb bleibt dabei gleich.
+            if (patient.initialBloodLoss_mL > 0)
+            {
+                double lost = Math.Min(patient.initialBloodLoss_mL, _volume * 0.5);
+                _redCellVolume -= lost * _redCellVolume / _volume;
+                _volume -= lost;
+                UpdateVitals();
+            }
             return true;
         }
 
@@ -148,7 +158,7 @@ namespace NotfallSIM.Engines
                     _tension[injury.Compartment] = new Tension { Injury = injury };
                     break;
                 case InjuryEffectType.TraumaticBrainInjury:
-                    _brain[injury.Compartment] = new BrainInjury { Injury = injury };
+                    _brain[injury.Compartment] = new BrainInjury { Injury = injury, Level = Math.Max(0, Math.Min(1, injury.InitialLevel)) };
                     break;
                 default:
                     Console.WriteLine($"[Mock] Effekt {injury.Effect} wird vom Mock nicht simuliert ({injury.InjuryId}).");
@@ -181,6 +191,9 @@ namespace NotfallSIM.Engines
                     break;
                 case InterventionType.Intubation:
                     _intubated = true;
+                    break;
+                case InterventionType.Vasopressor:
+                    _vasopressor = true;
                     break;
                 case InterventionType.Osmotherapy:
                     foreach (var bi in _brain.Values) bi.Level = Math.Max(0, bi.Level - TbiOsmotherapyReduction);
@@ -291,8 +304,8 @@ namespace NotfallSIM.Engines
             double sbpDrop = tp > TpHypotensionOnset ? (tp - TpHypotensionOnset) / (1 - TpHypotensionOnset) * TpMaxSbpDrop : 0;
             double hr0 = ShockTables.Hr(Mode, 0);
             double hr = hr0 + _hrBaseOffset + (ShockTables.Hr(Mode, f) - hr0) * _hrResponse;
-            double sbp = ShockTables.Sbp(Mode, f) + _sbpOffset - sbpDrop + 50 * cushing;
-            double dbp = ShockTables.Dbp(Mode, f) + _sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing;
+            double sbp = ShockTables.Sbp(Mode, f) + _sbpOffset - sbpDrop + 50 * cushing + (_vasopressor ? VasopressorSbpRise : 0);
+            double dbp = ShockTables.Dbp(Mode, f) + _sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + (_vasopressor ? VasopressorDbpRise : 0);
             double spo2 = Interp(f, ShockTables.SpO2Air) - TpMaxSpO2Drop * tp - AirwayMaxSpO2Drop * airway
                           + (_oxygen ? 3 : 0) + (_intubated ? 3 : 0);
             spo2 = Math.Max(50, Math.Min(100, spo2));

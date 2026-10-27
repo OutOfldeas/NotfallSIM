@@ -11,6 +11,7 @@ namespace NotfallSIM.Core
         public double weight_kg = 75;
         public double height_cm = 180;
         public bool betaBlocker;    // Dauermedikation: dämpft die Tachykardie
+        public double initialBloodLoss_mL; // Blutverlust vor Ankunft im Schockraum (präklinische Phase)
 
         public bool IsMale => !string.Equals(sex, "female", StringComparison.OrdinalIgnoreCase);
 
@@ -40,6 +41,8 @@ namespace NotfallSIM.Core
         public double MaxTotalLoss_mL;   // Blutung: Obergrenze (z. B. Tamponade-Effekt), 0 = unbegrenzt
         /// <summary>Fortschreitende Verletzungen (Spannungspneu): Anteil pro Minute bei Severity 1 bis zur Dekompensation.</summary>
         public double ProgressionRate_per_min;
+        /// <summary>Schwere bei Beginn (0..1), z. B. akutes Subduralhämatom: von Anfang an eingetrübt.</summary>
+        public double InitialLevel;
     }
 
     public enum InterventionType
@@ -54,7 +57,8 @@ namespace NotfallSIM.Core
         Osmotherapy,         // hypertone Kochsalzlösung / Mannitol, überbrückend
         NeurosurgicalDecompression, // Kraniotomie; wirkt mit Verzögerung (CT, Transport, OP)
         BloodGas,            // BGA: Ergebnis nach Verzögerung, ohne physiologischen Effekt
-        Supportive           // Wärmeerhalt, Analgesie u. Ä.; im Mock ohne physiologischen Effekt
+        Supportive,          // Wärmeerhalt, Analgesie u. Ä.; im Mock ohne physiologischen Effekt
+        Vasopressor          // Noradrenalin: hebt den Blutdruck, erhöht damit aber auch den Blutfluss aus Läsionen
     }
 
     public class InterventionEvent

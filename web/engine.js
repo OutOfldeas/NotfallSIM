@@ -92,6 +92,7 @@
     TbiAnisocoriaLevel: 0.7, TbiCushingLevel: 0.8, TbiSecondaryInsultFactor: 2.0,
     TbiOsmotherapyReduction: 0.15, TbiLevelAfterSurgery: 0.4,
     AirwayMaxSpO2Drop: 15, AirwayMaxEtCo2Rise: 10, TpFactorWhenVentilated: 3.0,
+    VasopressorSbpRise: 20, VasopressorDbpRise: 12,
   };
 
   function bloodVolume(p) { return p.weight_kg * (String(p.sex).toLowerCase() === "female" ? 65 : 70); }
@@ -108,7 +109,7 @@
       this.baselineVolume = this.volume = bloodVolume(patient);
       this.time = 0;
       this.bleeds = {}; this.tension = {}; this.brain = {}; this.infusions = [];
-      this.oxygen = this.arrest = this.intubated = false;
+      this.oxygen = this.arrest = this.intubated = this.vasopressor = false;
       this.hrBaseOffset = 0; this.hrResponse = 1; this.sbpOffset = 0;
       if (this.mode === "Registry") {
         this.hrBaseOffset = this.uniform(-12, 12);
@@ -122,13 +123,19 @@
       this.current = null;
       this.updateVitals();
       this.baselineMap = this.current.map;
+      if (patient.initialBloodLoss_mL > 0) {
+        const lost = Math.min(patient.initialBloodLoss_mL, this.volume * 0.5);
+        this.redCells -= lost * this.redCells / this.volume;
+        this.volume -= lost;
+        this.updateVitals();
+      }
       return true;
     }
 
     applyInjury(inj) {
       if (inj.effect === "Hemorrhage") this.bleeds[inj.compartment] = { inj, multiplier: 1, lost: 0 };
       else if (inj.effect === "TensionPneumothorax") this.tension[inj.compartment] = { inj, level: 0, rateFactor: 1, drained: false };
-      else if (inj.effect === "TraumaticBrainInjury") this.brain[inj.compartment] = { inj, level: 0, stopped: false };
+      else if (inj.effect === "TraumaticBrainInjury") this.brain[inj.compartment] = { inj, level: Math.max(0, Math.min(1, inj.initialLevel || 0)), stopped: false };
     }
 
     applyIntervention(iv) {
@@ -145,6 +152,7 @@
           break;
         }
         case "Intubation": this.intubated = true; break;
+        case "Vasopressor": this.vasopressor = true; break;
         case "Osmotherapy": for (const b of Object.values(this.brain)) b.level = Math.max(0, b.level - C.TbiOsmotherapyReduction); break;
         case "NeurosurgicalDecompression": for (const b of Object.values(this.brain)) { b.level = Math.min(b.level, C.TbiLevelAfterSurgery); b.stopped = true; } break;
         case "ChestDrain": { const t = this.tension[iv.target]; if (t) { t.level = 0; t.drained = true; } break; }
@@ -209,8 +217,8 @@
       const sbpDrop = tp > C.TpHypotensionOnset ? (tp - C.TpHypotensionOnset) / (1 - C.TpHypotensionOnset) * C.TpMaxSbpDrop : 0;
       const hr0 = Shock.hr(m, 0);
       const hr = hr0 + this.hrBaseOffset + (Shock.hr(m, f) - hr0) * this.hrResponse;
-      const sbp = Shock.sbp(m, f) + this.sbpOffset - sbpDrop + 50 * cushing;
-      const dbp = Shock.dbp(m, f) + this.sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing;
+      const sbp = Shock.sbp(m, f) + this.sbpOffset - sbpDrop + 50 * cushing + (this.vasopressor ? C.VasopressorSbpRise : 0);
+      const dbp = Shock.dbp(m, f) + this.sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + (this.vasopressor ? C.VasopressorDbpRise : 0);
       let spo2 = loss(f, SpO2Air) - C.TpMaxSpO2Drop * tp - C.AirwayMaxSpO2Drop * airway + (this.oxygen ? 3 : 0) + (this.intubated ? 3 : 0);
       spo2 = Math.max(50, Math.min(100, spo2));
       const be = Shock.be(f), hco3 = BloodGas.hco3(be), paco2 = BloodGas.paco2(hco3, this.intubated, airway, tp), ph = BloodGas.ph(hco3, paco2);
@@ -231,9 +239,9 @@
   }
 
   // ---------------------------------------------------------------- StateWatcher (Core/StateWatcher.cs)
-  const StateTags = { Hypotension: "state:hypotension", Hypoxia: "state:hypoxia", GcsDrop: "state:gcs13", Gcs8: "state:gcs8", Anisocoria: "state:anisocoria" };
+  const StateTags = { Hypotension: "state:hypotension", Hypoxia: "state:hypoxia", GcsDrop: "state:gcs13", Gcs8: "state:gcs8", Anisocoria: "state:anisocoria", MapLowTbi: "state:map-low-tbi" };
   class StateWatcher {
-    constructor() { this.hypo = this.hypox = this.g13 = this.g8 = this.aniso = false; }
+    constructor() { this.hypo = this.hypox = this.g13 = this.g8 = this.aniso = this.mapLow = false; }
     check(v) {
       const out = [];
       if (v.arrest) return out;
@@ -244,6 +252,9 @@
       if (!this.g13 && v.gcs > 0 && v.gcs <= 13) { this.g13 = true; out.push([`Bewusstseinsminderung (GCS ${v.gcs})`, StateTags.GcsDrop]); }
       if (!this.g8 && v.gcs > 0 && v.gcs <= 8) { this.g8 = true; out.push([`Bewusstlos (GCS ${v.gcs})`, StateTags.Gcs8]); }
       if (!this.aniso && v.anisocoria) { this.aniso = true; out.push(["Anisokorie", StateTags.Anisocoria]); }
+      const severeTbi = v.gcs > 0 && v.gcs <= 8;
+      if (!this.mapLow && severeTbi && v.map < 80) { this.mapLow = true; out.push(["MAD unter 80 mmHg bei schwerem SHT", StateTags.MapLowTbi]); }
+      else if (this.mapLow && v.map >= 85) this.mapLow = false;
       return out;
     }
   }
@@ -313,7 +324,7 @@
           if (si.onsetTime_s > t) continue;
           const def = this.injuries[si.injuryId];
           for (const e of def.effects) this.engine.applyInjury({ effect: e.effectType, compartment: e.compartment, severity: si.severity,
-            baseRate_mL_min: e.baseRate_mL_min, maxTotalLoss_mL: e.maxTotalLoss_mL, progressionRate_per_min: e.progressionRate_per_min });
+            baseRate_mL_min: e.baseRate_mL_min, maxTotalLoss_mL: e.maxTotalLoss_mL, progressionRate_per_min: e.progressionRate_per_min, initialLevel: e.initialLevel || 0 });
           this.log(`Verletzung aktiv: ${def.name}`, "injury:" + si.injuryId);
           this.pending.splice(i, 1);
         }

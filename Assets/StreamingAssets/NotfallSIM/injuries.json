@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "injuries": [
     {
       "id": "becken_instabil",
@@ -13,7 +13,8 @@
           "compartment": "Pelvis",
           "baseRate_mL_min": 150,
           "maxTotalLoss_mL": 3000,
-          "progressionRate_per_min": 0
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
         }
       ],
       "clinicalFindings": [
@@ -69,6 +70,62 @@
       ]
     },
     {
+      "id": "epiduralhaematom_rechts",
+      "name": "Epiduralhämatom rechts temporal",
+      "region": "Kopf",
+      "icd10": "S06.4",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "TraumaticBrainInjury",
+          "compartment": "Brain",
+          "baseRate_mL_min": 0,
+          "maxTotalLoss_mL": 0,
+          "progressionRate_per_min": 0.05,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Prellmarke und Schwellung temporal rechts",
+        "Laut Zeugen kurz bewusstlos, danach wach (luzides Intervall)",
+        "Kopfschmerzen, Übelkeit, Amnesie für das Ereignis"
+      ],
+      "sources": [
+        {
+          "citation": "Chesnut RM, et al. The role of secondary brain injury in determining outcome from severe head injury. J Trauma. 1993;34(2):216-222.",
+          "url": "https://www.qxmd.com/r/8459458",
+          "note": "717 Patienten mit schwerem SHT: Hypotonie (RRsys < 90) bei 34,6 %, verbunden mit 150 % höherer Letalität; Hypoxie unabhängig mit schlechterem Outcome assoziiert"
+        },
+        {
+          "citation": "Böttiger BW, et al. DGAInfo zur S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. Anästh Intensivmed. 2011;52:S693-S700.",
+          "url": "https://www.ai-online.info/images/ai-ausgabe/2011/11-2011/supplement-10-2011/2011_11_S693-S700_SUPPLEMENT%20Nr.%2010%20-%202011%20-%20Trauma-Update%20%20S3-Leitlinie%20Polytrauma.pdf",
+          "note": "SHT: Normoxie, Normokapnie, Normotonie (GoR A); RRsys nicht unter 90 mmHg (GoR B); permissive Hypotension bei ZNS-Verletzung kontraindiziert; Intubation bei schwerem SHT (präklinisch GCS < 9, GoR B). Stand 2011, gegen Version 5.0 prüfen"
+        },
+        {
+          "citation": "Brain Trauma Foundation. Guidelines for the Management of Severe Traumatic Brain Injury, 4th ed. 2016.",
+          "url": "https://em.umaryland.edu/educational_pearls/3108/",
+          "note": "RRsys ≥ 110 mmHg (15–49 J. und > 70 J.) bzw. ≥ 100 mmHg (50–69 J.), Level III; Zusammenfassung über Sekundärquelle"
+        },
+        {
+          "citation": "Extradural hematoma: analysis of 146 cases. Childs Nerv Syst. 1993;9(2):96-99.",
+          "url": "https://doi.org/10.1007/BF00305316",
+          "note": "Luzides Intervall bei ca. 37 % — Kollektiv Kinder 1–16 J., nur eingeschränkt übertragbar"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Mock-Verlauf: luzides Intervall, Eintrübung, Anisokorie ab 70 % Raumforderung, Cushing-Reflex ab 80 %, Einklemmung bei 100 %. Hypotonie oder Hypoxie verdoppeln die Progression (didaktische Umsetzung von Chesnut 1993, kein gemessener Faktor). Zeitverlauf ist geschätzt.",
+      "imaging": [
+        {
+          "modality": "CCT",
+          "finding": "Bikonvexe hyperdense Raumforderung temporal rechts (Epiduralhämatom) mit Mittellinienverlagerung nach links; Kalottenfraktur temporal rechts.",
+          "resolvedByTag": "effect:NeurosurgicalDecompression",
+          "resolvedFinding": "Zustand nach Kraniotomie und Hämatomausräumung temporal rechts, Mittellinie zentriert.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ]
+    },
+    {
       "id": "femur_schaft_rechts",
       "name": "Geschlossene Femurschaftfraktur rechts",
       "region": "Oberschenkel rechts",
@@ -80,7 +137,8 @@
           "compartment": "RightThigh",
           "baseRate_mL_min": 20,
           "maxTotalLoss_mL": 1000,
-          "progressionRate_per_min": 0
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
         }
       ],
       "clinicalFindings": [
@@ -155,6 +213,52 @@
       ]
     },
     {
+      "id": "sdh_akut_links",
+      "name": "Akutes Subduralhämatom links mit Kontusionen",
+      "region": "Kopf",
+      "icd10": "S06.5",
+      "aisSeverity": 5,
+      "effects": [
+        {
+          "effectType": "TraumaticBrainInjury",
+          "compartment": "Brain",
+          "baseRate_mL_min": 0,
+          "maxTotalLoss_mL": 0,
+          "progressionRate_per_min": 0.018,
+          "initialLevel": 0.45
+        }
+      ],
+      "clinicalFindings": [
+        "Kopfplatzwunde frontal links",
+        "Von Beginn an eingetrübt, reagiert verzögert auf Ansprache",
+        "Keine Erinnerung an den Unfall, wiederholte Fragen"
+      ],
+      "sources": [
+        {
+          "citation": "Chesnut RM, et al. The role of secondary brain injury in determining outcome from severe head injury. J Trauma. 1993;34(2):216-222.",
+          "url": "https://www.qxmd.com/r/8459458",
+          "note": "Hypotonie und Hypoxie verschlechtern das Outcome nach schwerem SHT"
+        },
+        {
+          "citation": "Rossaint R, Afshari A, Bouillon B, et al. The European guideline on management of major bleeding and coagulopathy following trauma: sixth edition. Crit Care. 2023;27:80.",
+          "url": "https://doi.org/10.1186/s13054-023-04327-7",
+          "note": "Bei schwerem SHT (GCS ≤ 8) MAD ≥ 80 mmHg halten (Grade 1C); permissive Hypotension nur ohne Hirnverletzung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Anders als beim Epiduralhämatom kein luzides Intervall: Start bei 45 % Raumforderung (GCS ca. 12), danach langsamere Progression. Werte didaktisch.",
+      "imaging": [
+        {
+          "modality": "CCT",
+          "finding": "Akutes Subduralhämatom links frontotemporoparietal (sichelförmig, ca. 12 mm) mit Mittellinienverlagerung von 6 mm nach rechts; kleine Kontusionsblutungen frontal links.",
+          "resolvedByTag": "effect:NeurosurgicalDecompression",
+          "resolvedFinding": "Zustand nach Kraniotomie links und Hämatomausräumung; Mittellinie nahezu zentriert, Kontusionen frontal links unverändert.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ]
+    },
+    {
       "id": "spannungspneu_links",
       "name": "Spannungspneumothorax links",
       "region": "Thorax",
@@ -166,7 +270,8 @@
           "compartment": "LeftLung",
           "baseRate_mL_min": 0,
           "maxTotalLoss_mL": 0,
-          "progressionRate_per_min": 0.06
+          "progressionRate_per_min": 0.06,
+          "initialLevel": 0
         }
       ],
       "clinicalFindings": [
@@ -217,61 +322,6 @@
           "finding": "Spannungspneumothorax links mit Mediastinalverlagerung nach rechts.",
           "resolvedByTag": "intervention:ChestDrain:LeftLung",
           "resolvedFinding": "Thoraxdrainage links in situ, kein relevanter Restpneumothorax.",
-          "image": "",
-          "imageCredit": ""
-        }
-      ]
-    },
-    {
-      "id": "epiduralhaematom_rechts",
-      "name": "Epiduralhämatom rechts temporal",
-      "region": "Kopf",
-      "icd10": "S06.4",
-      "aisSeverity": 4,
-      "effects": [
-        {
-          "effectType": "TraumaticBrainInjury",
-          "compartment": "Brain",
-          "baseRate_mL_min": 0,
-          "maxTotalLoss_mL": 0,
-          "progressionRate_per_min": 0.05
-        }
-      ],
-      "clinicalFindings": [
-        "Prellmarke und Schwellung temporal rechts",
-        "Laut Zeugen kurz bewusstlos, danach wach (luzides Intervall)",
-        "Kopfschmerzen, Übelkeit, Amnesie für das Ereignis"
-      ],
-      "sources": [
-        {
-          "citation": "Chesnut RM, et al. The role of secondary brain injury in determining outcome from severe head injury. J Trauma. 1993;34(2):216-222.",
-          "url": "https://www.qxmd.com/r/8459458",
-          "note": "717 Patienten mit schwerem SHT: Hypotonie (RRsys < 90) bei 34,6 %, verbunden mit 150 % höherer Letalität; Hypoxie unabhängig mit schlechterem Outcome assoziiert"
-        },
-        {
-          "citation": "Böttiger BW, et al. DGAInfo zur S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung. Anästh Intensivmed. 2011;52:S693-S700.",
-          "url": "https://www.ai-online.info/images/ai-ausgabe/2011/11-2011/supplement-10-2011/2011_11_S693-S700_SUPPLEMENT%20Nr.%2010%20-%202011%20-%20Trauma-Update%20%20S3-Leitlinie%20Polytrauma.pdf",
-          "note": "SHT: Normoxie, Normokapnie, Normotonie (GoR A); RRsys nicht unter 90 mmHg (GoR B); permissive Hypotension bei ZNS-Verletzung kontraindiziert; Intubation bei schwerem SHT (präklinisch GCS < 9, GoR B). Stand 2011, gegen Version 5.0 prüfen"
-        },
-        {
-          "citation": "Brain Trauma Foundation. Guidelines for the Management of Severe Traumatic Brain Injury, 4th ed. 2016.",
-          "url": "https://em.umaryland.edu/educational_pearls/3108/",
-          "note": "RRsys ≥ 110 mmHg (15–49 J. und > 70 J.) bzw. ≥ 100 mmHg (50–69 J.), Level III; Zusammenfassung über Sekundärquelle"
-        },
-        {
-          "citation": "Extradural hematoma: analysis of 146 cases. Childs Nerv Syst. 1993;9(2):96-99.",
-          "url": "https://doi.org/10.1007/BF00305316",
-          "note": "Luzides Intervall bei ca. 37 % — Kollektiv Kinder 1–16 J., nur eingeschränkt übertragbar"
-        }
-      ],
-      "evidenceStatus": "draft",
-      "reviewNotes": "Mock-Verlauf: luzides Intervall, Eintrübung, Anisokorie ab 70 % Raumforderung, Cushing-Reflex ab 80 %, Einklemmung bei 100 %. Hypotonie oder Hypoxie verdoppeln die Progression (didaktische Umsetzung von Chesnut 1993, kein gemessener Faktor). Zeitverlauf ist geschätzt.",
-      "imaging": [
-        {
-          "modality": "CCT",
-          "finding": "Bikonvexe hyperdense Raumforderung temporal rechts (Epiduralhämatom) mit Mittellinienverlagerung nach links; Kalottenfraktur temporal rechts.",
-          "resolvedByTag": "effect:NeurosurgicalDecompression",
-          "resolvedFinding": "Zustand nach Kraniotomie und Hämatomausräumung temporal rechts, Mittellinie zentriert.",
           "image": "",
           "imageCredit": ""
         }

@@ -39,6 +39,12 @@ run("sht_behandelt", { weight_kg: 78, age: 24, sex: "male" }, (e, s) => {
   if (s === 9000) e.applyIntervention(iv("Intubation"));
   if (s === 9600) e.applyIntervention(iv("NeurosurgicalDecompression"));
 }, 1800);
+const sdh = { effect: "TraumaticBrainInjury", compartment: "Brain", severity: 1.0, progressionRate_per_min: 0.018, initialLevel: 0.45 };
+run("polytrauma_noradrenalin", { weight_kg: 85, age: 42, sex: "male", initialBloodLoss_mL: 1500 }, (e, s) => {
+  if (s === 0) { e.applyInjury({ ...sdh }); e.applyInjury(bleed("Pelvis", 0.7, 150, 3000)); e.applyInjury(bleed("RightThigh", 0.6, 20, 1000)); }
+  if (s === 6000) e.applyIntervention(iv("Intubation"));
+  if (s === 7000) e.applyIntervention(iv("Vasopressor"));
+}, 1800);
 run("betablocker", { weight_kg: 65, age: 76, sex: "female", betaBlocker: true }, (e, s) => { if (s === 0) e.applyInjury(bleed("Pelvis", 0.6, 150, 3000)); }, 1800);
 
 const ref = fs.readFileSync(process.argv[2], "utf8").trim().split("\n").map((l) => l.split(";"));

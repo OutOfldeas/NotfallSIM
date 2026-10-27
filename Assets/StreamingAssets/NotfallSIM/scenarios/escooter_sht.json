@@ -8,7 +8,8 @@
     "age": 24,
     "weight_kg": 78,
     "height_cm": 181,
-    "betaBlocker": false
+    "betaBlocker": false,
+    "initialBloodLoss_mL": 0
   },
   "injuries": [
     {

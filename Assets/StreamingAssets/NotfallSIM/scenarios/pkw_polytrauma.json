@@ -1,0 +1,204 @@
+{
+  "id": "pkw_polytrauma",
+  "title": "Polytrauma nach Frontalkollision",
+  "description": "42-jähriger PKW-Fahrer, Frontalkollision mit ca. 70 km/h, nicht angeschnallt, Kopfanprall an der Windschutzscheibe. Eingeklemmt, Rettungszeit ca. 60 min. Bei Eintreffen eingetrübt (öffnet die Augen auf Ansprache), blass, Schmerzen im Becken, rechtes Bein fehlgestellt.",
+  "mechanism": "Frontalkollision, ungesichert: Kopf gegen Windschutzscheibe, Knie und Becken gegen das Armaturenbrett, Thorax gegen das Lenkrad",
+  "patient": {
+    "sex": "male",
+    "age": 42,
+    "weight_kg": 85,
+    "height_cm": 180,
+    "betaBlocker": false,
+    "initialBloodLoss_mL": 1500
+  },
+  "injuries": [
+    {
+      "injuryId": "sdh_akut_links",
+      "onsetTime_s": 0,
+      "severity": 1.0
+    },
+    {
+      "injuryId": "becken_instabil",
+      "onsetTime_s": 0,
+      "severity": 0.9
+    },
+    {
+      "injuryId": "femur_schaft_rechts",
+      "onsetTime_s": 0,
+      "severity": 0.6
+    },
+    {
+      "injuryId": "rippenserienfraktur_links",
+      "onsetTime_s": 0,
+      "severity": 1.0
+    }
+  ],
+  "learningGoals": [
+    "Prioritäten im Polytrauma nach ABCDE setzen, obwohl mehrere Verletzungen gleichzeitig drängen",
+    "Den Zielkonflikt im Blutdruck lösen: permissive Hypotension für die Blutung ist beim schweren SHT kontraindiziert (MAD ≥ 80 mmHg)",
+    "Blutungskontrolle und Blutprodukte zuerst, Noradrenalin ergänzend — und wissen, dass mehr Druck mehr Blutung bedeutet",
+    "Atemweg bei GCS ≤ 8 sichern, Hypoxie und Hypotonie als sekundäre Hirnschädigung vermeiden",
+    "CT-Entscheidung abwägen: Bildgebung des Kopfes ist nötig, ein Transport im Schock gefährlich"
+  ],
+  "expectedCourse": "Kommt mit ca. 1,5 L präklinischem Blutverlust (Schockklasse II) und GCS ca. 12. Die Beckenblutung läuft weiter; ohne Blutungskontrolle fällt der MAD nach etwa 6–8 min unter 80 mmHg. Nach ca. 12 min GCS ≤ 8, danach Anisokorie. Sobald RRsys oder SpO2 fallen, verschlechtert sich das SHT doppelt so schnell. Gute Versorgung: Beckengurt, Blut, TXA, Atemwegssicherung, MAD ≥ 80 halten (notfalls Noradrenalin), frühes CT und Neurochirurgie.",
+  "defaultTimeScale": 1,
+  "assessment": [
+    {
+      "id": "o2",
+      "description": "Sauerstoff gegeben",
+      "type": "deadline",
+      "tags": [
+        "intervention:Oxygen"
+      ],
+      "limit": 120,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": false,
+      "rationale": "Basismaßnahme im Primary Survey; Normoxie beim SHT. Zeitziel didaktisch."
+    },
+    {
+      "id": "becken_untersucht",
+      "description": "Becken untersucht",
+      "type": "deadline",
+      "tags": [
+        "exam:Becken"
+      ],
+      "limit": 180,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": false,
+      "rationale": "C-Teil: Blutungsquellen suchen. Zeitziel didaktisch."
+    },
+    {
+      "id": "neuro_untersucht",
+      "description": "GCS und Pupillen geprüft",
+      "type": "deadline",
+      "tags": [
+        "exam:Kopf"
+      ],
+      "limit": 180,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": false,
+      "rationale": "D-Teil des Primary Survey. Zeitziel didaktisch."
+    },
+    {
+      "id": "beckengurt",
+      "description": "Beckengurt angelegt",
+      "type": "deadline",
+      "tags": [
+        "intervention:HemorrhageControl:Pelvis:beckengurt"
+      ],
+      "limit": 300,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": true,
+      "rationale": "S3 (GoR A): Notfallstabilisierung bei instabilem Beckenring mit Kreislaufinstabilität. 5 min didaktisch."
+    },
+    {
+      "id": "blut",
+      "description": "Blutprodukte begonnen",
+      "type": "deadline",
+      "tags": [
+        "intervention:FluidInfusion:Blood"
+      ],
+      "limit": 600,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": true,
+      "rationale": "Frühe Blutprodukte; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+    },
+    {
+      "id": "txa",
+      "description": "Tranexamsäure gegeben",
+      "type": "deadline",
+      "tags": [
+        "intervention:Medication:TXA"
+      ],
+      "limit": 600,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": false,
+      "rationale": "So früh wie möglich, spätestens 3 h nach Trauma (Rossaint 2023, Grade 1A; S3 GoR A). 10 min didaktisch."
+    },
+    {
+      "id": "intubation",
+      "description": "Atemweg gesichert bei GCS ≤ 8",
+      "type": "deadline",
+      "tags": [
+        "intervention:Intubation"
+      ],
+      "limit": 180,
+      "relativeTo": "state:gcs8",
+      "onlyAfterReference": false,
+      "critical": true,
+      "rationale": "S3: bewusstlose Patienten (GCS ≤ 8) intubieren (GoR A). 3 min didaktisch."
+    },
+    {
+      "id": "keine_hypoxie",
+      "description": "Keine Hypoxie (SpO2 < 90 %)",
+      "type": "maxCount",
+      "tags": [
+        "state:hypoxia"
+      ],
+      "limit": 0,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": true,
+      "rationale": "Hypoxie verschlechtert das Outcome nach SHT unabhängig (Chesnut 1993)."
+    },
+    {
+      "id": "map_ziel_sht",
+      "description": "MAD ≥ 80 mmHg beim schweren SHT",
+      "type": "maxCount",
+      "tags": [
+        "state:map-low-tbi"
+      ],
+      "limit": 0,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": true,
+      "rationale": "Europäische Blutungsleitlinie: bei schwerem SHT (GCS ≤ 8) MAD ≥ 80 mmHg (Rossaint 2023, Grade 1C); permissive Hypotension nur ohne Hirnverletzung. Bei Bedarf Noradrenalin zusätzlich zu Blut (Grade 1C)."
+    },
+    {
+      "id": "kopf_bildgebung",
+      "description": "Bildgebung des Kopfes",
+      "type": "deadline",
+      "tags": [
+        "imaging:cct",
+        "imaging:ct_ganzkoerper"
+      ],
+      "limit": 900,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": false,
+      "rationale": "Eingetrübter Patient mit Kopfanprall: CCT bzw. Ganzkörper-CT sobald vertretbar. 15 min didaktisch."
+    },
+    {
+      "id": "neurochirurgie",
+      "description": "Neurochirurgie nach CT-Befund eingebunden",
+      "type": "deadline",
+      "tags": [
+        "intervention:NeurosurgicalDecompression"
+      ],
+      "limit": 300,
+      "relativeTo": "result:Imaging:c",
+      "onlyAfterReference": false,
+      "critical": true,
+      "rationale": "Raumforderndes Subduralhämatom mit Mittellinienverlagerung: Notfall-Kraniotomie; Entscheidung unmittelbar nach dem CT. 5 min didaktisch."
+    },
+    {
+      "id": "keine_instabile_ct_fahrt",
+      "description": "Kein Transport ins CT im Schock",
+      "type": "maxCount",
+      "tags": [
+        "warning:unstable-transport"
+      ],
+      "limit": 0,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": false,
+      "rationale": "Instabile Patienten nicht in einen CT-Raum außerhalb des Schockraums (ATLS; S3: CT < 50 m vom Schockraum, GoR B)."
+    }
+  ]
+}

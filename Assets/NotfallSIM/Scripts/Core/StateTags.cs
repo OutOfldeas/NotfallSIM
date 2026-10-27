@@ -11,7 +11,8 @@ namespace NotfallSIM.Core
         public const string GcsDrop = "state:gcs13";           // GCS erstmals <= 13
         public const string Gcs8 = "state:gcs8";               // GCS erstmals <= 8
         public const string Anisocoria = "state:anisocoria";   // erstmals Pupillendifferenz
+        public const string MapLowTbi = "state:map-low-tbi";   // MAD < 80 bei schwerem SHT (GCS <= 8), je Episode
 
-        public static readonly string[] All = { Hypotension, Hypoxia, GcsDrop, Gcs8, Anisocoria };
+        public static readonly string[] All = { Hypotension, Hypoxia, GcsDrop, Gcs8, Anisocoria, MapLowTbi };
     }
 }

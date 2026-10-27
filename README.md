@@ -66,7 +66,7 @@ Assets/
    „Szenario beenden“ zeigt das Debriefing und speichert die Verläufe als CSV
    (Ordner: `Application.persistentDataPath/Sessions`, wird im Debriefing angezeigt).
 6. **Szenario wechseln:** im Inspector des Objekts `Simulation` das Feld *Scenario Id* setzen
-   (`motorrad_beckenfraktur`, `pkw_spannungspneu`, `escooter_sht` oder `fussgaengerin_becken_betablocker`).
+   (`motorrad_beckenfraktur`, `pkw_spannungspneu`, `escooter_sht`, `fussgaengerin_becken_betablocker` oder `pkw_polytrauma`).
 7. **Modus wählen:** Feld *Mode* — *Textbook* (ATLS-Lehrbuchbild) oder *Registry* (Realitätsmodus nach
    Registerdaten mit individueller Streuung, Alter und Betablocker). Das Debriefing vergleicht beide.
 
