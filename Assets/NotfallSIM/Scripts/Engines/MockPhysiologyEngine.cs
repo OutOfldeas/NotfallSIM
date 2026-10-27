@@ -95,6 +95,10 @@ namespace NotfallSIM.Engines
         double _baselineVolume, _volume, _time, _baselineMap;
         // Individuelle Reaktion (Realitätsmodus) und Patientenfaktoren
         double _hrBaseOffset, _hrResponse = 1, _sbpOffset;
+        // Erythrozytenmasse für das Hb: Blutung entfernt Vollblut (Hb bleibt akut gleich),
+        // Kristalloide verdünnen, EKs bringen Erythrozyten. Transkapilläre Rückfüllung ist nicht modelliert.
+        const double EkHematocrit = 0.6;
+        double _redCellVolume, _transfused_mL;
         bool _oxygen, _arrest, _intubated;
 
         /// <param name="seed">Fester Seed macht Zufallsereignisse (z. B. Versagen der Punktion) reproduzierbar.</param>
@@ -125,6 +129,9 @@ namespace NotfallSIM.Engines
             }
             // Betablocker dämpfen die Tachykardie in beiden Modi (didaktischer Faktor).
             if (patient.betaBlocker) _hrResponse *= 0.25;
+            double hb0 = patient.IsMale ? 14.5 : 13.0; // g/dL
+            _redCellVolume = _volume * hb0 * 3 / 100;   // Hkt ≈ 3 × Hb
+            _transfused_mL = 0;
             UpdateVitals();
             _baselineMap = Current.MeanArterialPressure_mmHg;
             return true;
@@ -210,6 +217,7 @@ namespace NotfallSIM.Engines
                         rate *= Math.Max(0, 1 - b.Lost_mL / inj.MaxTotalLoss_mL);
                     double loss = rate * minutes;
                     b.Lost_mL += loss;
+                    if (_volume > 0) _redCellVolume -= loss * _redCellVolume / _volume;
                     _volume -= loss;
                 }
 
@@ -237,9 +245,11 @@ namespace NotfallSIM.Engines
                 inf.Remaining_mL -= given;
                 double retention = Retention.TryGetValue(inf.Compound ?? "", out var r) ? r : 0.3;
                 _volume += given * retention;
+                if (inf.Compound == "Blood") { _redCellVolume += given * EkHematocrit; _transfused_mL += given; }
             }
             _infusions.RemoveAll(i => i.Remaining_mL <= 0);
 
+            _redCellVolume = Math.Max(0, Math.Min(_redCellVolume, _volume));
             _volume = Math.Max(0, Math.Min(_volume, _baselineVolume * 1.1));
             UpdateVitals();
         }
@@ -256,10 +266,13 @@ namespace NotfallSIM.Engines
             // volle Raumforderung = Einklemmung.
             if (f >= ArrestThreshold || tp >= 1 || tbi >= 1) _arrest = true;
 
+            double hb = _volume > 0 ? _redCellVolume / _volume * 100 / 3 : 0;
             if (_arrest)
             {
                 Current = new VitalSigns
                 {
+                    Hb = hb, pH = 6.90, PaCO2 = 70, PaO2 = 30, HCO3 = 4, Potassium = 6.5,
+                    IonizedCalcium = BloodGas.IonizedCalcium(_transfused_mL), Glucose = BloodGas.Glucose(f),
                     SimTime_s = _time, BloodVolume_mL = _volume, BloodLossFraction = f,
                     EtCO2_mmHg = 5, CardiacArrest = true, GCS = 3, BaseExcess = -20, Lactate = 12, Anisocoria = tbi >= TbiAnisocoriaLevel,
                     Intubated = _intubated
@@ -283,6 +296,10 @@ namespace NotfallSIM.Engines
             double spo2 = Interp(f, ShockTables.SpO2Air) - TpMaxSpO2Drop * tp - AirwayMaxSpO2Drop * airway
                           + (_oxygen ? 3 : 0) + (_intubated ? 3 : 0);
             spo2 = Math.Max(50, Math.Min(100, spo2));
+            double be = Interp(f, ShockTables.BaseExcess);
+            double hco3 = BloodGas.Hco3(be);
+            double paco2 = BloodGas.PaCO2(hco3, _intubated, airway, tp);
+            double ph = BloodGas.PH(hco3, paco2);
             Current = new VitalSigns
             {
                 SimTime_s = _time,
@@ -293,8 +310,16 @@ namespace NotfallSIM.Engines
                 RespirationRate_bpm = _intubated ? 14 : ShockTables.Rr(Mode, f) + TpMaxRrAdd * tp - 6 * airway - 6 * cushing,
                 SpO2_percent = spo2,
                 EtCO2_mmHg = Interp(f, ShockTables.EtCo2) - TpMaxEtCo2Drop * tp + AirwayMaxEtCo2Rise * airway,
-                BaseExcess = Interp(f, ShockTables.BaseExcess),
+                BaseExcess = be,
                 Lactate = Interp(f, ShockTables.Lactate),
+                Hb = hb,
+                HCO3 = hco3,
+                PaCO2 = paco2,
+                pH = ph,
+                PaO2 = BloodGas.PaO2(spo2, _oxygen, _intubated),
+                Potassium = BloodGas.Potassium(ph),
+                IonizedCalcium = BloodGas.IonizedCalcium(_transfused_mL),
+                Glucose = BloodGas.Glucose(f),
                 GCS = Math.Round(gcs),
                 Anisocoria = tbi >= TbiAnisocoriaLevel,
                 Intubated = _intubated,

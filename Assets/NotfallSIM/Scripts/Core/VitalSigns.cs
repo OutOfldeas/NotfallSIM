@@ -31,6 +31,14 @@ namespace NotfallSIM.Core
         /// <summary>Labor (BGA): Base Excess in mmol/L (negativ = Basendefizit) und Laktat in mmol/L.</summary>
         public double BaseExcess;
         public double Lactate;
+        public double Hb;              // g/dL
+        public double pH;
+        public double PaCO2;           // mmHg
+        public double PaO2;            // mmHg
+        public double HCO3;            // mmol/L
+        public double Potassium;       // mmol/L
+        public double IonizedCalcium;  // mmol/L
+        public double Glucose;         // mg/dL
 
         public override string ToString() =>
             $"t={SimTime_s:F0}s HF={HeartRate_bpm:F0} RR={SystolicBP_mmHg:F0}/{DiastolicBP_mmHg:F0} " +

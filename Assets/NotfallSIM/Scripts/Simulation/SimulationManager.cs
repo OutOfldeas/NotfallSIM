@@ -130,8 +130,8 @@ namespace NotfallSIM.Simulation
             {
                 // Werte zum Abnahmezeitpunkt, Ergebnis nach der Laufzeit des Analysegeräts.
                 var v = Engine.Current;
-                string result = $"BGA-Ergebnis (abgenommen {Clock(v.SimTime_s)}): BE {v.BaseExcess:+0.0;-0.0} mmol/L, Laktat {v.Lactate:0.0} mmol/L";
-                _delayed.Add((v.SimTime_s + delay_s, iv, label, result.Replace('.', ',')));
+                string result = $"BGA-Ergebnis (abgenommen {Clock(v.SimTime_s)}): " + BloodGas.Report(v);
+                _delayed.Add((v.SimTime_s + delay_s, iv, label, result));
                 Log($"Maßnahme: {label}", tag);
                 return;
             }

@@ -50,6 +50,38 @@
     };
   }
 
+  // ---------------------------------------------------------------- BloodGas (Core/BloodGas.cs)
+  const SatPoints = [50, 60, 70, 80, 85, 90, 94, 96, 97, 98];
+  const Po2Values = [27, 32, 37, 45, 50, 60, 75, 85, 95, 105];
+  const BloodGas = {
+    hco3: (be) => Math.max(4, 24 + be),
+    paco2: (hco3, intubated, airway, tension) => intubated ? 38 : Math.min(40, 1.5 * hco3 + 8) + 15 * airway + 6 * tension,
+    ph: (hco3, paco2) => 6.1 + Math.log10(hco3 / (0.03 * paco2)),
+    pao2: (spo2, oxygen, intubated) => spo2 >= 96 && intubated ? 250 : spo2 >= 96 && oxygen ? 140 : interp(spo2, SatPoints, Po2Values),
+    potassium: (ph) => 4.0 + Math.max(0, 7.40 - ph) * 6,
+    calcium: (transfused) => Math.max(0.75, 1.20 - 0.0002 * transfused),
+    glucose: (f) => 110 + 150 * f,
+  };
+  const dec = (x, n) => x.toFixed(n).replace(".", ",");
+  /** Strukturierte BGA-Werte fürs UI und der gleiche Text wie BloodGas.Report in C#. */
+  function bloodGasValues(v) {
+    // [Bezeichnung, Anzeigewert, Einheit, außerhalb des Referenzbereichs]
+    const out = (x, lo, hi) => x < lo || x > hi;
+    return [
+      ["pH", dec(v.ph, 2), "", out(v.ph, 7.35, 7.45)], ["pCO₂", dec(v.paco2, 0), "mmHg", out(v.paco2, 35, 45)],
+      ["pO₂", dec(v.pao2, 0), "mmHg", out(v.pao2, 80, 500)], ["SaO₂", dec(v.spo2, 0), "%", out(v.spo2, 94, 100)],
+      ["HCO₃⁻", dec(v.hco3, 1), "mmol/L", out(v.hco3, 22, 26)], ["BE", (v.be >= 0 ? "+" : "") + dec(v.be, 1), "mmol/L", out(v.be, -2, 2)],
+      ["Laktat", dec(v.lactate, 1), "mmol/L", out(v.lactate, 0, 2)], ["Hb", dec(v.hb, 1), "g/dL", out(v.hb, 12, 17.5)],
+      ["K⁺", dec(v.potassium, 1), "mmol/L", out(v.potassium, 3.5, 5.0)], ["Ca²⁺", dec(v.calcium, 2), "mmol/L", out(v.calcium, 1.15, 1.30)],
+      ["Glukose", dec(v.glucose, 0), "mg/dL", out(v.glucose, 70, 140)],
+    ];
+  }
+  function bloodGasReport(v) {
+    return `pH ${dec(v.ph, 2)} · pCO2 ${dec(v.paco2, 0)} mmHg · pO2 ${dec(v.pao2, 0)} mmHg · SaO2 ${dec(v.spo2, 0)} % · ` +
+      `HCO3 ${dec(v.hco3, 1)} mmol/L · BE ${v.be >= 0 ? "+" : ""}${dec(v.be, 1)} mmol/L · Laktat ${dec(v.lactate, 1)} mmol/L · ` +
+      `Hb ${dec(v.hb, 1)} g/dL · K ${dec(v.potassium, 1)} mmol/L · Ca++ ${dec(v.calcium, 2)} mmol/L · Glukose ${dec(v.glucose, 0)} mg/dL`;
+  }
+
   // ---------------------------------------------------------------- Mock-Engine (Engines/MockPhysiologyEngine.cs)
   const C = {
     ArrestThreshold: 0.60,
@@ -84,6 +116,9 @@
         this.sbpOffset = this.uniform(-10, 10) + (patient.age >= 65 ? 15 : 0);
       }
       if (patient.betaBlocker) this.hrResponse *= 0.25;
+      const hb0 = String(patient.sex).toLowerCase() === "female" ? 13.0 : 14.5;
+      this.redCells = this.volume * hb0 * 3 / 100;
+      this.transfused = 0;
       this.current = null;
       this.updateVitals();
       this.baselineMap = this.current.map;
@@ -126,7 +161,9 @@
         for (const b of Object.values(this.bleeds)) {
           let rate = b.inj.baseRate_mL_min * b.inj.severity * b.multiplier * pressureFactor;
           if (b.inj.maxTotalLoss_mL > 0) rate *= Math.max(0, 1 - b.lost / b.inj.maxTotalLoss_mL);
-          const l = rate * minutes; b.lost += l; this.volume -= l;
+          const l = rate * minutes; b.lost += l;
+          if (this.volume > 0) this.redCells -= l * this.redCells / this.volume;
+          this.volume -= l;
         }
         for (const t of Object.values(this.tension)) {
           if (t.drained) continue;
@@ -145,8 +182,10 @@
         inf.remaining -= given;
         const ret = C.Retention[inf.compound] != null ? C.Retention[inf.compound] : 0.3;
         this.volume += given * ret;
+        if (inf.compound === "Blood") { this.redCells += given * 0.6; this.transfused += given; }
       }
       this.infusions = this.infusions.filter((i) => i.remaining > 0);
+      this.redCells = Math.max(0, Math.min(this.redCells, this.volume));
       this.volume = Math.max(0, Math.min(this.volume, this.baselineVolume * 1.1));
       this.updateVitals();
     }
@@ -156,8 +195,10 @@
       let tp = 0; for (const t of Object.values(this.tension)) tp = Math.max(tp, t.level);
       let tbi = 0; for (const b of Object.values(this.brain)) tbi = Math.max(tbi, b.level);
       if (f >= C.ArrestThreshold || tp >= 1 || tbi >= 1) this.arrest = true;
+      const hb = this.volume > 0 ? this.redCells / this.volume * 100 / 3 : 0;
       if (this.arrest) {
-        this.current = { time: this.time, hr: 0, sbp: 0, dbp: 0, map: 0, rr: 0, spo2: 0, etco2: 5, bv: this.volume, loss: f,
+        this.current = { hb, ph: 6.90, paco2: 70, pao2: 30, hco3: 4, potassium: 6.5, calcium: BloodGas.calcium(this.transfused), glucose: BloodGas.glucose(f),
+          time: this.time, hr: 0, sbp: 0, dbp: 0, map: 0, rr: 0, spo2: 0, etco2: 5, bv: this.volume, loss: f,
           arrest: true, gcs: 3, be: -20, lactate: 12, anisocoria: tbi >= C.TbiAnisocoriaLevel, intubated: this.intubated };
         return;
       }
@@ -172,6 +213,7 @@
       const dbp = Shock.dbp(m, f) + this.sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing;
       let spo2 = loss(f, SpO2Air) - C.TpMaxSpO2Drop * tp - C.AirwayMaxSpO2Drop * airway + (this.oxygen ? 3 : 0) + (this.intubated ? 3 : 0);
       spo2 = Math.max(50, Math.min(100, spo2));
+      const be = Shock.be(f), hco3 = BloodGas.hco3(be), paco2 = BloodGas.paco2(hco3, this.intubated, airway, tp), ph = BloodGas.ph(hco3, paco2);
       this.current = {
         time: this.time,
         hr: hr + C.TpMaxHrAdd * tp - 35 * cushing,
@@ -179,7 +221,9 @@
         rr: this.intubated ? 14 : Shock.rr(m, f) + C.TpMaxRrAdd * tp - 6 * airway - 6 * cushing,
         spo2,
         etco2: loss(f, EtCo2) - C.TpMaxEtCo2Drop * tp + C.AirwayMaxEtCo2Rise * airway,
-        be: Shock.be(f), lactate: Shock.lactate(f),
+        be, lactate: Shock.lactate(f), hb, hco3, paco2, ph,
+        pao2: BloodGas.pao2(spo2, this.oxygen, this.intubated), potassium: BloodGas.potassium(ph),
+        calcium: BloodGas.calcium(this.transfused), glucose: BloodGas.glucose(f),
         gcs: roundHalfEven(gcs), anisocoria: tbi >= C.TbiAnisocoriaLevel, intubated: this.intubated,
         bv: this.volume, loss: f, arrest: false,
       };
@@ -250,6 +294,7 @@
       this.nextSample = 5;
       this.used = new Set();
       this.imagingResults = [];
+      this.labResults = [];
       this.ended = false;
       this.step = 0.1;
       this.log(`Szenario „${this.scenario.title}“ gestartet (${this.engine.name})`, null);
@@ -277,6 +322,7 @@
           if (d.due > t) continue;
           if (d.result) {
             const img = d.result.startsWith("Befund ");
+            if (d.bga) this.labResults.push({ time: t, ...d.bga });
             this.log(d.result, img ? "result:Imaging:" + d.iv.id : "result:" + d.iv.type);
             if (img) { this.imagingResults.push({ time: t, id: d.iv.id, label: d.label, lines: d.lines, images: d.images });
               if (this.awayUntil > 0 && t >= this.awayUntil - 1e-6) { this.awayUntil = -1; this.log("Patient zurück im Schockraum", "transport:back"); } }
@@ -304,8 +350,8 @@
       const label = def.logLabel || def.label;
       const v = this.engine.current;
       if (iv.type === "BloodGas") {
-        const result = `BGA-Ergebnis (abgenommen ${clock(v.time)}): BE ${v.be >= 0 ? "+" : ""}${de1(v.be)} mmol/L, Laktat ${de1(v.lactate)} mmol/L`;
-        this.delayed.push({ due: v.time + def.effectDelay_s, iv, label, result });
+        const result = `BGA-Ergebnis (abgenommen ${clock(v.time)}): ` + bloodGasReport(v);
+        this.delayed.push({ due: v.time + def.effectDelay_s, iv, label, result, bga: { sampled: v.time, values: bloodGasValues(v) } });
         this.log(`Maßnahme: ${label}`, tag);
         return true;
       }
@@ -395,7 +441,7 @@
     }
   }
 
-  const api = { MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
+  const api = { BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.NotfallEngine = api;
 })(typeof window !== "undefined" ? window : globalThis);

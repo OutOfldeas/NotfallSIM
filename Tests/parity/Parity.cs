@@ -19,7 +19,8 @@ static class Parity
                 var v = e.Current;
                 Console.WriteLine(string.Join(";", name, (step / 10).ToString(CultureInfo.InvariantCulture),
                     N(v.HeartRate_bpm), N(v.SystolicBP_mmHg), N(v.DiastolicBP_mmHg), N(v.RespirationRate_bpm),
-                    N(v.SpO2_percent), N(v.EtCO2_mmHg), N(v.BloodVolume_mL), N(v.GCS), N(v.BaseExcess), v.CardiacArrest ? "1" : "0"));
+                    N(v.SpO2_percent), N(v.EtCO2_mmHg), N(v.BloodVolume_mL), N(v.GCS), N(v.BaseExcess), v.CardiacArrest ? "1" : "0",
+                    N(v.Hb), N(v.pH), N(v.PaCO2), N(v.PaO2), N(v.Potassium), N(v.IonizedCalcium), N(v.Glucose)));
             }
             e.Advance(0.1);
         }

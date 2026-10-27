@@ -1,5 +1,5 @@
 {
-  "version": "0.4.0",
+  "version": "0.5.0",
   "interventions": [
     {
       "id": "o2",
@@ -39,7 +39,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Ergebnis nach 2 min mit den Werten zum Abnahmezeitpunkt. Laktat-Werte im Mock sind didaktische Setzungen."
+      "reviewNotes": "Ergebnis nach 2 min mit den Werten zum Abnahmezeitpunkt: pH, pCO2, pO2, SaO2, HCO3, BE, Laktat, Hb, K, ionisiertes Ca, Glukose. Ableitung siehe Core/BloodGas.cs und docs/LITERATUR.md; Laktat, K, Ca und Glukose sind didaktische Setzungen."
     },
     {
       "id": "beckengurt",

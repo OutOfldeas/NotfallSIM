@@ -93,7 +93,13 @@ svg.body { width: 100%; height: auto; display: block; }
 .skin { fill: var(--skin); } .cloth { fill: var(--cloth); }
 .findings { min-height: 140px; }
 .findings ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; }
-.findings .lab-result { margin-top: 10px; padding: 8px 10px; border-radius: 6px; background: var(--surface-2); font-family: var(--font-mono); font-size: 13px; }
+.findings .lab-result { margin-top: 10px; padding: 8px 10px; border-radius: 6px; background: var(--surface-2); }
+.bga { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; margin-top: 4px; }
+.bga td { padding: 2px 4px; border-bottom: 1px dotted var(--line); }
+.bga td:nth-child(2) { text-align: right; font-weight: 500; }
+.bga td:nth-child(3) { color: var(--muted); font-size: 11px; }
+.bga tr.abn td:nth-child(2) { color: var(--crit); }
+.bga tr.abn td:nth-child(2)::after { content: " !"; }
 
 /* Maßnahmen */
 .actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
@@ -435,6 +441,15 @@ function renderAway() {
   if (away) $("awayBanner").textContent = `Patient ist im CT (Radiologie) und zurück um ${E.clock(sim.awayUntil)}. Untersuchung und Maßnahmen sind solange nicht möglich.`;
 }
 
+// ---------- Labor ----------
+function renderLab() {
+  const r = sim.labResults[sim.labResults.length - 1];
+  if (!r) return;
+  $("labResult").hidden = false;
+  $("labResult").innerHTML = `<div class="eyebrow">BGA · abgenommen ${E.clock(r.sampled)}</div><table class="bga"><tbody>` +
+    r.values.map(([k, v, u, abn]) => `<tr class="${abn ? "abn" : ""}"><td>${k}</td><td>${v}</td><td>${u}</td></tr>`).join("") + `</tbody></table>`;
+}
+
 // ---------- Protokoll ----------
 function logClass(tag) { return !tag ? "" : tag.startsWith("state") || tag.startsWith("warning") || tag === "arrest" ? "state" : tag.startsWith("result") ? "result" : ""; }
 function renderLog() {
@@ -445,7 +460,7 @@ function renderLog() {
     const li = document.createElement("li");
     li.innerHTML = `<time>${E.clock(ev.time)}</time><span class="${logClass(ev.tag)}">${esc(ev.message)}</span>`;
     $("log").prepend(li);
-    if (ev.tag && ev.tag.startsWith("result")) { $("labResult").hidden = false; $("labResult").textContent = ev.message; }
+    if (ev.tag === "result:BloodGas") renderLab();
   }
 }
 

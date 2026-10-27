@@ -33,7 +33,7 @@ namespace NotfallSIM.Core
         public string ToVitalsCsv()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("Zeit_s;HF;RRsys;RRdia;MAD;AF;SpO2;etCO2;Blutvolumen_mL;Blutverlust_Prozent;GCS;BE;Laktat;Stillstand");
+            sb.AppendLine("Zeit_s;HF;RRsys;RRdia;MAD;AF;SpO2;etCO2;Blutvolumen_mL;Blutverlust_Prozent;GCS;BE;Laktat;Hb;pH;pCO2;Stillstand");
             foreach (var v in Samples)
             {
                 sb.AppendLine(string.Join(";", new[]
@@ -41,7 +41,8 @@ namespace NotfallSIM.Core
                     F(v.SimTime_s), F(v.HeartRate_bpm), F(v.SystolicBP_mmHg), F(v.DiastolicBP_mmHg),
                     F(v.MeanArterialPressure_mmHg), F(v.RespirationRate_bpm), F(v.SpO2_percent),
                     F(v.EtCO2_mmHg), F(v.BloodVolume_mL), F(v.BloodLossFraction * 100), F(v.GCS),
-                    D1(v.BaseExcess), D1(v.Lactate), v.CardiacArrest ? "1" : "0"
+                    D1(v.BaseExcess), D1(v.Lactate), D1(v.Hb), v.pH.ToString("0.00", Inv).Replace('.', ','), F(v.PaCO2),
+                    v.CardiacArrest ? "1" : "0"
                 }));
             }
             return sb.ToString();

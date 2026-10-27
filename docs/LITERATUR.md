@@ -1,6 +1,6 @@
 # Literaturnotizen
 
-Stand: 27.10.2026 · Datenbank-Version 0.4.0 · Maßnahmen v0.3.0
+Stand: 27.10.2026 · Datenbank-Version 0.5.0 · Maßnahmen v0.5.0 · Bildgebung v0.1.0
 
 Hier steht, worauf die Zahlen im Modell beruhen und wie belastbar sie sind.
 Jede Änderung an `injuries.json` oder an den Modelltabellen sollte hier nachvollziehbar sein.
@@ -17,6 +17,12 @@ Jede Änderung an `injuries.json` oder an den Modelltabellen sollte hier nachvol
 | Alter ≥ 65 (Realitätsmodus) | RRsys +15 mmHg (vorbestehende Hypertonie) | geschätzt | didaktisch |
 | Base Excess je Klasse | 0 / −2 / −6 / −10 / < −10 mmol/L | gut | ATLS 10th ed.; Mutschler 2013 |
 | Laktat | 1,0 → 9,0 mmol/L | geschätzt | didaktisch, an BE gekoppelt |
+| Hb | aus Erythrozytenmasse / Blutvolumen; Start 14,5 (♂) bzw. 13,0 g/dL (♀) | Prinzip gut, Zahlen Lehrbuch | Verdünnungsphysiologie |
+| EK | Hämatokrit 0,6 | Größenordnung plausibel | gegen Querschnitts-Leitlinie Hämotherapie prüfen |
+| HCO₃⁻, pCO₂, pH | HCO₃⁻ ≈ 24 + BE; Winters-Formel; Henderson-Hasselbalch | Lehrbuchphysiologie | Standardformeln |
+| Kalium | +0,6 mmol/L je 0,1 pH unter 7,40 | Faustregel | Lehrbuch |
+| Ionisiertes Calcium | −0,06 mmol/L je 300 mL Blutprodukt (Citrat) | geschätzt | didaktisch |
+| Glukose | 110 → 200 mg/dL mit der Schockschwere | geschätzt | didaktisch |
 | Femurschaft, Blutverlust | max. 1000 mL, 20 mL/min | mäßig | Lieurance 1992 (Sekundärquelle) |
 | Becken instabil, Blutverlust | max. 3000 mL, 150 mL/min | schwach (geschätzt) | Plausibilisiert über Transfusionsbedarf (Devaney 2023) |
 | Beckengurt-Effekt | Blutungsrate × 0,5 | schwach | Widersprüchliche Beobachtungsstudien |
@@ -44,6 +50,11 @@ Grundlage sind die mittleren Aufnahmewerte je Base-Deficit-Klasse aus dem Trauma
 Die BD-Klassen werden über die ATLS-10-Zuordnung des Base Excess (0 bis −2 / −2 bis −6 / −6 bis −10 / unter −10 mmol/L) näherungsweise auf die Blutverlustklassen abgebildet. Das ist eine Annäherung: Registerpatienten haben oft Begleitverletzungen, Schmerzen und präklinische Therapie.
 Dazu kommen individuelle Streuung sowie Alter und Betablocker. Bei 35 % Blutverlust zeigt der Lehrbuchmodus HF 128 und RR 100/72; im Realitätsmodus liegt die HF im Mittel bei 95 (Spanne 78–111) und der RRsys bei 112. Eine 76-jährige Patientin unter Betablocker hat bei gleichem Verlust HF 82 und RR 134/81 — ein „unauffälliger“ Monitor bei manifestem Schock.
 Der Base Excess verhält sich in beiden Modi gleich. Das ist die Kernbotschaft: Er deckt den Schock auf, wenn die Vitalwerte es nicht tun.
+
+**BGA: Das Hb ist im akuten Blutverlust kein Schockmarker.**
+Wer Vollblut verliert, verliert Erythrozyten und Plasma im gleichen Verhältnis; das Hb bleibt zunächst gleich. Es fällt erst durch Verdünnung, also durch Infusionen und die transkapilläre Rückfüllung über Stunden. Das Modell bildet das ab: Bei 27 % Blutverlust ohne Infusion zeigt die BGA Hb 14,5 g/dL, aber BE −5,3 und Laktat 3,0 mmol/L. Kristalloide senken das Hb, Erythrozytenkonzentrate heben es und senken das ionisierte Calcium (Citrat).
+Die Säure-Basen-Werte folgen Standardphysiologie: metabolische Azidose aus dem Basendefizit, respiratorische Kompensation nach der Winters-Formel beim spontan atmenden Patienten, Hyperkapnie bei ungeschütztem Atemweg (SHT mit GCS ≤ 8), Normoventilation nach Intubation.
+Nicht modelliert: transkapilläre Rückfüllung, Hyperkaliämie durch Massivtransfusion, Hypothermie und Gerinnungswerte.
 
 **Beckengurt: plausibel, aber schwach belegt.**
 Eine BestBETs-Übersicht fand nur kleine Beobachtungsstudien.
@@ -121,6 +132,8 @@ Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist
 - [ ] Realistische Zeit von Anordnung bis Kraniotomie (CT, Transport, OP-Beginn) recherchieren
 - [ ] Faktoren für Streuung, Betablocker und Alter im Realitätsmodus klinisch plausibilisieren
 - [ ] Laktatwerte je Schockklasse mit Literatur belegen
+- [ ] Transkapilläre Rückfüllung modellieren, damit das Hb über Stunden auch ohne Infusion sinkt
+- [ ] Calcium-Abfall je Blutprodukt und Hämatokrit des EK mit Literatur belegen
 
 ## Quellen
 

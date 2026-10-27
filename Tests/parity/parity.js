@@ -10,7 +10,8 @@ function run(name, p, plan, seconds) {
     plan(e, step);
     if (step % 300 === 0) {
       const v = e.current;
-      out.push([name, step / 10, N(v.hr), N(v.sbp), N(v.dbp), N(v.rr), N(v.spo2), N(v.etco2), N(v.bv), N(v.gcs), N(v.be), v.arrest ? 1 : 0]);
+      out.push([name, step / 10, N(v.hr), N(v.sbp), N(v.dbp), N(v.rr), N(v.spo2), N(v.etco2), N(v.bv), N(v.gcs), N(v.be), v.arrest ? 1 : 0,
+        N(v.hb), N(v.ph), N(v.paco2), N(v.pao2), N(v.potassium), N(v.calcium), N(v.glucose)]);
     }
     e.advance(0.1);
   }
@@ -43,13 +44,13 @@ run("betablocker", { weight_kg: 65, age: 76, sex: "female", betaBlocker: true },
 const ref = fs.readFileSync(process.argv[2], "utf8").trim().split("\n").map((l) => l.split(";"));
 let maxDiff = 0, worst = "", fails = 0;
 if (ref.length !== out.length) { console.log(`Zeilenzahl verschieden: C# ${ref.length}, JS ${out.length}`); process.exit(1); }
-const cols = ["HF", "RRsys", "RRdia", "AF", "SpO2", "etCO2", "BV", "GCS", "BE", "Stillstand"];
+const cols = ["HF", "RRsys", "RRdia", "AF", "SpO2", "etCO2", "BV", "GCS", "BE", "Stillstand", "Hb", "pH", "pCO2", "pO2", "K", "Ca", "Glukose"];
 for (let i = 0; i < ref.length; i++) {
-  for (let c = 2; c < 12; c++) {
+  for (let c = 2; c < 2 + cols.length; c++) {
     const d = Math.abs(Number(ref[i][c]) - Number(out[i][c]));
     if (d > maxDiff) { maxDiff = d; worst = `${ref[i][0]} t=${ref[i][1]}s ${cols[c - 2]}: C# ${ref[i][c]} vs JS ${out[i][c]}`; }
     if (d > 0.01) fails++;
   }
 }
-console.log(`${ref.length} Zeitpunkte × 10 Werte verglichen, max. Abweichung ${maxDiff.toFixed(4)}${worst ? " (" + worst + ")" : ""}`);
+console.log(`${ref.length} Zeitpunkte × ${cols.length} Werte verglichen, max. Abweichung ${maxDiff.toFixed(4)}${worst ? " (" + worst + ")" : ""}`);
 process.exit(fails ? 1 : 0);
