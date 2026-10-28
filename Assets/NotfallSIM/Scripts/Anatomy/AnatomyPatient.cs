@@ -287,9 +287,46 @@ namespace NotfallSIM.Anatomy
             if (Physics.Raycast(ray, out var hit, 10f, 1 << 2))
             {
                 var part = _rig.Parts.FirstOrDefault(p => p.Renderer.gameObject == hit.collider.gameObject);
-                hoverLabel.text = part != null && part.Renderer.enabled ? part.Info.label : "";
+                hoverLabel.text = part != null && part.Renderer.enabled ? HoverText(part) : "";
             }
             else hoverLabel.text = "";
+        }
+
+        // ---------------------------------------------------------------- Gewebeeigenschaften
+
+        static TissueDatabase _tissues;
+        static bool _tissuesTried;
+        readonly Dictionary<AnatomyPart, string> _hoverText = new Dictionary<AnatomyPart, string>();
+
+        /// <summary>Gewebedatenbank (StreamingAssets/NotfallSIM/tissues.json); null, wenn die Datei fehlt.</summary>
+        public static TissueDatabase Tissues
+        {
+            get
+            {
+                if (_tissuesTried) return _tissues;
+                _tissuesTried = true;
+                string path = Path.Combine(Application.streamingAssetsPath, "NotfallSIM", "tissues.json");
+                try
+                {
+                    if (File.Exists(path)) _tissues = new TissueDatabase(JsonUtility.FromJson<TissueDatabaseFile>(File.ReadAllText(path)));
+                    else Debug.LogWarning("[Patient] tissues.json fehlt — keine Gewebeeigenschaften im Röntgenblick.");
+                }
+                catch (System.Exception e) { Debug.LogWarning("[Patient] tissues.json nicht lesbar: " + e.Message); }
+                return _tissues;
+            }
+        }
+
+        /// <summary>Gewebe eines Anatomieteils (null ohne Datenbank oder Zuordnung).</summary>
+        public static TissueEntry TissueOf(AnatomyPart part) => Tissues?.For(part.Info.name, part.Info.layer);
+
+        /// <summary>Name der Struktur, darunter klein die belegten mechanischen Eigenschaften des Gewebes.</summary>
+        string HoverText(AnatomyPart part)
+        {
+            if (_hoverText.TryGetValue(part, out var text)) return text;
+            var tissue = TissueOf(part);
+            text = tissue == null ? part.Info.label : part.Info.label + "\n<size=72%><color=#C8D2DC>" + TissueDatabase.Summary(tissue) + "</color></size>";
+            _hoverText[part] = text;
+            return text;
         }
 
         // ---------------------------------------------------------------- Platzhalter ohne body.bin

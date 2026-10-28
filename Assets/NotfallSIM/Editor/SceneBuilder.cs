@@ -188,7 +188,7 @@ namespace NotfallSIM.EditorTools
             }
             MakeButton(xr.transform, "Verletzungen (nach Ende)", SpeedColor, patient.ToggleInjuries, 15);
             var hover = Label("Struktur", xr.transform, "", 17, new Color(1f, 0.9f, 0.5f));
-            hover.gameObject.AddComponent<LayoutElement>().preferredHeight = 44; // zwei Zeilen für lange Namen
+            hover.gameObject.AddComponent<LayoutElement>().preferredHeight = 92; // Name (bis zwei Zeilen) und Gewebeeigenschaften
             patient.Configure(sim, hover, xrToggle.GetComponentInChildren<TMP_Text>(), layerIds, layerImages);
 
             // Debriefing-Panel (früh anlegen, der Beenden-Button braucht es)

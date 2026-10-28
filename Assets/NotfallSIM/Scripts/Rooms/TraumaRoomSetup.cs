@@ -156,7 +156,7 @@ namespace NotfallSIM.Rooms
                 images[i] = b.GetComponent<Image>();
             }
             RuntimeUi.Button(box, "Verletzungen (nach Ende)", new Color(0.25f, 0.27f, 0.30f), patient.ToggleInjuries, 40, 15);
-            var hover = RuntimeUi.Label(box, "", 17, new Color(1f, 0.9f, 0.5f), 44);
+            var hover = RuntimeUi.Label(box, "", 17, new Color(1f, 0.9f, 0.5f), 92); // Name und Gewebeeigenschaften
             patient.Configure(sim, hover, toggle.GetComponentInChildren<TMP_Text>(), ids, images);
             if (Object.FindAnyObjectByType<EventSystem>() == null)
             {

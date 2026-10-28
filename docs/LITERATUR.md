@@ -219,6 +219,43 @@ Haut, Knochen, Organe und große Gefäße stammen aus **BodyParts3D** (Mitsuhash
 
 **Grenzen:** ein Körperbau für alle Patienten (Frauen und Kinder nur skaliert), Organe in Ruhelage und ohne Verformung, Weichteile ohne Masse. Die Haut folgt den Segmenten mit linearer Gewichtung zweier benachbarter Segmente. In BodyParts3D liegen Oberarme und Oberschenkel innen an; die Haut ist dort verbunden. Weiche Übergänge verteilen die Dehnung, bei starkem Abspreizen (Motorrad-Sitz) entsteht eine kleine Achselfalte; eine harte Trennung wurde getestet und reißt sichtbar auf. Hand und Unterarm sind ein Segment (keine Handgelenksbewegung).
 
+## Gewebeeigenschaften (`tissues.json`)
+
+Mechanische Eigenschaften der Gewebe: 19 Gewebetypen, 89 Einzelmessungen aus 21 Quellen. Jedes Anatomieteil aus `body.bin` ist einem Gewebe zugeordnet (reguläre Ausdrücke auf die FMA-Namen; Test prüft, dass kein Teil fehlt). Jede Zahl steht mit Quelle, Versuchsart, Dehnrate, Richtung, Spezies und ggf. ± SD in der Datei; die Tabelle zeigt nur den Wert, den die Simulation als repräsentativ nutzt. Im Röntgenblick erscheint er unter dem Namen der Struktur.
+
+| Gewebe | Evidenz | Dichte g/cm³ | Steifigkeit | Versagensdehnung | Versagensspannung |
+|---|---|---|---|---|---|
+| Haut | human | 1,09 [37] | 83,3 ± 34,9 MPa bei 0,012/s [42] | 54 ± 17 % bei 0,012/s [42] | 21,6 ± 8,4 MPa bei 0,012/s [42] |
+| Knochen (Kortikalis) | human | 1,92 [37] | 13,9 GPa bei 0,5/s [40] | 2,7 % bei 0,5/s [40] | 124,2 MPa bei 0,5/s [40] |
+| Knochen (überwiegend Spongiosa) | human | 1,18 [37] | 329,04 ± 91,78 MPa [41] | 0,7 ± 0,03 % [41] | Fließgr. 1,62 ± 0,44 MPa [41] |
+| Knorpel (hyalin) | human | 1,1 [37] | 11,1 ± 5,6 MPa [54] | — | 3,8 (2–5,6) MPa [54] |
+| Leber | human | 1,06 [37] | G 2 ± 0,3 kPa [46] | 30 ± 10 % bei 1/s [43] | 52,61 ± 25,73 kPa bei 1/s [43] |
+| Milz | human | 1,06 [37] | — | 19 % bei 1/s [44] | 31,5 kPa bei 1/s [44] |
+| Niere | eingeschränkt | 1,05 [37] | — | 41,5 ± 13,8 % bei 0,704/s [47] | 84,8 ± 29,3 kPa bei 0,704/s [47] |
+| Gehirn | human | 1,04 [37] | G 0,9 (0,4–1,4) kPa [48] | — | — |
+| Herzmuskel | — | 1,06 [37] | — | — | — |
+| Lunge | Tierdaten | 0,26 [37] | 3,4 ± 0,4 kPa [57] | — | — |
+| Zwerchfell (Skelettmuskel) | human | 1,05 [37] | 64,6 MPa bei 65/s [55] | 12,19 % bei 65/s [55] | 2,53 MPa bei 65/s [55] |
+| Magen-Darm-Wand | eingeschränkt | 1,03 [37] | — | 15,8 ± 3,6 % bei 69,2/s [56] | 2,35 ± 1,37 MPa bei 69,2/s [56] |
+| Arterie | human | 1,06 [37] | — | 39,4 ± 15,7 % [51] | 1,511 ± 0,621 MPa [51] |
+| Vene | eingeschränkt | 1,06 [37] | — | λ 1,55 ± 0,15 [52] | 3,42 ± 1,38 MPa [52] |
+| Peripherer Nerv | eingeschränkt | — | — | 19 (7–31) % [53] | — |
+| Rückenmark | — | — | — | — | — |
+| Weiches Organparenchym | — | 1,04 [37] | — | — | — |
+| Hohlorgan-Wand (Harnwege, Gallenblase) | — | — | — | — | — |
+| Auge | — | — | — | — | — |
+
+**Lesehilfe:** G = Schermodul (für Weichgewebe gilt näherungsweise E = 3G, so rechnet der Code um); λ = Streckung (Dehnung = λ − 1); Fließgr. = Beginn bleibender Verformung (Spongiosa: Fließen, nicht Bruch). „eingeschränkt“: menschliche Daten, aber per Analogie auf andere Strukturen übertragen (Colon → Magen/Dünndarm, Aorta → alle Arterien, Brückenvenen → Körpervenen, Rippenknorpel → Kehlkopf/Trachea) oder nur als Poster veröffentlicht (Niere). „—“: keine verlässlichen frei zugänglichen Zahlen gefunden, absichtlich leer statt geschätzt.
+
+**Was die Daten zeigen:**
+- **Größenordnungen** liegen über sechs Zehnerpotenzen: Kortikalis ≈ 14 GPa, Spongiosa ≈ 0,3–3 GPa, Haut im linearen Bereich ≈ 80 MPa, Leber und Gehirn ≈ 3–6 kPa.
+- **Knochen ist spröde** (Bruch bei ≈ 3 % Dehnung), Weichgewebe reißt erst bei 15–55 %.
+- **Dehnrate:** Leber und Milz werden bei schneller Belastung fester, reißen aber bei kleinerer Dehnung (Kemper 2010/2012); Aorta und Zwerchfell sind dynamisch drei- bis viermal so fest wie quasistatisch. Venen reagieren kaum auf die Dehnrate (Lee & Haut 1989). Für Unfälle zählen deshalb die Werte bei 1–100 s⁻¹.
+- **Milz < Leber < Niere** in der Reißfestigkeit des Parenchyms — passt dazu, dass Milz und Leber beim stumpfen Bauchtrauma am häufigsten verletzt sind (neben Lage und Größe). Die Kapsel erhöht die Festigkeit deutlich (Milz: 68 statt 32 kPa bei 1 s⁻¹).
+- **Alter:** Aortenfestigkeit und -dehnbarkeit sinken linear mit dem Alter (Li 2023), Rippenknorpel wird weniger steif (Weber 2021).
+
+**Grenzen:** Ex-vivo-Präparate (meist innerhalb 48 h post mortem; Einfrieren halbiert z. B. die Bruchdehnung von Rinderleber, Santago 2010), verschiedene Spannungs- und Dehnungsmaße zwischen Studien (2. Piola-Kirchhoff, wahr, technisch; Green-Lagrange vs. technisch), große Streuung zwischen Spendern (oft ± 30–100 %). Die Werte sind daher Größenordnungen für die Simulation, keine Grenzwerte für den Einzelfall. Noch nicht in der Physik genutzt: Stufe 2 (Organdehnung im Unfallmodell gegen die Versagensdehnung) baut darauf auf.
+
 ## Offene Punkte zum Prüfen
 
 - [ ] Empfehlungen und Empfehlungsgrade zu Beckengurt, Volumentherapie und permissiver Hypotension in der S3-Leitlinie (MAGICapp) nachlesen
@@ -255,6 +292,9 @@ Haut, Knochen, Organe und große Gefäße stammen aus **BodyParts3D** (Mitsuhash
 - [ ] Anatomie: Zuordnung Verletzung → Strukturen (`anatomy.json`) und schematische Nervenverläufe gegenlesen
 - [ ] SDH/EDH als eigene Hämatom-Form (Sichel/Linse) zwischen Kalotte und Rinde darstellen statt Rinde einzufärben
 - [ ] Restliche Überschneidungen am Zwerchfell (dünne Platte) gezielt nachbearbeiten
+- [ ] Gewebe: Volltexte für Herzmuskel (Sommer 2015), Rückenmark (Bilston & Thibault 1996), Nierenkapsel (Snedeker 2005), Magen-Darm (Egorov 2002) und Harnblase prüfen und Werte ergänzen
+- [ ] Gewebe: Werte je Dehnrate für Milz und Leber im Original (Kemper 2010/2012) gegenprüfen (hier aus Sammeltabelle in Accidental Injury, Kap. 14)
+- [ ] Gewebe: menschliche Lungendaten suchen (bisher Schwein)
 - [ ] Weibliches Anatomiemodell (z. B. Z-Anatomy, ebenfalls CC BY-SA) für Patientinnen prüfen
 
 ## Quellen
@@ -303,5 +343,27 @@ Haut, Knochen, Organe und große Gefäße stammen aus **BodyParts3D** (Mitsuhash
 35. Lobdell TE, et al. Impact response of the human thorax. In: Human Impact Response. Plenum; 1973.
 
 36. Mitsuhashi N, Fujieda K, Tamura T, Kawamoto S, Takagi T, Okubo K. BodyParts3D: 3D structure database for anatomical concepts. *Nucleic Acids Res*. 2009;37(Database issue):D782-D785. [doi:10.1093/nar/gkn613](https://doi.org/10.1093/nar/gkn613) · Daten: [lifesciencedb.jp/bp3d](https://lifesciencedb.jp/bp3d/), CC BY-SA 2.1 Japan
+
+37. ICRU Report 46: Photon, Electron, Proton and Neutron Interaction Data for Body Tissues. International Commission on Radiation Units and Measurements; 1992. Dichten wie dort tabelliert, hier übernommen aus Tab. 2 in: Evaluation of CT calibration curves from stoichiometric and tissue substitute methods according to tissue characteristics. Radioprotection. 2019;54(2):117-123. doi:10.1051/radiopro/2019011 [Link](https://www.radioprotection.org/articles/radiopro/full_html/2019/02/radiopro180050/T2.html)
+38. Reilly DT, Burstein AH. The elastic and ultimate properties of compact bone tissue. J Biomech. 1975;8(6):393-405. doi:10.1016/0021-9290(75)90075-5 [Link](https://lakeslab.ep.wisc.edu/BoneAniso.html)
+39. Park JB. Biomaterials: An Introduction. Plenum Press; 1979. Zitiert nach der Zusammenstellung von R. Lakes (University of Wisconsin). [Link](https://lakeslab.ep.wisc.edu/BoneAniso.html)
+40. Kemper AR. Material Properties of Human Rib Cortical Bone from Dynamic Tension Coupon Testing. Masterarbeit, Virginia Polytechnic Institute and State University; 2005. Veröffentlicht als: Kemper AR, McNally C, Kennedy EA, et al. Stapp Car Crash J. 2005;49:199-230 (SAE 2005-22-0010). [Link](https://vtechworks.lib.vt.edu/bitstream/10919/43709/1/KemperThesis.pdf)
+41. Zhou B, Liu XS, Wang J, Lu XL, Fields AJ, Guo XE. Dependence of mechanical properties of trabecular bone on plate-rod microstructure determined by individual trabecula segmentation (ITS). J Biomech. 2014;47(3):702-708. doi:10.1016/j.jbiomech.2013.11.039 [Link](https://escholarship.org/content/qt81m8h5pk/qt81m8h5pk.pdf)
+42. Ní Annaidh A, Bruyère K, Destrade M, Gilchrist MD, Otténio M. Characterization of the anisotropic mechanical properties of excised human skin. J Mech Behav Biomed Mater. 2012;5(1):139-148. [Link](https://arxiv.org/abs/1302.3022)
+43. Kemper AR, Santago AC, Stitzel JD, Sparks JL, Duma SM. Biomechanical response of human liver in tensile loading. Ann Adv Automot Med. 2010;54:15-26. [Link](https://vtechworks.lib.vt.edu/handle/10919/32768)
+44. Kemper AR, Santago AC, Stitzel JD, Sparks JL, Duma SM. Biomechanical response of human spleen in tensile loading. J Biomech. 2012;45(2):348-355. doi:10.1016/j.jbiomech.2011.10.022 [Link](https://wbldb.lievers.net/10027917.html)
+45. Yoganandan N, Nahum AM, Melvin JW (Hrsg.). Accidental Injury: Biomechanics and Prevention. 3. Aufl. Springer; 2015. Kap. 14: Impact and Injury Response of the Abdomen (Tabellen der Materialeigenschaften). [Link](https://www.springer.com/us/book/9781493917310)
+46. Rouvière O, Yin M, Dresner MA, et al. MR elastography of the liver: preliminary results. Radiology. 2006;240(2):440-448. doi:10.1148/radiol.2402050606 [Link](https://pubs.rsna.org/doi/10.1148/radiol.2402050606)
+47. Siripurapu et al. Material and Failure Modeling of Human Kidney (Poster). Injury Biomechanics Symposium, Ohio State University; 2013. [Link](https://ibrc.osu.edu/wp-content/uploads/2013/12/Siripurapu_Poster_2013.pdf)
+48. Budday S, Sommer G, Birkl C, et al. Mechanical characterization of human brain tissue. Acta Biomater. 2017;48:319-340. doi:10.1016/j.actbio.2016.10.036 [Link](https://cris.fau.de/publications/121788744/)
+49. Green MA, Bilston LE, Sinkus R. In vivo brain viscoelastic properties measured by magnetic resonance elastography. NMR Biomed. 2008;21(7):755-764. Zitiert nach Tab. 1 in: Bartlett RD, Choi D, Phillips JB. Biomechanical properties of the spinal cord: implications for tissue engineering and clinical translation (UCL). [Link](https://discovery-pp.ucl.ac.uk/1514941/)
+50. Mohan D, Melvin JW. Failure properties of passive human aortic tissue. I—Uniaxial tension tests. J Biomech. 1982;15(11):887-893. doi:10.1016/0021-9290(82)90055-0 [Link](https://deepblue.lib.umich.edu/items/f9c46d14-7802-431a-8387-b5fe1844b71f)
+51. Li et al. Failure properties of healthy human descending thoracic aorta (proximal/distal, Alter 27–86 J., n = 50). Front Bioeng Biotechnol. 2023;11:1178199. doi:10.3389/fbioe.2023.1178199 [Link](https://www.frontiersin.org/journals/bioengineering-and-biotechnology/articles/10.3389/fbioe.2023.1178199/full)
+52. Lee MC, Haut RC. Insensitivity of tensile failure properties of human bridging veins to strain rate: implications in biomechanics of subdural hematoma. J Biomech. 1989;22(6-7):537-542. [Link](https://wbldb.lievers.net/10147592.html)
+53. Sunderland S, Bradley KC. Stress-strain phenomena in human peripheral nerve trunks. Brain. 1961;84:102-119. Zitiert nach: Kleinrensink GJ et al. Mechanical tension in the median nerve. Clin Biomech. 1995;10(5):240-244. [Link](https://repub.eur.nl/pub/73013/REPUB_73013_OA.pdf)
+54. Weber M, Rothschild MA, Niehoff A. Anisotropic and age-dependent elastic material behavior of the human costal cartilage. Sci Rep. 2021;11:13618. doi:10.1038/s41598-021-93176-x [Link](https://www.nature.com/articles/s41598-021-93176-x)
+55. Gaur P, Chawla A, Verma K, et al. Characterisation of human diaphragm at high strain rate loading. J Mech Behav Biomed Mater. 2016;60:603-616. [Link](https://www.imechanica.org/sites/default/files/diaphragm.pdf)
+56. Howes MK, Hardy WN. Dynamic material properties of the post-mortem human colon. Proc IRCOBI Conf. 2013 (Paper 20). [Link](https://wbldb.lievers.net/10098480.html)
+57. Polio SR et al. Cross-platform mechanical characterization of lung tissue. PLoS One. 2018. Zitiert nach: An analytical model for estimating alveolar wall elastic moduli from lung tissue uniaxial stress-strain curves. Front Physiol. 2020;11:121. doi:10.3389/fphys.2020.00121 [Link](https://www.frontiersin.org/articles/10.3389/fphys.2020.00121/full)
 
 Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.

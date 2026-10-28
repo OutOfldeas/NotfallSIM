@@ -63,6 +63,7 @@ static class Tests
         Run("Dynamische Befunde: Bedingungen gültig, Tags erreichbar", DynamicFindingsValid);
         Run("Differenzialdiagnosen: eindeutige IDs, Argumente gültig, spezifisches Argument bevorzugt", Differentials);
         Run("Anatomie: body.bin vollständig lesbar, Skelett plausibel", AnatomyFileReads);
+        Run("Gewebe: jedes Anatomieteil zugeordnet, jede Zahl mit Quelle, Werte plausibel", TissueData);
         Run("Biomechanik: HIC und 3-ms-Clip an bekannten Pulsen", BiomechanicsMath);
         Run("Risikokurven: HIC 700/1000, log-logistisch bei x50", RiskCurves);
         Run("Crash: Risikodaten konsistent", RiskDataConsistent);
@@ -933,6 +934,95 @@ static class Tests
                 Check(data.Meshes.Any(m => System.Text.RegularExpressions.Regex.IsMatch(m.Info.name, pat)), $"{e.injuryId}: kein Mesh für '{pat}'");
         var ids = new HashSet<string>(Injuries.injuries.Select(i => i.id));
         foreach (var e in map.injuries) Check(ids.Contains(e.injuryId), "unbekannte Verletzung " + e.injuryId);
+    }
+
+    static void TissueData()
+    {
+        var file = Load<TissueDatabaseFile>("tissues.json");
+        var db = new TissueDatabase(file);
+        var sources = new HashSet<string>(file.sources.Select(x => x.id));
+        Check(file.sources.All(x => !string.IsNullOrEmpty(x.citation)), "Quelle ohne Zitat");
+        Check(file.tissues.Select(x => x.id).Distinct().Count() == file.tissues.Length, "doppelte Gewebe-ID");
+        var evidence = new[] { "human", "human_eingeschraenkt", "tierdaten", "keine_daten" };
+        var props = new[] { "E", "shearModulus", "failureStress", "failureStrain", "failureStretch", "yieldStress", "yieldStrain", "failureStressCompression", "failureStrainCompression" };
+        var stressUnits = new[] { "Pa", "kPa", "MPa", "GPa" };
+        foreach (var t in file.tissues)
+        {
+            Check(evidence.Contains(t.evidence), t.id + ": evidence " + t.evidence);
+            Check(!string.IsNullOrEmpty(t.name) && !string.IsNullOrEmpty(t.description), t.id + ": Name/Beschreibung");
+            Check(t.density_g_cm3 == 0 || sources.Contains(t.densitySourceId), t.id + ": Dichte ohne Quelle");
+            Check(t.density_g_cm3 == 0 || t.density_g_cm3 > 0.2f && t.density_g_cm3 < 2.1f, t.id + ": Dichte");
+            Check(t.measurements.Select(x => x.id).Distinct().Count() == t.measurements.Length, t.id + ": doppelte Mess-ID");
+            foreach (var m in t.measurements)
+            {
+                string w = t.id + "/" + m.id;
+                Check(sources.Contains(m.sourceId), w + ": unbekannte Quelle " + m.sourceId);
+                Check(props.Contains(m.property), w + ": Größe " + m.property);
+                bool strain = m.property.Contains("Strain") || m.property == "failureStretch";
+                Check(strain ? m.unit == "1" : stressUnits.Contains(m.unit), w + ": Einheit " + m.unit);
+                Check(m.value > 0 && m.sd >= 0, w + ": Wert/SD");
+                Check(m.min == 0 && m.max == 0 || m.min <= m.value && m.value <= m.max, w + ": Wert außerhalb der Spanne");
+                Check(m.property != "failureStretch" || m.value > 1, w + ": Streckung ≤ 1");
+                Check(!strain || m.property == "failureStretch" || m.value < 1.5, w + ": Dehnung als Prozent statt Bruchteil?");
+                Check(!string.IsNullOrEmpty(m.species), w + ": Spezies");
+                Check(m.species == "human" || t.evidence == "tierdaten", w + ": Tierdaten bei evidence " + t.evidence);
+            }
+            foreach (var r in new[] { t.stiffnessFrom, t.failureStrainFrom, t.failureStressFrom })
+                Check(string.IsNullOrEmpty(r) || TissueDatabase.Measurement(t, r) != null, t.id + ": Verweis auf fehlende Messung " + r);
+            Check(string.IsNullOrEmpty(t.stiffnessFrom) || TissueDatabase.YoungsModulus_Pa(t) > 0, t.id + ": Steifigkeit nicht umrechenbar");
+            Check(string.IsNullOrEmpty(t.failureStrainFrom) || TissueDatabase.FailureStrain(t) > 0, t.id + ": Dehnung nicht umrechenbar");
+            Check(string.IsNullOrEmpty(t.failureStressFrom) || TissueDatabase.FailureStress_Pa(t) > 0, t.id + ": Spannung nicht umrechenbar");
+            if (t.evidence == "keine_daten")
+                Check(t.measurements.Length == 0 && string.IsNullOrEmpty(t.stiffnessFrom + t.failureStrainFrom + t.failureStressFrom), t.id + ": keine_daten, aber Werte");
+            else
+                Check(t.measurements.Length > 0 && !string.IsNullOrEmpty(t.stiffnessFrom + t.failureStrainFrom + t.failureStressFrom), t.id + ": ohne repräsentativen Wert");
+            Check(TissueDatabase.Summary(t).StartsWith(t.name), t.id + ": Kurzbeschreibung");
+        }
+
+        // Zuordnung: jede Regel trifft etwas, jedes Anatomieteil bekommt ein Gewebe
+        var bytes = File.ReadAllBytes(Path.Combine(DataRoot, "anatomy", "body.bin"));
+        var data = AnatomyFile.Read(bytes, json =>
+        {
+            var ser = new DataContractJsonSerializer(typeof(AnatomyHeader));
+            using (var st = new MemoryStream(Encoding.UTF8.GetBytes(json))) return (AnatomyHeader)ser.ReadObject(st);
+        });
+        foreach (var r in file.mapping)
+        {
+            Check(db.Get(r.tissueId) != null, "Zuordnung auf unbekanntes Gewebe " + r.tissueId);
+            Check(r.meshes.Length > 0 || !string.IsNullOrEmpty(r.layer), r.tissueId + ": Regel ohne Muster und Ebene");
+            foreach (var pat in r.meshes)
+                Check(data.Meshes.Any(m => (string.IsNullOrEmpty(r.layer) || m.Info.layer == r.layer)
+                                           && System.Text.RegularExpressions.Regex.IsMatch(m.Info.name, pat)), $"{r.tissueId}: kein Mesh für '{pat}'");
+        }
+        foreach (var m in data.Meshes) Check(db.For(m.Info.name, m.Info.layer) != null, "ohne Gewebe: " + m.Info.name);
+        Func<string, string> of = n => db.For(n, data.Meshes.First(x => x.Info.name == n).Info.layer).id;
+        Check(of("liver") == "leber" && of("spleen") == "milz" && of("left kidney") == "niere", "Bauchorgane");
+        Check(of("left femur") == "knochen_kortikal" && of("right fifth rib") == "knochen_kortikal", "Kortikalis");
+        Check(of("third lumbar vertebra") == "knochen_spongios" && of("right hip bone") == "knochen_spongios", "Spongiosa");
+        Check(of("left costal cartilage") == "knorpel" && of("Rückenmark") == "rueckenmark" && of("Haut") == "haut", "Knorpel/Rückenmark/Haut");
+        Check(of("descending aorta") == "arterie" && of("inferior vena cava") == "vene" && of("middle lobe of lung") == "lunge", "Gefäße/Lunge");
+
+        // Plausibilität (Größenordnungen, die in allen Quellen gleich liegen)
+        Func<string, TissueEntry> T = db.Get;
+        Check(TissueDatabase.YoungsModulus_Pa(T("knochen_kortikal")) > 10 * TissueDatabase.YoungsModulus_Pa(T("knochen_spongios")), "Kortikalis nicht steifer als Spongiosa");
+        Check(TissueDatabase.YoungsModulus_Pa(T("knochen_spongios")) > 10 * TissueDatabase.YoungsModulus_Pa(T("knorpel")), "Spongiosa nicht steifer als Knorpel");
+        Check(TissueDatabase.YoungsModulus_Pa(T("haut")) > 1000 * TissueDatabase.YoungsModulus_Pa(T("leber")), "Haut nicht viel steifer als Leber");
+        Check(TissueDatabase.FailureStrain(T("knochen_kortikal")) < 0.05, "Knochen bricht nicht spröde");
+        foreach (var soft in new[] { "haut", "leber", "milz", "niere", "arterie", "vene", "gi_wand", "zwerchfell" })
+            Check(TissueDatabase.FailureStrain(T(soft)) > 0.1, soft + ": Bruchdehnung unter 10 %");
+        Check(TissueDatabase.FailureStress_Pa(T("leber")) > TissueDatabase.FailureStress_Pa(T("milz")), "Milz nicht weniger fest als Leber");
+        Check(T("lunge").density_g_cm3 < 0.5f && T("knochen_kortikal").density_g_cm3 > 1.8f, "Dichten");
+        // Dehnrate: Leber und Milz werden bei schneller Belastung fester, reißen aber früher (Kemper 2010/2012)
+        foreach (var id in new[] { "leber", "milz" })
+        {
+            var tens = T(id).measurements.Where(x => x.loading == "Zug, Parenchym").OrderBy(x => x.strainRate_per_s).ToList();
+            var s = tens.Where(x => x.property == "failureStress").Select(x => x.value).ToList();
+            var e = tens.Where(x => x.property == "failureStrain").Select(x => x.value).ToList();
+            Check(s.Count == 4 && e.Count == 4, id + ": vier Dehnraten");
+            for (int i = 1; i < 4; i++) Check(s[i] > s[i - 1] && e[i] <= e[i - 1], id + ": Dehnrateneffekt");
+        }
+        Check(TissueDatabase.Summary(T("leber")) == "Leber: E ≈ 6 kPa · reißt ab ≈ 30 % Dehnung (52,6 kPa bei 1/s)", "Text: " + TissueDatabase.Summary(T("leber")));
+        Check(TissueDatabase.Summary(T("myokard")) == "Herzmuskel: keine belegten Werte", "Text ohne Daten");
     }
 
     static void BiomechanicsMath()

@@ -20,6 +20,7 @@ mcs -nologo -warnaserror- \
     $SCRIPTS/Crash/Biomechanics.cs \
     $SCRIPTS/Anatomy/AnatomyFile.cs \
     $SCRIPTS/Anatomy/AnatomyInjuryMap.cs \
+    $SCRIPTS/Anatomy/TissueDatabase.cs \
     $SCRIPTS/Crash/InjuryRisk.cs \
     Tests/NotfallSimTests.cs
 

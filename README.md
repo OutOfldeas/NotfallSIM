@@ -51,6 +51,7 @@ Assets/
   StreamingAssets/NotfallSIM/
     anatomy/body.bin             Anatomiemodell (BodyParts3D, CC BY-SA 2.1 JP — siehe unten)
     anatomy/anatomy.json         Verletzung → Strukturen für den Röntgenblick
+    tissues.json                 Mechanische Gewebeeigenschaften mit Quellen (Steifigkeit, Reißdehnung/-spannung)
     injuries.json                Verletzungsdatenbank
     interventions.json           Maßnahmen (Buttons, Volumina, Effektstärken, Quellen)
     imaging.json                 Bildgebung (eFAST, Röntgen, CCT, Ganzkörper-CT)
@@ -114,7 +115,8 @@ Untersuchen per Klick trifft genau die sichtbare Haut: Jedes Hautdreieck gehört
 
 *Röntgenblick* (Feld oben rechts neben dem Monitor) macht die Haut durchsichtig; die Ebenen Knochen, Organe,
 Gefäße und Nerven lassen sich einzeln schalten (abgedunkelter Knopf = ausgeblendet), mit der Maus über einer Struktur
-steht ihr deutscher Name. Nach Szenarioende schaltet sich der Röntgenblick ein und markiert die tatsächlichen
+steht ihr deutscher Name, darunter die belegten Gewebeeigenschaften (`tissues.json`: Steifigkeit,
+Reißdehnung und -spannung mit Dehnrate; Quellen in `docs/LITERATUR.md`). Nach Szenarioende schaltet sich der Röntgenblick ein und markiert die tatsächlichen
 Verletzungen rot (`anatomy/anatomy.json`; SDH/EDH: Rinde und Kalotte der betroffenen Seite).
 
 Anatomiedaten neu erzeugen (nur nötig bei Änderungen an der Auswahl): BodyParts3D-STL-Dateien herunterladen,
