@@ -711,6 +711,7 @@ def main():
     passage_log = []
     tube_meshes = []   # (Name, Trimesh) aller Bahnstücke — danach bekommen die Muskeln Rinnen um sie
     routed = []        # (Name, Ebene, Mittellinie, Radien, Hindernis ohne Muskeln, Hautabstand, Durchtritte)
+    routed_paths = {}  # Name → Mittellinie (für Wegpunkte relativ zu einer Bahn)
     built = []   # (layer, Trimesh) bereits gelegter Bahnen
     lines = []   # (layer, Mittellinie, Radien) bereits gelegter Bahnen
     for name, layer, pts, r0, r1 in paths:
@@ -724,7 +725,7 @@ def main():
         zones = []
         if not isinstance(pts[0], np.ndarray) or len(np.shape(pts)) != 2:   # Wegpunkt-Beschreibung (pathways.py)
             # Wegpunkte in den echten Lücken (hier zählen die Muskeln mit)
-            pts, passages, wlog = pathways.resolve_waypoints(pts, geo, obst, need=r0 + 0.0008)
+            pts, passages, wlog = pathways.resolve_waypoints(pts, geo, obst, need=r0 + 0.0008, routed=routed_paths)
             for mu, pc, zr, note in passages:
                 passage_log.append((name, mu, pc.tolist(), zr, note))
             narrow = [(note, round(cl * 1000, 1)) for kind, note, cl in wlog if kind == 'Gap' and cl < r0 + 0.0008]
@@ -754,6 +755,7 @@ def main():
             path = constrain_path(path, rad, skin, obst_tm, margin_skin=msk, margin_bone=0.001, iters=0, others=others, zones=zones)
         print(f'  {name}: stärkster Knick {kink_deg(path):.0f}° (je 1 cm)')
         lines.append((layer, path.copy(), rad.copy()))
+        routed_paths[name] = path.copy()
         routed.append((name, layer, path, rad, obst_tm, msk, [(np.array(pc), zr, mu) for a, mu, pc, zr, _ in passage_log if a == name]))
         for segk, piece, prad in split_by_segment(path, rad, J, radii):
             verts, faces = tube(piece, prad)

@@ -32,6 +32,13 @@ class Through:
         self.muscle, self.guess, self.radius, self.zone, self.note = muscle, np.asarray(guess, float), radius, zone, note
 
 
+class Rel:
+    """Wegpunkt relativ zu einer schon gelegten Bahn (z. B. Faszikel um die A. axillaris): Punkt der Bahn auf Höhe y
+    (oder ihr Ende), plus Versatz; danach kleiner Suchradius für freien Raum."""
+    def __init__(self, pathway, y=None, offset=(0, 0, 0), radius=0.005, note='', end=False):
+        self.pathway, self.y, self.offset, self.radius, self.note, self.end = pathway, y, np.asarray(offset, float), radius, note, end
+
+
 class Geo:
     """Querschnitte und Hilfspunkte auf den (bereits bereinigten) Teilen."""
 
@@ -221,35 +228,42 @@ def routes(geo, cen):
               Gap(mean(m(f'{s} sartorius', ty(0.12)), m(f'{s} iliacus', ty(0.05))) + [0, 0, 0.01], 0.016, 'Trigonum femorale lateral')]
         out.append((f'N. femoralis {side}', 'nerve', fn, 0.003, 0.0025))
 
-        # ---- Arm: A. axillaris/brachialis: hinter dem M. pectoralis minor durch die Achsel → Sulcus bicipitalis medialis
+        # ---- Arm. Die Arterie wird zuerst gelegt; Faszikel und Nerven richten sich nach ihr aus (so sind sie benannt:
+        # Fasciculus lateralis, medialis, posterior um die A. axillaris). Das vermeidet, dass sich die Nerven in der
+        # engen Achsel gegenseitig aus dem Weg schieben.
+        # A. axillaris/brachialis: hinter dem M. pectoralis minor durch die Achsel → Sulcus bicipitalis medialis
         # (medial des M. biceps, vor dem Caput mediale des M. triceps) → Fossa cubitalis medial der Bizepssehne
         pm = f'{s} pectoralis minor'
         ypm = 0.5 * (geo.top(pm) + geo.bottom(pm))
         bic = f'short head of {s} biceps brachii'
         tri_m = f'medial head of {s} triceps brachii'
         groove = lambda t: mean(m(bic, ay(t)), m(tri_m, ay(t)), m(f'{s} brachialis', ay(t))) - X * 0.012
+        AX = f'A. axillaris / brachialis {side}'
         ax = [P(sub_end),
               Gap(m(pm, ypm) + [0, 0, -0.022], 0.02, 'Achsel, hinter dem M. pectoralis minor'),
               Gap(groove(0.3), 0.018, 'Sulcus bicipitalis medialis'),
               Gap(groove(0.65), 0.018, 'Sulcus bicipitalis medialis'),
               Gap(el + [-sx * 0.008, 0, 0.022], 0.012, 'Fossa cubitalis')]
-        out.append((f'A. axillaris / brachialis {side}', 'artery', ax, 0.0035, 0.003))
+        out.append((AX, 'artery', ax, 0.0035, 0.003))
         br, fcr = f'{s} brachioradialis', f'{s} flexor carpi radialis'
         out.append((f'A. radialis {side}', 'artery',
-                    [Gap(el + [-sx * 0.008, 0, 0.022], 0.012),
+                    [Rel(AX, end=True, radius=0, note='Teilung in der Fossa cubitalis'),
                      Gap(m(br, fy(0.3)) - X * 0.012 + [0, 0, -0.006], 0.016, 'unter dem M. brachioradialis'),
                      Gap(mean(m(br, fy(0.75)), m(fcr, fy(0.75))), 0.014, 'zwischen M. brachioradialis und M. flexor carpi radialis'),
                      Gap(m(fcr, fy(0.97)) + X * 0.01, 0.012, 'lateral der Sehne des M. flexor carpi radialis')], 0.0022, 0.0018))
         pt_u, fdp = f'ulnar head of {s} pronator teres', f'{s} flexor digitorum profundus'
         fcu_u, fcu_h = f'ulnar head of {s} flexor carpi ulnaris', f'humeral head of {s} flexor carpi ulnaris'
         out.append((f'A. ulnaris {side}', 'artery',
-                    [Gap(el + [-sx * 0.008, 0, 0.022], 0.012),
+                    [Rel(AX, end=True, radius=0, note='Teilung in der Fossa cubitalis'),
                      Gap(m(pt_u, fy(0.12)) + [0, 0, -0.008], 0.014, 'unter dem Caput ulnare des M. pronator teres'),
                      Gap(mean(m(fcu_u, fy(0.55)), m(fdp, fy(0.55))), 0.016, 'zwischen M. flexor carpi ulnaris und M. flexor digitorum profundus'),
                      Gap(wr + [-sx * 0.02, 0, 0.008], 0.012, 'radial des Os pisiforme')], 0.0022, 0.0018))
-        # ---- Plexus brachialis → N. medianus: Skalenuslücke (zwischen M. scalenus anterior und medius) → unter der
-        # Klavikula → Achsel → Sulcus bicipitalis medialis → zwischen den Köpfen des M. pronator teres → zwischen
-        # M. flexor digitorum superficialis und profundus → Karpaltunnel
+        # Höhen in der Achsel und am Oberarm für die Faszikel
+        y_ax = ypm
+        y_ax2 = ypm - 0.035
+        # ---- Plexus brachialis → N. medianus: Skalenuslücke → unter der Klavikula → Achsel (Medianusgabel lateral vor
+        # der Arterie) → Sulcus bicipitalis medialis (erst lateral, ab Oberarmmitte medial der Arterie) → Fossa cubitalis
+        # medial der Arterie → zwischen den Köpfen des M. pronator teres → zwischen den Fingerbeugern → Karpaltunnel
         sa, sm_ = f'{s} scalenus anterior', f'{s} scalenus medius'
         ysc = geo.bottom(sa) + 0.35 * (geo.top(sa) - geo.bottom(sa))
         c6 = cen('sixth cervical vertebra')
@@ -257,44 +271,48 @@ def routes(geo, cen):
         fds = f'humeroulnar head of {s} flexor digitorum superficialis'
         med = [P(c6 + [sx * 0.03, 0, 0.0]),
                Gap(mean(m(sa, ysc), m(sm_, ysc)), 0.012, 'Skalenuslücke'),
-               Gap(sub_end + [0, 0.01, -0.01], 0.015, 'unter der Klavikula'),
-               Gap(m(pm, ypm) + [0, 0, -0.03], 0.02, 'Achsel'),
-               Gap(groove(0.4) - X * 0.004, 0.018, 'Sulcus bicipitalis medialis'),
-               Gap(el + [-sx * 0.015, 0, 0.02], 0.012, 'Fossa cubitalis medial der Arterie'),
+               Gap(sub_end + [0, 0.012, -0.01], 0.012, 'über der 1. Rippe hinter der Klavikula'),
+               Rel(AX, y_ax, X * 0.006 + [0, 0, 0.004], 0.005, 'Achsel: lateral vor der Arterie (Medianusgabel)'),
+               Rel(AX, ay(0.3), X * 0.007, 0.005, 'Oberarm proximal lateral der Arterie'),
+               Rel(AX, ay(0.7), -X * 0.007 + [0, 0, 0.002], 0.005, 'Oberarm distal medial der Arterie'),
+               Rel(AX, el[1] + 0.005, -X * 0.008, 0.005, 'Fossa cubitalis medial der Arterie'),
                Gap(mean(m(pt_h, fy(0.12)), m(pt_u, fy(0.12))), 0.012, 'zwischen den Köpfen des M. pronator teres'),
                Gap(mean(m(fds, fy(0.5)), m(fdp, fy(0.5))), 0.016, 'zwischen oberflächlichem und tiefem Fingerbeuger'),
                Gap(wr + [0, 0.01, 0.012], 0.012, 'Karpaltunnel'),
                P(wr + [0, -0.06, 0.01])]
-        out.append((f'Plexus brachialis / N. medianus {side}', 'nerve', med, 0.0035, 0.002))
-        # ---- N. ulnaris: medial am Oberarm → hinter dem Epicondylus medialis (Sulcus n. ulnaris) → zwischen den Köpfen
-        # des M. flexor carpi ulnaris → unter dem M. flexor carpi ulnaris auf dem M. flexor digitorum profundus
+        PL = f'Plexus brachialis / N. medianus {side}'
+        out.append((PL, 'nerve', med, 0.0035, 0.002))
+        branch = Rel(PL, y_ax + 0.02, radius=0, note='Abgang aus dem Plexus')   # Faszikel gehen vom Plexus ab
+        # ---- N. ulnaris (Fasciculus medialis): medial der Arterie → medial am Caput mediale des M. triceps → hinter dem
+        # Epicondylus medialis → zwischen den Köpfen des M. flexor carpi ulnaris → unter dem M. flexor carpi ulnaris
         hum = f'{s} humerus'
         epi = geo.extreme(hum, el[1] + 0.012, -X)
         out.append((f'N. ulnaris {side}', 'nerve',
-                    [Gap(m(pm, ypm) + [0, 0, -0.035] - X * 0.006, 0.02, 'Achsel'),
-                     Gap(m(tri_m, ay(0.6)) - X * 0.01 + [0, 0, 0.008], 0.018, 'medial am Caput mediale des M. triceps'),
-                     Gap(epi + [0, 0, -0.012], 0.01, 'Sulcus n. ulnaris'),
+                    [branch, Rel(AX, y_ax, -X * 0.008, 0.005, 'Achsel: medial der Arterie (Fasciculus medialis)'),
+                     Rel(AX, ay(0.3), -X * 0.009 + [0, 0, -0.003], 0.005, 'Oberarm proximal medial der Arterie'),
+                     Gap(m(tri_m, ay(0.65)) - X * 0.01 + [0, 0, 0.008], 0.014, 'medial am Caput mediale des M. triceps'),
+                     Gap(epi + [0, 0.01, -0.012], 0.01, 'Sulcus n. ulnaris'),
                      Gap(mean(m(fcu_h, fy(0.1)), m(fcu_u, fy(0.1))), 0.012, 'zwischen den Köpfen des M. flexor carpi ulnaris'),
                      Gap(mean(m(fcu_u, fy(0.5)), m(fdp, fy(0.5))), 0.016, 'unter dem M. flexor carpi ulnaris'),
                      Gap(wr + [-sx * 0.022, 0.005, 0.005], 0.012)], 0.0025, 0.0018))
-        # ---- N. radialis: hinter der A. axillaris → Sulcus n. radialis (am Humerus zwischen Caput laterale und mediale
-        # des M. triceps) → zwischen M. brachialis und M. brachioradialis → vor dem Epicondylus lateralis → R. profundus
-        # durch den M. supinator (Frohse-Arkade) in die Extensorenloge
+        # ---- N. radialis (Fasciculus posterior): hinter der Arterie → Sulcus n. radialis → zwischen M. brachialis und
+        # M. brachioradialis → vor dem Epicondylus lateralis → R. profundus durch den M. supinator
         tri_l = f'lateral head of {s} triceps brachii'
         sup = f'{s} supinator'
         out.append((f'N. radialis {side}', 'nerve',
-                    [Gap(m(pm, ypm) + [0, 0, -0.04], 0.02, 'hinter der A. axillaris'),
+                    [branch, Rel(AX, y_ax, [0, 0, -0.009], 0.005, 'Achsel: hinter der Arterie (Fasciculus posterior)'),
+                     Rel(AX, y_ax2, [0, 0, -0.012] + X * 0.002, 0.006, 'hinter der Arterie, Richtung Humerus'),
                      Gap(mean(m(tri_l, ay(0.45)), m(tri_m, ay(0.45)), m(hum, ay(0.45))), 0.014, 'Sulcus n. radialis'),
                      Gap(mean(m(f'{s} brachialis', ay(0.82)), m(br, ay(0.82))), 0.014, 'zwischen M. brachialis und M. brachioradialis'),
                      Gap(el + [sx * 0.022, 0, 0.012], 0.012, 'vor dem Epicondylus lateralis'),
                      Through(sup, m(sup, fy(0.12)), 0.012, 0.03, 'R. profundus durch den M. supinator'),
                      Gap(m(f'{s} extensor digitorum', fy(0.4)) + [0, 0, 0.008], 0.016, 'Extensorenloge')], 0.0025, 0.0018))
-        # ---- N. musculocutaneus: aus dem Fasciculus lateralis → durch den M. coracobrachialis → zwischen M. biceps und
-        # M. brachialis → lateral der Bizepssehne als N. cutaneus antebrachii lateralis
+        # ---- N. musculocutaneus (Fasciculus lateralis): lateral der Arterie → durch den M. coracobrachialis → zwischen
+        # M. biceps und M. brachialis → lateral der Bizepssehne als N. cutaneus antebrachii lateralis
         cb = f'{s} coracobrachialis'
         ycb = geo.bottom(cb) + 0.6 * (geo.top(cb) - geo.bottom(cb))
         out.append((f'N. musculocutaneus {side}', 'nerve',
-                    [Gap(m(pm, ypm) + [0, 0, -0.025] + X * 0.008, 0.02, 'Fasciculus lateralis'),
+                    [branch, Rel(AX, y_ax + 0.005, X * 0.009 + [0, 0, 0.003], 0.005, 'Achsel: lateral der Arterie (Fasciculus lateralis)'),
                      Through(cb, m(cb, ycb), 0.012, 0.03, 'Durchtritt durch den M. coracobrachialis'),
                      Gap(mean(m(bic, ay(0.6)), m(f'{s} brachialis', ay(0.6))), 0.016, 'zwischen M. biceps und M. brachialis'),
                      Gap(el + [sx * 0.026, 0.01, 0.02], 0.014, 'lateral der Bizepssehne'),
@@ -302,11 +320,21 @@ def routes(geo, cen):
     return out
 
 
-def resolve_waypoints(specs, geo, obstacles, need):
-    """Wegpunkte bestimmen. Rückgabe: Punkte, Durchtritte [(Muskel, Punkt, Zone)] und Protokoll."""
+def resolve_waypoints(specs, geo, obstacles, need, routed=None):
+    """Wegpunkte bestimmen. routed: {Name: Mittellinie} schon gelegter Bahnen (für Rel).
+    Rückgabe: Punkte, Durchtritte [(Muskel, Punkt, Zone)] und Protokoll."""
     pts, passages, log = [], [], []
     for sp in specs:
-        if isinstance(sp, P):
+        if isinstance(sp, Rel):
+            line = routed[sp.pathway]
+            base = line[-1] if sp.end else line[np.argmin(np.abs(line[:, 1] - sp.y))]
+            guess = base + sp.offset
+            if sp.radius > 0:
+                p, cl = find_gap(Gap(guess, sp.radius), obstacles, need, step=0.0015, weight=0.4)
+            else:
+                p, cl = guess, 0.0
+            pts.append(p); log.append(('Rel', sp.note, cl))
+        elif isinstance(sp, P):
             pts.append(sp.p); log.append(('P', None, 0.0))
         elif isinstance(sp, Gap):
             p, cl = find_gap(sp, obstacles, need)
