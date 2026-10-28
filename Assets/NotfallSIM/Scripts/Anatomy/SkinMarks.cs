@@ -31,6 +31,7 @@ namespace NotfallSIM.Anatomy
     public class MarkAnchor
     {
         public string[] meshes;      // FMA-Namen; Ausgangspunkt ist der Mittelpunkt ihrer Schwerpunkte
+        public float[] point;        // statt meshes: Ausgangspunkt direkt in Modellkoordinaten (z. B. aus dem Crash)
         public float[] offset;       // Versatz in Metern (Modell: x rechts, y kopfwärts, z ventral)
         public float[] direction;    // Strahl vom Ausgangspunkt nach außen bis zur Haut
     }
@@ -206,6 +207,10 @@ namespace NotfallSIM.Anatomy
         /// <summary>Ausgangspunkt eines Ankers: Mittelpunkt der Schwerpunkte der genannten Meshes plus Versatz.</summary>
         public static float[] AnchorPoint(AnatomyData data, MarkAnchor a, float scale)
         {
+            if (a.point != null && a.point.Length == 3)
+                return new[] { a.point[0] + (a.offset != null && a.offset.Length == 3 ? a.offset[0] / scale : 0),
+                               a.point[1] + (a.offset != null && a.offset.Length == 3 ? a.offset[1] / scale : 0),
+                               a.point[2] + (a.offset != null && a.offset.Length == 3 ? a.offset[2] / scale : 0) };
             var c = new float[3]; int k = 0;
             foreach (var name in a.meshes ?? new string[0])
             {

@@ -51,6 +51,12 @@ namespace NotfallSIM.Interaction
                 Level = sim.Engine.InjuryLevel, Lost_mL = sim.Engine.InjuryBloodLoss_mL, Events = sim.Events
             };
             List<string> findings = Examination.Findings(regionName, sim.Scenario, sim.Database.Get, sim.NormalFindings, ctx);
+            var crash = Anatomy.InjuryVisuals.ExtraFindings(regionName).ToList();   // Zeichen aus dem Crash-Simulator
+            if (crash.Count > 0)
+            {
+                if (!Examination.HasInjury(regionName, sim.Scenario, t, sim.Database.Get)) findings.Clear(); // statt Normalbefund
+                findings.AddRange(crash);
+            }
             bool pathological = Examination.HasInjury(regionName, sim.Scenario, t, sim.Database.Get);
 
             // Neurologischer Status ist dynamisch und kommt aus der Physiologie, nicht aus der Datenbank.

@@ -90,7 +90,7 @@ namespace NotfallSIM.Crash
             g.name = "Boden";
             g.transform.position = new Vector3(0, -0.25f, 0);
             g.transform.localScale = new Vector3(200, 0.5f, 200);
-            g.AddComponent<CrashSurface>();
+            g.AddComponent<CrashSurface>().kind = "ground";
             g.GetComponent<Renderer>().material = CrashPhysics.Mat(new Color(0.32f, 0.34f, 0.36f));
             _spawned.Add(g);
         }
@@ -246,7 +246,7 @@ namespace NotfallSIM.Crash
             go.transform.position = car.transform.TransformPoint(wheelLocal);
             go.transform.localScale = new Vector3(0.5f, 0.5f, 0.2f);
             go.GetComponent<Renderer>().material = CrashPhysics.Mat(new Color(0.92f, 0.92f, 0.88f));
-            go.AddComponent<CrashSurface>();
+            go.AddComponent<CrashSurface>().kind = "airbag";
             var rb = go.AddComponent<Rigidbody>();
             rb.mass = 0.5f;
             rb.isKinematic = true;
@@ -276,12 +276,18 @@ namespace NotfallSIM.Crash
         }
 
         /// <summary>Dreipunktgurt vereinfacht: Sternum (Schultergurt) und Becken (Beckengurt) elastisch am Fahrzeug.</summary>
+        /// <summary>Gurtkraft über die Zeit (Schulter- und Beckengurt) für Gurtmarken.</summary>
+        public readonly Dictionary<string, ConfigurableJoint> BeltJoints = new Dictionary<string, ConfigurableJoint>();
+        public double ShoulderBeltImpulse_Ns, LapBeltImpulse_Ns;
+
         void Belt(Rigidbody car, float H)
         {
+            BeltJoints.Clear();
             foreach (var name in new[] { "Sternum", "Becken" })
             {
                 var seg = Ragdoll.Segments[name];
                 var j = seg.gameObject.AddComponent<ConfigurableJoint>();
+                BeltJoints[name] = j;
                 j.connectedBody = car;
                 j.autoConfigureConnectedAnchor = true;
                 j.anchor = Vector3.zero;
@@ -305,6 +311,9 @@ namespace NotfallSIM.Crash
             Time.timeScale = Mathf.Clamp(slowMotion, 0.02f, 1f);
             yield return new WaitForFixedUpdate();
             foreach (var s in Ragdoll.Sensors) s.StartRecording();
+            ShoulderBeltImpulse_Ns = LapBeltImpulse_Ns = 0;
+            var beltRec = gameObject.AddComponent<BeltRecorder>();
+            beltRec.Begin(this);
             var gauges = gameObject.AddComponent<CrashGauges>();
             gauges.Begin(Ragdoll);
             _t0 = Time.time;
@@ -319,6 +328,7 @@ namespace NotfallSIM.Crash
             }
             while (Time.time - _t0 < duration) yield return null;
             foreach (var s in Ragdoll.Sensors) s.StopRecording();
+            Destroy(beltRec);
             gauges.Stop();
             Destroy(driver);
             if (muscles != null) Destroy(muscles);
@@ -412,6 +422,20 @@ namespace NotfallSIM.Crash
     /// Muskeltonus während des Crashs: Gelenkantriebe halten die Ausgangshaltung mit einem Moment bis
     /// Maximalmoment × Aktivierung (MuscleTone). Der passive Tonus aus dem RagdollBuilder bleibt erhalten.
     /// </summary>
+    /// <summary>Summiert die Gurtkraft (Gelenkkraft der Gurtfedern) über die Zeit.</summary>
+    public class BeltRecorder : MonoBehaviour
+    {
+        CrashRig _rig;
+        public void Begin(CrashRig rig) { _rig = rig; }
+        void FixedUpdate()
+        {
+            if (_rig == null) return;
+            float dt = Time.fixedDeltaTime;
+            if (_rig.BeltJoints.TryGetValue("Sternum", out var s) && s) _rig.ShoulderBeltImpulse_Ns += s.currentForce.magnitude * dt;
+            if (_rig.BeltJoints.TryGetValue("Becken", out var b) && b) _rig.LapBeltImpulse_Ns += b.currentForce.magnitude * dt;
+        }
+    }
+
     public class MuscleToneDriver : MonoBehaviour
     {
         MuscleToneFile _f;

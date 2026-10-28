@@ -21,6 +21,32 @@ namespace NotfallSIM.Crash
         public double LateralImpulse, TotalImpulse;
         public double Dt_s { get; private set; }
 
+        /// <summary>Kontakte je Flächenart (für Verletzungszeichen): Impuls, Spitzenkraft, Gleiten, Ort des stärksten Schritts.</summary>
+        public class SurfaceContact
+        {
+            public double Impulse_Ns, PeakForce_N, MaxSlide_m_s, StepImpulse, BestStep;
+            public Vector3 BestPointWorld, StepPointWorld, BestPointLocal;
+        }
+        public readonly Dictionary<string, SurfaceContact> Contacts = new Dictionary<string, SurfaceContact>();
+
+        // Rückrechnung in die Ruhelage des Anatomiemodells: Modell = Gelenk + frame.InverseTransformPoint(p) / k
+        Transform _frame; Vector3 _modelJoint, _modelEnd; float _k;
+        public bool HasModelFrame => _frame != null;
+        public void SetModelFrame(Transform frame, Vector3 modelJoint, Vector3 modelEnd, float k) { _frame = frame; _modelJoint = modelJoint; _modelEnd = modelEnd; _k = k; }
+        public string ModelSegment;
+
+        /// <summary>Punkt in Modellkoordinaten und der nächste Punkt auf der Segmentachse (von dort nach außen).</summary>
+        public bool ToModel(Vector3 world, out Vector3 point, out Vector3 inside)
+        {
+            point = inside = Vector3.zero;
+            if (_frame == null || _k <= 0) return false;
+            point = _modelJoint + _frame.InverseTransformPoint(world) / _k;
+            Vector3 ax = _modelEnd - _modelJoint;
+            float t = ax.sqrMagnitude > 1e-9f ? Mathf.Clamp01(Vector3.Dot(point - _modelJoint, ax) / ax.sqrMagnitude) : 0;
+            inside = _modelJoint + ax * t;
+            return true;
+        }
+
         Rigidbody _rb;
         Transform _body;
         Vector3 _prevV;
@@ -33,7 +59,7 @@ namespace NotfallSIM.Crash
 
         public void StartRecording()
         {
-            Accel_g.Clear(); Force_kN.Clear(); LateralImpulse = TotalImpulse = 0;
+            Accel_g.Clear(); Force_kN.Clear(); LateralImpulse = TotalImpulse = 0; Contacts.Clear();
             _prevV = CrashPhysics.Velocity(_rb);
             _stepImpulse = 0;
             Dt_s = Time.fixedDeltaTime;
@@ -51,6 +77,13 @@ namespace NotfallSIM.Crash
             Force_kN.Add(_stepImpulse / dt / 1000.0);
             _prevV = v;
             _stepImpulse = 0;
+            foreach (var c in Contacts.Values)
+            {
+                if (c.StepImpulse <= 0) continue;
+                c.PeakForce_N = System.Math.Max(c.PeakForce_N, c.StepImpulse / dt);
+                if (c.StepImpulse > c.BestStep) { c.BestStep = c.StepImpulse; c.BestPointWorld = c.StepPointWorld; c.BestPointLocal = transform.InverseTransformPoint(c.StepPointWorld); }
+                c.StepImpulse = 0;
+            }
         }
 
         void OnCollisionEnter(Collision c) => Collect(c);
@@ -66,6 +99,18 @@ namespace NotfallSIM.Crash
             float impulse = c.impulse.magnitude;
             if (impulse <= 0) return;
             _stepImpulse += impulse;
+            string kind = surface != null ? surface.kind : "vehicle";
+            if (!Contacts.TryGetValue(kind, out var sc)) Contacts[kind] = sc = new SurfaceContact();
+            sc.Impulse_Ns += impulse;
+            sc.StepImpulse += impulse;
+            if (c.contactCount > 0)
+            {
+                var cp = c.GetContact(0);
+                sc.StepPointWorld = cp.point;
+                Vector3 rel = c.relativeVelocity;
+                float slide = (rel - Vector3.Dot(rel, cp.normal) * cp.normal).magnitude;   // Gleiten entlang der Fläche
+                sc.MaxSlide_m_s = System.Math.Max(sc.MaxSlide_m_s, slide);
+            }
             if (c.contactCount > 0 && _body != null)
             {
                 float side = Vector3.Dot(c.GetContact(0).point - transform.position, _body.right);

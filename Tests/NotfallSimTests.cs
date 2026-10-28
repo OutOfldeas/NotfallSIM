@@ -74,6 +74,7 @@ static class Tests
         Run("Muskeltonus: Daten mit Quellen, Aktivierung je Zustand, Kniemoment plausibel", MuscleToneData);
         Run("Blutungsphysik: Bauchdruck nach Malbrain, Gerinnsel unter 64 mmHg, Nachblutung nach Volumen, Tamponade", BleedingPhysics);
         Run("Haut: Daten mit Quellen, Blässe/Schweiß nach Schockklasse, Zyanose aus Desoxy-Hb (Anämie maskiert)", SkinData);
+        Run("Crash-Zeichen: Prellung/Platzwunde/Schürfung nach Schwellen, Ort an der Haut, Gurtmarken", CrashMarksData);
         Run("Verletzungszeichen: Ort an der Haut, Region, Befund, Schwellungsvolumen, Amputation, Blutlache", InjuryVisualsData);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
@@ -1327,6 +1328,45 @@ static class Tests
         Check(SkinPerfusion.Evaluate(p, vs(0, 75, 7)).Cyanosis == 0, "Zyanose trotz Anämie (Hb 7) bei SpO2 75 %");
         Check(SkinPerfusion.Evaluate(p, new VitalSigns { CardiacArrest = true, SpO2_percent = 98, Hb = 12 }).Pallor == 1, "Stillstand nicht blass");
     }
+
+    static void CrashMarksData()
+    {
+        var r = Load<CrashMarkRules>("crash_marks.json");
+        var src = new HashSet<string>(r.sources.Select(x => x.id));
+        Check(src.Contains(r.bruiseSourceId) && src.Contains(r.lacerationSourceId), "Quellen");
+        var data = AnatomyFile.Read(File.ReadAllBytes(Path.Combine(DataRoot, "anatomy", "body.bin")), json =>
+        {
+            var ser = new DataContractJsonSerializer(typeof(AnatomyHeader));
+            using (var st = new MemoryStream(Encoding.UTF8.GetBytes(json))) return (AnatomyHeader)ser.ReadObject(st);
+        });
+        var skin = data.Meshes[0]; int tc = skin.Info.submeshes[0] / 3; float scale = 1.75f / data.Header.modelHeight;
+        var nrm = SkinMarks.VertexNormals(skin.Positions, skin.Indices, skin.Indices.Length / 3);
+        var adj = SkinMarks.Adjacency(skin.Info.vertexCount, skin.Indices, tc);
+        Func<string, float[]> centroid = name => { var m = data.Meshes.First(x => x.Info.name == name); var c = new float[3]; for (int i = 0; i < m.Positions.Length; i++) c[i % 3] += m.Positions[i] / (m.Positions.Length / 3); return c; };
+        Func<string, float[]> joint = seg => data.Header.segments.First(x => x.name == seg).joint;
+        var head = new ContactSummary { Segment = "Kopf", Region = "Kopf", Surface = "vehicle", Impulse_Ns = 60, PeakForce_N = 5000,
+                                        ModelPoint = centroid("frontal bone"), ModelInside = new[] { 0f, centroid("frontal bone")[1], 0f } };
+        var thigh = new ContactSummary { Segment = "Oberschenkel links", Region = "Oberschenkel links", Surface = "ground", Impulse_Ns = 30, PeakForce_N = 1500, MaxSlide_m_s = 4,
+                                         ModelPoint = Add(centroid("left femur"), -0.06f, 0, 0), ModelInside = centroid("left femur") };
+        var weak = new ContactSummary { Segment = "Unterarm rechts", Region = "Arm rechts", Surface = "vehicle", Impulse_Ns = 2, PeakForce_N = 300,
+                                        ModelPoint = centroid("right radius"), ModelInside = joint("Unterarm rechts") };
+        var marks = CrashMarks.Generate(r, new[] { head, thigh, weak }, 120, 80);
+        Func<string, int> count = kind => marks.Count(x => x.Mark.kind == kind);
+        Check(marks.Any(x => x.Mark.kind == "platzwunde" && x.Region == "Kopf"), "keine Platzwunde am Kopf bei 5 kN");
+        Check(marks.Any(x => x.Mark.kind == "schuerfung" && x.Region == "Oberschenkel links"), "keine Schürfung beim Gleiten über die Straße");
+        Check(!marks.Any(x => x.Region == "Arm rechts"), "Zeichen trotz Impuls unter der Schwelle");
+        Check(marks.Count(x => x.Mark.id.StartsWith("crash_gurt")) == 2, "Gurtmarken fehlen");
+        Check(!CrashMarks.Generate(r, new ContactSummary[0], 1, 1).Any(), "Gurtmarke unter der Schwelle");
+        foreach (var cm in marks)
+        {
+            var p = SkinMarks.Select(data, cm.Mark, scale, tc, nrm, adj);
+            Check(p != null && !p.HiddenByShorts && p.Triangles.Length > 0, cm.Mark.id + ": kein sichtbarer Hautort");
+            if (!cm.Mark.id.StartsWith("crash_gurt")) Check(p.HitRegion == cm.Region, $"{cm.Mark.id}: Region {p.HitRegion} statt {cm.Region}");
+        }
+        Check(CrashMarks.FaceLabel(new float[] { 0, 0, 1 }) == "ventral" && CrashMarks.FaceLabel(new float[] { -1, 0, 0.2f }) == "links seitlich", "Seitenbezeichnung");
+    }
+
+    static float[] Add(float[] a, float x, float y, float z) => new[] { a[0] + x, a[1] + y, a[2] + z };
 
     static void InjuryVisualsData()
     {

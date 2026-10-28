@@ -206,6 +206,9 @@ namespace NotfallSIM.Crash
 
                 float frac = male ? s.massMale : s.massFemale;
                 rbs[i] = Finish(rd, go, s.name, s.region, frac * mass_kg, keepRenderer: true);
+                var sensor = rbs[i].GetComponent<CrashSensor>();
+                sensor.SetModelFrame(go.transform, AnatomyBuilder.V(s.joint), AnatomyBuilder.V(s.end), k);
+                sensor.ModelSegment = s.name;
             }
 
             int fr = data.SegmentIndex("Unterarm rechts"), fl = data.SegmentIndex("Unterarm links");
@@ -233,6 +236,9 @@ namespace NotfallSIM.Crash
             var thorax = rbs[data.SegmentIndex("Thorax")];
             Vector3 bc = AnatomyBuilder.V(thoraxSeg.boxCenter) * k, bs = AnatomyBuilder.V(thoraxSeg.boxSize) * k * 0.9f;
             AddSternumAt(rd, thorax, thorax.transform.TransformPoint(bc + new Vector3(0, 0.05f * bs.y, bs.z / 2 + 0.012f)), T, 0.32f * bs.x, 0.6f * bs.y);
+            var sternumSensor = rd.Sternum.GetComponent<CrashSensor>();   // Kontakte am Brustbein zählen für den Thorax
+            sternumSensor.SetModelFrame(thorax.transform, AnatomyBuilder.V(thoraxSeg.joint), AnatomyBuilder.V(thoraxSeg.end), k);
+            sternumSensor.ModelSegment = "Thorax";
 
             // Selbstkollisionen: Nachbarsegmente (durch ein Gelenk verbunden) und Teile, die sich schon in der Ausgangshaltung
             // überlappen, ignorieren — sonst sprengt es das Ragdoll. Alle anderen Paare stoßen sich ab, damit z. B. Arme nicht
