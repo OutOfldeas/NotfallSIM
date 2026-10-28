@@ -313,7 +313,28 @@ Mechanische Eigenschaften der Gewebe: 19 Gewebetypen, 89 Einzelmessungen aus 21 
 
 **Grenzen:** Ex-vivo-Präparate (meist innerhalb 48 h post mortem; Einfrieren halbiert z. B. die Bruchdehnung von Rinderleber, Santago 2010), verschiedene Spannungs- und Dehnungsmaße zwischen Studien (2. Piola-Kirchhoff, wahr, technisch; Green-Lagrange vs. technisch), große Streuung zwischen Spendern (oft ± 30–100 %). Die Werte sind daher Größenordnungen für die Simulation, keine Grenzwerte für den Einzelfall. Noch nicht in der Physik genutzt: Stufe 2 (Organdehnung im Unfallmodell gegen die Versagensdehnung) baut darauf auf.
 
+## Sichtbare Verletzungszeichen (`injury_visuals.json`)
+
+Jedes Zeichen gehört zu einer Verletzung und zeigt einen ihrer Befundtexte (geprüft). Der Ort wird nicht von Hand
+gesetzt: Ein Strahl von einer anatomischen Struktur (z. B. 5./6. Rippe links) nach außen trifft die Haut; von dort wird
+der Hautbereich über die Kanten des Hautnetzes ausgewählt (greift nicht auf den anliegenden Arm über). Kleine Zeichen
+(Stich, Schnitt) werden lokal feiner unterteilt. Die Auflagen tragen die Gewichte und Blendshapes der Haut, gehen also
+mit Lagerung, Atmung und Schwellung mit.
+
+| Größe | Wert | Herleitung | Quelle |
+|---|---|---|---|
+| Arten | Prellmarke, Hämatom, Platzwunde, Schnitt, Riss-Quetschwunde, Schürfung, Stich, offene Fraktur, Amputation, Blut auf der Haut | Farben/Formen sind Darstellungsannahmen | Farbe frischer Prellungen: [68] |
+| Schwellung | Volumen = Blutverlust der Verletzung ins Gewebe (Femurfraktur, Hämoperitoneum) | Σ Fläche × Normalverschiebung = Volumen | Masseerhaltung |
+| Blutlache | Dicke e = 2·√(γ/ρg)·sin(θ/2) ≈ 3,2 mm, Fläche = Volumen/e | Pfützenformel | [69], γ = 52,6 mN/m [70], ρ = 1,06 g/mL [71] |
+| Blutstrahl | v = √(2·p_sys/ρ) ≈ 5,5 m/s bei 120 mmHg | Bernoulli, ideale Obergrenze | [72] |
+
+Annahmen: Kontaktwinkel 90° (keine Messung für Blut auf Matratzenkunststoff gefunden); die Bauchdeckenhebung setzt das
+ganze intraperitoneale Blut an (Obergrenze); Galeaschwellung beim EDH 15 mL. Tropfen sind nur Darstellung, die Blutmenge
+kommt aus der Physiologie (Verlust je Verletzung).
+
 ## Offene Punkte zum Prüfen
+
+- Verletzungszeichen in Unity prüfen (Lage, Farbe, Blutstrahl, Lache). Noch ohne eigene Verletzungen für Amputation, Schnitt- und Stichverletzung (brauchen Physiologiedaten mit Quellen). SDH/EDH-Form im Röntgenblick weiter offen.
 
 - [ ] Empfehlungen und Empfehlungsgrade zu Beckengurt, Volumentherapie und permissiver Hypotension in der S3-Leitlinie (MAGICapp) nachlesen
 - [ ] Lieurance 1992 im Volltext prüfen (Uni-Zugang)
@@ -443,3 +464,8 @@ Mechanische Eigenschaften der Gewebe: 19 Gewebetypen, 89 Einzelmessungen aus 21 
 67. Kemper AR, Beeman SM, Duma SM. Chest deflection of relaxed and braced human occupants in low severity frontal sled tests. Proc. 38th Int. Workshop on Human Subjects for Biomechanical Research; 2010. [Abstract](https://wbldb.lievers.net/10123431.html)
 
 Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.
+68. Langlois NEI, Gresham GA. The ageing of bruises: a review and study of the colour changes with time. *Forensic Sci Int*. 1991;50(2):227-238. [DOI](https://doi.org/10.1016/0379-0738(91)90154-B)
+69. de Gennes P-G, Brochard-Wyart F, Quéré D. *Capillarity and Wetting Phenomena*. Springer; 2004. Kap. 2. [DOI](https://doi.org/10.1007/978-0-387-21656-0)
+70. Rosina J, Kvašňák E, Šuta D, Kolářová H, Málek J, Krajči L. Temperature dependence of blood surface tension. *Physiol Res*. 2007;56(Suppl 1):S93-S98. [PDF](https://www.biomed.cas.cz/physiolres/pdf/56/56_S93.pdf)
+71. Kenner T. The measurement of blood density and its meaning. *Basic Res Cardiol*. 1989;84(2):111-124. [DOI](https://doi.org/10.1007/BF01907921)
+72. White FM. *Fluid Mechanics*. 7th ed. McGraw-Hill; 2011. Kap. 3 (Bernoulli, Austrittsgeschwindigkeit).
