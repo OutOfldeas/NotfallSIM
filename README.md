@@ -152,6 +152,8 @@ den Schockraum (Schockraum-Szene muss erzeugt sein).
   Grundkörper). Körperteile stoßen sich gegenseitig ab (Arme gleiten nicht durch den Rumpf); ignoriert werden nur
   Gelenknachbarn und Teile, die sich in der Ausgangshaltung schon berühren
 - Szenen und Crashpulse — `CrashRig.cs`; Sensoren — `CrashSensor.cs`
+- Kamera wie im Schockraum (rechte Maus drehen, Mausrad zoomen, WASD/Q/E verschieben, F zurück); der Blickpunkt
+  folgt dem Becken des Ragdolls
 - Kriterien und Risikokurven ohne Unity, getestet — `Biomechanics.cs`, `InjuryRisk.cs`, `injury_risk.json`
 - Organmodell für Milz, Leber, Nieren — `OrganMechanics.cs`, `organ_model.json`: Bauchkraft → Kompression
   (27 kN/m, Hardy 2001) → Organstauchung gegen die Versagensdehnung des Gewebes bei der Dehnrate des Anpralls

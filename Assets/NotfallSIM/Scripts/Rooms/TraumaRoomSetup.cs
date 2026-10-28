@@ -84,7 +84,8 @@ namespace NotfallSIM.Rooms
             cam.backgroundColor = new Color(0.12f, 0.14f, 0.16f);
             cam.fieldOfView = 50;
             cam.nearClipPlane = 0.05f;
-            var ray = cam.GetComponent<PhysicsRaycaster>() ?? cam.gameObject.AddComponent<PhysicsRaycaster>();
+            var ray = cam.GetComponent<PhysicsRaycaster>();
+            if (ray == null) ray = cam.gameObject.AddComponent<PhysicsRaycaster>(); // kein ??: Unity-„Fake-null“ im Editor
             ray.eventMask = ~(1 << 2); // Anatomie-Kollider (Ignore Raycast) stören die Untersuchung nicht
             var orbit = cam.GetComponent<OrbitCamera>();
             if (orbit == null)

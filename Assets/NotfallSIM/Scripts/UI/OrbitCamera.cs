@@ -9,6 +9,8 @@ namespace NotfallSIM.UI
     ///   rechte Maustaste ziehen = umsehen (drehen), Mausrad oder +/− = zoomen, mittlere Taste ziehen = verschieben,
     ///   WASD/Pfeiltasten = gehen (Umschalt = schneller), Q/E bzw. Bild↓/Bild↑ = tiefer/höher,
     ///   F oder Pos1 = zurück zur Ausgangsansicht am Patienten.
+    /// Mit <see cref="Follow"/> hängt der Blickpunkt an einem bewegten Objekt (Unfall-Sandbox: Becken des Ragdolls);
+    /// alle Eingaben verschieben dann den Blickpunkt relativ zu diesem Objekt.
     /// Linksklick bleibt frei für die Untersuchung. Blickpunkt und Kamera bleiben innerhalb der Raumwände;
     /// steht eine Wand im Weg, rückt die Kamera näher heran, statt durch die Wand zu schauen.
     /// </summary>
@@ -17,14 +19,17 @@ namespace NotfallSIM.UI
         [SerializeField] Vector3 target = new Vector3(0, 0.9f, 0.1f);
         [SerializeField] float distance = 2.6f, yaw = 180f, pitch = 38f;
         [SerializeField] float minDistance = 0.25f, maxDistance = 6f;
+        public float MaxDistance { get => maxDistance; set => maxDistance = value; }
         [SerializeField] float walkSpeed = 1.4f, heightSpeed = 0.9f;
         [Tooltip("Innenraum, in dem Kamera und Blickpunkt bleiben (Weltkoordinaten).")]
         [SerializeField] Bounds room = new Bounds(new Vector3(0, 1.5f, 0), new Vector3(6.4f, 3.0f, 7.6f));
         [SerializeField] float wallMargin = 0.15f;
 
         Vector3 _homeTarget; float _homeDistance, _homeYaw, _homePitch;
-        Vector3 _smoothTarget; float _smoothDistance;
+        Vector3 _smoothTarget; float _smoothDistance;   // beim Folgen: relativ zum Ankerpunkt
         bool _init;
+        Transform _follow;
+        Vector3 _anchor; bool _anchorInit;
         static readonly List<RaycastResult> Hits = new List<RaycastResult>();
 
         public void Configure(Vector3 focus, float dist, float yawDeg, float pitchDeg)
@@ -35,6 +40,24 @@ namespace NotfallSIM.UI
 
         /// <summary>Raumgrenzen setzen (Innenmaße der Wände).</summary>
         public void SetRoom(Bounds inner) => room = inner;
+
+        /// <summary>
+        /// Blickpunkt an ein bewegtes Objekt hängen (null = fester Blickpunkt). Der mit <see cref="Configure"/> gesetzte
+        /// Blickpunkt gilt dann als Versatz zu diesem Objekt.
+        /// </summary>
+        public void Follow(Transform t)
+        {
+            if (t == _follow) return;
+            _follow = t;
+            _anchorInit = false;
+        }
+
+        /// <summary>Blickrichtung aus einem Kameraversatz (Kamera = Blickpunkt + Versatz) und Blickpunkt setzen.</summary>
+        public void ConfigureFromOffset(Vector3 focus, Vector3 cameraOffset)
+        {
+            var fwd = -cameraOffset.normalized;
+            Configure(focus, cameraOffset.magnitude, Mathf.Atan2(fwd.x, fwd.z) * Mathf.Rad2Deg, Mathf.Asin(-fwd.y) * Mathf.Rad2Deg);
+        }
 
         /// <summary>Zurück zur Ausgangsansicht am Patienten.</summary>
         public void ResetView()
@@ -112,11 +135,22 @@ namespace NotfallSIM.UI
             distance *= Mathf.Pow(2f, -zoomKeys * dt * 1.5f);
             distance = Mathf.Clamp(distance, minDistance, maxDistance);
 
+            // Ankerpunkt beim Folgen (leicht geglättet gegen das Zittern der Physik)
+            Vector3 anchor = Vector3.zero;
+            if (_follow != null)
+            {
+                _anchor = _anchorInit ? Vector3.Lerp(_anchor, _follow.position, 1 - Mathf.Exp(-20f * dt)) : _follow.position;
+                _anchorInit = true;
+                anchor = _anchor;
+            }
+
             // Blickpunkt im Raum halten
             var inner = Inner();
-            target = new Vector3(Mathf.Clamp(target.x, inner.min.x, inner.max.x),
-                                 Mathf.Clamp(target.y, inner.min.y, inner.max.y),
-                                 Mathf.Clamp(target.z, inner.min.z, inner.max.z));
+            var world = anchor + target;
+            world = new Vector3(Mathf.Clamp(world.x, inner.min.x, inner.max.x),
+                                Mathf.Clamp(world.y, inner.min.y, inner.max.y),
+                                Mathf.Clamp(world.z, inner.min.z, inner.max.z));
+            target = world - anchor;
 
             // leicht geglättet, damit Gehen und Zoomen nicht ruckeln
             float k = 1 - Mathf.Exp(-14f * dt);
@@ -125,8 +159,9 @@ namespace NotfallSIM.UI
 
             var rot = Quaternion.Euler(pitch, yaw, 0);
             var back = -(rot * Vector3.forward);
-            float d = Mathf.Min(_smoothDistance, DistanceToWall(_smoothTarget, back, inner));
-            transform.position = _smoothTarget + back * d;
+            var focus = anchor + _smoothTarget;
+            float d = Mathf.Min(_smoothDistance, DistanceToWall(focus, back, inner));
+            transform.position = focus + back * d;
             transform.rotation = rot;
         }
 

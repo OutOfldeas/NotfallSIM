@@ -95,6 +95,8 @@ namespace NotfallSIM.EditorTools
             MakeButton(left.transform, "Crash starten", StartColor, sandbox.StartCrash, 22);
             MakeButton(left.transform, "Kalibrieren (Referenztests)", NeutralColor, sandbox.Calibrate, 16);
             MakeButton(left.transform, "Hauptmenü", NeutralColor, sandbox.GoToMainMenu, 16);
+            Label("Kamera", left.transform, "<size=85%>Kamera: rechte Maus drehen · Mausrad zoomen · WASD/Q/E verschieben · F zurück</size>", 15, Dim)
+                .gameObject.AddComponent<LayoutElement>().preferredHeight = 40;
 
             var right = Panel("Ergebnis", root, PanelColor);
             Place(right.rectTransform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-20, -20), new Vector2(620, 0));

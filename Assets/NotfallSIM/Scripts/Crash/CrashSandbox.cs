@@ -58,6 +58,7 @@ namespace NotfallSIM.Crash
             if (rig.Running) return;
             _p.MechanismId = id;
             _p.Speed_kmh = Mechanisms[id].speed;
+            ApplyCameraPreset();
             Preview();
         }
 
@@ -237,13 +238,37 @@ namespace NotfallSIM.Crash
             }
         }
 
-        void LateUpdate()
+        // ---------------------------------------------------------------- Kamera
+
+        UI.OrbitCamera _orbit;
+
+        /// <summary>
+        /// Gleiche Kamerasteuerung wie im Schockraum (rechte Maus drehen, Mausrad zoomen, WASD/Q/E verschieben,
+        /// F zurück), der Blickpunkt folgt dem Becken des Ragdolls. Gilt auch für ältere Szenen ohne OrbitCamera.
+        /// </summary>
+        UI.OrbitCamera Orbit()
         {
-            if (cam == null || rig == null || rig.CameraTarget == null) return;
-            Vector3 target = rig.CameraTarget.position;
-            Vector3 offset = _p.MechanismId == "pkw_seite" ? new Vector3(0.4f, 1.6f, 3.2f) : new Vector3(3.4f, 1.3f, 0.6f);
-            cam.transform.position = Vector3.Lerp(cam.transform.position, target + offset, 1 - Mathf.Exp(-6 * Time.unscaledDeltaTime));
-            cam.transform.LookAt(target + Vector3.up * 0.2f);
+            if (_orbit != null || cam == null) return _orbit;
+            _orbit = cam.GetComponent<UI.OrbitCamera>();
+            if (_orbit == null) _orbit = cam.gameObject.AddComponent<UI.OrbitCamera>(); // kein ??: Unity-„Fake-null“ im Editor
+            _orbit.SetRoom(new Bounds(new Vector3(0, 50.15f, 0), new Vector3(400, 100, 400))); // nur: nicht unter den Boden
+            _orbit.MaxDistance = 15f;
+            return _orbit;
+        }
+
+        /// <summary>Ausgangsansicht je Mechanismus: seitlich auf den Aufprall bzw. von der Seite auf den Insassen.</summary>
+        void ApplyCameraPreset()
+        {
+            var o = Orbit();
+            if (o == null) return;
+            Vector3 offset = _p.MechanismId == "pkw_seite" ? new Vector3(0.4f, 1.4f, 3.2f) : new Vector3(3.4f, 1.1f, 0.6f);
+            o.ConfigureFromOffset(new Vector3(0, 0.2f, 0), offset);
+        }
+
+        void Update()
+        {
+            var o = Orbit();
+            if (o != null && rig != null) o.Follow(rig.CameraTarget); // nach jedem Neuaufbau des Ragdolls neu anhängen
         }
     }
 }
