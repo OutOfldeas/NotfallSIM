@@ -324,6 +324,7 @@ namespace NotfallSIM.Anatomy
                 if (m.HasProperty("_Irregular")) m.SetFloat("_Irregular", k.irregularity);
                 if (m.HasProperty("_NoiseScale") && k.noiseScale > 0) m.SetFloat("_NoiseScale", k.noiseScale);
                 if (m.HasProperty("_Depth")) m.SetFloat("_Depth", k.depth);
+                if (m.HasProperty("_AgeColor") && k.ageColor != null && k.ageColor.Length >= 3) m.SetColor("_AgeColor", new Color(k.ageColor[0], k.ageColor[1], k.ageColor[2]));
             }
             _materials[key] = m;
             return m;
@@ -453,6 +454,9 @@ namespace NotfallSIM.Anatomy
                     double prevLost = m.LastLost;
                     float dry = m.Kind != null && m.Kind.dries ? (float)UpdateDryness(m, lostNow, t) : 0f;
                     m.Mpb.SetFloat("_Dry", dry);
+                    // Alter seit dem Unfall (präklinische Zeit + Szenariozeit; bei späterem Beginn ab diesem)
+                    double age = t - on + (on <= 0 && _file.drying != null ? _file.drying.preArrivalAge_min * 60 : 0);
+                    m.Mpb.SetFloat("_Age", (float)SkinMarks.ColorAge(m.Kind, age));
                     m.Overlay.SetPropertyBlock(m.Mpb);
                     if (m.Streams.Count > 0)
                     {

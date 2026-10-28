@@ -1380,11 +1380,16 @@ static class Tests
         }
 
         // Wachstum mit dem Blutverlust und Bedingung
-        var grow = f.marks.First(x => x.growToLost_mL > x.growFromLost_mL && x.when != null && x.when.minLost_mL > 0);
+        // Hämatom: erst ab der Schwelle, Radius wächst mit √Volumen (Fläche = Volumen / Schichtdicke); Diffusion vernachlässigbar
+        var hem = f.marks.First(x => x.subcutaneousShare > 0);
         Func<double, ExamContext> ctx = lost => new ExamContext { Time_s = 100, Lost_mL = _ => lost, Level = _ => 0, Events = new List<LogEntry>() };
-        Check(SkinMarks.Amount(grow, ctx(grow.when.minLost_mL - 1)) == 0, "Hämatom vor der Schwelle sichtbar");
-        double half = SkinMarks.Amount(grow, ctx((grow.growFromLost_mL + grow.growToLost_mL) / 2));
-        Check(Math.Abs(half - 0.5) < 1e-9, "Wachstum zur Hälfte");
+        Check(SkinMarks.Amount(hem, ctx(hem.when.minLost_mL - 1)) == 0, "Hämatom vor der Schwelle sichtbar");
+        double a1 = SkinMarks.Amount(hem, ctx(hem.when.minLost_mL + 100)), a4 = SkinMarks.Amount(hem, ctx(hem.when.minLost_mL + 400));
+        Check(a4 < 1 && Math.Abs(a4 / a1 - 2) < 1e-6, $"Hämatomradius nicht ∝ √Volumen ({a1:F3}, {a4:F3})");
+        Check(SkinMarks.DiffusionLength_m(f.hematoma.hbDiffusivity_m2_s, 3600) < 1e-4, "Diffusion in einer Stunde nicht vernachlässigbar");
+        Check(src.Contains(f.hematoma.sourceId), "Quelle Hämatom");
+        var bruise = f.kinds.First(k => k.id == "prellmarke");
+        Check(SkinMarks.ColorAge(bruise, 0) == 0 && SkinMarks.ColorAge(bruise, bruise.ageTime_min * 60) == 1, "Farbalter");
 
         // Schmale Zeichen werden unterteilt (Stich: wenige mm)
         var stab = new SkinMark { id = "t", anchor = new MarkAnchor { meshes = new[] { "left rectus abdominis" }, offset = new float[] { -0.02f, 0.03f, 0 }, direction = new float[] { 0, 0, 1 } },
