@@ -73,3 +73,22 @@ if __name__ == '__main__':
         pos_true = np.array([world(T[b] + R[b] @ (q - np.array(segs[b]['joint']))) for q, b in zip(rings, best)])
         err = np.linalg.norm(pos_assigned - pos_true, axis=1).max()
         if err > 0.004: print(f'  {n:42s} Segment {segs[i0]["name"]:20s} max. Versatz {err * 1000:5.1f} mm')
+    # Überschneidungen, die erst durch die Lagerung entstehen (Arme drehen um die Schulter, Rumpf bleibt):
+    # alle Teile der Armsegmente gegen alle Teile in Reichweite, in Ruhelage und gelagert verglichen
+    import collide
+    arm = {idx[n] for n in ('Oberarm rechts', 'Unterarm rechts', 'Oberarm links', 'Unterarm links')}
+    def subset(posed):
+        L = [{'name': m['info']['name'], 'layer': m['info']['layer'], 'faces': m['tri'], 'seg': m['info']['segment'],
+              'pos': part(m) if posed else m['pos']} for m in M[1:]]
+        armp = [p for p in L if p['seg'] in arm]
+        lo = np.min([p['pos'].min(0) for p in armp], axis=0) - 0.02; hi = np.max([p['pos'].max(0) for p in armp], axis=0) + 0.02
+        return [p for p in L if p['seg'] in arm or (np.all(p['pos'].max(0) > lo) and np.all(p['pos'].min(0) < hi))]
+    def pairs(lst):
+        res = collide.crossings(lst)
+        segof = {p['name']: p['seg'] for p in lst}
+        return {(a, b): d for d, a, b, c in res if (segof[a] in arm) != (segof[b] in arm)}
+    before, after = pairs(subset(False)), pairs(subset(True))
+    new = {k: v for k, v in after.items() if v > before.get(k, 0) + 0.0005}
+    print('Neue Überschneidungen durch die Lagerung (Arm gegen Rumpf):', 'keine' if not new else '')
+    for (a, b), d in sorted(new.items(), key=lambda kv: -kv[1])[:15]:
+        print(f'  {d * 1000:4.1f} mm  [{b}] in [{a}]')

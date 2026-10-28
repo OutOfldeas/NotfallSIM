@@ -234,11 +234,27 @@ namespace NotfallSIM.Crash
             Vector3 bc = AnatomyBuilder.V(thoraxSeg.boxCenter) * k, bs = AnatomyBuilder.V(thoraxSeg.boxSize) * k * 0.9f;
             AddSternumAt(rd, thorax, thorax.transform.TransformPoint(bc + new Vector3(0, 0.05f * bs.y, bs.z / 2 + 0.012f)), T, 0.32f * bs.x, 0.6f * bs.y);
 
-            // Selbstkollisionen im Ragdoll ausschalten (Startüberlappungen würden es sonst sprengen)
+            // Selbstkollisionen: Nachbarsegmente (durch ein Gelenk verbunden) und Teile, die sich schon in der Ausgangshaltung
+            // überlappen, ignorieren — sonst sprengt es das Ragdoll. Alle anderen Paare stoßen sich ab, damit z. B. Arme nicht
+            // durch den Rumpf und Beine nicht durcheinander gleiten.
             var cols = rd.Root.GetComponentsInChildren<Collider>();
+            var linked = new HashSet<(Rigidbody, Rigidbody)>();
+            foreach (var cj in rd.Root.GetComponentsInChildren<ConfigurableJoint>())
+            {
+                var self = cj.GetComponent<Rigidbody>();
+                linked.Add((self, cj.connectedBody)); linked.Add((cj.connectedBody, self));
+            }
+            int ignored = 0;
             for (int a = 0; a < cols.Length; a++)
                 for (int b = a + 1; b < cols.Length; b++)
-                    Physics.IgnoreCollision(cols[a], cols[b]);
+                {
+                    Rigidbody ra = cols[a].attachedRigidbody, rb = cols[b].attachedRigidbody;
+                    if (ra == rb) continue;
+                    bool overlap = Physics.ComputePenetration(cols[a], cols[a].transform.position, cols[a].transform.rotation,
+                                                              cols[b], cols[b].transform.position, cols[b].transform.rotation, out _, out _);
+                    if (linked.Contains((ra, rb)) || overlap) { Physics.IgnoreCollision(cols[a], cols[b]); ignored++; }
+                }
+            Debug.Log($"[Ragdoll] {cols.Length} Kollider, {ignored} Paare ignoriert (Gelenknachbarn oder Startüberlappung)");
 
             // Haut an die Segmente binden
             rd.Skin = AnatomyBuilder.BuildSkinForBones(T, bones, k, CrashPhysics.Mat(new Color(0.86f, 0.67f, 0.55f)), CrashPhysics.Mat(new Color(0.12f, 0.15f, 0.22f)));

@@ -106,19 +106,25 @@ Atemfrequenz aus der Physiologie (beim Spannungspneu links hebt sich die linke T
 Blutverlust blass und bei niedriger Sättigung zyanotisch. Der Monitor zeigt EKG, Pulskurve und Kapnografie;
 der QRS-Ton wird mit sinkender Sättigung tiefer.
 
+Untersuchen per Klick trifft genau die sichtbare Haut: Jedes Hautdreieck gehört zur Region seines Körpersegments
+(vorher Kapseln und Quader, die sich überlappten — rund ein Viertel der Klicks landete in der falschen Region).
+
 *Röntgenblick* (Feld oben rechts neben dem Monitor) macht die Haut durchsichtig; die Ebenen Knochen, Organe,
 Gefäße und Nerven lassen sich einzeln schalten (abgedunkelter Knopf = ausgeblendet), mit der Maus über einer Struktur
 steht ihr deutscher Name. Nach Szenarioende schaltet sich der Röntgenblick ein und markiert die tatsächlichen
 Verletzungen rot (`anatomy/anatomy.json`; SDH/EDH: Rinde und Kalotte der betroffenen Seite).
 
 Anatomiedaten neu erzeugen (nur nötig bei Änderungen an der Auswahl): BodyParts3D-STL-Dateien herunterladen,
-dann `python3 tools/anatomy/build_anatomy.py --bp3d <Ordner>` (braucht `trimesh`, `rtree`, `scipy`, `scikit-image`,
+dann `python3 tools/anatomy/build_anatomy.py --bp3d <Ordner>` (braucht `trimesh`, `rtree`, `embreex` (empfohlen), `scipy`, `scikit-image`,
 `fast-simplification`). Fehlt `body.bin`, erscheint ein Platzhalter aus Grundkörpern.
 
 Prüfen ohne Unity:
 - `python3 tools/anatomy/check_anatomy.py <body.bin>` — 74 Lagebeziehungen (Seiten, Wirbelhöhen, vorn/hinten,
   Trigonum femorale, Rückenmark im Wirbelkanal, alles innerhalb der Haut, Bahnen nicht durch Knochen)
-- `python3 tools/anatomy/check_patient.py <body.bin>` — rechnet die Rückenlage auf der Trage wie Unity nach
+- `python3 tools/anatomy/check_patient.py <body.bin>` — rechnet die Rückenlage auf der Trage wie Unity nach,
+  inklusive Überschneidungen, die erst durch die Lagerung der Arme entstehen
+- Überschneidungen werden beim Aufbereiten aufgelöst (`tools/anatomy/collide.py`: nachgiebigere Strukturen weichen
+  festeren aus); das Aufbereiten dauert dadurch rund 20–40 Minuten (mit `embreex` deutlich schneller)
 - `python3 tools/anatomy/pose_check.py <body.bin> <Ordner>` — Ragdoll-Haltungen der Sandbox als GLB
 - `Tests/run_tests.sh` prüft zusätzlich Umlaufrichtung der Dreiecke, Hautgewichte, Atmungsrichtung und Bezeichnungen
 
@@ -135,8 +141,10 @@ Danach zeigt die Sandbox die Messwerte wie beim Crashtest-Dummy (HIC15, Brustbes
 das Verletzungsrisiko je Region, färbt den Körper danach ein und übergibt den Fall auf Knopfdruck verdeckt an
 den Schockraum (Schockraum-Szene muss erzeugt sein).
 
-- Ragdoll mit Gelenken aus dem Anatomiemodell und der Haut als Skinned Mesh, Kollider als Kapseln und Quader,
-  Segmentmassen nach de Leva (1996) — `Scripts/Crash/RagdollBuilder.cs` (ohne `body.bin`: Grundkörper)
+- Ragdoll mit Gelenken aus dem Anatomiemodell und der Haut als Skinned Mesh, Kollider als Kapseln (entlang der
+  Segmentachse) und Quader, Segmentmassen nach de Leva (1996) — `Scripts/Crash/RagdollBuilder.cs` (ohne `body.bin`:
+  Grundkörper). Körperteile stoßen sich gegenseitig ab (Arme gleiten nicht durch den Rumpf); ignoriert werden nur
+  Gelenknachbarn und Teile, die sich in der Ausgangshaltung schon berühren
 - Szenen und Crashpulse — `CrashRig.cs`; Sensoren — `CrashSensor.cs`
 - Kriterien und Risikokurven ohne Unity, getestet — `Biomechanics.cs`, `InjuryRisk.cs`, `injury_risk.json`
 - Messung wie beim Dummy: 10 kHz, SAE-J211-Filter, Brustkorbdeflexion über ein federndes Sternum,

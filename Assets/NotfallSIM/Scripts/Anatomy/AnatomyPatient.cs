@@ -76,6 +76,7 @@ namespace NotfallSIM.Anatomy
             BuildRegions();
             MarkInjuries();
             if (sim != null) sim.OnScenarioEnded += () => { if (!_xrayOn) ToggleXRay(); ShowInjuries(true); };
+            StartCoroutine(BuildPartCollidersGradually());
         }
 
         Material LayerMaterial(AnatomyMeshInfo info)
@@ -107,33 +108,53 @@ namespace NotfallSIM.Anatomy
             root.localPosition = new Vector3(0, mattressTop - minZ * _rig.Scale, 0);
         }
 
-        /// <summary>Unsichtbare Kollider je Segment mit BodyRegion — so funktionieren Untersuchung und Befunde wie bisher.</summary>
+        /// <summary>
+        /// Klickflächen genau auf der sichtbaren Haut: Die gelagerte Haut wird einmal „eingefroren“ (BakeMesh), jedes
+        /// Hautdreieck gehört zur Region seines dominanten Segments, je Region ein MeshCollider mit BodyRegion.
+        /// (Vorher Kapseln/Quader je Segment — die überlappten sich, z. B. traf ein Klick auf die Hand das Becken.)
+        /// </summary>
         void BuildRegions()
         {
             var h = _rig.Data.Header;
-            for (int i = 0; i < h.segments.Length; i++)
+            var md = _rig.Data.Meshes[0];
+            var baked = new Mesh();
+            _rig.Skin.BakeMesh(baked, true);              // Haut in Lagerung, Skalierung eingerechnet
+            var v = baked.vertices;
+            var tris = _rig.Skin.sharedMesh.triangles;    // alle Teilmeshes
+            var byRegion = new Dictionary<string, List<int>>();
+            for (int t = 0; t < tris.Length; t += 3)
             {
-                var s = h.segments[i];
-                var go = new GameObject("Region " + s.name);
-                go.transform.SetParent(_rig.Bones[i], false);
-                if (s.capsule)
-                {
-                    Vector3 axis = AnatomyBuilder.V(s.end) - AnatomyBuilder.V(s.joint);
-                    var c = go.AddComponent<CapsuleCollider>();
-                    go.transform.localRotation = Quaternion.FromToRotation(Vector3.up, axis.normalized);
-                    go.transform.localPosition = axis / 2;
-                    c.direction = 1;
-                    c.radius = s.radius * 1.15f;
-                    c.height = axis.magnitude + s.radius;
-                }
-                else
-                {
-                    var c = go.AddComponent<BoxCollider>();
-                    c.center = AnatomyBuilder.V(s.boxCenter);
-                    c.size = AnatomyBuilder.V(s.boxSize);
-                }
-                go.AddComponent<BodyRegion>().Configure(sim, s.region);
+                int vi = tris[t];
+                int seg = md.Weight0[vi] >= 128 ? md.Bones[2 * vi] : md.Bones[2 * vi + 1];
+                string region = h.segments[seg].region;
+                if (!byRegion.TryGetValue(region, out var list)) byRegion[region] = list = new List<int>();
+                list.Add(tris[t]); list.Add(tris[t + 1]); list.Add(tris[t + 2]);
             }
+            var parent = new GameObject("Klickflächen").transform;
+            parent.SetParent(transform, false);
+            parent.SetPositionAndRotation(_rig.Skin.transform.position, _rig.Skin.transform.rotation);
+            foreach (var kv in byRegion)
+            {
+                var map = new Dictionary<int, int>();
+                var verts = new List<Vector3>();
+                var idx = new int[kv.Value.Count];
+                for (int k = 0; k < idx.Length; k++)
+                {
+                    int o = kv.Value[k];
+                    if (!map.TryGetValue(o, out int ni)) { ni = verts.Count; map[o] = ni; verts.Add(v[o]); }
+                    idx[k] = ni;
+                }
+                var mesh = new Mesh { name = "Klickfläche " + kv.Key };
+                if (verts.Count > 65000) mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+                mesh.SetVertices(verts);
+                mesh.SetTriangles(idx, 0);
+                mesh.RecalculateBounds();
+                var go = new GameObject("Region " + kv.Key);
+                go.transform.SetParent(parent, false);
+                go.AddComponent<MeshCollider>().sharedMesh = mesh;
+                go.AddComponent<BodyRegion>().Configure(sim, kv.Key);
+            }
+            Destroy(baked);
         }
 
         void MarkInjuries()
@@ -194,16 +215,34 @@ namespace NotfallSIM.Anatomy
                     layerButtons[i].color = on ? new Color(0.25f, 0.27f, 0.30f) : new Color(0.10f, 0.11f, 0.12f);
         }
 
+        /// <summary>Kollider für den Namen unter der Maus (Ebene „Ignore Raycast“, stören die Untersuchung nicht).
+        /// Werden nach dem Start verteilt über mehrere Bilder erzeugt, damit der erste Röntgenblick nicht ruckelt;
+        /// ein vorzeitiges Einschalten baut den Rest sofort.</summary>
         void BuildPartColliders()
         {
+            foreach (var p in _rig.Parts) AddPartCollider(p);
             _collidersBuilt = true;
+        }
+
+        void AddPartCollider(AnatomyPart p)
+        {
+            if (p.Collider) return;
+            p.Renderer.gameObject.layer = 2;
+            p.Collider = p.Renderer.gameObject.AddComponent<MeshCollider>();
+            p.Collider.sharedMesh = p.Filter.sharedMesh;
+            p.Collider.enabled = p.Renderer.enabled;
+        }
+
+        System.Collections.IEnumerator BuildPartCollidersGradually()
+        {
+            int k = 0;
             foreach (var p in _rig.Parts)
             {
-                p.Collider = p.Renderer.gameObject.AddComponent<MeshCollider>();
-                p.Collider.sharedMesh = p.Filter.sharedMesh;
-                p.Collider.enabled = p.Renderer.enabled;
-                p.Renderer.gameObject.layer = 2; // Ignore Raycast: stört die Untersuchungsklicks nicht
+                if (_collidersBuilt) yield break;
+                AddPartCollider(p);
+                if (++k % 12 == 0) yield return null;
             }
+            _collidersBuilt = true;
         }
 
         // ---------------------------------------------------------------- Laufzeit

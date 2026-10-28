@@ -35,7 +35,7 @@ def winding(points, pos, tri, chunk=None):
     """Generalisierte Windungszahl (Jacobson 2013): ~±1 innen, ~0 außen; robust bei kleinen Löchern."""
     A, B, C = pos[tri[:, 0]], pos[tri[:, 1]], pos[tri[:, 2]]
     out = np.zeros(len(points))
-    chunk = chunk or max(1, int(1.5e6 // len(tri)))
+    chunk = chunk or max(1, int(3e5 // len(tri)))
     for s in range(0, len(points), chunk):
         p = points[s:s + chunk][:, None, :]
         a, b, c = A[None] - p, B[None] - p, C[None] - p
