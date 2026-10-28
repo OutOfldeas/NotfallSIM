@@ -272,7 +272,7 @@ def catmull(points, n=6):
     return np.array(out)
 
 
-def tube(path, radii, sides=8):
+def tube(path, radii, sides=8, _retry=0):
     """Röhre um eine Mittellinie (bereits abgetastet). Dreiecke so orientiert, dass die Normalen nach außen zeigen
     (Unity: Kreuzprodukt (b−a)×(c−a) zeigt zur Vorderseite)."""
     path = np.asarray(path, float); n = len(path)
@@ -295,7 +295,11 @@ def tube(path, radii, sides=8):
     fc = verts[faces].mean(1); fn = np.cross(verts[faces[:, 1]] - verts[faces[:, 0]], verts[faces[:, 2]] - verts[faces[:, 0]])
     ring = np.repeat(np.arange(n - 1), 2 * sides)
     good = (np.einsum('ij,ij->i', fn, fc - path[ring]) > 0).mean()
-    assert good > 0.95, f'Röhre falsch orientiert ({good:.0%} der Flächen außen, {n} Ringe)'
+    if good <= 0.8 and _retry < 4:   # Faltung in einem kurzen Stück: glätten und neu
+        q = path.copy(); q[1:-1] = 0.25 * q[:-2] + 0.5 * q[1:-1] + 0.25 * q[2:]
+        return tube(q, radii, sides, _retry + 1)
+    assert good > 0.8, f'Röhre falsch orientiert ({good:.0%} der Flächen außen, {n} Ringe)'
+    if good < 0.95: print(f'  Warnung: scharfer Knick in einem Bahnstück ({good:.0%} der Flächen außen, {n} Ringe)')
     return verts, faces
 
 
@@ -432,6 +436,19 @@ def inflate_skin(skin_tm, points, margin=0.0015, radius=0.015, rounds=3):
             disp[idx] = np.maximum(disp[idx], pu * (1 - smoothstep(0, 1, dd)) * 1.2)
         v = v + vn * disp[:, None]
     return trimesh.Trimesh(v, skin_tm.faces, process=False), int(near.sum())
+
+
+def kink_deg(path, span=0.01):
+    """Stärkster Richtungswechsel der Mittellinie über etwa span (Grad) — Maß für Zacken."""
+    d = np.r_[0, np.cumsum(np.linalg.norm(np.diff(path, axis=0), axis=1))]
+    worst = 0.0
+    for i in range(len(path)):
+        a = np.searchsorted(d, d[i] - span / 2); b = min(np.searchsorted(d, d[i] + span / 2), len(path) - 1)
+        if a >= i or b <= i: continue
+        u, v = path[i] - path[a], path[b] - path[i]
+        c = u @ v / (np.linalg.norm(u) * np.linalg.norm(v) + 1e-12)
+        worst = max(worst, np.degrees(np.arccos(np.clip(c, -1, 1))))
+    return worst
 
 
 def resample(path, radii, step=0.008):
@@ -678,16 +695,10 @@ def main():
     # Anatomie
     counts = {}
     for q in parts:
+        if q['layer'] == 'muscle': continue        # Muskeln nach den Bahnen (sie bekommen Rinnen um die Bahnen)
         segk = int(np.argmax(segment_scores(q['pos'].mean(0)[None], J, radii)[0]))
-        if q['layer'] == 'muscle':
-            # Muskeln ziehen über Gelenke (Ursprung und Ansatz in verschiedenen Segmenten): gewichtet wie die Haut,
-            # sonst reißen sie beim Beugen auseinander
-            mb, mw = skin_weights(q['pos'], J, radii)
-            add({'name': q['name'], 'label': german_muscle(q['name']), 'layer': 'muscle', 'segment': segk, 'color': q['color'],
-                 'weights': True, 'blendShapes': []}, q['pos'], q['faces'], bones=mb, w0=mw[:, 0])
-        else:
-            add({'name': q['name'], 'label': german(q['name']), 'layer': q['layer'], 'segment': segk, 'color': q['color'], 'weights': False,
-                 'blendShapes': []}, q['pos'], q['faces'])
+        add({'name': q['name'], 'label': german(q['name']), 'layer': q['layer'], 'segment': segk, 'color': q['color'], 'weights': False,
+             'blendShapes': []}, q['pos'], q['faces'])
         counts[q['layer']] = counts.get(q['layer'], 0) + len(q['faces'])
     # Schematische Bahnen: innerhalb der Haut, außerhalb aller anderen Strukturen (Knochen, Organe, Gefäße, schon
     # gelegte Bahnen), je Segment ein Stück (folgt den Gelenken). Reihenfolge: Arterien, Venen, Nerven.
@@ -698,6 +709,8 @@ def main():
     paths = [x for x in schematic_paths(J, by_name, U) if x[0] == 'Rückenmark'] + pathways.routes(geo, cen_u)
     paths.sort(key=lambda x: {'artery': 0, 'vein': 1, 'nerve': 2}[x[1]])
     passage_log = []
+    tube_meshes = []   # (Name, Trimesh) aller Bahnstücke — danach bekommen die Muskeln Rinnen um sie
+    routed = []        # (Name, Ebene, Mittellinie, Radien, Hindernis ohne Muskeln, Hautabstand, Durchtritte)
     built = []   # (layer, Trimesh) bereits gelegter Bahnen
     lines = []   # (layer, Mittellinie, Radien) bereits gelegter Bahnen
     for name, layer, pts, r0, r1 in paths:
@@ -705,13 +718,14 @@ def main():
         obst_named = [(q['name'], geo.tm(q['name'])) for q in parts if not collide.allowed((name, layer), (q['name'], q['layer']))]
         obst_named += [(None, tm) for l_, tm in built if l_ != layer]
         obst = [tm for _, tm in obst_named]
-        obst_tm = trimesh.util.concatenate(obst)
+        # Führung: Muskeln sind kein Hindernis — Gefäß-Nerven-Straßen liegen in den Muskelsepten, die Muskeln weichen
+        # ihnen aus (Rinne, z. B. Sulcus bicipitalis). Hindernisse: Knochen, Organe, große Gefäße, andere Bahnen.
+        obst_tm = trimesh.util.concatenate([tm for n_, tm in obst_named if n_ is None or geo.P[n_]['layer'] != 'muscle'])
         zones = []
         if not isinstance(pts[0], np.ndarray) or len(np.shape(pts)) != 2:   # Wegpunkt-Beschreibung (pathways.py)
+            # Wegpunkte in den echten Lücken (hier zählen die Muskeln mit)
             pts, passages, wlog = pathways.resolve_waypoints(pts, geo, obst, need=r0 + 0.0008)
             for mu, pc, zr, note in passages:
-                alt = trimesh.util.concatenate([tm for n_, tm in obst_named if n_ != mu])
-                zones.append((pc, zr, alt))
                 passage_log.append((name, mu, pc.tolist(), zr, note))
             narrow = [(note, round(cl * 1000, 1)) for kind, note, cl in wlog if kind == 'Gap' and cl < r0 + 0.0008]
             if narrow: print(f'  {name}: enge Wegpunkte {narrow}')
@@ -731,18 +745,102 @@ def main():
         if msk > 0.004:
             shoulder = trimesh.util.concatenate([trimesh.Trimesh(q['pos'], q['faces'], process=False) for q in parts
                                                  if re.search(r'scapula|clavicle', q['name'])])
-        for _ in range(10):  # letzte Projektionen ohne Glätten (Haut, Hindernisse, andere Bahnen) — mehrere Runden, weil sich
-            # in engen Logen (Kniekehle, Unterschenkel) Knochen, Gefäße und Haut gegenseitig im Weg sind
+        for _ in range(12):  # letzte Runden: leicht glätten, dann wieder an Haut, Hindernisse und andere Bahnen anpassen —
+            # mehrere Runden, weil sich in engen Logen Knochen, Gefäße und Haut gegenseitig im Weg sind; ohne das Glätten
+            # entstehen Zacken, wo zwei Bedingungen gegeneinander schieben (Achsel, Ellbogen)
+            path[1:-1] = 0.25 * path[:-2] + 0.5 * path[1:-1] + 0.25 * path[2:]
             if shoulder is not None:
                 path = constrain_path(path, rad, skin, shoulder, margin_skin=msk, margin_bone=0.004, iters=0)
             path = constrain_path(path, rad, skin, obst_tm, margin_skin=msk, margin_bone=0.001, iters=0, others=others, zones=zones)
+        print(f'  {name}: stärkster Knick {kink_deg(path):.0f}° (je 1 cm)')
         lines.append((layer, path.copy(), rad.copy()))
+        routed.append((name, layer, path, rad, obst_tm, msk, [(np.array(pc), zr, mu) for a, mu, pc, zr, _ in passage_log if a == name]))
         for segk, piece, prad in split_by_segment(path, rad, J, radii):
             verts, faces = tube(piece, prad)
-            add({'name': name, 'label': name, 'layer': layer, 'segment': segk, 'color': LAYER_COLORS[layer],
-                 'weights': False, 'blendShapes': [], 'schematic': True}, verts, faces)
-            counts[layer] = counts.get(layer, 0) + len(faces)
             built.append((layer, trimesh.Trimesh(verts, faces, process=False)))
+            tube_meshes.append((name, built[-1][1]))
+
+    # Muskeln: Rinne um die Bahnen (außer an den Durchtrittsstellen, dort zieht die Bahn durch den Muskel)
+    def carve(tubes_):
+        n_ = 0
+        for q in parts:
+            if q['layer'] != 'muscle': continue
+            lo_q, hi_q = q['pos'].min(0) - 0.01, q['pos'].max(0) + 0.01
+            obst = []
+            for tname, tm in tubes_:
+                if np.any(tm.bounds[0] > hi_q) or np.any(tm.bounds[1] < lo_q): continue
+                zs = [(np.array(pc), zr) for a_, mu, pc, zr, _ in passage_log if a_ == tname and mu == q['name']]
+                if zs:   # Durchtritt: nur die Röhrenteile außerhalb der Zone formen den Muskel
+                    v = np.asarray(tm.vertices); keepv = np.ones(len(v), bool)
+                    for zc, zr in zs: keepv &= np.linalg.norm(v - zc, axis=1) > zr
+                    f = np.asarray(tm.faces); f = f[keepv[f].all(1)]
+                    if not len(f): continue
+                    tm = trimesh.Trimesh(v, f, process=False)
+                obst.append({'name': tname, 'tm': tm})
+            if obst:
+                q['pos'], q['faces'] = collide.refine_near(q['pos'], q['faces'], obst, levels=1)
+                new_, _ = collide.push_out(q['pos'], q['faces'], obst)
+                if np.linalg.norm(new_ - q['pos'], axis=1).max() > 1e-5: n_ += 1
+                q['pos'] = new_
+        return n_
+    print(f'{carve(tube_meshes)} Muskeln mit Rinnen um Leitungsbahnen')
+
+    # Nachlauf: wo eine Rinne nicht tief genug wurde (dünne Muskeln, enge Logen), die Bahn verschieben …
+    from anatomy_io import winding as _winding
+    mus_tm = {q['name']: trimesh.Trimesh(q['pos'], q['faces'], process=False) for q in parts if q['layer'] == 'muscle'}
+    nudged = 0
+    final_tubes, final_pieces, kinks = [], [], {}
+    for name, layer, path, rad, obst_tm, msk, zs in routed:
+        hit = []
+        for mn, tm in mus_tm.items():
+            lo_m, hi_m = tm.bounds
+            sel = np.all((path > lo_m - 0.006) & (path < hi_m + 0.006), axis=1)
+            if not sel.any(): continue
+            d = trimesh.proximity.closest_point(tm, path[sel])[1]
+            ins = _winding(path[sel], np.asarray(tm.vertices), np.asarray(tm.faces)) > 0.5
+            close = ins | (d < rad[sel] * 0.5)
+            for zc, zr, zm in zs:
+                if zm == mn: close &= np.linalg.norm(path[sel] - zc, axis=1) > zr
+            if close.any(): hit.append((mn, tm))
+        before = path.copy()
+        if hit:
+            nudged += 1
+            ob = trimesh.util.concatenate([obst_tm] + [tm for _, tm in hit])
+            # Durchtritt: in der Zone gilt das Hindernis ohne den durchquerten Muskel
+            zones_n = [(zc, zr, trimesh.util.concatenate([obst_tm] + [tm for mn, tm in hit if mn != zm])) for zc, zr, zm in zs]
+            others = [(ln, lr) for l_, ln, lr in lines if l_ != layer]
+            for _ in range(6):
+                path[1:-1] = 0.25 * path[:-2] + 0.5 * path[1:-1] + 0.25 * path[2:]
+                path[:] = constrain_path(path, rad, skin, ob, margin_skin=msk, margin_bone=0.001, iters=0, others=others, zones=zones_n)
+            # Knochen und Haut haben das letzte Wort
+            for _ in range(2):
+                path[:] = constrain_path(path, rad, skin, obst_tm, margin_skin=msk, margin_bone=0.001, iters=0)
+        k_ = kink_deg(path)
+        if hit and k_ > max(60.0, kink_deg(before) + 20):   # Nachlauf hat die Bahn gefaltet: alte Lage behalten
+            print(f'  {name}: Nachlauf verworfen (Knick {k_:.0f}°)')
+            path[:] = before; k_ = kink_deg(path)
+        if k_ > 45: print(f'  {name}: nach dem Nachlauf Knick {k_:.0f}°')
+        kinks[name] = k_
+        for segk, piece, prad in split_by_segment(path, rad, J, radii):
+            verts, faces = tube(piece, prad)
+            final_pieces.append((name, layer, segk, verts, faces))
+            final_tubes.append((name, trimesh.Trimesh(verts, faces, process=False)))
+    print(f'{nudged} Bahnen gegen Restberührungen mit Muskeln nachgeführt')
+    # … und die Rinnen gegen die endgültige Lage der Bahnen noch einmal formen
+    print(f'{carve(final_tubes)} Muskeln im zweiten Durchgang nachgeformt')
+
+    # Muskeln gewichtet wie die Haut — sie ziehen über Gelenke und reißen sonst beim Beugen auseinander
+    for q in parts:
+        if q['layer'] != 'muscle': continue
+        segk = int(np.argmax(segment_scores(q['pos'].mean(0)[None], J, radii)[0]))
+        mb, mw = skin_weights(q['pos'], J, radii)
+        add({'name': q['name'], 'label': german_muscle(q['name']), 'layer': 'muscle', 'segment': segk, 'color': q['color'],
+             'weights': True, 'blendShapes': []}, q['pos'], q['faces'], bones=mb, w0=mw[:, 0])
+        counts['muscle'] = counts.get('muscle', 0) + len(q['faces'])
+    for name, layer, segk, verts, faces in final_pieces:
+        add({'name': name, 'label': name, 'layer': layer, 'segment': segk, 'color': LAYER_COLORS[layer],
+             'weights': False, 'blendShapes': [], 'schematic': True}, verts, faces)
+        counts[layer] = counts.get(layer, 0) + len(faces)
     print('Dreiecke je Ebene', counts)
 
     header = {
@@ -750,6 +848,7 @@ def main():
         'modelHeight': float(skin.vertices[:, 1].max() - skin.vertices[:, 1].min()), 'floorY': float(skin.vertices[:, 1].min()),
         'joints': [{'name': k, 'pos': v.tolist()} for k, v in J.items()], 'segments': segs, 'meshes': entries,
         'passages': [{'pathway': a, 'muscle': b, 'point': c, 'radius': r, 'note': n} for a, b, c, r, n in passage_log],
+        'kinks': [{'pathway': k, 'degrees': round(float(v), 1)} for k, v in kinks.items()],
         'attribution': 'Anatomie: BodyParts3D, © The Database Center for Life Science, lizenziert unter CC BY-SA 2.1 Japan '
                        '(https://lifesciencedb.jp/bp3d/). Bearbeitet für NotfallSIM (vereinfacht, Haut neu vernetzt). '
                        'Skelettmuskeln aus BodyParts3D. Nerven und Extremitätengefäße schematisch ergänzt.',

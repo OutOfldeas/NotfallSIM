@@ -256,9 +256,14 @@ if any(m['info']['layer'] == 'muscle' for m in M):
         ok(a5[2] < fem(0.88)[2], f'A. femoralis {side} nach dem Hiatus hinter dem Femur')
         sci = path(f'N. ischiadicus {side}')
         pir = S(f'{s} piriformis')['pos']
-        near = sci[np.linalg.norm(sci[:, [0, 2]] - pir.mean(0)[[0, 2]], axis=1) < 0.03]
-        ok(len(near) and near[:, 1].max() < pir[:, 1].min() + 0.01, f'N. ischiadicus {side} verlässt das Becken unter dem M. piriformis (Foramen infrapiriforme)',
-           f'höchster Nervenpunkt unter dem Muskel {mm(near[:, 1].max() - pir[:, 1].min()) if len(near) else "–"} über dessen Unterrand')
+        # Im Becken liegt der Plexus sacralis vor dem Muskel; nach dem Austritt liegt der Nerv hinter dem Muskelniveau —
+        # dort, wo er hinter dem Piriformis ist, muss er unter ihm sein (sonst Foramen suprapiriforme)
+        behind = []
+        for q in sci:
+            sl = pir[np.abs(pir[:, 0] - q[0]) < 0.008]
+            if len(sl) and q[2] < sl[:, 2].min(): behind.append((q, sl[:, 1].min()))
+        ok(len(behind) and all(q[1] < ymin + 0.004 for q, ymin in behind), f'N. ischiadicus {side} verlässt das Becken unter dem M. piriformis (Foramen infrapiriforme)',
+           f'{len(behind)} Nervenpunkte hinter dem Muskel, höchster {mm(max(q[1] - ymin for q, ymin in behind)) if behind else "–"} relativ zum Unterrand')
         yq = S(f'{s} quadratus femoris')['pos'][:, 1].mean()
         ok(at_y(sci, yq)[2] > ms(f'{s} gluteus maximus', yq)[2], f'N. ischiadicus {side} unter (vor) dem M. gluteus maximus')
         s35 = at_y(sci, ty(0.35))

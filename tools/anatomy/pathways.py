@@ -165,7 +165,7 @@ def routes(geo, cen):
         z1, z2, z3 = sy(0.06), sy(0.3), sy(0.65)
         pop = [Gap(m(femur, y5) + [0, 0, -0.03], 0.018, 'Fossa poplitea'),
                Gap(mean(m(f'medial head of {s} gastrocnemius', z1), m(f'lateral head of {s} gastrocnemius', z1), m(f'{s} tibia', z1)), 0.02, 'zwischen den Gastroknemiusköpfen'),
-               Gap(mean(m(f'{s} soleus', z2), m(f'{s} tibialis posterior', z2)), 0.018, 'tiefe Flexorenloge'),
+               Gap(mean(m(f'{s} soleus', z2), m(f'{s} tibialis posterior', z2), m(f'{s} flexor digitorum longus', z2)), 0.011, 'tiefe Flexorenloge (A. tibialis posterior; lateral davon läge die A. fibularis)'),
                Gap(mean(m(f'{s} soleus', z3), m(f'{s} flexor digitorum longus', z3), m(f'{s} tibialis posterior', z3)), 0.018, 'tiefe Flexorenloge distal'),
                Gap(ankle + X * -0.025 + [0, 0.01, -0.012], 0.012, 'hinter dem Malleolus medialis'),
                P(J[f'Ferse {side}'] + [sx * -0.02, 0.03, 0.03])]
@@ -188,15 +188,17 @@ def routes(geo, cen):
         # Punkt insgesamt wäre der Ansatz am Trochanter major
         pp = geo.pos(pir); medial = pp[pp[:, 0] * sx < np.median(pp[:, 0] * sx)]
         pir_low = medial[medial[:, 1].argmin()]
-        sac = cen('sacrum')
-        isch = [P(sac + [sx * 0.05, 0.0, -0.02]),
+        # Plexus sacralis: auf der Vorderfläche des M. piriformis (im kleinen Becken)
+        ymid_p = 0.5 * (pp[:, 1].max() + pp[:, 1].min())
+        plex_s = geo.extreme(pir, ymid_p, [-sx, 0, 1]) + [0, 0, 0.006]
+        isch = [Gap(plex_s, 0.01, 'Plexus sacralis vor dem M. piriformis'),
                 Gap(pir_low + [0, -0.012, -0.004], 0.014, 'Foramen infrapiriforme'),
                 Gap(m(f'{s} quadratus femoris', geo.P[f'{s} quadratus femoris']['pos'][:, 1].mean()) + [0, 0, -0.016], 0.018, 'hinter dem M. quadratus femoris'),
                 Gap(mean(m(f'{s} adductor magnus', ty(0.35)), m(f'long head of {s} biceps femoris', ty(0.35))), 0.018, 'hinter dem M. adductor magnus'),
                 Gap(mean(m(f'long head of {s} biceps femoris', ty(0.7)), m(f'{s} semimembranosus', ty(0.7))), 0.018, 'zwischen Bizeps und Semimembranosus'),
                 Gap(m(femur, y5) + [0, 0, -0.052], 0.018, 'Kniekehle, oberflächlich der Gefäße'),
                 Gap(mean(m(f'medial head of {s} gastrocnemius', sy(0.12)), m(f'lateral head of {s} gastrocnemius', sy(0.12))), 0.018, 'zwischen den Gastroknemiusköpfen'),
-                Gap(mean(m(f'{s} soleus', sy(0.45)), m(f'{s} tibialis posterior', sy(0.45))) + [0, 0, -0.004], 0.018, 'unter dem M. soleus'),
+                Gap(mean(m(f'{s} soleus', sy(0.45)), m(f'{s} tibialis posterior', sy(0.45)), m(f'{s} flexor digitorum longus', sy(0.45))) + [0, 0, -0.004], 0.011, 'unter dem M. soleus'),
                 Gap(ankle + X * -0.028 + [0, 0.012, -0.02], 0.012, 'hinter dem Malleolus medialis')]
         out.append((f'N. ischiadicus {side}', 'nerve', isch, 0.0055, 0.003))
         # ---- N. fibularis communis: am medialen Rand des M. biceps femoris zum Fibulakopf, um den Fibulahals, durch

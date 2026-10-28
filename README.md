@@ -39,7 +39,7 @@ Assets/
     Simulation/    SimulationManager, InterventionController, SessionRecorder
     UI/            VitalsMonitor, MonitorWaveforms, FindingsPanel, DebriefPanel, MainMenu, PauseMenu, OrbitCamera
     Interaction/   BodyRegion
-    Anatomy/       body.bin lesen, Patient aufbauen (Haut, Skelett, Röntgenblick)
+    Anatomy/       body.bin lesen, Patient aufbauen (Haut, Skelett, Muskeln, Röntgenblick)
     Crash/         Unfall-Sandbox: Ragdoll, Fahrzeuge, Sensoren, Verletzungskriterien
     Rooms/         Schockraum zur Laufzeit: Raum, Licht, Kamera, Patient, Monitor (auch für alte Szenendateien)
   NotfallSIM/Editor/
@@ -116,7 +116,7 @@ Untersuchen per Klick trifft genau die sichtbare Haut: Jedes Hautdreieck gehört
 
 *Röntgenblick* (Feld oben rechts neben dem Monitor) macht die Haut durchsichtig; die Ebenen Knochen, Organe,
 Gefäße und Nerven lassen sich einzeln schalten (abgedunkelter Knopf = ausgeblendet), mit der Maus über einer Struktur
-steht ihr deutscher Name, darunter die belegten Gewebeeigenschaften (`tissues.json`: Steifigkeit,
+steht ihr deutscher Name (Ebenen: Knochen, Organe, Gefäße, Nerven, Muskeln), darunter die belegten Gewebeeigenschaften (`tissues.json`: Steifigkeit,
 Reißdehnung und -spannung mit Dehnrate; Quellen in `docs/LITERATUR.md`). Nach Szenarioende schaltet sich der Röntgenblick ein und markiert die tatsächlichen
 Verletzungen rot (`anatomy/anatomy.json`; SDH/EDH: Rinde und Kalotte der betroffenen Seite).
 
