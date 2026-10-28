@@ -51,6 +51,7 @@ namespace NotfallSIM.Anatomy
         public bool swellingFromLoss;     // Schwellung = Blutverlust dieser Verletzung ins Gewebe
         public string swellingNote;
         public bool bleeding;             // äußere Blutung: Spritzer und Blutlache aus dem Verlust dieser Verletzung
+        public int rivulets;              // so viele Rinnsale laufen vom Wundort abwärts (BloodFlow)
         public bool amputation;           // Haut distal der Ebene (Anker, Richtung = nach distal) in den Segmenten entfernen, Stumpf schließen
     }
 
@@ -90,6 +91,7 @@ namespace NotfallSIM.Anatomy
         public BloodPoolParams bloodPool;
         public SpurtParams spurt;
         public DryingParams drying;
+        public RivuletParams rivulets;
         public VisualSource[] sources;
     }
 

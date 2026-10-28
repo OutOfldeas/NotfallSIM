@@ -372,6 +372,12 @@ Tiefe je Art (Schnitt klafft, Stich tief, Schürfung flach). Blut bleibt frisch 
 und wird danach in etwa 15 min matt und dunkler (Annahme); die Bräunung durch Oxidation dauert Stunden bis Tage [79].
 Wunden ohne laufende Blutung sind bei Ankunft etwa 20 min alt (Annahme).
 
+Blut als Flüssigkeit: Rinnsale laufen vom Wundort im steilsten Abstieg über das Hautnetz; die Schwerkraft wird je
+Körpersegment aus der Lagerung bestimmt (Arme leicht nach hinten gedreht). Sie enden, wo die Haut nach unten zeigt (Abtropfen
+auf die Trage), oder wo das Gefälle unter etwa 5° fällt (Blut bleibt stehen). Je 40 mL Verlust erscheint ein weiteres
+Rinnsal, die Front läuft mit 2 cm/s, solange es blutet; Breite 3–12 mm mit der dritten Wurzel des Flusses. Diese Werte sind
+Darstellungsannahmen; die Blutmenge selbst kommt aus der Physiologie. Rinnsale trocknen wie das übrige Blut.
+
 Annahmen: Kontaktwinkel 90° (keine Messung für Blut auf Matratzenkunststoff gefunden); die Bauchdeckenhebung setzt das
 ganze intraperitoneale Blut an (Obergrenze); Galeaschwellung beim EDH 15 mL. Tropfen sind nur Darstellung, die Blutmenge
 kommt aus der Physiologie (Verlust je Verletzung).

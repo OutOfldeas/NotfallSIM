@@ -13,6 +13,8 @@ Shader "NotfallSIM/Wound"
         _Edge ("Randunschärfe", Range(0.01, 0.5)) = 0.18
         _Irregular ("Unregelmäßigkeit des Rands", Range(0, 1)) = 0.35
         _Depth ("Wundtiefe", Range(0, 1)) = 0
+        _Strip ("Rinnsal (UV1 = quer, längs)", Range(0, 1)) = 0
+        _Reveal ("Front des Rinnsals (längs)", Range(0, 1.2)) = 1.2
         _Dry ("Eingetrocknet", Range(0, 1)) = 0
         _DryColor ("Trockenes Blut", Color) = (0.24, 0.05, 0.04, 1)
     }
@@ -45,6 +47,8 @@ Shader "NotfallSIM/Wound"
                 half _Edge;
                 half _Irregular;
                 half _Depth;
+                half _Strip;
+                half _Reveal;
                 half _Dry;
                 half4 _DryColor;
             CBUFFER_END
@@ -57,7 +61,7 @@ Shader "NotfallSIM/Wound"
             struct Varyings
             {
                 float4 positionCS : SV_POSITION; float3 normalWS : TEXCOORD0; float3 positionWS : TEXCOORD1;
-                half4 color : COLOR; float3 model : TEXCOORD2; float falloff : TEXCOORD3;
+                half4 color : COLOR; float3 model : TEXCOORD2; float2 uv1 : TEXCOORD3;
             };
 
             Varyings vert (Attributes i)
@@ -69,7 +73,7 @@ Shader "NotfallSIM/Wound"
                 o.normalWS = TransformObjectToWorldNormal(i.normalOS);
                 o.color = i.color;
                 o.model = i.uv0;
-                o.falloff = i.uv1.x;
+                o.uv1 = i.uv1;
                 return o;
             }
 
@@ -95,9 +99,12 @@ Shader "NotfallSIM/Wound"
             {
                 // Sichtbar, wo der Abfall (verrauscht) über der Schwelle liegt: wächst mit _Amount von der Mitte nach außen
                 float n = fbm(i.model * _NoiseScale);
-                float f = i.falloff + (n - 0.5) * _Irregular;
+                // Fleck: UV1.x = Abfall. Rinnsal: UV1.x quer (0..1) → Profil, UV1.y längs; sichtbar bis zur Front _Reveal
+                float falloff = _Strip > 0.5 ? 1 - abs(2 * i.uv1.x - 1) : i.uv1.x;
+                float f = falloff + (n - 0.5) * _Irregular;
                 float thr = 1 - _Amount;
                 float a = smoothstep(thr, thr + _Edge, f) * i.color.a * step(0.001, _Amount);
+                if (_Strip > 0.5) a *= 1 - smoothstep(_Reveal - 0.04, _Reveal, i.uv1.y + (n - 0.5) * 0.03);
                 half3 baseCol = i.color.rgb * (0.85 + 0.3 * fbm(i.model * _NoiseScale * 2.7));
 
                 float3 nrm = normalize(i.normalWS);
