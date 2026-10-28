@@ -37,6 +37,8 @@ namespace NotfallSIM.Crash
     public class CrashSurface : MonoBehaviour
     {
         public bool countsForInjury = true;
+        /// <summary>Art der Fläche für Verletzungszeichen: "vehicle" (Innenraum, Fahrzeugfront), "ground", "airbag".</summary>
+        public string kind = "vehicle";
     }
 
     /// <summary>Übergibt ein im Crash erzeugtes Szenario an die Schockraum-Szene.</summary>

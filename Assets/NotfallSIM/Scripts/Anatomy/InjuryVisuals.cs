@@ -59,6 +59,20 @@ namespace NotfallSIM.Anatomy
         /// <summary>Strukturen distal einer Amputation (im Röntgenblick ausgeblendet).</summary>
         public readonly HashSet<AnatomyPart> HiddenParts = new HashSet<AnatomyPart>();
 
+        /// <summary>Im Crash-Simulator entstandene Zeichen für den nächsten Schockraum (danach geleert).</summary>
+        public static List<CrashMark> PendingCrashMarks;
+        static readonly Dictionary<string, List<string>> _extraFindings = new Dictionary<string, List<string>>();
+
+        /// <summary>Befundtexte der Crash-Zeichen je Körperregion (für die Untersuchung).</summary>
+        public static IEnumerable<string> ExtraFindings(string region) =>
+            _extraFindings.TryGetValue(region, out var l) ? l : Enumerable.Empty<string>();
+
+        InjuryDefinition DefOf(string id)
+        {
+            if (string.IsNullOrEmpty(id) || _sim == null || _sim.Database == null) return null;
+            try { return _sim.Database.Get(id); } catch (KeyNotFoundException) { return null; }
+        }
+
         public static string FilePath => Path.Combine(Application.streamingAssetsPath, "NotfallSIM", "injury_visuals.json");
 
         /// <summary>Nach dem Aufbau und der Lagerung des Körpers, vor den Klickflächen (Amputation ändert die Haut).</summary>
@@ -78,6 +92,19 @@ namespace NotfallSIM.Anatomy
             var adj = SkinMarks.Adjacency(skin.Info.vertexCount, skin.Indices, visibleTris);
             var mesh = rig.Skin.sharedMesh;
             var marks = _file.marks.Where(m => _onset.ContainsKey(m.injuryId)).ToList();
+            // Zeichen aus dem Crash-Simulator: ohne eigene Verletzung, von Anfang an da
+            _extraFindings.Clear();
+            if (PendingCrashMarks != null)
+            {
+                _onset[""] = 0;
+                foreach (var cm in PendingCrashMarks)
+                {
+                    marks.Add(cm.Mark);
+                    if (!_extraFindings.TryGetValue(cm.Region ?? "", out var l)) _extraFindings[cm.Region ?? ""] = l = new List<string>();
+                    if (!l.Contains(cm.Finding)) l.Add(cm.Finding);
+                }
+                PendingCrashMarks = null;
+            }
 
             // 1) Amputationen: Haut kürzen, Stumpf, innere Teile distal ausblenden
             HashSet<int> removed = null;
@@ -156,7 +183,7 @@ namespace NotfallSIM.Anatomy
                 for (int i = 0; i < allowed.Length; i++) allowed[i] = !removed.Contains(i);
             }
             var rp = _file.rivulets;
-            var def = _sim.Database != null ? _sim.Database.Get(mk.Def.injuryId) : null;
+            var def = DefOf(mk.Def.injuryId);
             double rate = def?.effects != null ? def.effects.Where(e => e.effectType == "Hemorrhage").Sum(e => e.baseRate_mL_min) : 0;
             float width = (float)(BloodFlow.Width_mm(rp, rate) / 1000 / _rig.Scale);
             // Quellen: Wundvertices nahe der Mitte
@@ -219,7 +246,7 @@ namespace NotfallSIM.Anatomy
         /// <summary>Volumen, für das die Schwellung gebaut wird: größter möglicher Verlust der Verletzung.</summary>
         double NominalLoss(string injuryId)
         {
-            var def = _sim.Database != null ? _sim.Database.Get(injuryId) : null;
+            var def = DefOf(injuryId);
             double v = def?.effects != null && def.effects.Length > 0 ? def.effects.Max(e => e.maxTotalLoss_mL) : 0;
             return v > 0 ? v : 1000;
         }
@@ -338,7 +365,7 @@ namespace NotfallSIM.Anatomy
             var bind = _rig.Skin.sharedMesh.bindposes[segment];
             var p = new Vector3(modelPoint[0], modelPoint[1], modelPoint[2]);
             var nrm = new Vector3(modelNormal[0], modelNormal[1], modelNormal[2]).normalized;
-            var def = _sim.Database != null ? _sim.Database.Get(m.injuryId) : null;
+            var def = DefOf(m.injuryId);
             bool arterial = def?.effects != null && def.effects.Any(e => e.lesion == "partial" || e.lesion == "transection");
             var b = new Bleeding { InjuryId = m.injuryId, Arterial = arterial };
 
@@ -460,7 +487,7 @@ namespace NotfallSIM.Anatomy
                     m.Overlay.SetPropertyBlock(m.Mpb);
                     if (m.Streams.Count > 0)
                     {
-                        var def = _sim.Database != null ? _sim.Database.Get(m.Def.injuryId) : null;
+                        var def = DefOf(m.Def.injuryId);
                         bool hasHem = def?.effects != null && def.effects.Any(e => e.effectType == "Hemorrhage");
                         bool bleedsNow = lostNow > prevLost + 1e-4 && !_sim.Paused;
                         if (m.Kind == null || !m.Kind.dries) dry = (float)SkinMarks.Dryness(_file.drying, t - (double.IsNaN(m.LastWet_s) ? t : m.LastWet_s));
@@ -481,7 +508,7 @@ namespace NotfallSIM.Anatomy
         {
             if (double.IsNaN(m.LastWet_s))
             {
-                var def = _sim.Database != null ? _sim.Database.Get(m.Def.injuryId) : null;
+                var def = DefOf(m.Def.injuryId);
                 bool bleeds = def?.effects != null && def.effects.Any(e => e.effectType == "Hemorrhage");
                 m.LastWet_s = bleeds ? t : t - (_file.drying != null ? _file.drying.preArrivalAge_min * 60 : 0);
                 m.LastLost = lost;

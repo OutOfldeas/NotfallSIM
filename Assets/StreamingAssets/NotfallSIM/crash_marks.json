@@ -1,0 +1,110 @@
+{
+  "version": "1",
+  "note": "Sichtbare Verletzungszeichen aus dem Crash-Simulator. Ort: Kontaktpunkt, zurückgerechnet in die Ruhelage des Anatomiemodells. Art: Prellung ab Kontaktimpuls, Platzwunde ab Spitzenkraft über dünnem Weichteilmantel, Schürfung bei Gleiten über rauhe Flächen; Gurtmarken aus der Gurtkraft (linksgelenktes Fahrzeug: Schultergurt über die linke Schulter).",
+  "bruiseImpulse_Ns": 5.9,
+  "bruiseSourceId": "desmoulin2007",
+  "bruiseNote": "Impuls, bei dem in 50 % ein Hämatom entstand (Vorversuch, Lebende, ein Aufprall je Region). Im Crash meist weit überschritten.",
+  "lacerationForce_N": 4000,
+  "lacerationSourceId": "sharkey2012",
+  "lacerationNote": "Mindestkraft für eine Platzwunde der Kopfschwarte (Schwein, Fallturm). Für das Schienbein übernommen (Annahme: ebenfalls Haut direkt über Knochen).",
+  "thinTissueSegments": [
+    "Kopf",
+    "Unterschenkel rechts",
+    "Unterschenkel links"
+  ],
+  "abrasionSlide_m_s": 1.0,
+  "abrasionNote": "Gleiten über Straße oder Fahrzeugfront ab 1 m/s erzeugt eine Schürfung (Annahme).",
+  "abrasiveSurfaces": [
+    "ground",
+    "vehicle"
+  ],
+  "bruiseRadius_m": 0.05,
+  "lacerationRadius_m": 0.02,
+  "abrasionRadius_m": 0.06,
+  "shoulderBelt": {
+    "id": "gurt_schulter",
+    "label": "Gurtmarke Schultergurt",
+    "finding": "Gurtmarke diagonal über den Thorax von der linken Schulter nach rechts unten (Schultergurt)",
+    "anchor": {
+      "meshes": [
+        "left clavicle",
+        "right seventh costal cartilage"
+      ],
+      "point": [],
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "direction": [
+        0,
+        0,
+        1
+      ]
+    },
+    "segments": [
+      "Thorax",
+      "Abdomen"
+    ],
+    "radius_m": 0.24,
+    "stretch": 9,
+    "stretchAxis": [
+      1,
+      -1.25,
+      0
+    ]
+  },
+  "lapBelt": {
+    "id": "gurt_becken",
+    "label": "Gurtmarke Beckengurt",
+    "finding": "Gurtmarke quer über den Unterbauch (Beckengurt) — an Hohlorgan- und LWS-Verletzung denken",
+    "anchor": {
+      "meshes": [
+        "left hip bone",
+        "right hip bone"
+      ],
+      "point": [],
+      "offset": [
+        0,
+        0.075,
+        0.02
+      ],
+      "direction": [
+        0,
+        0,
+        1
+      ]
+    },
+    "segments": [
+      "Becken",
+      "Abdomen"
+    ],
+    "radius_m": 0.17,
+    "stretch": 7,
+    "stretchAxis": [
+      1,
+      0,
+      0
+    ]
+  },
+  "sources": [
+    {
+      "id": "desmoulin2007",
+      "citation": "Desmoulin GT, Anderson GS. Contusion mechanics: a minimum tolerance test (Abstract). Injury Biomechanics Research Center, Ohio State University; 2007.",
+      "url": "https://ibrc.osu.edu/wp-content/uploads/2014/01/Desmoulin_Abstract_2007.pdf",
+      "note": "50 %-Schwelle für Hämatome: 3,2 J bzw. 5,9 N·s."
+    },
+    {
+      "id": "sharkey2012",
+      "citation": "Sharkey EJ, Cassidy M, Brady J, Gilchrist MD, Nic Daeid N. Investigation of the force associated with the formation of lacerations and skull fractures. Int J Legal Med. 2012;126(6):835-844.",
+      "url": "https://doi.org/10.1007/s00414-011-0608-z",
+      "note": "Minimale Kraft für eine Platzwunde 4000 N (Kopfschwarte, Schwein)."
+    },
+    {
+      "id": "atls",
+      "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+      "url": "",
+      "note": "Gurtzeichen am Abdomen: Hinweis auf Hohlorgan- und Wirbelsäulenverletzung."
+    }
+  ]
+}

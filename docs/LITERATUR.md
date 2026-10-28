@@ -385,11 +385,22 @@ Verlusts in Skrotum/Perineum und Leisten (Schichtdicke 10 mm; beides Annahmen). 
 zu blau-violett, zur Mitte zuerst (Annahme; frühe Farben nach [68]). Senkungshämatome entstehen erst über Stunden bis Tage und
 sind nicht dargestellt.
 
+Verletzungszeichen aus dem Crash-Simulator (`crash_marks.json`): Die Messaufnehmer am Ragdoll sammeln je Fläche (Fahrzeug,
+Boden, Airbag) Kontaktimpuls, Spitzenkraft, Gleitgeschwindigkeit und den Ort des stärksten Kontakts. Die Ragdoll-Segmente
+liegen in denselben Achsen wie das Anatomiemodell, der Ort lässt sich daher exakt in die Ruhelage zurückrechnen. Prellmarke ab
+5,9 N·s Kontaktimpuls (50 %-Schwelle, [81]); Platzwunde ab 4 kN Spitzenkraft, wo die Haut direkt über Knochen liegt (Kopf,
+Schienbein; [82], für das Schienbein übernommen); Schürfung beim Gleiten über Straße oder Fahrzeugfront ab 1 m/s (Annahme).
+Gurtmarken aus der Gurtkraft (Schultergurt diagonal von links oben, Beckengurt über den Unterbauch; Gurtzeichen am Abdomen
+als Hinweis auf Hohlorgan- und LWS-Verletzung, ATLS). Die Zeichen gehen mit in den Schockraum und erscheinen dort auch in der
+Untersuchung der Region.
+
 Annahmen: Kontaktwinkel 90° (keine Messung für Blut auf Matratzenkunststoff gefunden); die Bauchdeckenhebung setzt das
 ganze intraperitoneale Blut an (Obergrenze); Galeaschwellung beim EDH 15 mL. Tropfen sind nur Darstellung, die Blutmenge
 kommt aus der Physiologie (Verlust je Verletzung).
 
 ## Offene Punkte zum Prüfen
+
+- Crash-Zeichen in Unity prüfen: Kontaktorte (Lenkrad, Armaturenbrett, Boden), Gurtkraft aus der Gelenkkraft (currentForce), Übergabe in den Schockraum. Das Ragdoll in der Sandbox selbst zeigt die Zeichen noch nicht (nur als Liste); der Primitiv-Ragdoll ohne Anatomiemodell erzeugt keine.
 
 - Haut-Shader in Unity prüfen (nur außerhalb mit einer GLSL-Portierung gerendert): Kompiliert er unter URP (Forward/Forward+), passt die Helligkeit unter der OP-Leuchte? Ragdoll-Haut im Crash-Simulator nutzt noch URP/Lit.
 
@@ -537,3 +548,5 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 78. Weyrich T, Matusik W, Pfister H, et al. Analysis of human faces using a measurement-based skin reflectance model. *ACM Trans Graph*. 2006;25(3):1013-1024. [DOI](https://doi.org/10.1145/1141911.1141987)
 79. Bremmer RH, de Bruin KG, van Gemert MJC, van Leeuwen TG, Aalders MCG. Forensic quest for age determination of bloodstains. *Forensic Sci Int*. 2012;216(1-3):1-11. [DOI](https://doi.org/10.1016/j.forsciint.2011.07.027)
 80. Stam B, van Gemert MJC, van Leeuwen TG, Aalders MCG. How the blood pool properties at onset affect the temporal behavior of simulated bruises. *Med Biol Eng Comput*. 2012;50(2):165-171. [DOI](https://doi.org/10.1007/s11517-012-0860-5)
+81. Desmoulin GT, Anderson GS. Contusion mechanics: a minimum tolerance test (Abstract). Injury Biomechanics Research Center, Ohio State University; 2007. [PDF](https://ibrc.osu.edu/wp-content/uploads/2014/01/Desmoulin_Abstract_2007.pdf)
+82. Sharkey EJ, Cassidy M, Brady J, Gilchrist MD, Nic Daeid N. Investigation of the force associated with the formation of lacerations and skull fractures. *Int J Legal Med*. 2012;126(6):835-844. [DOI](https://doi.org/10.1007/s00414-011-0608-z)

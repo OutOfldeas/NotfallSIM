@@ -162,6 +162,7 @@ namespace NotfallSIM.Crash
         {
             if (_result == null) return;
             CrashHandoff.Pending = _result.Scenario;
+            Anatomy.InjuryVisuals.PendingCrashMarks = _crashMarks;   // sichtbare Zeichen gehen mit in den Schockraum
             SceneManager.LoadScene(traumaRoomScene);
         }
 
@@ -222,6 +223,14 @@ namespace NotfallSIM.Crash
                 foreach (var o in organLoad.Organs.Where(x => x.Exposure > 0))
                     sb.AppendLine($"{o.Organ.label}: Dehnung {o.Strain:P0} von {o.FailureStrain:P0} bis zum Riss → {o.Probability:P0}");
             }
+            _crashMarks = GenerateMarks();
+            if (_crashMarks.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("<b>Sichtbare Verletzungszeichen</b> <size=80%>(aus Kontaktimpuls, Spitzenkraft, Gleiten und Gurtkraft)</size>");
+                foreach (var cm in _crashMarks.Take(8)) sb.AppendLine(cm.Finding);
+                if (_crashMarks.Count > 8) sb.AppendLine($"… und {_crashMarks.Count - 8} weitere");
+            }
             sb.AppendLine();
             sb.AppendLine("<b>Wahrscheinlichkeit je Verletzung</b>");
             foreach (var kv in _result.InjuryProbability.OrderByDescending(x => x.Value).Where(x => x.Value >= 0.01))
@@ -230,6 +239,42 @@ namespace NotfallSIM.Crash
             sb.AppendLine("<size=80%>Welche Verletzungen gewürfelt wurden, zeigt erst der Schockraum. Werte aus einem starren Ragdoll — qualitativ, nicht mit Crashtest-Dummys vergleichbar.</size>");
             resultText.text = sb.ToString();
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(true);
+        }
+
+        List<Anatomy.CrashMark> _crashMarks = new List<Anatomy.CrashMark>();
+
+        /// <summary>Zeichen aus den Kontakten der Messaufnehmer (crash_marks.json); leer ohne Daten oder ohne Anatomiemodell.</summary>
+        List<Anatomy.CrashMark> GenerateMarks()
+        {
+            string path = Path.Combine(InjuryDatabase.Root, "crash_marks.json");
+            if (!File.Exists(path) || rig.Ragdoll == null) return new List<Anatomy.CrashMark>();
+            var rules = JsonUtility.FromJson<Anatomy.CrashMarkRules>(File.ReadAllText(path));
+            var header = Anatomy.AnatomyBuilder.Available ? Anatomy.AnatomyBuilder.Load().Header : null;
+            var contacts = new List<Anatomy.ContactSummary>();
+            foreach (var sensor in rig.Ragdoll.Sensors)
+            {
+                if (!sensor.HasModelFrame) continue;
+                foreach (var kv in sensor.Contacts)
+                {
+                    var c = kv.Value;
+                    if (c.Impulse_Ns <= 0 || !sensor.ToModel(sensor.transform.TransformPoint(c.BestPointLocal), out var pt, out var inside)) continue;
+                    string seg = sensor.ModelSegment;
+                    string region = header != null ? header.segments.FirstOrDefault(x => x.name == seg)?.region ?? sensor.Region : sensor.Region;
+                    contacts.Add(new Anatomy.ContactSummary
+                    {
+                        Segment = seg, Region = region, Surface = kv.Key, Impulse_Ns = c.Impulse_Ns, PeakForce_N = c.PeakForce_N, MaxSlide_m_s = c.MaxSlide_m_s,
+                        ModelPoint = new[] { pt.x, pt.y, pt.z }, ModelInside = new[] { inside.x, inside.y, inside.z }
+                    });
+                }
+            }
+            // Sternum und Thorax sind zwei Körper: zusammenfassen, stärkster Ort zählt
+            var merged = contacts.GroupBy(c => c.Segment + "|" + c.Surface).Select(g =>
+            {
+                var best = g.OrderByDescending(x => x.Impulse_Ns).First();
+                best.Impulse_Ns = g.Sum(x => x.Impulse_Ns); best.PeakForce_N = g.Max(x => x.PeakForce_N); best.MaxSlide_m_s = g.Max(x => x.MaxSlide_m_s);
+                return best;
+            });
+            return Anatomy.CrashMarks.Generate(rules, merged, _p.Belted ? rig.ShoulderBeltImpulse_Ns : 0, _p.Belted ? rig.LapBeltImpulse_Ns : 0);
         }
 
         static string Unit(RiskMetric m) => string.IsNullOrEmpty(m.unit) ? "" : " " + m.unit;
