@@ -170,6 +170,7 @@ namespace NotfallSIM.Anatomy
                 for (int i = 0; i < n; i++) deltas[i] = new Vector3(d[3 * i], d[3 * i + 1], d[3 * i + 2]);
                 mesh.AddBlendShapeFrame(md.Info.blendShapes[s], 100f, deltas, null, null);
             }
+            mesh.SetUVs(0, new List<Vector3>(mesh.vertices)); // Ruhelage für den Haut-Shader (Poren, Marmorierung)
 
             var go = new GameObject("Haut");
             go.transform.SetParent(rig.Root.transform, false);
@@ -192,6 +193,7 @@ namespace NotfallSIM.Anatomy
             var md = data.Meshes.Find(m => m.Info.layer == "skin");
             var mesh = ToMesh(md);
             var v = mesh.vertices;
+            mesh.SetUVs(0, new List<Vector3>(v)); // Ruhelage in Modelleinheiten für den Haut-Shader
             for (int i = 0; i < v.Length; i++) v[i] *= scale;
             mesh.vertices = v;
             int n = md.Info.vertexCount;
@@ -219,6 +221,52 @@ namespace NotfallSIM.Anatomy
         }
 
         /// <summary>URP-Lit-Material (zur Laufzeit), Fallback Standard-Shader.</summary>
+        static SkinParams _skinParams;
+        static bool _skinTried;
+
+        /// <summary>Hautdaten (StreamingAssets/NotfallSIM/skin.json); null, wenn die Datei fehlt.</summary>
+        public static SkinParams SkinData
+        {
+            get
+            {
+                if (_skinTried) return _skinParams;
+                _skinTried = true;
+                string path = Path.Combine(Application.streamingAssetsPath, "NotfallSIM", "skin.json");
+                try { if (File.Exists(path)) _skinParams = JsonUtility.FromJson<SkinParams>(File.ReadAllText(path)); }
+                catch (System.Exception e) { Debug.LogWarning("[Haut] skin.json nicht lesbar: " + e.Message); }
+                return _skinParams;
+            }
+        }
+
+        static Color C(float[] c, Color fallback) => c != null && c.Length >= 3 ? new Color(c[0], c[1], c[2]) : fallback;
+
+        /// <summary>Haut-Material mit Streuung, Poren und Durchblutung (Shader NotfallSIM/Skin); ohne Shader URP/Lit.</summary>
+        public static Material SkinMaterial(Color fallbackTone)
+        {
+            var sh = Resources.Load<Shader>("Skin") ?? Shader.Find("NotfallSIM/Skin");
+            var p = SkinData;
+            if (sh == null || !sh.isSupported || p == null) return Lit(fallbackTone, 0.38f);
+            var m = new Material(sh);
+            m.SetColor("_BaseColor", C(p.toneColor, fallbackTone));
+            m.SetColor("_PaleColor", C(p.paleColor, fallbackTone));
+            m.SetColor("_CyanColor", C(p.cyanoticColor, fallbackTone));
+            m.SetColor("_MottleColor", C(p.mottleColor, fallbackTone));
+            if (p.wrap != null && p.wrap.Length >= 3) m.SetVector("_Wrap", new Vector4(p.wrap[0], p.wrap[1], p.wrap[2], 0));
+            if (p.roughness != null && p.roughness.Length >= 2) m.SetVector("_Rough", new Vector4(p.roughness[0], p.roughness[1], 0, 0));
+            if (p.skinF0 > 0) m.SetFloat("_F0", p.skinF0);
+            if (p.poreScale > 0) m.SetFloat("_PoreScale", p.poreScale);
+            m.SetFloat("_PoreStrength", p.poreStrength);
+            // Bezugspunkte in Modellkoordinaten: Knie (Marmorierung), Gesicht und Hände (Zyanose)
+            var h = Load().Header;
+            System.Func<string, Vector3> J = name => { foreach (var j in h.joints) if (j.name == name) return V(j.pos); return Vector3.zero; };
+            m.SetVector("_KneeR", J("Knie rechts")); m.SetVector("_KneeL", J("Knie links"));
+            var top = J("Scheitel");
+            m.SetVector("_Head", top + new Vector3(0, -0.12f, 0.08f));
+            m.SetVector("_HandR", (J("Handgelenk rechts") + J("Fingerspitze rechts")) / 2);
+            m.SetVector("_HandL", (J("Handgelenk links") + J("Fingerspitze links")) / 2);
+            return m;
+        }
+
         public static Material Lit(Color color, float smoothness, bool doubleSided = false)
         {
             var sh = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");

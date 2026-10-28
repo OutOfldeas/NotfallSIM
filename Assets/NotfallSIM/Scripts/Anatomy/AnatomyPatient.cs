@@ -60,7 +60,7 @@ namespace NotfallSIM.Anatomy
             if (sim != null && sim.Scenario != null && sim.Scenario.patient != null && sim.Scenario.patient.height_cm > 100)
                 height = (float)sim.Scenario.patient.height_cm / 100f;
 
-            _skin = AnatomyBuilder.Lit(SkinTone, 0.38f);
+            _skin = AnatomyBuilder.SkinMaterial(SkinTone);
             _shorts = AnatomyBuilder.Lit(new Color(0.12f, 0.15f, 0.22f), 0.15f);
             var xs = Resources.Load<Shader>("XRay") ?? Shader.Find("NotfallSIM/XRay");
             _xray = xs != null ? new Material(xs) : AnatomyBuilder.Lit(new Color(0.4f, 0.7f, 1f, 0.2f), 0.5f);
@@ -278,7 +278,16 @@ namespace NotfallSIM.Anatomy
             if (_bsLeft >= 0) _rig.Skin.SetBlendShapeWeight(_bsLeft, 100 * b * depth * (1 - 0.9f * tp));
             if (_bsAbd >= 0) _rig.Skin.SetBlendShapeWeight(_bsAbd, 100 * b * depth * 0.8f);
 
-            // Hautfarbe: Blässe mit dem Blutverlust, Zyanose bei niedriger Sättigung
+            // Hautfarbe aus der Durchblutung (skin.json): Blässe, Schweiß, Marmorierung, Zyanose aus kapillärem Desoxy-Hb
+            if (_skin.HasProperty("_Pallor") && AnatomyBuilder.SkinData != null)
+            {
+                var st = SkinPerfusion.Evaluate(AnatomyBuilder.SkinData, v);
+                _skin.SetFloat("_Pallor", st.Pallor);
+                _skin.SetFloat("_Sweat", st.Sweat);
+                _skin.SetFloat("_Mottling", st.Mottling);
+                _skin.SetFloat("_Cyanosis", st.Cyanosis);
+                return;
+            }
             float pale = Mathf.Clamp01(((float)v.BloodLossFraction - 0.15f) / 0.3f);
             float cyan = Mathf.Clamp01((92f - (float)v.SpO2_percent) / 20f);
             if (v.CardiacArrest) { pale = 1; cyan = Mathf.Max(cyan, 0.5f); }

@@ -22,6 +22,7 @@ mcs -nologo -warnaserror- \
     $SCRIPTS/Anatomy/AnatomyInjuryMap.cs \
     $SCRIPTS/Anatomy/TissueDatabase.cs \
     $SCRIPTS/Anatomy/SkinMarks.cs \
+    $SCRIPTS/Anatomy/SkinPerfusion.cs \
     $SCRIPTS/Crash/InjuryRisk.cs \
     $SCRIPTS/Crash/OrganMechanics.cs \
     $SCRIPTS/Crash/MuscleTone.cs \
