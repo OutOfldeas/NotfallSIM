@@ -1,6 +1,6 @@
 {
   "version": "0.2.0",
-  "note": "Messwerte aus der Unfall-Sandbox → Risiko je AIS-Stufe → Verletzungen der Datenbank. Anteile (share) und Schweregrade sind didaktische Setzungen. Abdomen.lateral: −1 Anprall von links, +1 von rechts (Milz links, Leber rechts). Thorax: Deflexion und Viscous Criterion aus einem Sternum-Feder-Dämpfer-Modell; Brustbeschleunigung an der Wirbelsäule. Hals (Nij) wird angezeigt, aber noch keiner Verletzung zugeordnet.",
+  "note": "Messwerte aus der Unfall-Sandbox → Risiko je AIS-Stufe → Verletzungen der Datenbank. Anteile (share) und Schweregrade sind didaktische Setzungen. Abdomen.lateral: −1 Anprall von links, +1 von rechts. Milz und Leber über das Organmodell (organ_model.json): Organdehnung gegen Versagensdehnung des Gewebes (tissues.json). Thorax: Deflexion und Viscous Criterion aus einem Sternum-Feder-Dämpfer-Modell; Brustbeschleunigung an der Wirbelsäule. Hals (Nij) wird angezeigt, aber noch keiner Verletzung zugeordnet.",
   "metrics": [
     {
       "id": "HIC15",
@@ -301,6 +301,131 @@
       ],
       "evidenceStatus": "draft",
       "reviewNotes": "Kurvenform und Parameter sind didaktische Setzungen, angelehnt an den Grenzwert. Ein starres Ragdoll misst keine Dummy-Werte; die Zahlen sind qualitativ. Fußgängerschutz misst mit dem Beinimpaktor Biegemoment und Beschleunigung; hier nur Kontaktkraft."
+    },
+    {
+      "id": "Abdomen.C",
+      "label": "Kompression Abdomen (Organmodell)",
+      "unit": "%",
+      "region": "Abdomen",
+      "ais": "",
+      "limit": 44,
+      "limitSource": "Viano 1989 (seitlich, 25 % kritisch)",
+      "curve": {
+        "type": "none",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 0,
+        "shape": 0
+      },
+      "sources": [
+        {
+          "citation": "Organmodell (organ_model.json) mit Gewebedaten (tissues.json): Kemper et al. 2011/2013 (Kompression Milz/Leber), Kemper et al. 2010 (Streuung), Hardy et al. 2001 (Bauchsteifigkeit), Viano et al. 1989 (Kontrolle).",
+          "url": "",
+          "note": "Herleitung in docs/LITERATUR.md, Abschnitt Organbelastung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Eindrückung = Kontaktkraft / 27 kN/m (Hardy 2001), bezogen auf Bauchtiefe bzw. -breite aus dem Anatomiemodell. Nur Anzeige."
+    },
+    {
+      "id": "Leber.Kompression",
+      "label": "Leber – Stauchung / Versagensstauchung",
+      "unit": "%",
+      "region": "Abdomen",
+      "ais": "Riss",
+      "limit": 100,
+      "limitSource": "Versagensdehnung Leber (Kemper 2013)",
+      "curve": {
+        "type": "normal",
+        "mu": 100,
+        "sigma": 33.3,
+        "x50": 0,
+        "shape": 0
+      },
+      "sources": [
+        {
+          "citation": "Organmodell (organ_model.json) mit Gewebedaten (tissues.json): Kemper et al. 2011/2013 (Kompression Milz/Leber), Kemper et al. 2010 (Streuung), Hardy et al. 2001 (Bauchsteifigkeit), Viano et al. 1989 (Kontrolle).",
+          "url": "",
+          "note": "Herleitung in docs/LITERATUR.md, Abschnitt Organbelastung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Ausnutzung = Organdehnung / Versagensdehnung bei der Dehnrate des Anpralls. Risiko = Anteil der Spender, deren Gewebe bei dieser Dehnung versagt (Normalverteilung, CV aus den Zugversuchen). Kraft stammt von einem starren Ragdoll — qualitativ."
+    },
+    {
+      "id": "Milz.Kompression",
+      "label": "Milz – Stauchung / Versagensstauchung",
+      "unit": "%",
+      "region": "Abdomen",
+      "ais": "Riss",
+      "limit": 100,
+      "limitSource": "Versagensdehnung Milz (Kemper 2011)",
+      "curve": {
+        "type": "normal",
+        "mu": 100,
+        "sigma": 33.3,
+        "x50": 0,
+        "shape": 0
+      },
+      "sources": [
+        {
+          "citation": "Organmodell (organ_model.json) mit Gewebedaten (tissues.json): Kemper et al. 2011/2013 (Kompression Milz/Leber), Kemper et al. 2010 (Streuung), Hardy et al. 2001 (Bauchsteifigkeit), Viano et al. 1989 (Kontrolle).",
+          "url": "",
+          "note": "Herleitung in docs/LITERATUR.md, Abschnitt Organbelastung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Ausnutzung = Organdehnung / Versagensdehnung bei der Dehnrate des Anpralls. Risiko = Anteil der Spender, deren Gewebe bei dieser Dehnung versagt (Normalverteilung, CV aus den Zugversuchen). Kraft stammt von einem starren Ragdoll — qualitativ."
+    },
+    {
+      "id": "Niere links.Kompression",
+      "label": "Niere links – Querdehnung / Reißdehnung",
+      "unit": "%",
+      "region": "Abdomen",
+      "ais": "Riss",
+      "limit": 100,
+      "limitSource": "Versagensdehnung Niere (Siripurapu 2013)",
+      "curve": {
+        "type": "normal",
+        "mu": 100,
+        "sigma": 33.3,
+        "x50": 0,
+        "shape": 0
+      },
+      "sources": [
+        {
+          "citation": "Organmodell (organ_model.json) mit Gewebedaten (tissues.json): Kemper et al. 2011/2013 (Kompression Milz/Leber), Kemper et al. 2010 (Streuung), Hardy et al. 2001 (Bauchsteifigkeit), Viano et al. 1989 (Kontrolle).",
+          "url": "",
+          "note": "Herleitung in docs/LITERATUR.md, Abschnitt Organbelastung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Ausnutzung = Organdehnung / Versagensdehnung bei der Dehnrate des Anpralls. Risiko = Anteil der Spender, deren Gewebe bei dieser Dehnung versagt (Normalverteilung, CV aus den Zugversuchen). Kraft stammt von einem starren Ragdoll — qualitativ."
+    },
+    {
+      "id": "Niere rechts.Kompression",
+      "label": "Niere rechts – Querdehnung / Reißdehnung",
+      "unit": "%",
+      "region": "Abdomen",
+      "ais": "Riss",
+      "limit": 100,
+      "limitSource": "Versagensdehnung Niere (Siripurapu 2013)",
+      "curve": {
+        "type": "normal",
+        "mu": 100,
+        "sigma": 33.3,
+        "x50": 0,
+        "shape": 0
+      },
+      "sources": [
+        {
+          "citation": "Organmodell (organ_model.json) mit Gewebedaten (tissues.json): Kemper et al. 2011/2013 (Kompression Milz/Leber), Kemper et al. 2010 (Streuung), Hardy et al. 2001 (Bauchsteifigkeit), Viano et al. 1989 (Kontrolle).",
+          "url": "",
+          "note": "Herleitung in docs/LITERATUR.md, Abschnitt Organbelastung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Ausnutzung = Organdehnung / Versagensdehnung bei der Dehnrate des Anpralls. Risiko = Anteil der Spender, deren Gewebe bei dieser Dehnung versagt (Normalverteilung, CV aus den Zugversuchen). Kraft stammt von einem starren Ragdoll — qualitativ."
     }
   ],
   "injuries": [
@@ -390,27 +515,27 @@
     },
     {
       "injuryId": "milzruptur",
-      "metric": "Abdomen.F",
-      "share": 0.7,
+      "metric": "Milz.Kompression",
+      "share": 1.0,
       "severityMin": 0.5,
       "severityMax": 0.95,
       "onsetMin_s": 0,
       "onsetMax_s": 0,
-      "conditionMetric": "Abdomen.lateral",
-      "conditionMin": -1,
-      "conditionMax": 0.3
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
     },
     {
       "injuryId": "leberlazeration",
-      "metric": "Abdomen.F",
-      "share": 0.7,
+      "metric": "Leber.Kompression",
+      "share": 1.0,
       "severityMin": 0.5,
       "severityMax": 0.95,
       "onsetMin_s": 0,
       "onsetMax_s": 0,
-      "conditionMetric": "Abdomen.lateral",
-      "conditionMin": -0.3,
-      "conditionMax": 1
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
     },
     {
       "injuryId": "becken_instabil",

@@ -189,9 +189,36 @@ Die Sandbox misst am Ragdoll wie an einem Crashtest-Dummy und übersetzt die Wer
 | Brustkorbdeflexion | 63 mm (FMVSS 208) | log-logistisch, x50 55 mm | didaktisch; Laituri 2005 übernehmen |
 | Viscous Criterion | 1,0 m/s (ECE R94) | log-logistisch durch VC 1,0 m/s ≈ 25 % AIS4+ (Lau & Viano 1986) | Ankerpunkt veröffentlicht, Form didaktisch |
 | Brustbeschleunigung, 3-ms-Clip (CFC 180) | 60 g (FMVSS 208) | log-logistisch, x50 75 g | didaktisch |
-| Kontaktkraft Thorax / Abdomen / Becken, 3 ms | – / 2,5 kN / 6 kN (Euro NCAP, Seite) | log-logistisch | didaktisch |
+| Kontaktkraft Thorax / Abdomen / Becken, 3 ms | – / 2,5 kN / 6 kN (Euro NCAP, Seite) | log-logistisch | didaktisch; Abdomen nur noch Anzeige |
+| Stauchung Leber / Milz, Querdehnung Nieren | Versagensdehnung des Gewebes | Normalverteilung der Versagensdehnung (Organmodell, siehe unten) | aus Gewebedaten hergeleitet |
 | Axiale Femurkraft | 10 kN (FMVSS 208) | log-logistisch, x50 11 kN | didaktisch |
 | Kontaktkraft Ober-/Unterschenkel, 3 ms | – | log-logistisch | didaktisch |
+
+### Organbelastung beim Bauchanprall (`organ_model.json`)
+
+Milzruptur und Leberlazeration entstehen in der Sandbox nicht mehr aus einer pauschalen Kraftkurve, sondern aus der Dehnung des Organs im Vergleich zur Belastbarkeit seines Gewebes (`tissues.json`). Kette in `OrganMechanics.cs` (ohne Unity, getestet):
+
+1. **Eindrückung:** Kontaktkraft am Abdomen (Summe der Kontakte, CFC 600) geteilt durch die dynamische Bauchsteifigkeit **27 kN/m** — Leichenversuche mit starrem Stab bei 6,3 m/s (Hardy et al. 2001; Cavanaugh et al. 1986: 21 kN/m).
+2. **Kompression C** = Eindrückung / Bauchtiefe (frontal) bzw. Bauchbreite (seitlich, |lateral| > 0,3). Maße aus dem eigenen Anatomiemodell (BodyParts3D, Rumpfhaut auf Höhe LWK 1: Tiefe 0,226 m, Breite 0,289 m bei 1,651 m Körperhöhe), mit der Patientengröße skaliert. Begrenzt auf 80 %.
+3. **Lastpfad:** Organe werden gleichmäßig um C gestaucht (Annahme), Organe auf der Gegenseite eines seitlichen Anpralls nicht: Exposition e = clamp(1 + Seite · lateral, 0, 1) — didaktische Setzung, passend zur Felddaten-Verteilung (seitlich nahe Seite: Milz 47 %, Leber 13 % der AIS3+-Abdominalverletzungen; Yoganandan 2000).
+4. **Dehnung:** Leber und Milz als wahre Stauchung −ln(1 − e·C), verglichen mit der Kompressions-Versagensdehnung (Kemper et al. 2013 Leber: 0,94 / 0,73 / 0,61 / 0,60; Kemper et al. 2011 Milz: 0,52 / 0,51 / 0,48 / 0,46 bei 0,01 / 0,1 / 1 / 10 s⁻¹). Nieren: keine Druckdaten — Querdehnung bei inkompressiblem Gewebe (1 − C)^−½ − 1 gegen die Zug-Reißdehnung (Siripurapu 2013).
+5. **Dehnrate:** wahre Spitzendehnung / Anstiegszeit (ab 5 % der Spitze); Versagensdehnung log-linear zwischen den Messraten interpoliert, außerhalb der nächste Messwert (Anpralle liegen meist über 10 s⁻¹).
+6. **Risiko** = Anteil der Spender, deren Gewebe bei dieser Dehnung versagt hätte: Φ((u − 1) / CV) mit u = Dehnung / Versagensdehnung. CV aus den Zugversuchen: Leber 0,10 / 0,30 = 0,33 (Kemper 2010, auch für die Milz verwendet, weil dort je Dehnrate nur Mittelwerte veröffentlicht sind), Niere 0,138 / 0,415 = 0,33.
+
+**Kontrolle gegen Leichenversuche** (Test `Organmodell`):
+
+| Fall | Modell | Literatur |
+|---|---|---|
+| Seitlich, 44 % Kompression, Milz (nahe Seite) | 78 % Riss | 25 % *kritische* Verletzung (AIS4+) bei 44 % (Viano et al. 1989) |
+| Seitlich, 44 % Kompression, Leber (nahe Seite) | 46 % Riss | wie oben |
+| 9,6 % Kompression (erster Knickpunkt der Kraftkurve, Hardy 2001) | 1 % | keine Organverletzung erwartet |
+
+Das Modell gibt die Wahrscheinlichkeit für einen Riss *jeden* Grades an; dass sie bei Vianos Toleranzwert über 25 % (nur kritische Verletzungen) liegt, ist deshalb erwartbar. Die Milz versagt früher als die Leber (geringere Versagensdehnung) — passend dazu, dass sie bei seitlichem Anprall das am häufigsten verletzte Organ ist.
+
+Kraft → Risiko (Körpergröße 1,80 m, frontal): 1 kN → C 15 %, Leber 1 %; 2 kN → 30 %, 11 %; 3 kN → 45 %, 50 %; 4 kN → 60 %, 94 %.
+
+**Grenzen:** Die Kontaktkraft stammt von einem starren Ragdoll, nicht von einem nachgiebigen Bauch — das Modell rechnet die Eindrückung nachträglich aus der Kraft, statt sie zu simulieren. Die Steifigkeit steigt in den Versuchen mit der Geschwindigkeit (63 kN/m bei 9,2 m/s); verwendet wird der Wert bei 6,3 m/s, bei schnellen Anprallen ist die Eindrückung daher eher überschätzt. Gleichmäßige Stauchung aller Organe im Lastpfad, Schutz durch die unteren Rippen und Organbewegung bei Dezeleration (Abriss an Bändern und Gefäßstielen) sind nicht modelliert. Nieren haben noch keine Verletzung in der Datenbank (nur Anzeige).
+
 
 **Kalibrierung (`calibration.json`):** Referenztests aus NHTSA-Berichten stellt die Sandbox auf Knopfdruck je dreimal nach. Faktor = Referenzwert / Mittel der Sandbox, begrenzt auf 0,25–4, gemittelt über alle Referenzen; danach gilt: angezeigter Wert = Messwert × Faktor. Erste Referenz: NHTSA FMVSS-208-Test 2004, Jeep Liberty, Fahrer (Hybrid III 95. Perzentil): HIC15 575, Brust 46 g, Deflexion 32,5 mm, Nij 0,31. Eine einzelne Referenz ist schwach — weitere Testberichte ergänzen (NHTSA Vehicle Crash Test Database). Faktoren weit weg von 1 bedeuten, dass das Modell selbst nachgebessert werden muss (z. B. Gurt- oder Brustkorbsteifigkeit).
 
@@ -295,6 +322,8 @@ Mechanische Eigenschaften der Gewebe: 19 Gewebetypen, 89 Einzelmessungen aus 21 
 - [ ] Gewebe: Volltexte für Herzmuskel (Sommer 2015), Rückenmark (Bilston & Thibault 1996), Nierenkapsel (Snedeker 2005), Magen-Darm (Egorov 2002) und Harnblase prüfen und Werte ergänzen
 - [ ] Gewebe: Werte je Dehnrate für Milz und Leber im Original (Kemper 2010/2012) gegenprüfen (hier aus Sammeltabelle in Accidental Injury, Kap. 14)
 - [ ] Gewebe: menschliche Lungendaten suchen (bisher Schwein)
+- [ ] Organmodell: Bauchsteifigkeit geschwindigkeitsabhängig (Hardy 2001: 27 → 63 kN/m) und Rippenschutz von Leber/Milz ergänzen; Nierenverletzung in die Datenbank aufnehmen
+- [ ] Organmodell: Dezelerationsverletzungen (Aortenisthmus, Leberbänder, Nierenstiel) als Masse-Feder-Modell ergänzen
 - [ ] Weibliches Anatomiemodell (z. B. Z-Anatomy, ebenfalls CC BY-SA) für Patientinnen prüfen
 
 ## Quellen
@@ -365,5 +394,9 @@ Mechanische Eigenschaften der Gewebe: 19 Gewebetypen, 89 Einzelmessungen aus 21 
 55. Gaur P, Chawla A, Verma K, et al. Characterisation of human diaphragm at high strain rate loading. J Mech Behav Biomed Mater. 2016;60:603-616. [Link](https://www.imechanica.org/sites/default/files/diaphragm.pdf)
 56. Howes MK, Hardy WN. Dynamic material properties of the post-mortem human colon. Proc IRCOBI Conf. 2013 (Paper 20). [Link](https://wbldb.lievers.net/10098480.html)
 57. Polio SR et al. Cross-platform mechanical characterization of lung tissue. PLoS One. 2018. Zitiert nach: An analytical model for estimating alveolar wall elastic moduli from lung tissue uniaxial stress-strain curves. Front Physiol. 2020;11:121. doi:10.3389/fphys.2020.00121 [Link](https://www.frontiersin.org/articles/10.3389/fphys.2020.00121/full)
+
+58. Hardy WN, Schneider LW, Rouhana SW. Abdominal impact response to rigid-bar, seatbelt, and airbag loading. *Stapp Car Crash J*. 2001;45:1-32. (Werte zitiert nach Kap. 14 in Accidental Injury, 3. Aufl., Springer 2015)
+59. Viano DC, Lau IV, Asbury C, King AI, Begeman P. Biomechanics of the human chest, abdomen, and pelvis in lateral impact. *Accid Anal Prev*. 1989;21(6):553-574. [TRID](https://trid.trb.org/View/302819)
+60. Cavanaugh JM, Nyquist GW, Goldberg SJ, King AI. Lower abdominal tolerance and response. SAE 861878; 1986. (zitiert nach Kap. 14 in Accidental Injury)
 
 Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.

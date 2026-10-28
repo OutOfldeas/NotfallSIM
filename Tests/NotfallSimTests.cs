@@ -69,6 +69,7 @@ static class Tests
         Run("Crash: Risikodaten konsistent", RiskDataConsistent);
         Run("Biomechanik: CFC-Filter (SAE J211), Viscous Criterion, Nij", FiltersAndCriteria);
         Run("Kalibrierung: Faktoren aus Referenz, begrenzt, angewandt", CalibrationLogic);
+        Run("Organmodell: Versagensdehnung je Dehnrate, Seite, Kontrollfälle Viano/Hardy, Daten konsistent", OrganModel);
         Run("Crash: harter Aufprall verletzt, leichter nicht, Seite bestimmt Milz/Leber", CrashScenario);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
@@ -1110,27 +1111,108 @@ static class Tests
         var metrics = new HashSet<string>(r.metrics.Select(m => m.id));
         foreach (var m in r.metrics)
         {
-            Check(m.curve.type == "lognormal" || m.curve.type == "loglogistic", $"{m.id}: Kurve {m.curve.type}");
+            Check(m.curve.type == "lognormal" || m.curve.type == "loglogistic" || m.curve.type == "normal" && m.curve.sigma > 0 || m.curve.type == "none", $"{m.id}: Kurve {m.curve.type}");
             Check(m.sources.Length > 0, $"{m.id}: keine Quelle");
         }
         foreach (var l in r.injuries)
         {
             Check(ids.Contains(l.injuryId), $"unbekannte Verletzung {l.injuryId}");
             Check(metrics.Contains(l.metric), $"unbekannter Messwert {l.metric}");
+            Check(r.metrics.First(m => m.id == l.metric).curve.type != "none", $"{l.injuryId}: Messwert {l.metric} ist nur Anzeige");
             Check(l.share > 0 && l.share <= 1 && l.severityMin <= l.severityMax, $"{l.injuryId}/{l.metric}: Werte");
         }
+    }
+
+    static OrganModelFile Organs => Load<OrganModelFile>("organ_model.json");
+    static TissueDatabase Tissues => new TissueDatabase(Load<TissueDatabaseFile>("tissues.json"));
+
+    /// <summary>Kompressionsverlauf: Rampe in 10 ms auf <paramref name="c"/>, 10 ms halten, 10 ms zurück (dt 0,1 ms).</summary>
+    static List<double> Ramp(double c)
+    {
+        var l = new List<double>();
+        for (int i = 0; i < 100; i++) l.Add(c * i / 100.0);
+        for (int i = 0; i < 100; i++) l.Add(c);
+        for (int i = 100; i >= 0; i--) l.Add(c * i / 100.0);
+        return l;
+    }
+
+    static void OrganModel()
+    {
+        var model = Organs; var tissues = Tissues; var risk = Risk;
+        var sources = new HashSet<string>(model.sources.Select(x => x.id));
+        Check(sources.Contains(model.abdomen.stiffnessSourceId) && sources.Contains(model.abdomen.geometrySourceId), "Quelle Bauchmodell");
+        Check(model.abdomen.stiffness_N_per_m > 1e4 && model.abdomen.depthFrontal_m > 0.15 && model.abdomen.widthLateral_m > model.abdomen.depthFrontal_m, "Bauchmaße/Steifigkeit");
+        foreach (var o in model.organs)
+        {
+            var t = tissues.Get(o.tissueId);
+            Check(t != null, o.id + ": Gewebe " + o.tissueId);
+            string prop = o.criterion == "compression" ? "failureStrainCompression" : "failureStrain";
+            Check(OrganMechanics.FailureStrainAtRate(t, prop, 1) > 0, o.id + ": keine Versagensdehnung");
+            Check(o.side == -1 || o.side == 1, o.id + ": Seite");
+            var metric = risk.metrics.FirstOrDefault(m => m.id == o.metric);
+            Check(metric != null && metric.curve.type == "normal" && metric.curve.mu == 100, o.id + ": Messwert/Kurve in injury_risk.json");
+            var load = OrganMechanics.FromCompression(model, tissues, Ramp(0.3), 1e-4, 0, 0.25).Organs.First(x => x.Organ.id == o.id);
+            Check(load.Cv > 0.1 && load.Cv < 0.6, o.id + $": CV {load.Cv}");
+            Check(Math.Abs(metric.curve.sigma - Math.Round(load.Cv * 100, 1)) < 0.051, o.id + $": sigma {metric.curve.sigma} passt nicht zu CV {load.Cv:F3}");
+        }
+        // Dehnrate: Mittelwerte bei 0,01/0,1/1/10 s⁻¹, dazwischen log-linear, außerhalb der nächste Wert
+        var liver = tissues.Get("leber");
+        Func<double, double> ef = r => OrganMechanics.FailureStrainAtRate(liver, "failureStrainCompression", r);
+        Check(Math.Abs(ef(1) - 0.61) < 1e-6 && Math.Abs(ef(10) - 0.60) < 1e-6 && Math.Abs(ef(500) - 0.60) < 1e-6 && Math.Abs(ef(0.001) - 0.94) < 1e-6, "Stützstellen Leber");
+        Check(Math.Abs(ef(Math.Sqrt(0.1)) - 0.67) < 1e-6, $"Interpolation {ef(Math.Sqrt(0.1))}");
+        Check(Math.Abs(OrganMechanics.FailureStrainAtRate(tissues.Get("milz"), "failureStrain", 1) - 0.19) < 1e-6, "Milz Zug: Kapselproben dürfen nicht mitzählen");
+        Check(Math.Abs(OrganMechanics.TrueStrain(0.5) - Math.Log(2)) < 1e-12, "wahre Dehnung");
+
+        // Kontrollfälle aus Leichenversuchen
+        foreach (var v in model.validation)
+        {
+            Check(sources.Contains(v.sourceId), v.description + ": Quelle");
+            var load = OrganMechanics.FromCompression(model, tissues, Ramp(v.compression), 1e-4, v.lateral, 0.289);
+            double pr = load.Organs.First(o => o.Organ.id == v.organ).Probability;
+            Check(pr >= v.minProbability && pr <= v.maxProbability, $"{v.description} → {pr:P0}");
+        }
+        // Seite: Anprall von links trifft die Milz, nicht die Leber; frontal beide
+        var left = OrganMechanics.FromCompression(model, tissues, Ramp(0.45), 1e-4, -1, 0.289);
+        Func<AbdomenLoad, string, OrganLoad> org = (l, id) => l.Organs.First(o => o.Organ.id == id);
+        Check(org(left, "leber").Probability == 0 && org(left, "milz").Probability > 0.5 && org(left, "niere_links").Exposure == 1, "links");
+        var front = OrganMechanics.FromCompression(model, tissues, Ramp(0.45), 1e-4, 0, 0.226);
+        Check(org(front, "leber").Exposure == 1 && org(front, "milz").Exposure == 1, "frontal");
+        // Milz versagt früher als Leber (Kemper 2011/2013), Risiko wächst mit der Kompression
+        Check(org(front, "milz").Probability > org(front, "leber").Probability, "Milz nicht empfindlicher als Leber");
+        double prev = -1;
+        foreach (var c in new[] { 0.05, 0.15, 0.25, 0.35, 0.45, 0.55 })
+        {
+            double pr = org(OrganMechanics.FromCompression(model, tissues, Ramp(c), 1e-4, 0, 0.226), "leber").Probability;
+            Check(pr > prev || pr == 1, $"nicht monoton bei {c}"); prev = pr;
+        }
+        // Belastungsbeginn bei 5 % der Spitze (Probe 6), Spitze bei Probe 100
+        Check(Math.Abs(front.StrainRate_per_s - OrganMechanics.TrueStrain(0.45) / (94 * 1e-4)) < 0.01, $"Dehnrate {front.StrainRate_per_s}");
+        // Kraft → Kompression: 3,5 kN seitlich am Modellkörper = 3500 / 27000 / 0,289
+        var force = Ramp(3500);
+        var ev = OrganMechanics.Evaluate(model, tissues, force, 1e-4, -1, model.abdomen.modelHeight_m);
+        Check(ev.Lateral && Math.Abs(ev.PeakCompression - 3500 / 27000.0 / 0.289) < 1e-6, $"Kompression {ev.PeakCompression}");
+        var big = OrganMechanics.Evaluate(model, tissues, Ramp(1e5), 1e-4, 0, 1.8);
+        Check(big.PeakCompression == model.abdomen.maxCompression, "Begrenzung");
+        var ms = OrganMechanics.Measurements(ev);
+        Check(ms.Any(m => m.metric == "Abdomen.C") && model.organs.All(o => ms.Any(m => m.metric == o.metric)), "Messwerte");
+        // Über injury_risk.json: Kurve liefert dasselbe Risiko wie das Organmodell
+        var sp = org(ev, "milz");
+        double viaCurve = InjuryRisk.Probability(risk.metrics.First(m => m.id == "Milz.Kompression").curve, sp.Utilization * 100);
+        Check(Math.Abs(viaCurve - sp.Probability) < 0.002, $"Kurve {viaCurve:P1} vs Modell {sp.Probability:P1}");
     }
 
     static void CrashScenario()
     {
         var mech = Mechanisms; var inj = Injuries.injuries;
+        var organs = Organs; var tissues = Tissues;
         Func<double, double, double, List<CrashMeasurement>> meas = (hic, thoraxG, lateral) => new List<CrashMeasurement> {
             new CrashMeasurement { metric = "HIC15", value = hic }, new CrashMeasurement { metric = "Thorax.a3ms", value = thoraxG },
             new CrashMeasurement { metric = "Thorax.F", value = thoraxG / 15 }, new CrashMeasurement { metric = "Abdomen.F", value = thoraxG / 12 },
             new CrashMeasurement { metric = "Abdomen.lateral", value = lateral }, new CrashMeasurement { metric = "Becken.F", value = thoraxG / 10 },
             new CrashMeasurement { metric = "Oberschenkel rechts.F", value = thoraxG / 6 }, new CrashMeasurement { metric = "Unterschenkel rechts.F", value = thoraxG / 15 },
             new CrashMeasurement { metric = "Thorax.D", value = thoraxG * 0.6 }, new CrashMeasurement { metric = "Thorax.VC", value = thoraxG / 80 },
-            new CrashMeasurement { metric = "Oberschenkel rechts.Fax", value = thoraxG / 8 }, new CrashMeasurement { metric = "Nij", value = thoraxG / 100 } };
+            new CrashMeasurement { metric = "Oberschenkel rechts.Fax", value = thoraxG / 8 }, new CrashMeasurement { metric = "Nij", value = thoraxG / 100 } }
+            .Concat(OrganMechanics.Measurements(OrganMechanics.Evaluate(organs, tissues, Ramp(thoraxG / 12 * 1000), 1e-4, lateral, 1.8))).ToList();
         var setup = new CrashSetup { MechanismId = "pkw_seite", Speed_kmh = 60, Rescue_min = 30 };
         int hardInjured = 0, softInjured = 0, liver = 0, spleen = 0;
         for (uint seed = 1; seed <= 200; seed++)

@@ -22,6 +22,7 @@ mcs -nologo -warnaserror- \
     $SCRIPTS/Anatomy/AnatomyInjuryMap.cs \
     $SCRIPTS/Anatomy/TissueDatabase.cs \
     $SCRIPTS/Crash/InjuryRisk.cs \
+    $SCRIPTS/Crash/OrganMechanics.cs \
     Tests/NotfallSimTests.cs
 
 mono "$OUT/tests.exe" Assets/StreamingAssets/NotfallSIM

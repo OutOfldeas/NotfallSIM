@@ -202,6 +202,14 @@ namespace NotfallSIM.Crash
             var lat = measurements.FirstOrDefault(x => x.metric == "Abdomen.lateral");
             if (lat != null && Mathf.Abs((float)lat.value) > 0.2f)
                 sb.AppendLine($"Rumpfanprall überwiegend von {(lat.value < 0 ? "links" : "rechts")}");
+            var organLoad = rig.LastAbdomenLoad;
+            if (organLoad != null && organLoad.PeakCompression > 0.01)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"<b>Organbelastung</b> <size=80%>(Bauch {(organLoad.Lateral ? "seitlich" : "frontal")} um {organLoad.PeakDeflection_m * 1000:0} mm = {organLoad.PeakCompression:P0} eingedrückt, Dehnrate {organLoad.StrainRate_per_s:0.#}/s)</size>");
+                foreach (var o in organLoad.Organs.Where(x => x.Exposure > 0))
+                    sb.AppendLine($"{o.Organ.label}: Dehnung {o.Strain:P0} von {o.FailureStrain:P0} bis zum Riss → {o.Probability:P0}");
+            }
             sb.AppendLine();
             sb.AppendLine("<b>Wahrscheinlichkeit je Verletzung</b>");
             foreach (var kv in _result.InjuryProbability.OrderByDescending(x => x.Value).Where(x => x.Value >= 0.01))

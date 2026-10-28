@@ -1,0 +1,102 @@
+{
+  "version": "1.0.0",
+  "note": "Organbelastung beim Bauchanprall (Unfall-Sandbox). Kontaktkraft am Abdomen → Eindrückung D = F / k mit der dynamischen Bauchsteifigkeit aus Leichenversuchen → Kompression C = D / Bauchtiefe (frontal) bzw. -breite (seitlich) → Organe im Lastpfad werden gleichmäßig um C·Exposition gestaucht (Annahme) → Vergleich mit der Kompressions-Versagensdehnung des Gewebes bei der Dehnrate des Anpralls (tissues.json, wahre Dehnung). Ausnutzung u = Dehnung / Versagensdehnung; Rissrisiko = Φ((u − 1) / CV), CV = Variationskoeffizient der Versagensdehnung zwischen Spendern. Exposition: Organe auf der Gegenseite eines seitlichen Anpralls liegen nicht im Lastpfad, e = clamp(1 + Seite · lateral, 0, 1) (didaktische Setzung).",
+  "abdomen": {
+    "stiffness_N_per_m": 27000,
+    "stiffnessSourceId": "hardy2001",
+    "maxCompression": 0.8,
+    "modelHeight_m": 1.651,
+    "depthFrontal_m": 0.226,
+    "widthLateral_m": 0.289,
+    "geometrySourceId": "bodyparts3d",
+    "lateralThreshold": 0.3,
+    "loadStartFraction": 0.05
+  },
+  "organs": [
+    {
+      "id": "leber",
+      "label": "Leber",
+      "tissueId": "leber",
+      "side": 1,
+      "criterion": "compression",
+      "cvFrom": "leber_e1",
+      "metric": "Leber.Kompression"
+    },
+    {
+      "id": "milz",
+      "label": "Milz",
+      "tissueId": "milz",
+      "side": -1,
+      "criterion": "compression",
+      "cvFrom": "leber_e1",
+      "metric": "Milz.Kompression"
+    },
+    {
+      "id": "niere_links",
+      "label": "Niere links",
+      "tissueId": "niere",
+      "side": -1,
+      "criterion": "tension_incompressible",
+      "cvFrom": "niere_e1",
+      "metric": "Niere links.Kompression"
+    },
+    {
+      "id": "niere_rechts",
+      "label": "Niere rechts",
+      "tissueId": "niere",
+      "side": 1,
+      "criterion": "tension_incompressible",
+      "cvFrom": "niere_e1",
+      "metric": "Niere rechts.Kompression"
+    }
+  ],
+  "validation": [
+    {
+      "description": "Seitlicher Anprall, Abdomen: Kompression 44 % ≈ 25 % Risiko kritischer Verletzung (Viano et al. 1989, Leichenversuche).",
+      "compression": 0.44,
+      "lateral": -1,
+      "organ": "milz",
+      "minProbability": 0.25,
+      "maxProbability": 0.95,
+      "sourceId": "viano1989"
+    },
+    {
+      "description": "Seitlicher Anprall rechts: Kompression 44 % — Leber im Bereich der Toleranz (Viano 1989).",
+      "compression": 0.44,
+      "lateral": 1,
+      "organ": "leber",
+      "minProbability": 0.2,
+      "maxProbability": 0.8,
+      "sourceId": "viano1989"
+    },
+    {
+      "description": "Bruchpunkt der Kraft-Kompressions-Kurve bei 9,6 % (Hardy 2001, normiert): dort noch keine Organverletzung.",
+      "compression": 0.096,
+      "lateral": 0,
+      "organ": "leber",
+      "minProbability": 0,
+      "maxProbability": 0.02,
+      "sourceId": "hardy2001"
+    }
+  ],
+  "sources": [
+    {
+      "id": "hardy2001",
+      "citation": "Hardy WN, Schneider LW, Rouhana SW. Abdominal impact response to rigid-bar, seatbelt, and airbag loading. Stapp Car Crash J. 2001;45:1-32.",
+      "url": "https://www.springer.com/us/book/9781493917310",
+      "note": "Starrer Stab, 48 kg, 9 Leichen: dynamische Steifigkeit 27 kN/m (6,3 m/s) bzw. 63 kN/m (9,2 m/s); Knickpunkte der normierten Kurve bei 9,6 % und 27 % Kompression (Tiefe 289 mm). Werte zitiert nach Kap. 14 in Accidental Injury, 3. Aufl. (Springer 2015). Cavanaugh et al. 1986 (SAE 861878): 21 bzw. 70 kN/m."
+    },
+    {
+      "id": "viano1989",
+      "citation": "Viano DC, Lau IV, Asbury C, King AI, Begeman P. Biomechanics of the human chest, abdomen, and pelvis in lateral impact. Accid Anal Prev. 1989;21(6):553-574.",
+      "url": "https://trid.trb.org/View/302819",
+      "note": "Abdomen seitlich: 25 % Wahrscheinlichkeit kritischer Verletzung bei VC 1,98 m/s bzw. Kompression 44 % (Thorax 1,47 m/s bzw. 38 %; Becken 27 %)."
+    },
+    {
+      "id": "bodyparts3d",
+      "citation": "Mitsuhashi N et al. BodyParts3D: 3D structure database for anatomical concepts. Nucleic Acids Res. 2009;37:D782-D785. Hautschnitt des Modells auf Höhe LWK 1 (Rumpfhaut, ohne Arme), Modellhöhe 1,651 m; auf LWK 3: Breite 0,294 m, Tiefe 0,209 m.",
+      "url": "https://lifesciencedb.jp/bp3d/",
+      "note": "Wird mit der Körpergröße des Patienten skaliert."
+    }
+  ]
+}

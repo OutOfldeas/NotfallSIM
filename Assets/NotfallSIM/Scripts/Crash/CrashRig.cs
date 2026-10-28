@@ -355,8 +355,33 @@ namespace NotfallSIM.Crash
             double lat = 0, tot = 0;
             foreach (var r in new[] { "Thorax", "Abdomen", "Becken" })
                 foreach (var s in byRegion[r]) { lat += s.LateralImpulse; tot += s.TotalImpulse; }
-            add("Abdomen.lateral", tot > 0 ? lat / tot : 0);
+            double lateral = tot > 0 ? lat / tot : 0;
+            add("Abdomen.lateral", lateral);
+
+            // Organmodell: Kontaktkraft am Bauch → Kompression → Dehnung von Leber, Milz, Nieren gegen ihre Versagensdehnung
+            var organs = LoadOrganModel();
+            var tissues = Anatomy.AnatomyPatient.Tissues;
+            if (organs != null && tissues != null)
+            {
+                var abd = byRegion["Abdomen"];
+                var force_N = new List<double>();
+                for (int i = 0; i < abd[0].Force_kN.Count; i++) force_N.Add(abd.Sum(s => i < s.Force_kN.Count ? s.Force_kN[i] : 0) * 1000);
+                LastAbdomenLoad = OrganMechanics.Evaluate(organs, tissues, Biomechanics.Cfc(force_N, dt, 600), dt, lateral, p.Height_m);
+                result.AddRange(OrganMechanics.Measurements(LastAbdomenLoad));
+            }
             return result;
+        }
+
+        /// <summary>Organbelastung des letzten Crashs (für die Ergebnisanzeige); null ohne organ_model.json/tissues.json.</summary>
+        public AbdomenLoad LastAbdomenLoad { get; private set; }
+
+        static OrganModelFile _organModel;
+        static OrganModelFile LoadOrganModel()
+        {
+            if (_organModel != null) return _organModel;
+            string path = System.IO.Path.Combine(Data.InjuryDatabase.Root, "organ_model.json");
+            if (!System.IO.File.Exists(path)) { Debug.LogWarning("[Crash] organ_model.json fehlt — Milz/Leber ohne Organmodell."); return null; }
+            return _organModel = JsonUtility.FromJson<OrganModelFile>(System.IO.File.ReadAllText(path));
         }
 
         void OnDisable()

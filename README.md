@@ -59,6 +59,7 @@ Assets/
     findings.json                Normalbefunde je Körperregion (Diagnose-Modus)
     differentials.json           Differenzialdiagnosen ohne Physiologie, mit „spricht dagegen“
     injury_risk.json             Unfall-Sandbox: Messwerte → Risikokurven → Verletzungen
+    organ_model.json             Organmodell: Bauchkompression → Organdehnung gegen Gewebefestigkeit
     scenarios/*.json             Szenarien
 tools/anatomy/                   Aufbereitung der Anatomie (Python), erzeugt body.bin
 ```
@@ -152,6 +153,9 @@ den Schockraum (Schockraum-Szene muss erzeugt sein).
   Gelenknachbarn und Teile, die sich in der Ausgangshaltung schon berühren
 - Szenen und Crashpulse — `CrashRig.cs`; Sensoren — `CrashSensor.cs`
 - Kriterien und Risikokurven ohne Unity, getestet — `Biomechanics.cs`, `InjuryRisk.cs`, `injury_risk.json`
+- Organmodell für Milz, Leber, Nieren — `OrganMechanics.cs`, `organ_model.json`: Bauchkraft → Kompression
+  (27 kN/m, Hardy 2001) → Organstauchung gegen die Versagensdehnung des Gewebes bei der Dehnrate des Anpralls
+  (`tissues.json`, Kemper 2011/2013); geprüft gegen Leichenversuche (Viano 1989). Ergebnis unter „Organbelastung“
 - Messung wie beim Dummy: 10 kHz, SAE-J211-Filter, Brustkorbdeflexion über ein federndes Sternum,
   Viscous Criterion, Nij aus dem Halsgelenk, axiale Femurkraft; Fahrerairbag zuschaltbar
 - „Kalibrieren“ stellt die Referenztests aus `calibration.json` nach und speichert Korrekturfaktoren

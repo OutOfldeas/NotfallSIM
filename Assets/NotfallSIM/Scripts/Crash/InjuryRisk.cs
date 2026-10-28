@@ -12,6 +12,7 @@ namespace NotfallSIM.Crash
     public class RiskCurve
     {
         public string type;   // "lognormal": Φ((ln x − mu)/sigma) · "loglogistic": 1/(1 + (x50/x)^shape)
+                              // · "normal": Φ((x − mu)/sigma) · "none": nur Anzeige, Risiko 0
         public double mu, sigma;
         public double x50, shape;
     }
@@ -165,6 +166,9 @@ namespace NotfallSIM.Crash
                 return x <= 0 ? 0 : Biomechanics.NormalCdf((Math.Log(x) - c.mu) / c.sigma);
             if (c.type == "loglogistic") // geht bei kleinen Werten gegen 0, anders als die logistische Kurve
                 return x <= 0 ? 0 : 1 / (1 + Math.Pow(c.x50 / x, c.shape));
+            if (c.type == "normal") // Organmodell: Anteil der Spender, deren Gewebe bei dieser Ausnutzung versagt
+                return x <= 0 ? 0 : Biomechanics.NormalCdf((x - c.mu) / c.sigma);
+            if (c.type == "none") return 0;
             throw new ArgumentException("Unbekannter Kurventyp " + c.type);
         }
 
