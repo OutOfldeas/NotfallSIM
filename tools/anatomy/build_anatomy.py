@@ -610,7 +610,8 @@ def main():
     if hit:
         print('Kollisionsauflösung aus dem Zwischenspeicher')
     else:
-        collide.resolve(parts, skip=(lambda A, B: A.get('seeded') and B.get('seeded')) if seeded else None)
+        collide.resolve(parts, skip=(lambda A, B: A.get('seeded') and B.get('seeded')) if seeded else None,
+                        progress=os.path.join(PREVIEW, f'kollision_zwischenstand_{key[:12]}.pkl'))
         for q in parts: q.pop('seeded', None)
         os.makedirs(PREVIEW, exist_ok=True); pickle.dump((key, parts), open(cache, 'wb'))
         rest = collide.crossings(parts)

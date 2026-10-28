@@ -258,9 +258,22 @@ def hilum(a, b):
     return any((re.search(v, a) and re.search(o, b)) or (re.search(v, b) and re.search(o, a)) for v, o in HILUM)
 
 
-def resolve(parts, log=print, skip=None):
+def resolve(parts, log=print, skip=None, progress=None, every=10):
     """parts: Liste von dicts mit name, layer, pos, faces. Ändert pos an Ort und Stelle (nachgiebigere zuerst geprüft gegen festere).
-    skip(A, B) → True: Paar nicht prüfen (z. B. schon in einem früheren Lauf aufgelöst)."""
+    skip(A, B) → True: Paar nicht prüfen (z. B. schon in einem früheren Lauf aufgelöst).
+    progress: Datei für Zwischenstände — ein abgebrochener Lauf setzt dort fort (gleiche Teileliste vorausgesetzt)."""
+    import os, pickle
+    resumed = {}
+    if progress and os.path.exists(progress):
+        try:
+            resumed = pickle.load(open(progress, 'rb'))
+            if log: log(f'  Zwischenstand: {len(resumed)} Teile bereits bearbeitet')
+        except Exception: resumed = {}
+    def save():
+        if not progress: return
+        tmp = progress + '.tmp'
+        pickle.dump({parts[j]['name'] + '|' + parts[j]['layer']: (parts[j]['pos'], parts[j]['faces']) for j in done}, open(tmp, 'wb'))
+        os.replace(tmp, progress)
     vol = []
     for p in parts:
         try: vol.append(abs(trimesh.Trimesh(p['pos'], p['faces'], process=False).volume))
@@ -270,6 +283,13 @@ def resolve(parts, log=print, skip=None):
     moved = 0
     for i in order:
         B = parts[i]
+        key = B['name'] + '|' + B['layer']
+        if key in resumed:
+            B['pos'], B['faces'] = resumed[key]
+            tms[i] = trimesh.Trimesh(B['pos'], B['faces'], process=False)
+            bounds[i] = (B['pos'].min(0), B['pos'].max(0))
+            done.append(i)
+            continue
         bl, bh = B['pos'].min(0), B['pos'].max(0)
         obst = []
         for j in done:
@@ -283,7 +303,8 @@ def resolve(parts, log=print, skip=None):
         if obst:
             nf0 = len(B['faces'])
             if B['layer'] != 'bone':   # Knochen berühren nur Knochen (Nähte, Gelenke): dort reicht Verschieben
-                B['pos'], B['faces'] = refine_near(B['pos'], B['faces'], obst)
+                # Muskeln: eine Verfeinerungsstufe (große Flächen, viele Kontakte — zwei Stufen vervierfachen die Dreiecke)
+                B['pos'], B['faces'] = refine_near(B['pos'], B['faces'], obst, levels=1 if B['layer'] == 'muscle' else 2)
             new, skipped = push_out(B['pos'], B['faces'], obst)
             shift = np.linalg.norm(new - B['pos'], axis=1)
             if shift.max() > 1e-5:
@@ -295,6 +316,8 @@ def resolve(parts, log=print, skip=None):
         tms[i] = trimesh.Trimesh(B['pos'], B['faces'], process=False)
         bounds[i] = (B['pos'].min(0), B['pos'].max(0))
         done.append(i)
+        if obst and len(done) % every == 0: save()
+    save()
     if log: log(f'  {moved} Strukturen angepasst')
     return parts
 
