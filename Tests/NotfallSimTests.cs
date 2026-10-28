@@ -71,6 +71,7 @@ static class Tests
         Run("Kalibrierung: Faktoren aus Referenz, begrenzt, angewandt", CalibrationLogic);
         Run("Organmodell: Versagensdehnung je Dehnrate, Seite, Kontrollfälle Viano/Hardy, Daten konsistent", OrganModel);
         Run("Crash: harter Aufprall verletzt, leichter nicht, Seite bestimmt Milz/Leber", CrashScenario);
+        Run("Muskeltonus: Daten mit Quellen, Aktivierung je Zustand, Kniemoment plausibel", MuscleToneData);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -1214,6 +1215,44 @@ static class Tests
         var sp = org(ev, "milz");
         double viaCurve = InjuryRisk.Probability(risk.metrics.First(m => m.id == "Milz.Kompression").curve, sp.Utilization * 100);
         Check(Math.Abs(viaCurve - sp.Probability) < 0.002, $"Kurve {viaCurve:P1} vs Modell {sp.Probability:P1}");
+    }
+
+    static void MuscleToneData()
+    {
+        var f = Load<MuscleToneFile>("muscle_tone.json");
+        var src = new HashSet<string>(f.sources.Select(x => x.id));
+        var a = f.activation;
+        foreach (var id in new[] { a.baselineSourceId, a.reflexLatencySourceId, a.reflexLevelSourceId, a.bracedLevelSourceId })
+            Check(src.Contains(id), "Quelle fehlt: " + id);
+        Check(a.baseline >= 0 && a.baseline < a.reflexLevel && a.reflexLevel <= 1 && a.bracedLevel <= 1, "Aktivierungswerte");
+        Check(a.reflexLatency_s >= 0.05 && a.reflexLatency_s <= 0.3, "Reflexlatenz außerhalb 50–300 ms");
+        var bytes = File.ReadAllBytes(Path.Combine(DataRoot, "anatomy", "body.bin"));
+        var data = AnatomyFile.Read(bytes, json =>
+        {
+            var ser = new DataContractJsonSerializer(typeof(AnatomyHeader));
+            using (var st = new MemoryStream(Encoding.UTF8.GetBytes(json))) return (AnatomyHeader)ser.ReadObject(st);
+        });
+        var segs = new HashSet<string>(data.Header.segments.Select(x => x.name));
+        foreach (var j in f.joints)
+        {
+            Check(segs.Contains(j.segment), "unbekanntes Segment " + j.segment);
+            Check(src.Contains(j.sourceId), j.segment + ": Quelle");
+            Check(j.male_Nm > j.female_Nm && j.female_Nm > 0, j.segment + ": Werte");
+        }
+        foreach (var sg in data.Header.segments.Where(x => x.parent != ""))
+            Check(f.joints.Any(j => j.segment == sg.name), "Gelenk ohne Muskeltonus: " + sg.name);
+        // Aktivierung
+        Check(MuscleTone.Activation(a, OccupantState.Bewusstlos, 0.3) == 0, "bewusstlos");
+        Check(MuscleTone.Activation(a, OccupantState.Angespannt, 0) == a.bracedLevel, "angespannt von Beginn an");
+        Check(MuscleTone.Activation(a, OccupantState.Entspannt, 0.05) == a.baseline, "entspannt vor dem Reflex");
+        double mid = MuscleTone.Activation(a, OccupantState.Entspannt, a.reflexLatency_s + a.reflexRise_s / 2);
+        Check(mid > a.baseline && mid < a.reflexLevel, "Reflexanstieg");
+        Check(Math.Abs(MuscleTone.Activation(a, OccupantState.Entspannt, 1) - a.reflexLevel) < 1e-12, "Reflexniveau");
+        // Kniestrecker: Harbo 2012 gegen Anderson 2007 (0,163 × Körpergewicht × Größe, Männer) — gleiche Größenordnung
+        double harbo = MuscleTone.MaxTorque(f, "Unterschenkel rechts", true), anderson = 0.163 * 80 * 9.81 * 1.80;
+        Check(Math.Abs(harbo / anderson - 1) < 0.3, $"Knie: Harbo {harbo:F0} Nm vs. Anderson {anderson:F0} Nm");
+        var d = MuscleTone.Drive(f, "Unterschenkel rechts", true, a.bracedLevel);
+        Check(Math.Abs(d.Item2 * f.angleAtMaxTorque_deg * Math.PI / 180 - d.Item1) < 1e-9, "Steifigkeit × Winkel = Moment");
     }
 
     static void CrashScenario()

@@ -60,6 +60,7 @@ Assets/
     differentials.json           Differenzialdiagnosen ohne Physiologie, mit „spricht dagegen“
     injury_risk.json             Unfall-Sandbox: Messwerte → Risikokurven → Verletzungen
     organ_model.json             Organmodell: Bauchkompression → Organdehnung gegen Gewebefestigkeit
+    muscle_tone.json             Muskeltonus im Ragdoll: Maximalmomente je Gelenk, Reflex, Abstützen
     scenarios/*.json             Szenarien
 tools/anatomy/                   Aufbereitung der Anatomie (Python), erzeugt body.bin
 ```
@@ -152,6 +153,8 @@ den Schockraum (Schockraum-Szene muss erzeugt sein).
   Grundkörper). Körperteile stoßen sich gegenseitig ab (Arme gleiten nicht durch den Rumpf); ignoriert werden nur
   Gelenknachbarn und Teile, die sich in der Ausgangshaltung schon berühren
 - Szenen und Crashpulse — `CrashRig.cs`; Sensoren — `CrashSensor.cs`
+- Insasse entspannt (Reflex nach 150 ms), angespannt (abgestützt) oder bewusstlos — Muskeltonus je Gelenk aus
+  Maximalmomenten der Literatur (`MuscleTone.cs`, `muscle_tone.json`)
 - Kamera wie im Schockraum (rechte Maus drehen, Mausrad zoomen, WASD/Q/E verschieben, F zurück); der Blickpunkt
   folgt dem Becken des Ragdolls
 - Kriterien und Risikokurven ohne Unity, getestet — `Biomechanics.cs`, `InjuryRisk.cs`, `injury_risk.json`

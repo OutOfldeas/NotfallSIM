@@ -77,7 +77,7 @@ namespace NotfallSIM.EditorTools
                 UnityEventTools.AddStringPersistentListener(b.onClick, sandbox.SelectMechanism, ids[i]);
             }
             var settings = Label("Einstellungen", left.transform, "", 20, Color.white);
-            settings.gameObject.AddComponent<LayoutElement>().preferredHeight = 110;
+            settings.gameObject.AddComponent<LayoutElement>().preferredHeight = 135;
             var row = Row(left.transform);
             var minus = MakeButton(row, "– langsamer", NeutralColor, null, 17);
             UnityEventTools.AddFloatPersistentListener(minus.onClick, sandbox.ChangeSpeed, -1);
@@ -86,6 +86,7 @@ namespace NotfallSIM.EditorTools
             var safety = Row(left.transform);
             MakeButton(safety, "Gurt an/aus", NeutralColor, sandbox.ToggleBelt, 17);
             MakeButton(safety, "Airbag an/aus", NeutralColor, sandbox.ToggleAirbag, 17);
+            MakeButton(left.transform, "Insasse: entspannt / angespannt / bewusstlos", NeutralColor, sandbox.CycleOccupant, 16);
             var slow = Row(left.transform);
             foreach (float f in new[] { 0.05f, 0.2f, 1f })
             {

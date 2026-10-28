@@ -1,0 +1,151 @@
+{
+  "version": "1.0.0",
+  "note": "Muskeltonus im Ragdoll: je Gelenk ein aktiver Antrieb, der die Ausgangshaltung hält. Höchstes Moment = Maximalmoment (willkürliche isometrische Maximalkraft, MVC) × Aktivierung; erreicht bei angleAtMaxTorque_deg Auslenkung. Ein Wert je Gelenk (der Antrieb unterscheidet keine Richtung): genommen wird die Richtung, die bei einem Frontalanprall das Einknicken bremst (Hals- und Rumpfstrecker, Hüftbeuger, Kniestrecker). Zustände: bewusstlos (nur passiver Tonus), entspannt (Grundtonus, Reflex nach der Latenz), angespannt (abgestützt, Aktivierung von Beginn an).",
+  "angleAtMaxTorque_deg": 20,
+  "activation": {
+    "baseline": 0.02,
+    "baselineSourceId": "kempter2023",
+    "reflexLatency_s": 0.15,
+    "reflexLatencySourceId": "kempter2023",
+    "reflexRise_s": 0.05,
+    "reflexLevel": 0.75,
+    "reflexLevelSourceId": "kumar2005",
+    "bracedLevel": 0.75,
+    "bracedLevelSourceId": "kumar2005",
+    "note": "Grundtonus: in Ruhe gemessene Halsmuskelaktivität liegt unter 1 % MVC (Kempter 2023); 2 % als Haltetonus angenommen. Anstiegszeit 50 ms geschätzt. Angespannt = höchste in Schlittenversuchen gemessene Aktivierung (bis 75 % MVC). Abstützen hob in Probandenversuchen (Δv 9,7 km/h) die Thoraxkompression praktisch auf (Kemper 2010)."
+  },
+  "joints": [
+    {
+      "segment": "Kopf",
+      "label": "Halswirbelsäule (Extension)",
+      "male_Nm": 52,
+      "female_Nm": 21,
+      "sourceId": "vasavada2001",
+      "note": "Flexion 30/15 Nm, Seitneigung 36/16 Nm"
+    },
+    {
+      "segment": "Thorax",
+      "label": "Rumpf, Brustabschnitt (Extension)",
+      "male_Nm": 145,
+      "female_Nm": 63,
+      "sourceId": "unver2024",
+      "note": "isokinetisch 60°/s, nicht isometrisch; je Rumpfgelenk der volle Wert"
+    },
+    {
+      "segment": "Abdomen",
+      "label": "Rumpf, Lendenabschnitt (Extension)",
+      "male_Nm": 145,
+      "female_Nm": 63,
+      "sourceId": "unver2024",
+      "note": "isokinetisch 60°/s; Flexion 214/97 Nm"
+    },
+    {
+      "segment": "Oberarm rechts",
+      "label": "Schulter (Abduktion)",
+      "male_Nm": 60,
+      "female_Nm": 43,
+      "sourceId": "harbo2012",
+      "note": "Alter < 30 J."
+    },
+    {
+      "segment": "Oberarm links",
+      "label": "Schulter (Abduktion)",
+      "male_Nm": 60,
+      "female_Nm": 43,
+      "sourceId": "harbo2012",
+      "note": "Alter < 30 J."
+    },
+    {
+      "segment": "Unterarm rechts",
+      "label": "Ellbogen (Flexion)",
+      "male_Nm": 50,
+      "female_Nm": 30,
+      "sourceId": "harbo2012",
+      "note": "Alter < 30 J."
+    },
+    {
+      "segment": "Unterarm links",
+      "label": "Ellbogen (Flexion)",
+      "male_Nm": 50,
+      "female_Nm": 30,
+      "sourceId": "harbo2012",
+      "note": "Alter < 30 J."
+    },
+    {
+      "segment": "Oberschenkel rechts",
+      "label": "Hüfte (Flexion)",
+      "male_Nm": 167,
+      "female_Nm": 101,
+      "sourceId": "harbo2012",
+      "note": "Alter < 30 J."
+    },
+    {
+      "segment": "Oberschenkel links",
+      "label": "Hüfte (Flexion)",
+      "male_Nm": 167,
+      "female_Nm": 101,
+      "sourceId": "harbo2012",
+      "note": "Alter < 30 J."
+    },
+    {
+      "segment": "Unterschenkel rechts",
+      "label": "Knie (Extension)",
+      "male_Nm": 265,
+      "female_Nm": 185,
+      "sourceId": "harbo2012",
+      "note": "Alter < 30 J.; Anderson 2007: 0,163 × Körpergewicht × Größe (Männer)"
+    },
+    {
+      "segment": "Unterschenkel links",
+      "label": "Knie (Extension)",
+      "male_Nm": 265,
+      "female_Nm": 185,
+      "sourceId": "harbo2012",
+      "note": "Alter < 30 J."
+    }
+  ],
+  "sources": [
+    {
+      "id": "harbo2012",
+      "citation": "Harbo T, Brincks J, Andersen H. Maximal isokinetic and isometric muscle strength of major muscle groups related to age, body mass, height, and sex in 178 healthy subjects. Eur J Appl Physiol. 2012;112:267-275.",
+      "url": "https://scispace.com/pdf/maximal-isokinetic-and-isometric-muscle-strength-of-major-4p5ixgnfk2.pdf",
+      "note": "Isometrische Spitzenmomente, Tab. 5, Alter < 30 J."
+    },
+    {
+      "id": "vasavada2001",
+      "citation": "Vasavada AN, Li S, Delp SL. Three-dimensional isometric strength of neck muscles in humans. Spine. 2001;26(17):1904-1909.",
+      "url": "https://rex.libraries.wsu.edu/esploro/outputs/journalArticle/Three-dimensional-isometric-strength-of-neck-muscles/99900547377701842",
+      "note": "11 Männer, 5 Frauen; Moment um C7/T1"
+    },
+    {
+      "id": "unver2024",
+      "citation": "Unver F, Gur Kabul E, Buke M, Unver B. Trunk flexor and extensor muscle strength capacity in healthy individuals. Turk J Sports Med. 2024;59(3):112-118.",
+      "url": "https://journalofsportsmedicine.org/full-text/735/eng",
+      "note": "Isokinetisch 60°/s, 102 Gesunde 18–30 J. (keine isometrischen Werte)"
+    },
+    {
+      "id": "anderson2007",
+      "citation": "Anderson DE, Madigan ML, Nussbaum MA. Maximum voluntary joint torque as a function of joint angle and angular velocity: model development and application to the lower limb. J Biomech. 2007;40(14):3105-3113.",
+      "url": "https://stacks.cdc.gov/view/cdc/188754",
+      "note": "Zur Kontrolle der Beinwerte (normiert auf Körpergewicht × Größe)"
+    },
+    {
+      "id": "kempter2023",
+      "citation": "Kempter F, Lantella L, Stutzig N, Fehr J, Siebert T. Role of rotated head postures on volunteer kinematics and muscle activity in braking scenarios performed on a driving simulator. Ann Biomed Eng. 2023;51(4):771-782.",
+      "url": "https://link.springer.com/content/pdf/10.1007/s10439-022-03087-9.pdf",
+      "note": "Muskelaktivierung 125–200 ms nach Beginn; Ruheaktivität SCM 0,15–0,27 % MVC"
+    },
+    {
+      "id": "kumar2005",
+      "citation": "Kumar S, Ferrari R, Narayan Y. Kinematic and electromyographic response to whiplash loading in low-velocity whiplash impacts — a review. Clin Biomech. 2005;20:343-356. Zitiert nach Kempter et al. 2023.",
+      "url": "",
+      "note": "Schlittenversuche: Aktivierung bis 75 % MVC; Einsetzen 150–170 ms (Trapezius)"
+    },
+    {
+      "id": "kemper2010b",
+      "citation": "Kemper AR, Beeman SM, Duma SM. Chest deflection of relaxed and braced human occupants in low severity frontal sled tests. Proc. 38th Int. Workshop on Human Subjects for Biomechanical Research; 2010.",
+      "url": "https://wbldb.lievers.net/10123431.html",
+      "note": "Abstützen hob die Thoraxkompression praktisch auf (5 Probanden, 5 g, Δv 9,7 km/h)"
+    }
+  ]
+}

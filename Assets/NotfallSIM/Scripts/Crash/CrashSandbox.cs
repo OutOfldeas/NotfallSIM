@@ -74,6 +74,15 @@ namespace NotfallSIM.Crash
 
         public void ToggleAirbag() { if (rig.Running) return; _p.Airbag = !_p.Airbag; Preview(); }
 
+        /// <summary>Insasse: entspannt (unvorbereitet) → angespannt (abgestützt) → bewusstlos.</summary>
+        public void CycleOccupant()
+        {
+            if (rig.Running) return;
+            _p.Occupant = _p.Occupant == OccupantState.Entspannt ? OccupantState.Angespannt
+                        : _p.Occupant == OccupantState.Angespannt ? OccupantState.Bewusstlos : OccupantState.Entspannt;
+            ShowSettings();
+        }
+
         /// <summary>
         /// Stellt jeden Referenztest aus calibration.json dreimal nach, berechnet Faktoren (Referenz / Simulation,
         /// gemittelt über die Referenzen) und speichert sie. Nur im Editor sinnvoll (StreamingAssets ist dort beschreibbar).
@@ -99,7 +108,8 @@ namespace NotfallSIM.Crash
                     var rp = new CrashParams
                     {
                         MechanismId = reference.mechanismId, Speed_kmh = (float)reference.speed_kmh, Belted = reference.belted, Airbag = reference.airbag,
-                        Height_m = (float)reference.height_m, Mass_kg = (float)reference.mass_kg, Male = true, Seed = 1000 + i
+                        Height_m = (float)reference.height_m, Mass_kg = (float)reference.mass_kg, Male = true, Seed = 1000 + i,
+                        Occupant = OccupantState.Bewusstlos   // Crashtest-Dummys haben keine Muskeln
                     };
                     yield return rig.Run(rp, 1f, m => runs.Add(m));
                 }
@@ -171,6 +181,7 @@ namespace NotfallSIM.Crash
             settingsText.text = $"<b>{m.label}</b>\n{(_p.MechanismId == "sturz_hoehe" ? "Höhe" : "Geschwindigkeit")}: {_p.Speed_kmh:0} {m.unit}" +
                                 (car ? $"\nGurt: {(_p.Belted ? "angelegt" : "nicht angelegt")}" : "") +
                                 (_p.MechanismId == "pkw_frontal" ? $"\nAirbag: {(_p.Airbag ? "ja" : "nein")}" : "") +
+                                $"\nInsasse: {MuscleTone.Label(_p.Occupant)}" +
                                 $"\nZeitlupe: {(_slowMo >= 1 ? "aus" : $"×{_slowMo:0.##}")}";
         }
 

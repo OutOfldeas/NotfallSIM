@@ -16,6 +16,7 @@ namespace NotfallSIM.Crash
         public float Height_m = 1.80f, Mass_kg = 80;
         public bool Male = true;
         public int Seed = 1;
+        public OccupantState Occupant = OccupantState.Entspannt;   // Muskeltonus (muscle_tone.json)
     }
 
     /// <summary>
@@ -309,10 +310,18 @@ namespace NotfallSIM.Crash
             _t0 = Time.time;
             var driver = gameObject.AddComponent<CrashDriver>();
             driver.Init(drive, _t0);
+            var tone = LoadMuscleTone();
+            MuscleToneDriver muscles = null;
+            if (tone != null)
+            {
+                muscles = gameObject.AddComponent<MuscleToneDriver>();
+                muscles.Begin(Ragdoll, tone, p.Occupant, p.Male, _t0);
+            }
             while (Time.time - _t0 < duration) yield return null;
             foreach (var s in Ragdoll.Sensors) s.StopRecording();
             gauges.Stop();
             Destroy(driver);
+            if (muscles != null) Destroy(muscles);
             Time.timeScale = 1;
             Time.fixedDeltaTime = _savedStep;
             Running = false;
@@ -375,6 +384,15 @@ namespace NotfallSIM.Crash
         /// <summary>Organbelastung des letzten Crashs (für die Ergebnisanzeige); null ohne organ_model.json/tissues.json.</summary>
         public AbdomenLoad LastAbdomenLoad { get; private set; }
 
+        static MuscleToneFile _muscleTone;
+        static MuscleToneFile LoadMuscleTone()
+        {
+            if (_muscleTone != null) return _muscleTone;
+            string path = System.IO.Path.Combine(Data.InjuryDatabase.Root, "muscle_tone.json");
+            if (!System.IO.File.Exists(path)) { Debug.LogWarning("[Crash] muscle_tone.json fehlt — Ragdoll ohne Muskeltonus."); return null; }
+            return _muscleTone = JsonUtility.FromJson<MuscleToneFile>(System.IO.File.ReadAllText(path));
+        }
+
         static OrganModelFile _organModel;
         static OrganModelFile LoadOrganModel()
         {
@@ -387,6 +405,53 @@ namespace NotfallSIM.Crash
         void OnDisable()
         {
             if (Running) { Time.timeScale = 1; Time.fixedDeltaTime = _savedStep > 0 ? _savedStep : 0.02f; }
+        }
+    }
+
+    /// <summary>
+    /// Muskeltonus während des Crashs: Gelenkantriebe halten die Ausgangshaltung mit einem Moment bis
+    /// Maximalmoment × Aktivierung (MuscleTone). Der passive Tonus aus dem RagdollBuilder bleibt erhalten.
+    /// </summary>
+    public class MuscleToneDriver : MonoBehaviour
+    {
+        MuscleToneFile _f;
+        OccupantState _state;
+        bool _male;
+        float _t0;
+        class Driven { public string Segment; public ConfigurableJoint Joint; public float Passive; }
+        readonly List<Driven> _joints = new List<Driven>();
+
+        public void Begin(Ragdoll rd, MuscleToneFile f, OccupantState state, bool male, float t0)
+        {
+            _f = f; _state = state; _male = male; _t0 = t0;
+            foreach (var kv in rd.Segments)
+            {
+                var j = kv.Value.GetComponent<ConfigurableJoint>();
+                if (j == null || f.joints.All(x => x.segment != kv.Key)) continue;
+                _joints.Add(new Driven { Segment = kv.Key, Joint = j, Passive = j.slerpDrive.positionSpring });
+            }
+            Apply();
+        }
+
+        void FixedUpdate() => Apply();
+
+        void Apply()
+        {
+            double a = MuscleTone.Activation(_f.activation, _state, Time.time - _t0);
+            foreach (var d in _joints)
+            {
+                var drive = MuscleTone.Drive(_f, d.Segment, _male, a);
+                double tmax = drive.Item1, k = drive.Item2;
+                float passive = d.Passive;
+                float spring = passive + (float)k;
+                d.Joint.slerpDrive = new JointDrive
+                {
+                    positionSpring = spring,
+                    positionDamper = 0.1f * spring,
+                    // aktiv: Moment begrenzt (Muskelkraft sättigt); passiv wie bisher unbegrenzt
+                    maximumForce = a > 0 ? passive + (float)tmax : float.MaxValue
+                };
+            }
         }
     }
 

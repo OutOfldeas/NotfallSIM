@@ -194,6 +194,30 @@ Die Sandbox misst am Ragdoll wie an einem Crashtest-Dummy und übersetzt die Wer
 | Axiale Femurkraft | 10 kN (FMVSS 208) | log-logistisch, x50 11 kN | didaktisch |
 | Kontaktkraft Ober-/Unterschenkel, 3 ms | – | log-logistisch | didaktisch |
 
+### Muskeltonus und Abstützen (`muscle_tone.json`)
+
+Im Ragdoll hält jedes Gelenk die Ausgangshaltung mit einem aktiven Antrieb, dessen Moment auf **Maximalmoment × Aktivierung** begrenzt ist (bei voller Aktivierung nach 20° Auslenkung erreicht). Rechenteil ohne Unity: `MuscleTone.cs`, getestet.
+
+| Gelenk | Maximalmoment Männer / Frauen | Quelle |
+|---|---|---|
+| Halswirbelsäule (Extension) | 52 / 21 Nm | Vasavada 2001 |
+| Rumpf (Extension, je Abschnitt) | 145 / 63 Nm | Unver 2024 (isokinetisch 60°/s) |
+| Schulter (Abduktion) | 60 / 43 Nm | Harbo 2012 |
+| Ellbogen (Flexion) | 50 / 30 Nm | Harbo 2012 |
+| Hüfte (Flexion) | 167 / 101 Nm | Harbo 2012 |
+| Knie (Extension) | 265 / 185 Nm | Harbo 2012 (Kontrolle: Anderson 2007 ergibt 230 Nm für 80 kg, 1,80 m) |
+
+Je Gelenk ein Wert, weil der Antrieb keine Richtung unterscheidet: genommen wird die Richtung, die beim Frontalanprall das Einknicken bremst.
+
+**Zustände des Insassen** (Knopf in der Sandbox):
+- **Entspannt (unvorbereitet):** Grundtonus 2 % MVC (Ruheaktivität der Halsmuskeln liegt unter 1 %; Kempter 2023), Reflex nach **150 ms** (Muskelantwort bei Probanden 125–200 ms; Kempter 2023, Kumar 2005), Anstieg in 50 ms (geschätzt) auf **75 % MVC** (höchste Aktivierung in Schlittenversuchen; Kumar 2005).
+- **Angespannt (abgestützt):** 75 % MVC von Beginn an. In Probandenversuchen hob Abstützen die Thoraxkompression bei leichtem Frontalanprall praktisch auf (Kemper 2010).
+- **Bewusstlos:** nur passiver Gelenktonus. Gilt auch für die Kalibrierung gegen Crashtests (Dummys haben keine Muskeln).
+
+**Was daraus folgt:** Ein Frontalcrashpuls dauert etwa 100–150 ms — der Reflex des unvorbereiteten Insassen kommt also erst gegen Ende der Hauptbelastung. Den Unterschied macht vor allem, wer sich vorher abstützt (Halsbelastung, Kopfbewegung, Femur/Becken beim Abstützen am Fußraum).
+
+**Grenzen:** keine Kraft-Längen- und Kraft-Geschwindigkeits-Beziehung (Hill), keine getrennten Beuger/Strecker, Rumpfwerte isokinetisch statt isometrisch, keine Skalierung auf Körpergröße und -gewicht (die Bezugswerte der Probanden fehlen in den ausgewerteten Daten). Noch nicht in Unity geprüft.
+
 ### Organbelastung beim Bauchanprall (`organ_model.json`)
 
 Milzruptur und Leberlazeration entstehen in der Sandbox nicht mehr aus einer pauschalen Kraftkurve, sondern aus der Dehnung des Organs im Vergleich zur Belastbarkeit seines Gewebes (`tissues.json`). Kette in `OrganMechanics.cs` (ohne Unity, getestet):
@@ -330,6 +354,7 @@ Mechanische Eigenschaften der Gewebe: 19 Gewebetypen, 89 Einzelmessungen aus 21 
 - [ ] Gewebe: menschliche Lungendaten suchen (bisher Schwein)
 - [ ] Organmodell: Bauchsteifigkeit geschwindigkeitsabhängig (Hardy 2001: 27 → 63 kN/m) und Rippenschutz von Leber/Milz ergänzen; Nierenverletzung in die Datenbank aufnehmen
 - [ ] Organmodell: Dezelerationsverletzungen (Aortenisthmus, Leberbänder, Nierenstiel) als Masse-Feder-Modell ergänzen
+- [ ] Muskeltonus in Unity prüfen: Unterschied entspannt/angespannt/bewusstlos bei PKW frontal 30/50 km/h (Halskraft, Kopfweg, Femurkraft) gegen Probanden- und Leichenversuche (Beeman/Kemper)
 - [ ] Muskeln Schritt 2: Interkostalmuskeln und M. transversus thoracis (eigenes Verfahren zwischen den Rippen)
 - [ ] Armbahnen glätten: Faszikel relativ zur A. axillaris legen (lateral/medial/posterior), Ellbogen ohne Zacken
 - [ ] Restberührungen Bahn–Muskel (77 Stellen) beseitigen; Muskeln nach dem Formen wieder vereinfachen (derzeit ~890 000 Dreiecke)
@@ -408,5 +433,13 @@ Mechanische Eigenschaften der Gewebe: 19 Gewebetypen, 89 Einzelmessungen aus 21 
 58. Hardy WN, Schneider LW, Rouhana SW. Abdominal impact response to rigid-bar, seatbelt, and airbag loading. *Stapp Car Crash J*. 2001;45:1-32. (Werte zitiert nach Kap. 14 in Accidental Injury, 3. Aufl., Springer 2015)
 59. Viano DC, Lau IV, Asbury C, King AI, Begeman P. Biomechanics of the human chest, abdomen, and pelvis in lateral impact. *Accid Anal Prev*. 1989;21(6):553-574. [TRID](https://trid.trb.org/View/302819)
 60. Cavanaugh JM, Nyquist GW, Goldberg SJ, King AI. Lower abdominal tolerance and response. SAE 861878; 1986. (zitiert nach Kap. 14 in Accidental Injury)
+
+61. Harbo T, Brincks J, Andersen H. Maximal isokinetic and isometric muscle strength of major muscle groups related to age, body mass, height, and sex in 178 healthy subjects. *Eur J Appl Physiol*. 2012;112:267-275. [PDF](https://scispace.com/pdf/maximal-isokinetic-and-isometric-muscle-strength-of-major-4p5ixgnfk2.pdf)
+62. Vasavada AN, Li S, Delp SL. Three-dimensional isometric strength of neck muscles in humans. *Spine*. 2001;26(17):1904-1909.
+63. Unver F, Gur Kabul E, Buke M, Unver B. Trunk flexor and extensor muscle strength capacity in healthy individuals. *Turk J Sports Med*. 2024;59(3):112-118. [Artikel](https://journalofsportsmedicine.org/full-text/735/eng)
+64. Anderson DE, Madigan ML, Nussbaum MA. Maximum voluntary joint torque as a function of joint angle and angular velocity. *J Biomech*. 2007;40(14):3105-3113. [CDC](https://stacks.cdc.gov/view/cdc/188754)
+65. Kempter F, Lantella L, Stutzig N, Fehr J, Siebert T. Role of rotated head postures on volunteer kinematics and muscle activity in braking scenarios performed on a driving simulator. *Ann Biomed Eng*. 2023;51(4):771-782. [PDF](https://link.springer.com/content/pdf/10.1007/s10439-022-03087-9.pdf)
+66. Kumar S, Ferrari R, Narayan Y. Kinematic and electromyographic response to whiplash loading in low-velocity whiplash impacts — a review. *Clin Biomech*. 2005;20:343-356. (zitiert nach 65)
+67. Kemper AR, Beeman SM, Duma SM. Chest deflection of relaxed and braced human occupants in low severity frontal sled tests. Proc. 38th Int. Workshop on Human Subjects for Biomechanical Research; 2010. [Abstract](https://wbldb.lievers.net/10123431.html)
 
 Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übernommen und vor Zitation in einer Arbeit im Original zu prüfen.
