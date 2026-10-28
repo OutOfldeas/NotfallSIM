@@ -49,7 +49,9 @@ namespace NotfallSIM.Engines
             { "RightThigh", "RightLeg" },
             { "Spleen", "Spleen" },
             { "Liver", "Liver" },
-            { "Extremity", "RightLeg" }, // VERIFY: offene Unterschenkelfraktur rechts
+            { "Extremity", "RightLeg" }, // VERIFY: offene Unterschenkelfraktur bzw. Amputation rechts
+            { "LeftArm", "LeftArm" },     // Schnittverletzung linker Unterarm
+            { "Abdomen", "SmallIntestine" }, // VERIFY: Stichverletzung, Mesenterialblutung
         };
 
         public bool Initialize(PatientProfile patient)

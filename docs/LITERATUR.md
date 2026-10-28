@@ -328,13 +328,22 @@ mit Lagerung, Atmung und Schwellung mit.
 | Blutlache | Dicke e = 2·√(γ/ρg)·sin(θ/2) ≈ 3,2 mm, Fläche = Volumen/e | Pfützenformel | [69], γ = 52,6 mN/m [70], ρ = 1,06 g/mL [71] |
 | Blutstrahl | v = √(2·p_sys/ρ) ≈ 5,5 m/s bei 120 mmHg | Bernoulli, ideale Obergrenze | [72] |
 
+Penetrierende Verletzungen und Amputation (`injuries.json`, Mechanismus „Messerangriff“ in `mechanisms.json`):
+Unterschenkelamputation rechts (Motorrad, selten; schließt die offene Unterschenkelfraktur aus; Tourniquet), Stichverletzung
+linker Oberbauch mit Mesenterialblutung (eFAST positiv, Laparotomie, die jetzt auch den Blutungsort „Abdomen“ stillt),
+Schnittverletzung linker Unterarm mit A.-radialis-Verletzung als Abwehrverletzung (neue Maßnahme Druckverband). Vorgehen nach
+ATLS (externe Blutung zuerst, penetrierendes Abdominaltrauma mit Schock: Laparotomie) und S3-Leitlinie (Tourniquet); die
+Blutungsraten sind didaktische Spielwerte wie bei den übrigen Verletzungen. Eine vollständig durchtrennte Arterie zieht sich
+zurück und kontrahiert (ATLS), daher blutet die Amputation hier langsamer als die offene Fraktur mit Gefäßverletzung.
+
 Annahmen: Kontaktwinkel 90° (keine Messung für Blut auf Matratzenkunststoff gefunden); die Bauchdeckenhebung setzt das
 ganze intraperitoneale Blut an (Obergrenze); Galeaschwellung beim EDH 15 mL. Tropfen sind nur Darstellung, die Blutmenge
 kommt aus der Physiologie (Verlust je Verletzung).
 
 ## Offene Punkte zum Prüfen
 
-- Verletzungszeichen in Unity prüfen (Lage, Farbe, Blutstrahl, Lache). Noch ohne eigene Verletzungen für Amputation, Schnitt- und Stichverletzung (brauchen Physiologiedaten mit Quellen). SDH/EDH-Form im Röntgenblick weiter offen.
+- Verletzungszeichen in Unity prüfen (Lage, Farbe, Blutstrahl, Lache, Amputationsstumpf). SDH/EDH-Form im Röntgenblick weiter offen.
+- Neue Verletzungen (Unterschenkelamputation, Stichverletzung Oberbauch, Schnittverletzung Unterarm): Blutungsraten didaktisch wie bei den übrigen; Hohlorganverletzung, Nervenverletzung und Replantation nicht modelliert; Pulse-Kompartiment der Mesenterialblutung (SmallIntestine) prüfen.
 
 - [ ] Empfehlungen und Empfehlungsgrade zu Beckengurt, Volumentherapie und permissiver Hypotension in der S3-Leitlinie (MAGICapp) nachlesen
 - [ ] Lieurance 1992 im Volltext prüfen (Uni-Zugang)

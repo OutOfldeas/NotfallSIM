@@ -78,6 +78,12 @@
         "milzruptur",
         "leberlazeration"
       ]
+    },
+    {
+      "injuryIds": [
+        "unterschenkel_offen_rechts",
+        "amputation_unterschenkel_rechts"
+      ]
     }
   ],
   "mechanisms": [
@@ -348,6 +354,14 @@
           "severityMax": 0.8,
           "onsetMin_s": 0,
           "onsetMax_s": 0
+        },
+        {
+          "injuryId": "amputation_unterschenkel_rechts",
+          "probability": 0.05,
+          "severityMin": 0.6,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
         }
       ],
       "unrestrainedMultipliers": [],
@@ -359,7 +373,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Extremitäten und Becken dominieren; Helm senkt, verhindert aber nicht schwere Kopfverletzungen. Wahrscheinlichkeiten didaktisch."
+      "reviewNotes": "Extremitäten und Becken dominieren; Helm senkt, verhindert aber nicht schwere Kopfverletzungen. Wahrscheinlichkeiten didaktisch. Unterschenkelamputation selten (didaktisch 5 %), schließt die offene Unterschenkelfraktur rechts aus."
     },
     {
       "id": "fussgaenger",
@@ -531,6 +545,49 @@
       ],
       "evidenceStatus": "draft",
       "reviewNotes": "Wirbelsäule und Kalkaneus (häufig) sind noch nicht in der Datenbank. Wahrscheinlichkeiten didaktisch."
+    },
+    {
+      "id": "messerangriff",
+      "label": "Messerangriff",
+      "descriptionTemplate": "{age}-jährige{r} Patient{in} nach Messerangriff auf offener Straße, laut Polizei mehrere Stiche bzw. Schnitte. Rettungszeit ca. {rescue} min.",
+      "speedMin": 0,
+      "speedMax": 0,
+      "heightMin": 0,
+      "heightMax": 0,
+      "ageMin": 18,
+      "ageMax": 60,
+      "maleShare": 0.8,
+      "rescueMin": 10,
+      "rescueMax": 25,
+      "unrestrainedShare": 0,
+      "injuries": [
+        {
+          "injuryId": "stichverletzung_abdomen_links",
+          "probability": 0.85,
+          "severityMin": 0.6,
+          "severityMax": 1.0,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "schnittverletzung_unterarm_links",
+          "probability": 0.6,
+          "severityMin": 0.6,
+          "severityMax": 1,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        }
+      ],
+      "unrestrainedMultipliers": [],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Penetrierendes Trauma: Abdomen, Extremitätengefäße; Abwehrverletzungen an den Unterarmen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Wahrscheinlichkeiten, Alters- und Geschlechtsverteilung didaktisch. Stich in den Oberbauch, Schnitt am linken Unterarm als Abwehrverletzung. Kurze Rettungszeit (keine Befreiung nötig)."
     }
   ]
 }

@@ -19,6 +19,7 @@ namespace NotfallSIM.Anatomy
         public float edge;                       // Randunschärfe im Shader (klein = scharfer Schnittrand)
         public float irregularity;               // Unregelmäßigkeit des Rands (Riss/Quetschung groß, Schnitt klein)
         public float noiseScale;                 // Körnung des Rauschens (Schürfung fein)
+        public int layer;                        // Reihenfolge übereinander: 0 Haut (Prellung), 1 Blut auf der Haut, 2 Wunde
         public string evidence, sourceId, note;
     }
 
@@ -448,6 +449,33 @@ namespace NotfallSIM.Anatomy
             }
             res.CapPositions = cp.ToArray(); res.CapFalloff = cf.ToArray(); res.CapSource = cs.ToArray(); res.CapTriangles = ct.ToArray();
             return res;
+        }
+
+        /// <summary>Hautvertices, die nach einer Amputation in keinem verbleibenden Dreieck mehr vorkommen.</summary>
+        public static HashSet<int> RemovedVertices(int[] indices, int triCount, int[] keptTriangles)
+        {
+            var kept = new HashSet<int>(keptTriangles);
+            var all = new HashSet<int>();
+            for (int i = 0; i < 3 * triCount; i++) all.Add(indices[i]);
+            all.ExceptWith(kept);
+            return all;
+        }
+
+        /// <summary>Entfernt Dreiecke der Auflage, deren Ecken überwiegend auf amputierter Haut liegen.</summary>
+        public static void DropRemoved(SkinPatch p, HashSet<int> removed)
+        {
+            if (removed == null || removed.Count == 0 || p.Triangles == null) return;
+            Func<int, bool> gone = i =>
+            {
+                float w = 0;
+                for (int q = 0; q < 3; q++) if (p.W[3 * i + q] > 0 && removed.Contains(p.Src[3 * i + q])) w += p.W[3 * i + q];
+                return w > 0.5f;
+            };
+            var t = new List<int>();
+            for (int k = 0; k < p.Triangles.Length; k += 3)
+                if (!gone(p.Triangles[k]) && !gone(p.Triangles[k + 1]) && !gone(p.Triangles[k + 2]))
+                { t.Add(p.Triangles[k]); t.Add(p.Triangles[k + 1]); t.Add(p.Triangles[k + 2]); }
+            p.Triangles = t.ToArray();
         }
 
         /// <summary>Farben des Stumpfs: innen Knochen (fragmentColor der Art), außen Muskulatur bis zum Hautrand.</summary>

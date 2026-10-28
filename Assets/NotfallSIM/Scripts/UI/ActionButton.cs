@@ -26,6 +26,8 @@ namespace NotfallSIM.UI
         Button _button;
         float _flash;
 
+        public string Id => id;
+
         public void Configure(SimulationManager simulation, InterventionController ivc, string actionId, string buttonLabel, Color baseColor)
         {
             sim = simulation; controller = ivc; id = actionId; label = buttonLabel; normal = baseColor;

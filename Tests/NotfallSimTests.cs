@@ -660,12 +660,13 @@ static class Tests
         bool tbi = has.Contains("sdh_akut_links") || has.Contains("epiduralhaematom_rechts");
         if (treat)
         {
-            if (has.Contains("unterschenkel_offen_rechts")) at(20, "tourniquet");
+            if (has.Contains("unterschenkel_offen_rechts") || has.Contains("amputation_unterschenkel_rechts")) at(20, "tourniquet");
+            if (has.Contains("schnittverletzung_unterarm_links")) at(40, "druckverband_arm_li");
             at(30, "o2");
             if (has.Contains("becken_instabil")) { at(60, "beckengurt"); at(600, "angio_op"); }
             if (has.Contains("femur_schaft_rechts")) at(90, "femur_schiene");
             if (bleed) { at(90, "txa"); for (int k = 0; k < 5; k++) at(90 + 360 * k, "ek"); }
-            if (has.Contains("milzruptur") || has.Contains("leberlazeration")) at(300, "laparotomie");
+            if (has.Contains("milzruptur") || has.Contains("leberlazeration") || has.Contains("stichverletzung_abdomen_links")) at(300, "laparotomie");
             var tp = s.injuries.FirstOrDefault(i => i.injuryId == "spannungspneu_links");
             if (tp != null) at(tp.onsetTime_s + 90, "drainage_li");
             if (tbi) at(480, "kraniotomie");
@@ -1336,6 +1337,17 @@ static class Tests
         Func<string, bool> hidden = name => SkinMarks.IsDistal(data.Meshes.First(x => x.Info.name == name), a, segs);
         Check(hidden("right talus") || hidden("right calcaneus"), "Fußknochen nicht ausgeblendet");
         Check(!hidden("right femur") && !hidden("left tibia"), "falsche Teile ausgeblendet");
+        // Auflagen enden an der Amputationskante
+        var removedV = SkinMarks.RemovedVertices(skin.Indices, tc, a.KeptTriangles);
+        var smear = new SkinMark { id = "s", kind = "blutspur", anchor = new MarkAnchor { meshes = new[] { "right tibia" }, offset = new float[] { 0, -0.05f, 0 }, direction = new float[] { 0, 0, 1 } },
+                                   segments = new[] { "Unterschenkel rechts" }, radius_m = 0.08f, wrap = true };
+        var sm = SkinMarks.Select(data, smear, scale, tc, nrm, adj);
+        int before = sm.Triangles.Length;
+        SkinMarks.DropRemoved(sm, removedV);
+        Check(sm.Triangles.Length < before && sm.Triangles.Length > 0, $"Auflage an der Amputation nicht gekürzt ({before / 3} → {sm.Triangles.Length / 3})");
+        // Jede äußere Blutung hat ein Zeichen mit Blutstrahl
+        foreach (var d in Injuries.injuries.Where(x => x.effects.Any(e => e.effectType == "Hemorrhage" && (e.compartment == "Extremity" || e.compartment == "LeftArm"))))
+            Check(f.marks.Any(m => m.injuryId == d.id && m.bleeding), d.id + ": äußere Blutung ohne sichtbare Blutung");
 
         // Blutlache und Strahl
         double thick = SkinMarks.PoolThickness_m(bp);

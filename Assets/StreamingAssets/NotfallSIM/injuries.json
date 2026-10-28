@@ -503,7 +503,7 @@
           "description": "Notfall-Laparotomie angeordnet",
           "type": "deadline",
           "tags": [
-            "intervention:HemorrhageControl:Spleen,Liver:laparotomie"
+            "intervention:HemorrhageControl:Spleen,Liver,Abdomen:laparotomie"
           ],
           "limit": 900,
           "relativeTo": "",
@@ -683,7 +683,7 @@
           "description": "Notfall-Laparotomie angeordnet",
           "type": "deadline",
           "tags": [
-            "intervention:HemorrhageControl:Spleen,Liver:laparotomie"
+            "intervention:HemorrhageControl:Spleen,Liver,Abdomen:laparotomie"
           ],
           "limit": 900,
           "relativeTo": "",
@@ -1276,6 +1276,353 @@
           "minBodyLoss": 0,
           "maxBodyLoss": 1,
           "requiresTag": "intervention:HemorrhageControl:Extremity",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "amputation_unterschenkel_rechts",
+      "name": "Traumatische Unterschenkelamputation rechts",
+      "region": "Unterschenkel rechts",
+      "icd10": "S88.1",
+      "aisSeverity": 3,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "Extremity",
+          "baseRate_mL_min": 100,
+          "maxTotalLoss_mL": 0,
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Traumatische Amputation des rechten Unterschenkels in Schaftmitte, zerfetzter Stumpf mit freiliegendem Knochen",
+        "Amputat vom Rettungsdienst separat mitgebracht"
+      ],
+      "sources": [
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "Lebensbedrohliche Extremitätenblutung: Tourniquet sofort"
+        },
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Kontrolle externer Blutungen vor allen anderen Maßnahmen; Amputationsverletzungen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Blutungsrate didaktisch, bewusst unter der offenen Fraktur mit Gefäßverletzung: Bei vollständiger Durchtrennung ziehen sich die Arterienstümpfe zurück und kontrahieren (ATLS), trotzdem lebensbedrohlich. Tourniquet stoppt die Blutung vollständig. Replantation nicht modelliert.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Traumatische Amputation des rechten Unterschenkels in Schaftmitte mit Trümmerzone von Tibia und Fibula; Gefäßstümpfe ohne Kontrastmittelaustritt unter Tourniquet.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "tourniquet",
+          "description": "Tourniquet angelegt",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:Extremity:tourniquet"
+          ],
+          "limit": 120,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Lebensbedrohliche Extremitätenblutung zuerst stoppen (xABCDE; S3: Tourniquet sofort). 2 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        },
+        {
+          "id": "txa",
+          "description": "Tranexamsäure gegeben",
+          "type": "deadline",
+          "tags": [
+            "intervention:Medication:TXA"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "So früh wie möglich, spätestens 3 h nach Trauma (Rossaint 2023, Grade 1A). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Spritzende Blutung aus dem Stumpf",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Extremity",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Tourniquet am rechten Oberschenkel, Blutung aus dem Stumpf steht. Anlagezeit dokumentieren",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:Extremity",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "stichverletzung_abdomen_links",
+      "name": "Stichverletzung linker Oberbauch mit intraabdomineller Blutung",
+      "region": "Abdomen",
+      "icd10": "S31.1",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "Abdomen",
+          "baseRate_mL_min": 110,
+          "maxTotalLoss_mL": 3000,
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Etwa 2 cm lange Stichwunde im linken Oberbauch, Messer laut Rettungsdienst vor Ort entfernt",
+        "Wunde blutet nach außen nur wenig"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Penetrierendes Abdominaltrauma: bei Schock oder Peritonitis sofortige Laparotomie; eFAST zur Blutungssuche"
+        },
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "Polytrauma-Leitlinie: Damage Control bei instabilem Patienten"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Blutung aus Mesenterialgefäßen, Rate und Obergrenze didaktisch (Spielwerte). Hohlorganverletzung und Peritonitis nicht modelliert. Die äußere Wunde verrät die innere Blutung nicht: Ausmaß nur über Kreislauf und eFAST.",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Freie Flüssigkeit im linken Oberbauch, im Morison-Pouch und im kleinen Becken.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Stichkanal im linken Oberbauch durch die Bauchwand, Mesenterialhämatom des Jejunums mit Kontrastmittelaustritt, Hämatoperitoneum.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "abdomen_untersucht",
+          "description": "Abdomen untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Abdomen"
+          ],
+          "limit": 240,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "C-Teil: Wunde und Abdomen als Blutungsquelle prüfen. Zeitziel didaktisch."
+        },
+        {
+          "id": "efast",
+          "description": "eFAST durchgeführt",
+          "type": "deadline",
+          "tags": [
+            "imaging:efast"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "eFAST als Adjunct zum Primary Survey sucht freie Flüssigkeit (ATLS). 5 min didaktisch."
+        },
+        {
+          "id": "laparotomie",
+          "description": "Notfall-Laparotomie angeordnet",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:Spleen,Liver,Abdomen:laparotomie"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Penetrierendes Abdominaltrauma mit Schock: sofortige Laparotomie (ATLS). 15 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        },
+        {
+          "id": "txa",
+          "description": "Tranexamsäure gegeben",
+          "type": "deadline",
+          "tags": [
+            "intervention:Medication:TXA"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "So früh wie möglich, spätestens 3 h nach Trauma (Rossaint 2023, Grade 1A). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Druckschmerz und Abwehrspannung im linken Oberbauch",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "untilTagDelay_s": 900
+        },
+        {
+          "text": "Zunehmende Distension des Abdomens",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 800,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "untilTagDelay_s": 900
+        },
+        {
+          "text": "Z. n. Notfall-Laparotomie mit Übernähung von Mesenterialgefäßen, Abdomen mit Tüchern gepackt (Laparostoma)",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "requiresTagDelay_s": 900,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "schnittverletzung_unterarm_links",
+      "name": "Schnittverletzung linker Unterarm mit Verletzung der A. radialis",
+      "region": "Arm links",
+      "icd10": "S55.1",
+      "aisSeverity": 3,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "LeftArm",
+          "baseRate_mL_min": 40,
+          "maxTotalLoss_mL": 0,
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Etwa 6 cm lange, glattrandige Schnittwunde an der Beugeseite des linken Unterarms (Abwehrverletzung)",
+        "Radialispuls links distal der Wunde nicht tastbar"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Externe Blutung: direkter Druck bzw. Druckverband, Tourniquet wenn das nicht reicht"
+        },
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "Lebensbedrohliche Extremitätenblutung: Tourniquet"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Teildurchtrennung der A. radialis, Rate didaktisch; Druckverband stoppt die Blutung. Sehnen- und Nervenverletzung (N. medianus) nicht modelliert.",
+      "imaging": [],
+      "criteria": [
+        {
+          "id": "druckverband",
+          "description": "Blutung am linken Unterarm gestillt",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:LeftArm"
+          ],
+          "limit": 180,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Externe Blutung im C-Teil sofort stillen (direkter Druck, Druckverband). 3 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Hellrote, pulsierende Blutung aus der Schnittwunde",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:LeftArm",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Druckverband am linken Unterarm, Blutung steht",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:LeftArm",
           "requiresTagDelay_s": 0,
           "untilTag": "",
           "untilTagDelay_s": 0

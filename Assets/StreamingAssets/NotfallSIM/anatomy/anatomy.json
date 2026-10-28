@@ -74,6 +74,29 @@
         "^right (middle|inferior) temporal gyrus$"
       ],
       "note": "Epiduralhämatom rechts temporal: Schläfenbein rechts und Temporallappen rechts"
+    },
+    {
+      "injuryId": "amputation_unterschenkel_rechts",
+      "meshes": [
+        "^right tibia$",
+        "^right fibula$"
+      ],
+      "note": "Trümmerzone am Stumpf; distale Teile sind ausgeblendet"
+    },
+    {
+      "injuryId": "stichverletzung_abdomen_links",
+      "meshes": [
+        "^jejunum$",
+        "^superior mesenteric artery$"
+      ],
+      "note": "Mesenterialblutung"
+    },
+    {
+      "injuryId": "schnittverletzung_unterarm_links",
+      "meshes": [
+        "^A\\. radialis links$"
+      ],
+      "note": "Teildurchtrennung"
     }
   ]
 }
