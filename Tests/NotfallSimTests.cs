@@ -73,6 +73,7 @@ static class Tests
         Run("Crash: harter Aufprall verletzt, leichter nicht, Seite bestimmt Milz/Leber", CrashScenario);
         Run("Muskeltonus: Daten mit Quellen, Aktivierung je Zustand, Kniemoment plausibel", MuscleToneData);
         Run("Blutungsphysik: Bauchdruck nach Malbrain, Gerinnsel unter 64 mmHg, Nachblutung nach Volumen, Tamponade", BleedingPhysics);
+        Run("Haut: Daten mit Quellen, Blässe/Schweiß nach Schockklasse, Zyanose aus Desoxy-Hb (Anämie maskiert)", SkinData);
         Run("Verletzungszeichen: Ort an der Haut, Region, Befund, Schwellungsvolumen, Amputation, Blutlache", InjuryVisualsData);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
@@ -1304,6 +1305,27 @@ static class Tests
             return x.InjuryBloodLoss_mL("l");
         };
         Check(liverFirstMinute(true) < liverFirstMinute(false), "Bauchraum nicht geteilt");
+    }
+
+    static void SkinData()
+    {
+        var p = Load<SkinParams>("skin.json");
+        var src = new HashSet<string>(p.sources.Select(x => x.id));
+        foreach (var id in new[] { p.pallorSourceId, p.sweatSourceId, p.mottlingSourceId, p.cyanosisSourceId, p.extractionSourceId, p.reflectanceSourceId, p.wrapSourceId })
+            Check(src.Contains(id), "Quelle fehlt: " + id);
+        Func<double, double, double, VitalSigns> vs = (loss, spo2, hb) => new VitalSigns { BloodLossFraction = loss, SpO2_percent = spo2, Hb = hb };
+        var normal = SkinPerfusion.Evaluate(p, vs(0, 98, 15));
+        Check(normal.Pallor == 0 && normal.Sweat == 0 && normal.Mottling == 0 && normal.Cyanosis == 0, "gesund nicht unauffällig");
+        var c2 = SkinPerfusion.Evaluate(p, vs(0.2, 98, 13));
+        Check(c2.Pallor > 0 && c2.Sweat == 0, "Klasse II: blass, nicht schweißig");
+        var c4 = SkinPerfusion.Evaluate(p, vs(0.45, 98, 9));
+        Check(c4.Pallor == 1 && c4.Sweat == 1 && c4.Mottling > 0, "Klasse IV: blass, schweißig, marmoriert");
+        // Zyanose: Desoxy-Hb im Kapillarbett; gesund ≈ 2 g/dL
+        double d = SkinPerfusion.CapillaryDeoxyHb(15, 98, p.oxygenExtraction);
+        Check(d > 1.5 && d < 3, $"Desoxy-Hb gesund {d:F1} g/dL");
+        Check(SkinPerfusion.Evaluate(p, vs(0, 75, 15)).Cyanosis > 0, "keine Zyanose bei SpO2 75 % und Hb 15");
+        Check(SkinPerfusion.Evaluate(p, vs(0, 75, 7)).Cyanosis == 0, "Zyanose trotz Anämie (Hb 7) bei SpO2 75 %");
+        Check(SkinPerfusion.Evaluate(p, new VitalSigns { CardiacArrest = true, SpO2_percent = 98, Hb = 12 }).Pallor == 1, "Stillstand nicht blass");
     }
 
     static void InjuryVisualsData()

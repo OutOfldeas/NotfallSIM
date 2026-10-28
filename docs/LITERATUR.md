@@ -331,6 +331,18 @@ intraabdominelle Blutung tamponiert sich nicht von selbst (der Bauchraum fasst m
 parenchymatöse Blutungen sickern (kein Strahl), arterielle spritzen. Pulse rechnet Blutungen mit eigenem Modell; Läsionsart
 und Gerinnsel gelten nur für die Mock-Engine.
 
+## Haut (`skin.json`, Shader `NotfallSIM/Skin`)
+
+| Merkmal | Modell | Quelle |
+|---|---|---|
+| Blässe | ab 15 % Blutverlust, voll bei 40 % | ATLS-Schockklassen |
+| Kaltschweißig (glänzend) | ab 30 %, voll bei 40 % | ATLS |
+| Marmorierung | netzförmig von den Knien aus, Ausdehnung mit der Schwere; ab 40 %, voll bei 55 % (Schwellen Annahme) | [75] |
+| Zyanose | kapilläres Desoxy-Hb = Hb · (1 − (SaO2 + SvO2)/2), SvO2 = SaO2 − 25 %; sichtbar ab 5 g/dL, betont an Gesicht und Händen. Bei Anämie erst bei tieferer Sättigung | [76], Extraktion: Guyton |
+| Licht unter der Haut | Wrap-Lighting je Farbkanal (Rot 0,55, Grün 0,25, Blau 0,15; Werte Annahme), rötliche Schattenkante | [77] |
+| Glanz | zwei GGX-Keulen (Rauheit 0,35 und 0,6), F0 0,028 (Brechungsindex ≈ 1,38) | [78] |
+| Poren | Normalenstörung aus Rauschen auf der Ruhelage (bewegt sich mit der Haut) | Darstellung |
+
 ## Sichtbare Verletzungszeichen (`injury_visuals.json`)
 
 Jedes Zeichen gehört zu einer Verletzung und zeigt einen ihrer Befundtexte (geprüft). Der Ort wird nicht von Hand
@@ -359,6 +371,8 @@ ganze intraperitoneale Blut an (Obergrenze); Galeaschwellung beim EDH 15 mL. Tro
 kommt aus der Physiologie (Verlust je Verletzung).
 
 ## Offene Punkte zum Prüfen
+
+- Haut-Shader in Unity prüfen (nur außerhalb mit einer GLSL-Portierung gerendert): Kompiliert er unter URP (Forward/Forward+), passt die Helligkeit unter der OP-Leuchte? Ragdoll-Haut im Crash-Simulator nutzt noch URP/Lit.
 
 - Verletzungszeichen in Unity prüfen (Lage, Farbe, Blutstrahl, Lache, Amputationsstumpf). SDH/EDH-Form im Röntgenblick weiter offen.
 - Neue Verletzungen (Unterschenkelamputation, Stichverletzung Oberbauch, Schnittverletzung Unterarm): Blutungsraten didaktisch wie bei den übrigen; Hohlorganverletzung, Nervenverletzung und Replantation nicht modelliert; Pulse-Kompartiment der Mesenterialblutung (SmallIntestine) prüfen.
@@ -498,3 +512,7 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 72. White FM. *Fluid Mechanics*. 7th ed. McGraw-Hill; 2011. Kap. 3 (Bernoulli, Austrittsgeschwindigkeit).
 73. Malbrain MLNG, Peeters Y, Wise R. The neglected role of abdominal compliance in organ-organ interactions. *Crit Care*. 2016;20:67. [DOI](https://doi.org/10.1186/s13054-016-1220-x)
 74. Sondeen JL, Coppes VG, Holcomb JB. Blood pressure at which rebleeding occurs after resuscitation in swine with aortic injury. *J Trauma*. 2003;54(5 Suppl):S110-S117. [DOI](https://doi.org/10.1097/01.TA.0000047220.81795.3D)
+75. Ait-Oufella H, Lemoinne S, Boelle PY, et al. Mottling score predicts survival in septic shock. *Intensive Care Med*. 2011;37(5):801-807. [DOI](https://doi.org/10.1007/s00134-011-2163-y)
+76. Lundsgaard C, Van Slyke DD. Cyanosis. *Medicine (Baltimore)*. 1923;2(1):1-76. [DOI](https://doi.org/10.1097/00005792-192302010-00001)
+77. Green S. Real-time approximations to subsurface scattering. In: Fernando R, ed. *GPU Gems*. Addison-Wesley; 2004. Kap. 16. [Online](https://developer.nvidia.com/gpugems/gpugems/part-iii-materials/chapter-16-real-time-approximations-subsurface-scattering)
+78. Weyrich T, Matusik W, Pfister H, et al. Analysis of human faces using a measurement-based skin reflectance model. *ACM Trans Graph*. 2006;25(3):1013-1024. [DOI](https://doi.org/10.1145/1141911.1141987)

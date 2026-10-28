@@ -1,0 +1,26 @@
+{
+  "version": "1",
+  "note": "Hautdarstellung des Patienten: Farbe aus der Durchblutung (Blässe, Schweiß, Marmorierung aus dem Blutverlust nach ATLS-Schockklassen, Zyanose aus dem desoxygenierten Hb in den Kapillaren), Licht unter der Haut (Wrap-Lighting nach Green 2004) und Glanz nach gemessener Hautreflexion (Weyrich 2006). Farben und Rauschparameter sind Darstellungsannahmen.",
+  "toneColor": [0.86, 0.67, 0.55],
+  "paleColor": [0.87, 0.80, 0.75],
+  "cyanoticColor": [0.56, 0.60, 0.76],
+  "mottleColor": [0.52, 0.30, 0.42],
+  "pallorFromLoss": 0.15, "pallorFullLoss": 0.40, "pallorSourceId": "atls",
+  "sweatFromLoss": 0.30, "sweatFullLoss": 0.40, "sweatSourceId": "atls",
+  "mottlingFromLoss": 0.40, "mottlingFullLoss": 0.55, "mottlingSourceId": "aitoufella2011",
+  "mottlingNote": "Marmorierung beginnt an den Knien und breitet sich aus (Ait-Oufella 2011, septischer Schock). Schwellen im Blutverlust: Annahme.",
+  "cyanosisDeoxyHb_g_dL": 5.0, "cyanosisFullDeoxyHb_g_dL": 8.0, "cyanosisSourceId": "lundsgaard1923",
+  "oxygenExtraction": 0.25, "extractionSourceId": "guyton",
+  "cyanosisNote": "Kapilläres desoxygeniertes Hb ≈ Hb · (1 − (SaO2 + SvO2)/2), SvO2 = SaO2 − Extraktion. Zyanose sichtbar ab 5 g/dL; voll ausgeprägt ab 8 g/dL (Annahme). Bei Anämie erst bei tieferer Sättigung.",
+  "skinF0": 0.028, "roughness": [0.35, 0.6], "reflectanceSourceId": "weyrich2006",
+  "wrap": [0.55, 0.25, 0.15], "wrapSourceId": "green2004",
+  "poreScale": 900, "poreStrength": 0.35,
+  "sources": [
+    { "id": "atls", "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.", "url": "", "note": "Schockklassen: Haut ab Klasse II blass, ab Klasse III kalt und schweißig." },
+    { "id": "lundsgaard1923", "citation": "Lundsgaard C, Van Slyke DD. Cyanosis. Medicine (Baltimore). 1923;2(1):1-76.", "url": "https://doi.org/10.1097/00005792-192302010-00001", "note": "Zyanose bei etwa 5 g/dL reduziertem Hb in den Kapillaren." },
+    { "id": "guyton", "citation": "Hall JE, Hall ME. Guyton and Hall Textbook of Medical Physiology. 14th ed. Elsevier; 2021. Kap. 41.", "url": "", "note": "Sauerstoffausschöpfung in Ruhe etwa 25 %." },
+    { "id": "aitoufella2011", "citation": "Ait-Oufella H, Lemoinne S, Boelle PY, et al. Mottling score predicts survival in septic shock. Intensive Care Med. 2011;37(5):801-807.", "url": "https://doi.org/10.1007/s00134-011-2163-y", "note": "Marmorierung beginnt an den Knien, Ausdehnung als Score 0–5." },
+    { "id": "weyrich2006", "citation": "Weyrich T, Matusik W, Pfister H, et al. Analysis of human faces using a measurement-based skin reflectance model. ACM Trans Graph. 2006;25(3):1013-1024.", "url": "https://doi.org/10.1145/1141911.1141987", "note": "Hautoberfläche: Brechungsindex ≈ 1,38 (F0 ≈ 0,028), Rauheit je Region." },
+    { "id": "green2004", "citation": "Green S. Real-time approximations to subsurface scattering. In: Fernando R, ed. GPU Gems. Addison-Wesley; 2004. Kap. 16.", "url": "https://developer.nvidia.com/gpugems/gpugems/part-iii-materials/chapter-16-real-time-approximations-subsurface-scattering", "note": "Wrap-Lighting je Farbkanal als Näherung der Streuung unter der Haut." }
+  ]
+}
