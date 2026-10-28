@@ -16,6 +16,8 @@ Shader "NotfallSIM/Wound"
         _Strip ("Rinnsal (UV1 = quer, längs)", Range(0, 1)) = 0
         _Reveal ("Front des Rinnsals (längs)", Range(0, 1.2)) = 1.2
         _Dry ("Eingetrocknet", Range(0, 1)) = 0
+        _Age ("Farbalter (Prellung)", Range(0, 1)) = 0
+        _AgeColor ("Farbe gealtert", Color) = (0.30, 0.14, 0.36, 1)
         _DryColor ("Trockenes Blut", Color) = (0.24, 0.05, 0.04, 1)
     }
     SubShader
@@ -51,6 +53,8 @@ Shader "NotfallSIM/Wound"
                 half _Reveal;
                 half _Dry;
                 half4 _DryColor;
+                half _Age;
+                half4 _AgeColor;
             CBUFFER_END
 
             struct Attributes
@@ -120,6 +124,9 @@ Shader "NotfallSIM/Wound"
                 // Verschattung im Wundgrund, Rand leicht gerötet/erhaben
                 baseCol *= lerp(1, 0.45, bed * _Depth);
                 baseCol = lerp(baseCol, baseCol * half3(1.25, 0.9, 0.9), rim * _Depth);
+
+                // Prellung: frisch rot, mit der Zeit blau-violett (Desoxygenierung des ausgetretenen Bluts), zur Mitte zuerst
+                baseCol = lerp(baseCol, _AgeColor.rgb * (0.8 + 0.4 * n), _Age * saturate(0.4 + falloff));
 
                 // Trocknung: dunkler, bräunlich, matt
                 baseCol = lerp(baseCol, _DryColor.rgb, _Dry * 0.8);

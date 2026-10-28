@@ -378,6 +378,13 @@ auf die Trage), oder wo das Gefälle unter etwa 5° fällt (Blut bleibt stehen).
 Rinnsal, die Front läuft mit 2 cm/s, solange es blutet; Breite 3–12 mm mit der dritten Wurzel des Flusses. Diese Werte sind
 Darstellungsannahmen; die Blutmenge selbst kommt aus der Physiologie. Rinnsale trocknen wie das übrige Blut.
 
+Hämatome über die Zeit: Hämoglobin diffundiert im Gewebe mit etwa 4,2·10⁻¹³ m²/s [80]; das sind in einer Stunde unter
+0,1 mm, im Szenario also vernachlässigbar. Ein Hämatom wächst hier nur durch weiteres Blut: Fläche = Volumen im
+Unterhautgewebe / Schichtdicke, der Radius also mit √Volumen. Beim Beckentrauma laufen ab 1000 mL Verlust 10 % des weiteren
+Verlusts in Skrotum/Perineum und Leisten (Schichtdicke 10 mm; beides Annahmen). Prellungen färben sich in etwa 90 min von rot
+zu blau-violett, zur Mitte zuerst (Annahme; frühe Farben nach [68]). Senkungshämatome entstehen erst über Stunden bis Tage und
+sind nicht dargestellt.
+
 Annahmen: Kontaktwinkel 90° (keine Messung für Blut auf Matratzenkunststoff gefunden); die Bauchdeckenhebung setzt das
 ganze intraperitoneale Blut an (Obergrenze); Galeaschwellung beim EDH 15 mL. Tropfen sind nur Darstellung, die Blutmenge
 kommt aus der Physiologie (Verlust je Verletzung).
@@ -529,3 +536,4 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 77. Green S. Real-time approximations to subsurface scattering. In: Fernando R, ed. *GPU Gems*. Addison-Wesley; 2004. Kap. 16. [Online](https://developer.nvidia.com/gpugems/gpugems/part-iii-materials/chapter-16-real-time-approximations-subsurface-scattering)
 78. Weyrich T, Matusik W, Pfister H, et al. Analysis of human faces using a measurement-based skin reflectance model. *ACM Trans Graph*. 2006;25(3):1013-1024. [DOI](https://doi.org/10.1145/1141911.1141987)
 79. Bremmer RH, de Bruin KG, van Gemert MJC, van Leeuwen TG, Aalders MCG. Forensic quest for age determination of bloodstains. *Forensic Sci Int*. 2012;216(1-3):1-11. [DOI](https://doi.org/10.1016/j.forsciint.2011.07.027)
+80. Stam B, van Gemert MJC, van Leeuwen TG, Aalders MCG. How the blood pool properties at onset affect the temporal behavior of simulated bruises. *Med Biol Eng Comput*. 2012;50(2):165-171. [DOI](https://doi.org/10.1007/s11517-012-0860-5)

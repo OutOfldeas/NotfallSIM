@@ -22,6 +22,8 @@ namespace NotfallSIM.Anatomy
         public int layer;                        // Reihenfolge übereinander: 0 Haut (Prellung), 1 Blut auf der Haut, 2 Wunde
         public float depth;                      // Wundtiefe im Shader (0 flach … 1 tief klaffend)
         public bool dries;                       // Blut trocknet nach dem Ende der Blutung ein
+        public float[] ageColor;                 // Farbe nach ageTime_min (frisch rot → blau-violett), leer = keine
+        public double ageTime_min;
         public string evidence, sourceId, note;
     }
 
@@ -51,6 +53,8 @@ namespace NotfallSIM.Anatomy
         public bool swellingFromLoss;     // Schwellung = Blutverlust dieser Verletzung ins Gewebe
         public string swellingNote;
         public bool bleeding;             // äußere Blutung: Spritzer und Blutlache aus dem Verlust dieser Verletzung
+        public double subcutaneousShare;  // Anteil des Verlusts (ab when.minLost_mL), der ins Unterhautgewebe läuft …
+        public double layerThickness_mm;  // … und sich dort in dieser Schichtdicke flächig verteilt: Fläche = Volumen / Dicke
         public int rivulets;              // so viele Rinnsale laufen vom Wundort abwärts (BloodFlow)
         public bool amputation;           // Haut distal der Ebene (Anker, Richtung = nach distal) in den Segmenten entfernen, Stumpf schließen
     }
@@ -73,6 +77,12 @@ namespace NotfallSIM.Anatomy
     }
 
     [Serializable]
+    public class HematomaParams
+    {
+        public double hbDiffusivity_m2_s; public string sourceId, note;
+    }
+
+    [Serializable]
     public class SpurtParams
     {
         public double velocityCoefficient; public string sourceId, note;
@@ -92,6 +102,7 @@ namespace NotfallSIM.Anatomy
         public SpurtParams spurt;
         public DryingParams drying;
         public RivuletParams rivulets;
+        public HematomaParams hematoma;
         public VisualSource[] sources;
     }
 
@@ -566,6 +577,12 @@ namespace NotfallSIM.Anatomy
         public static double Amount(SkinMark m, ExamContext ctx)
         {
             if (m.when != null && !Examination.Applies(m.when, m.injuryId, ctx)) return 0;
+            if (m.subcutaneousShare > 0 && m.layerThickness_mm > 0)
+            {
+                double lost = ctx.Lost_mL != null ? ctx.Lost_mL(m.injuryId) : 0;
+                double from = m.when != null ? m.when.minLost_mL : 0;
+                return HematomaRadius_m(m.subcutaneousShare * Math.Max(0, lost - from), m.layerThickness_mm) / Math.Max(1e-6, m.radius_m);
+            }
             if (m.growToLost_mL > m.growFromLost_mL)
             {
                 double lost = ctx.Lost_mL != null ? ctx.Lost_mL(m.injuryId) : 0;
@@ -573,6 +590,18 @@ namespace NotfallSIM.Anatomy
             }
             return 1;
         }
+
+        /// <summary>Radius eines flächigen Hämatoms aus Volumen und Schichtdicke (Kreisfläche = V / h), höchstens der Zeichenradius
+        /// (über Amount ≤ 1). Diffusion des Hämoglobins ist im Szenariozeitraum vernachlässigbar (Stam 2012).</summary>
+        public static double HematomaRadius_m(double volume_mL, double thickness_mm) =>
+            volume_mL <= 0 || thickness_mm <= 0 ? 0 : Math.Sqrt(volume_mL * 1e-6 / (Math.PI * thickness_mm * 1e-3));
+
+        /// <summary>Diffusionslänge √(2·D·t) in Metern.</summary>
+        public static double DiffusionLength_m(double d_m2_s, double t_s) => Math.Sqrt(2 * d_m2_s * t_s);
+
+        /// <summary>Farbalter 0 (frisch) … 1 nach ageTime_min.</summary>
+        public static double ColorAge(MarkKind k, double age_s) =>
+            k == null || k.ageTime_min <= 0 ? 0 : Math.Max(0, Math.Min(1, age_s / (k.ageTime_min * 60)));
 
         // ---------------------------------------------------------------- Schwellung
 
