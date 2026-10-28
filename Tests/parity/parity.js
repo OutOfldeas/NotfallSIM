@@ -51,6 +51,16 @@ run("laparotomie_mehrfach", man80, (e, s) => {
   if (s === 3000) e.applyIntervention(iv("HemorrhageControl", { target: "Spleen,Liver", rateMultiplier: 0.05 }));
 }, 1200);
 run("betablocker", { weight_kg: 65, age: 76, sex: "female", betaBlocker: true }, (e, s) => { if (s === 0) e.applyInjury(bleed("Pelvis", 0.6, 150, 3000)); }, 1800);
+run("gerinnsel_nachblutung", man80, (e, s) => {
+  if (s === 0) {
+    e.applyInjury({ ...bleed("Spleen", 0.9, 100, 2500), lesion: "parenchymal" });
+    e.applyInjury({ ...bleed("Abdomen", 0.6, 110, 3000), lesion: "partial" });
+    e.applyInjury({ ...bleed("Extremity", 0.8, 100, 0), lesion: "transection" });
+    e.applyInjury({ ...bleed("Pelvis", 0.7, 150, 3000), lesion: "venous" });
+  }
+  if (s === 6000) e.applyIntervention(iv("HemorrhageControl", { target: "Abdomen", rateMultiplier: 0 }));
+  if (s === 9000) e.applyIntervention(iv("FluidInfusion", { target: "", compound: "Blood", volume_mL: 1500, rate_mL_min: 150 }));
+}, 1800);
 
 // Zufallsszenarien (Datei als drittes Argument)
 if (process.argv[3]) {

@@ -93,7 +93,15 @@
     TbiOsmotherapyReduction: 0.15, TbiLevelAfterSurgery: 0.4,
     AirwayMaxSpO2Drop: 15, AirwayMaxEtCo2Rise: 10, TpFactorWhenVentilated: 3.0,
     VasopressorSbpRise: 20, VasopressorDbpRise: 12,
+    // Blutungsphysik wie MockPhysiologyEngine.cs (Malbrain 2016, Sondeen 2003; Bildungszeit/Restfluss Annahmen)
+    IapBaseline: 7, AbdominalCompliance: 400, RebleedMap: 64, ClotFormation_s: 300, ClotFlowFactor: 0.1,
   };
+  function spaceOf(c) {
+    if (c === "Spleen" || c === "Liver" || c === "Abdomen") return "Peritoneum";
+    if (c === "Extremity" || c === "LeftArm" || c === "RightArm") return "";
+    return c;
+  }
+  const canClot = (l) => l === "transection" || l === "parenchymal" || l === "venous";
 
   function bloodVolume(p) { return p.weight_kg * (String(p.sex).toLowerCase() === "female" ? 65 : 70); }
 
@@ -146,7 +154,7 @@
     }
 
     applyInjury(inj) {
-      if (inj.effect === "Hemorrhage") this.bleeds[inj.compartment] = { inj, multiplier: 1, lost: 0 };
+      if (inj.effect === "Hemorrhage") this.bleeds[inj.compartment] = { inj, multiplier: 1, lost: 0, clotTimer: 0, clotted: false };
       else if (inj.effect === "TensionPneumothorax") this.tension[inj.compartment] = { inj, level: 0, rateFactor: 1, drained: false };
       else if (inj.effect === "TraumaticBrainInjury") this.brain[inj.compartment] = { inj, level: Math.max(0, Math.min(1, inj.initialLevel || 0)), stopped: false };
     }
@@ -181,10 +189,21 @@
       const minutes = dt / 60;
       const cur = this.current;
       if (!this.arrest) {
-        const pressureFactor = Math.sqrt(Math.max(0, cur.map / this.baselineMap));
+        const map = cur.map, spaceVol = {};
+        for (const b of Object.values(this.bleeds)) { const sp = spaceOf(b.inj.compartment); spaceVol[sp] = (spaceVol[sp] || 0) + b.lost; }
+        const back = (b, v) => {
+          const sp = spaceOf(b.inj.compartment);
+          if (sp === "") return 0;
+          if (sp === "Peritoneum") return C.IapBaseline * Math.exp(v / (C.IapBaseline * C.AbdominalCompliance));
+          return b.inj.maxTotalLoss_mL > 0 ? v / b.inj.maxTotalLoss_mL * this.baselineMap : 0;
+        };
         for (const b of Object.values(this.bleeds)) {
-          let rate = b.inj.baseRate_mL_min * b.inj.severity * b.multiplier * pressureFactor;
-          if (b.inj.maxTotalLoss_mL > 0) rate *= Math.max(0, 1 - b.lost / b.inj.maxTotalLoss_mL);
+          if (canClot(b.inj.lesion)) {
+            if (map < C.RebleedMap) { b.clotTimer += dt; if (b.clotTimer >= C.ClotFormation_s) b.clotted = true; }
+            else { b.clotTimer = 0; b.clotted = false; }
+          }
+          const drive = Math.max(0, map - back(b, spaceVol[spaceOf(b.inj.compartment)])) / Math.max(1, this.baselineMap - back(b, 0));
+          const rate = b.inj.baseRate_mL_min * b.inj.severity * b.multiplier * Math.sqrt(drive) * (b.clotted ? C.ClotFlowFactor : 1);
           const l = rate * minutes; b.lost += l;
           if (this.volume > 0) this.redCells -= l * this.redCells / this.volume;
           this.volume -= l;
@@ -341,7 +360,7 @@
           if (si.onsetTime_s > t) continue;
           const def = this.injuries[si.injuryId];
           for (const e of def.effects) this.engine.applyInjury({ injuryId: si.injuryId, effect: e.effectType, compartment: e.compartment, severity: si.severity,
-            baseRate_mL_min: e.baseRate_mL_min, maxTotalLoss_mL: e.maxTotalLoss_mL, progressionRate_per_min: e.progressionRate_per_min, initialLevel: e.initialLevel || 0 });
+            baseRate_mL_min: e.baseRate_mL_min, maxTotalLoss_mL: e.maxTotalLoss_mL, lesion: e.lesion || "", progressionRate_per_min: e.progressionRate_per_min, initialLevel: e.initialLevel || 0 });
           this.log(`Verletzung aktiv: ${def.name}`, "injury:" + si.injuryId);
           this.pending.splice(i, 1);
         }

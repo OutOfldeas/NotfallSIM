@@ -13,6 +13,7 @@
           "compartment": "Pelvis",
           "baseRate_mL_min": 150,
           "maxTotalLoss_mL": 3000,
+          "lesion": "venous",
           "progressionRate_per_min": 0,
           "initialLevel": 0
         }
@@ -197,6 +198,7 @@
           "compartment": "Brain",
           "baseRate_mL_min": 0,
           "maxTotalLoss_mL": 0,
+          "lesion": "",
           "progressionRate_per_min": 0.05,
           "initialLevel": 0
         }
@@ -346,6 +348,7 @@
           "compartment": "RightThigh",
           "baseRate_mL_min": 20,
           "maxTotalLoss_mL": 1000,
+          "lesion": "venous",
           "progressionRate_per_min": 0,
           "initialLevel": 0
         }
@@ -434,6 +437,7 @@
           "compartment": "Liver",
           "baseRate_mL_min": 90,
           "maxTotalLoss_mL": 2500,
+          "lesion": "parenchymal",
           "progressionRate_per_min": 0,
           "initialLevel": 0
         }
@@ -452,7 +456,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Blutungsrate und Obergrenze didaktisch (Spielwerte). Dynamische Befunde: Distension erst nach relevantem Verlust; Schwelle didaktisch.",
+      "reviewNotes": "Blutungsrate und Obergrenze didaktisch (Spielwerte). Dynamische Befunde: Distension erst nach relevantem Verlust; Schwelle didaktisch. Blutungsphysik: keine feste Obergrenze mehr (maxTotalLoss nur noch für die Darstellung); Gegendruck aus dem Bauchraum, den sich alle intraabdominellen Blutungen teilen (Malbrain 2016).",
       "imaging": [
         {
           "modality": "eFAST",
@@ -614,6 +618,7 @@
           "compartment": "Spleen",
           "baseRate_mL_min": 100,
           "maxTotalLoss_mL": 2500,
+          "lesion": "parenchymal",
           "progressionRate_per_min": 0,
           "initialLevel": 0
         }
@@ -632,7 +637,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Blutungsrate und Obergrenze didaktisch (Spielwerte). Spontanstillstand und nicht-operatives Management nicht modelliert. Dynamische Befunde: Distension erst nach relevantem Verlust (klinisch unzuverlässig); Schwelle didaktisch.",
+      "reviewNotes": "Blutungsrate und Obergrenze didaktisch (Spielwerte). Spontanstillstand und nicht-operatives Management nicht modelliert. Dynamische Befunde: Distension erst nach relevantem Verlust (klinisch unzuverlässig); Schwelle didaktisch. Blutungsphysik: keine feste Obergrenze mehr (maxTotalLoss nur noch für die Darstellung); Gegendruck aus dem Bauchraum, den sich alle intraabdominellen Blutungen teilen (Malbrain 2016).",
       "imaging": [
         {
           "modality": "eFAST",
@@ -848,6 +853,7 @@
           "compartment": "Brain",
           "baseRate_mL_min": 0,
           "maxTotalLoss_mL": 0,
+          "lesion": "",
           "progressionRate_per_min": 0.018,
           "initialLevel": 0.45
         }
@@ -989,6 +995,7 @@
           "compartment": "LeftLung",
           "baseRate_mL_min": 0,
           "maxTotalLoss_mL": 0,
+          "lesion": "",
           "progressionRate_per_min": 0.06,
           "initialLevel": 0
         }
@@ -1204,6 +1211,7 @@
           "compartment": "Extremity",
           "baseRate_mL_min": 120,
           "maxTotalLoss_mL": 0,
+          "lesion": "partial",
           "progressionRate_per_min": 0,
           "initialLevel": 0
         }
@@ -1294,6 +1302,7 @@
           "compartment": "Extremity",
           "baseRate_mL_min": 100,
           "maxTotalLoss_mL": 0,
+          "lesion": "transection",
           "progressionRate_per_min": 0,
           "initialLevel": 0
         }
@@ -1406,6 +1415,7 @@
           "compartment": "Abdomen",
           "baseRate_mL_min": 110,
           "maxTotalLoss_mL": 3000,
+          "lesion": "partial",
           "progressionRate_per_min": 0,
           "initialLevel": 0
         }
@@ -1427,7 +1437,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Blutung aus Mesenterialgefäßen, Rate und Obergrenze didaktisch (Spielwerte). Hohlorganverletzung und Peritonitis nicht modelliert. Die äußere Wunde verrät die innere Blutung nicht: Ausmaß nur über Kreislauf und eFAST.",
+      "reviewNotes": "Blutung aus Mesenterialgefäßen, Rate und Obergrenze didaktisch (Spielwerte). Hohlorganverletzung und Peritonitis nicht modelliert. Die äußere Wunde verrät die innere Blutung nicht: Ausmaß nur über Kreislauf und eFAST. Blutungsphysik: keine feste Obergrenze mehr (maxTotalLoss nur noch für die Darstellung); Gegendruck aus dem Bauchraum, den sich alle intraabdominellen Blutungen teilen (Malbrain 2016).",
       "imaging": [
         {
           "modality": "eFAST",
@@ -1564,6 +1574,7 @@
           "compartment": "LeftArm",
           "baseRate_mL_min": 40,
           "maxTotalLoss_mL": 0,
+          "lesion": "partial",
           "progressionRate_per_min": 0,
           "initialLevel": 0
         }

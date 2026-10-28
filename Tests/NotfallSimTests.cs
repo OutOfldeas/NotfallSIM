@@ -72,6 +72,7 @@ static class Tests
         Run("Organmodell: Versagensdehnung je Dehnrate, Seite, Kontrollfälle Viano/Hardy, Daten konsistent", OrganModel);
         Run("Crash: harter Aufprall verletzt, leichter nicht, Seite bestimmt Milz/Leber", CrashScenario);
         Run("Muskeltonus: Daten mit Quellen, Aktivierung je Zustand, Kniemoment plausibel", MuscleToneData);
+        Run("Blutungsphysik: Bauchdruck nach Malbrain, Gerinnsel unter 64 mmHg, Nachblutung nach Volumen, Tamponade", BleedingPhysics);
         Run("Verletzungszeichen: Ort an der Haut, Region, Befund, Schwellungsvolumen, Amputation, Blutlache", InjuryVisualsData);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
@@ -711,7 +712,7 @@ static class Tests
             {
                 InjuryId = def.id, Effect = (InjuryEffectType)Enum.Parse(typeof(InjuryEffectType), x.effectType),
                 Compartment = x.compartment, Severity = si.severity, BaseRate_mL_min = x.baseRate_mL_min,
-                MaxTotalLoss_mL = x.maxTotalLoss_mL, ProgressionRate_per_min = x.progressionRate_per_min, InitialLevel = x.initialLevel
+                MaxTotalLoss_mL = x.maxTotalLoss_mL, Lesion = x.lesion, ProgressionRate_per_min = x.progressionRate_per_min, InitialLevel = x.initialLevel
             };
     }
 
@@ -1255,6 +1256,54 @@ static class Tests
         Check(Math.Abs(harbo / anderson - 1) < 0.3, $"Knie: Harbo {harbo:F0} Nm vs. Anderson {anderson:F0} Nm");
         var d = MuscleTone.Drive(f, "Unterschenkel rechts", true, a.bracedLevel);
         Check(Math.Abs(d.Item2 * f.angleAtMaxTorque_deg * Math.PI / 180 - d.Item1) < 1e-9, "Steifigkeit × Winkel = Moment");
+    }
+
+    static void BleedingPhysics()
+    {
+        // Bauchraum: +2 L ≈ 12–14 mmHg, Compliance bei +4 L im Bereich 60–133 mL/mmHg (Malbrain 2016)
+        double p2 = MockPhysiologyEngine.AbdominalPressure_mmHg(2000);
+        Check(p2 > 10 && p2 < 16, $"IAP bei +2 L {p2:F1} mmHg");
+        double c4 = 100 / (MockPhysiologyEngine.AbdominalPressure_mmHg(4050) - MockPhysiologyEngine.AbdominalPressure_mmHg(3950));
+        Check(c4 > 60 && c4 < 133, $"Compliance bei +4 L {c4:F0} mL/mmHg");
+
+        Func<string, InjuryEvent> spleen = lesion => new InjuryEvent { InjuryId = "m", Effect = InjuryEffectType.Hemorrhage, Compartment = "Spleen", Severity = 1, BaseRate_mL_min = 100, MaxTotalLoss_mL = 2500, Lesion = lesion };
+        // Parenchym: Gerinnsel, sobald der MAD lange genug unter 64 mmHg liegt
+        var e = new MockPhysiologyEngine(1); e.Initialize(new PatientProfile { weight_kg = 80 });
+        e.ApplyInjury(spleen("parenchymal"));
+        double tLow = -1;
+        for (double t = 0; t < 3600 && !e.InjuryClotted("m"); t += 0.1) { if (tLow < 0 && e.Current.MeanArterialPressure_mmHg < 64) tLow = t; e.Advance(0.1); }
+        Check(e.InjuryClotted("m"), "kein Gerinnsel trotz Hypotonie");
+        double lost0 = e.InjuryBloodLoss_mL("m"); Advance(e, 60); double clottedRate = e.InjuryBloodLoss_mL("m") - lost0;
+        Check(clottedRate < 15, $"mit Gerinnsel noch {clottedRate:F0} mL/min");
+        // Volumen hebt den MAD über die Schwelle: Gerinnsel löst sich, Blutung nimmt wieder zu
+        e.ApplyIntervention(new InterventionEvent { Type = InterventionType.FluidInfusion, Compound = "Blood", Volume_mL = 2000, Rate_mL_min = 400 });
+        for (int k = 0; k < 6000 && e.InjuryClotted("m"); k++) e.Advance(0.1);
+        Check(!e.InjuryClotted("m") && e.Current.MeanArterialPressure_mmHg >= 64, "keine Nachblutung nach Volumengabe");
+        lost0 = e.InjuryBloodLoss_mL("m"); Advance(e, 60);
+        Check(e.InjuryBloodLoss_mL("m") - lost0 > 3 * clottedRate, "Nachblutung nicht stärker als mit Gerinnsel");
+        // Seitlicher Einriss: nie Gerinnsel
+        var p = new MockPhysiologyEngine(1); p.Initialize(new PatientProfile { weight_kg = 80 });
+        p.ApplyInjury(new InjuryEvent { InjuryId = "a", Effect = InjuryEffectType.Hemorrhage, Compartment = "LeftArm", Severity = 1, BaseRate_mL_min = 60, Lesion = "partial" });
+        Advance(p, 1800);
+        Check(!p.InjuryClotted("a"), "seitlicher Einriss mit Gerinnsel");
+        // Becken: Tamponade beim Tamponadevolumen (Gegendruck = Ausgangs-MAD), bei Hypotonie früher
+        var b = new MockPhysiologyEngine(1); b.Initialize(new PatientProfile { weight_kg = 80 });
+        b.ApplyInjury(new InjuryEvent { InjuryId = "b", Effect = InjuryEffectType.Hemorrhage, Compartment = "Pelvis", Severity = 1, BaseRate_mL_min = 150, MaxTotalLoss_mL = 1200 });
+        Advance(b, 3000); double vb = b.InjuryBloodLoss_mL("b"); Advance(b, 600);
+        // Gegendruck = MAD beim Tamponadevolumen; liegt der MAD (Kompensation) etwas über dem Ausgangswert, etwas darüber
+        Check(b.InjuryBloodLoss_mL("b") <= 1.05 * 1200 && b.InjuryBloodLoss_mL("b") - vb < 10, $"Becken: {b.InjuryBloodLoss_mL("b"):F0} mL, letzte 10 min {b.InjuryBloodLoss_mL("b") - vb:F0} mL");
+        // Geteilter Bauchraum: Leber blutet langsamer, wenn die Milz schon Blut in den Bauch gebracht hat
+        Func<bool, double> liverFirstMinute = withSpleen =>
+        {
+            var x = new MockPhysiologyEngine(1); x.Initialize(new PatientProfile { weight_kg = 80 });
+            if (withSpleen) { x.ApplyInjury(spleen("")); Advance(x, 1200); x.ApplyIntervention(new InterventionEvent { Type = InterventionType.HemorrhageControl, TargetCompartment = "Spleen", RateMultiplier = 0 }); }
+            x.ApplyIntervention(new InterventionEvent { Type = InterventionType.FluidInfusion, Compound = "Blood", Volume_mL = 5000, Rate_mL_min = 5000 });
+            Advance(x, 60);
+            x.ApplyInjury(new InjuryEvent { InjuryId = "l", Effect = InjuryEffectType.Hemorrhage, Compartment = "Liver", Severity = 1, BaseRate_mL_min = 90, MaxTotalLoss_mL = 2500 });
+            Advance(x, 60);
+            return x.InjuryBloodLoss_mL("l");
+        };
+        Check(liverFirstMinute(true) < liverFirstMinute(false), "Bauchraum nicht geteilt");
     }
 
     static void InjuryVisualsData()

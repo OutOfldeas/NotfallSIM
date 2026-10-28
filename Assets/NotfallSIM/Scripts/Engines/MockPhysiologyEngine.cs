@@ -14,7 +14,7 @@ namespace NotfallSIM.Engines
     /// (an TraumaRegister-DGU-Daten angelehnt: kaum Tachykardie, individuelle Streuung,
     /// Alter und Betablocker wirken sich aus). Siehe docs/LITERATUR.md.
     ///
-    /// GRENZEN (absichtlich): keine Gerinnung, keine Hämodilution, keine Azidose,
+    /// GRENZEN (absichtlich): Gerinnung nur als Gerinnsel an der Läsion (keine Koagulopathie), keine Hämodilution, keine Azidose,
     /// keine Hypothermie, kristalloide Volumenwirkung nur als fester Anteil.
     /// Für echten Realismus -> PulsePhysiologyAdapter. Der Mock dient als
     /// Referenz/Plausibilitätscheck und als Fallback.
@@ -41,6 +41,52 @@ namespace NotfallSIM.Engines
             public InjuryEvent Injury;
             public double Multiplier = 1;
             public double Lost_mL;
+            public double ClotTimer_s;   // Zeit unter der Nachblutungsschwelle
+            public bool Clotted;
+        }
+
+        // Blutungsphysik (docs/LITERATUR.md, Abschnitt Blutungsphysik):
+        // Fluss durch die Läsion ~ √(Druckdifferenz) (Bernoulli/Ausflussformel), Druckdifferenz = MAD − Gegendruck des Raums.
+        // Bauchraum (Milz, Leber, Mesenterium teilen sich ihn): IAP = IAP0 · exp(V / (IAP0 · C0)), Anfangscompliance
+        // 400 mL/mmHg bei IAP 7 mmHg, danach steiler (Malbrain 2016: 250–450 mL/mmHg normal, 60–133 bei hohem IAP).
+        // Geschlossene Räume (Becken, Oberschenkel): linear, Gegendruck erreicht den Ausgangs-MAD beim Tamponadevolumen
+        // (maxTotalLoss_mL). Außen (Extremität, Arm): kein Gegendruck.
+        const double IapBaseline_mmHg = 7, AbdominalCompliance_mL_per_mmHg = 400;
+        // Gerinnsel: bilden sich bei Läsionen, die sich verschließen können (Durchtrennung mit Retraktion, Parenchym,
+        // venös), wenn der MAD unter der Nachblutungsschwelle bleibt; darüber lösen sie sich (Sondeen 2003: 64 ± 2 mmHg).
+        // Bildungszeit und Restfluss: Annahmen.
+        const double RebleedMap_mmHg = 64, ClotFormation_s = 300, ClotFlowFactor = 0.1;
+
+        static string SpaceOf(string compartment)
+        {
+            switch (compartment)
+            {
+                case "Spleen": case "Liver": case "Abdomen": return "Peritoneum";
+                case "Extremity": case "LeftArm": case "RightArm": return "";
+                default: return compartment;
+            }
+        }
+
+        /// <summary>Intraabdomineller Druck bei zusätzlichem Volumen im Bauchraum.</summary>
+        public static double AbdominalPressure_mmHg(double addedVolume_mL) =>
+            IapBaseline_mmHg * Math.Exp(addedVolume_mL / (IapBaseline_mmHg * AbdominalCompliance_mL_per_mmHg));
+
+        static bool CanClot(string lesion) => lesion == "transection" || lesion == "parenchymal" || lesion == "venous";
+
+        /// <summary>Gegendruck des Raums (mmHg) bei dem darin angesammelten Blut.</summary>
+        double BackPressure(Bleed b, double spaceVolume_mL)
+        {
+            string space = SpaceOf(b.Injury.Compartment);
+            if (space == "") return 0;
+            if (space == "Peritoneum") return AbdominalPressure_mmHg(spaceVolume_mL);
+            return b.Injury.MaxTotalLoss_mL > 0 ? spaceVolume_mL / b.Injury.MaxTotalLoss_mL * _baselineMap : 0;
+        }
+
+        /// <summary>Hat sich an der Blutung dieser Verletzung ein Gerinnsel gebildet?</summary>
+        public bool InjuryClotted(string injuryId)
+        {
+            foreach (var b in _bleeds.Values) if (b.Injury.InjuryId == injuryId && b.Clotted) return true;
+            return false;
         }
 
         class Infusion
@@ -236,15 +282,26 @@ namespace NotfallSIM.Engines
 
             if (!_arrest)
             {
-                // Blutung: druckabhängig und mit Obergrenze (Tamponade).
-                // Fluss durch eine Gefäßläsion ~ Wurzel des Drucks (Bernoulli-Näherung).
-                double pressureFactor = Math.Sqrt(Math.Max(0, Current.MeanArterialPressure_mmHg / _baselineMap));
+                // Blutung: Fluss ~ √(MAD − Gegendruck), bezogen auf den Ausgangszustand; Gerinnsel unter der Nachblutungsschwelle.
+                double map = Current.MeanArterialPressure_mmHg;
+                var spaceVolume = new Dictionary<string, double>();
+                foreach (var b in _bleeds.Values)
+                {
+                    string sp = SpaceOf(b.Injury.Compartment);
+                    spaceVolume[sp] = (spaceVolume.TryGetValue(sp, out var v0) ? v0 : 0) + b.Lost_mL;
+                }
                 foreach (var b in _bleeds.Values)
                 {
                     var inj = b.Injury;
-                    double rate = inj.BaseRate_mL_min * inj.Severity * b.Multiplier * pressureFactor;
-                    if (inj.MaxTotalLoss_mL > 0)
-                        rate *= Math.Max(0, 1 - b.Lost_mL / inj.MaxTotalLoss_mL);
+                    if (CanClot(inj.Lesion))
+                    {
+                        if (map < RebleedMap_mmHg) { b.ClotTimer_s += dt_s; if (b.ClotTimer_s >= ClotFormation_s) b.Clotted = true; }
+                        else { b.ClotTimer_s = 0; b.Clotted = false; }
+                    }
+                    double back = BackPressure(b, spaceVolume[SpaceOf(inj.Compartment)]);
+                    double back0 = BackPressure(b, 0);
+                    double drive = Math.Max(0, map - back) / Math.Max(1, _baselineMap - back0);
+                    double rate = inj.BaseRate_mL_min * inj.Severity * b.Multiplier * Math.Sqrt(drive) * (b.Clotted ? ClotFlowFactor : 1);
                     double loss = rate * minutes;
                     b.Lost_mL += loss;
                     if (_volume > 0) _redCellVolume -= loss * _redCellVolume / _volume;

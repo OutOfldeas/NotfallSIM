@@ -30,6 +30,7 @@ namespace NotfallSIM.Anatomy
         class Bleeding
         {
             public string InjuryId;
+            public bool Arterial;   // spritzt im Pulsrhythmus (seitlicher Einriss oder Durchtrennung einer Arterie)
             public Transform Emitter; public ParticleSystem Particles;
             public Transform Pool, FloorPool; public Vector3 PoolCenter;
             public double LastLost, LastT, Rate_mL_s; public float BeatPhase;
@@ -249,7 +250,9 @@ namespace NotfallSIM.Anatomy
             var bind = _rig.Skin.sharedMesh.bindposes[segment];
             var p = new Vector3(modelPoint[0], modelPoint[1], modelPoint[2]);
             var nrm = new Vector3(modelNormal[0], modelNormal[1], modelNormal[2]).normalized;
-            var b = new Bleeding { InjuryId = m.injuryId };
+            var def = _sim.Database != null ? _sim.Database.Get(m.injuryId) : null;
+            bool arterial = def?.effects != null && def.effects.Any(e => e.lesion == "partial" || e.lesion == "transection");
+            var b = new Bleeding { InjuryId = m.injuryId, Arterial = arterial };
 
             var em = new GameObject("Blutung " + m.id).transform;
             em.SetParent(bone, false);
@@ -391,7 +394,7 @@ namespace NotfallSIM.Anatomy
             // Strahl: je Herzschlag ein Schwall, Geschwindigkeit aus dem systolischen Druck
             if (_sim.Paused || b.Particles == null) return;
             var v = _sim.Vitals;
-            if (v.CardiacArrest || b.Rate_mL_s < 0.05) return;
+            if (v.CardiacArrest || b.Rate_mL_s < 0.05 || !b.Arterial) return; // venös/parenchymatös: sickert, kein Strahl
             b.BeatPhase += dt * (float)v.HeartRate_bpm / 60f;
             if (b.BeatPhase < 1) return;
             b.BeatPhase -= Mathf.Floor(b.BeatPhase);
