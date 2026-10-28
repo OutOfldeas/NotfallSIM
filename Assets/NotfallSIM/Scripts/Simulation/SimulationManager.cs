@@ -122,6 +122,7 @@ namespace NotfallSIM.Simulation
             TriggerDueInjuries();
             Engine.Advance(stepSize_s);
             Log($"Szenario '{Scenario.title}' gestartet mit {Engine.Name} (DB v{Database.Version})");
+            NotfallSIM.Rooms.TraumaRoom.Ensure(this); // Raum, Kamera, anatomischer Patient — auch in alten Szenendateien
             UI.PauseMenu.Ensure(this);
         }
 

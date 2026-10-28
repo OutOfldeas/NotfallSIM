@@ -31,7 +31,12 @@ namespace NotfallSIM.UI
 
         public bool Sound { get => sound; set => sound = value; }
 
-        public void SetMirror(RawImage ecg, RawImage pleth, RawImage capno) => mirror = new[] { ecg, pleth, capno };
+        public void SetMirror(RawImage ecg, RawImage pleth, RawImage capno)
+        {
+            mirror = new[] { ecg, pleth, capno };
+            if (_tex == null) return; // sonst weist Start die Texturen zu
+            for (int i = 0; i < 3; i++) if (mirror[i]) mirror[i].texture = _tex[i];
+        }
 
         public void Configure(SimulationManager simulation, RawImage ecg, RawImage pleth, RawImage capno)
         {

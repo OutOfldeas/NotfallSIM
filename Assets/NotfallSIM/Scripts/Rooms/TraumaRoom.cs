@@ -1,22 +1,21 @@
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace NotfallSIM.EditorTools
+namespace NotfallSIM.Rooms
 {
     /// <summary>
     /// Baut den Schockraum aus Grundkörpern mit PBR-Materialien: Raum, Trage, OP-Leuchte, Deckenversorgungseinheit
     /// mit Monitor, Beatmungsgerät, Infusionsständer, Notfallwagen, Sonografie, Schränke und Beleuchtung.
     /// Trage: Mitte im Ursprung, Kopfende Richtung +z, Liegefläche auf <see cref="MattressTop"/>.
     /// </summary>
-    public static class TraumaRoomBuilder
+    public static partial class TraumaRoom
     {
         public const float MattressTop = 0.84f;
         /// <summary>Gehäuse des Patientenmonitors (für die World-Space-Anzeige); Bildschirm auf der lokalen −z-Seite.</summary>
         public static Transform MonitorBody { get; private set; }
         const float RoomX = 3.2f, RoomZ = 3.8f, RoomH = 3.0f;
 
-        public static Transform Build()
+        public static Transform BuildGeometry()
         {
             var root = new GameObject("Schockraum").transform;
 
@@ -176,10 +175,11 @@ namespace NotfallSIM.EditorTools
             return go;
         }
 
-        /// <summary>URP-Lit-Material als Asset (Metallic/Glätte, optional Textur und Leuchten).</summary>
+        /// <summary>URP-Lit-Material zur Laufzeit (Metallic/Glätte, optional Textur und Leuchten).</summary>
         public static Material Pbr(string name, Color color, float metallic, float smoothness, Texture2D tex = null, Color? emission = null)
         {
-            var m = SceneBuilder.Mat(name, color);
+            var sh = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            var m = new Material(sh) { name = name, color = color };
             if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", metallic);
             if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", smoothness);
             if (tex != null) m.mainTexture = tex;
@@ -189,18 +189,14 @@ namespace NotfallSIM.EditorTools
                 m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
                 if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", emission.Value);
             }
-            EditorUtility.SetDirty(m);
             return m;
         }
 
-        /// <summary>Fliesen-/Vinylmuster als Textur-Asset (einmal erzeugt, danach wiederverwendet).</summary>
+        /// <summary>Fliesen-/Vinylmuster als Textur (zur Laufzeit erzeugt).</summary>
         static Texture2D FloorTexture()
         {
-            const string path = "Assets/NotfallSIM/Materials/Boden_Textur.asset";
-            var existing = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            if (existing != null) return existing;
             const int n = 256;
-            var tex = new Texture2D(n, n, TextureFormat.RGBA32, true);
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, true) { name = "Boden", wrapMode = TextureWrapMode.Repeat };
             var rnd = new System.Random(3);
             for (int y = 0; y < n; y++)
                 for (int x = 0; x < n; x++)
@@ -211,8 +207,6 @@ namespace NotfallSIM.EditorTools
                     tex.SetPixel(x, y, new Color(v, v, v * 0.99f));
                 }
             tex.Apply();
-            SceneBuilder.EnsureFolder("Assets/NotfallSIM/Materials");
-            AssetDatabase.CreateAsset(tex, path);
             return tex;
         }
     }

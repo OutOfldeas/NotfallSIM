@@ -77,7 +77,7 @@ namespace NotfallSIM.EditorTools
 
         static AnatomyPatient BuildRoom(SimulationManager sim)
         {
-            TraumaRoomBuilder.Build();
+            NotfallSIM.Rooms.TraumaRoom.BuildGeometry(); // gleicher Aufbau wie zur Laufzeit (TraumaRoom.Ensure)
 
             var cam = Camera.main;
             cam.clearFlags = CameraClearFlags.SolidColor;
@@ -329,7 +329,7 @@ namespace NotfallSIM.EditorTools
         /// <summary>Der Monitor an der Deckenversorgungseinheit zeigt dieselben Werte und Kurven (World-Space-Canvas).</summary>
         static void WorldMonitor(SimulationManager sim, MonitorWaveforms waves)
         {
-            var body = TraumaRoomBuilder.MonitorBody;
+            var body = NotfallSIM.Rooms.TraumaRoom.MonitorBody;
             if (body == null) return;
             var go = new GameObject("Monitor-Anzeige", typeof(RectTransform));
             var canvas = go.AddComponent<Canvas>();

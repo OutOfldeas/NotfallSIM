@@ -37,6 +37,8 @@ namespace NotfallSIM.Anatomy
         Camera _cam;
 
         public bool XRay => _xrayOn;
+        /// <summary>Hat die Szene Bedienelemente (Röntgenblick-Knopf, Hover-Text) angeschlossen?</summary>
+        public bool HasUi => hoverLabel != null || xrayButtonLabel != null;
 
         public void Configure(SimulationManager simulation, TMP_Text hover, TMP_Text xrayLabel, string[] layerIds = null, UnityEngine.UI.Image[] layerImages = null)
         {

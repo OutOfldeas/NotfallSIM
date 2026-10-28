@@ -41,9 +41,10 @@ Assets/
     Interaction/   BodyRegion
     Anatomy/       body.bin lesen, Patient aufbauen (Haut, Skelett, Röntgenblick)
     Crash/         Unfall-Sandbox: Ragdoll, Fahrzeuge, Sensoren, Verletzungskriterien
+    Rooms/         Schockraum zur Laufzeit: Raum, Licht, Kamera, Patient, Monitor (auch für alte Szenendateien)
   NotfallSIM/Editor/
     MenuSceneBuilder.cs          Menü „NotfallSIM › Alle Szenen erstellen“
-    SceneBuilder.cs              Schockraum-Szene (Raum aus TraumaRoomBuilder.cs, UI, Post-Processing)
+    SceneBuilder.cs              Schockraum-Szene (Raum aus Scripts/Rooms/TraumaRoom.cs, UI, Post-Processing)
     CrashSceneBuilder.cs         Unfall-Sandbox-Szene
   NotfallSIM/Resources/
     XRay.shader                  Röntgenblick (URP)
