@@ -43,7 +43,8 @@ MUSCLE = (r"biceps|triceps|deltoid|pectoralis|rectus abdominis|rectus femoris|ex
           r"pollicis)|pronator|supinator|piriformis|obturator|gemellus|pectineus|tensor fasciae|plantaris|popliteus|"
           r"coracobrachialis|anconeus|splenius|semispinalis|coccygeus|iliococcygeus|pubococcygeus|longus colli|digitorum superficialis")
 MUSCLE_EXCLUDE = (r"retinaculum|tendinous arch|brevis of|flexor digitorum brevis|extensor (digitorum|hallucis) brevis|hallucis brevis|"
-                  r"pollicis brevis|accessorius|masseter|levator (anguli|labii)|rectus capitis|platysma|levatores costarum|\btrapezi(um|oid)$")
+                  r"pollicis brevis|accessorius|masseter|levator (anguli|labii)|rectus capitis|platysma|levatores costarum|\btrapezi(um|oid)$|"
+                  r"intercostal|transversus thoracis")  # Interkostalmuskeln: eigener Schritt (dünne Platten zwischen den Rippen)
 
 
 def is_muscle(name):
