@@ -32,11 +32,34 @@ EXCLUDE = [r"intervertebral disk", r"stylohyoid", r"temporalis", r"zygomaticus",
            r"stria medullaris"]
 
 
+# Skelettmuskulatur (BodyParts3D, ca. 240 Teile): Hals, Rumpf, Becken, Arme, Beine. Ohne Gesichts-, Hand- und
+# Fußbinnenmuskeln (traumatologisch kaum relevant) und ohne Retinacula/Sehnenbögen.
+MUSCLE = (r"biceps|triceps|deltoid|pectoralis|rectus abdominis|rectus femoris|external oblique$|internal oblique$|transversus|"
+          r"latissimus|trapezius|gluteus|psoas|iliacus|sartorius|vastus|gastrocnem|soleus|adductor (brevis|longus|magnus|minimus)|"
+          r"gracilis|semitend|semimemb|serratus|intercostal muscle|sternocleido|scalenus|longissimus|iliocostalis|multifidus|"
+          r"quadratus (lumborum|femoris)|brachialis|brachioradialis|infraspinatus|supraspinatus|subscapularis|teres|rhomboid|"
+          r"levator scapulae|tibialis (anterior|posterior)|fibularis|flexor (carpi|digitorum (superficialis|profundus|longus)|"
+          r"hallucis longus|pollicis longus)|extensor (carpi|digitorum$|digitorum longus|digiti minimi$|hallucis longus|indicis|"
+          r"pollicis)|pronator|supinator|piriformis|obturator|gemellus|pectineus|tensor fasciae|plantaris|popliteus|"
+          r"coracobrachialis|anconeus|splenius|semispinalis|coccygeus|iliococcygeus|pubococcygeus|longus colli|digitorum superficialis")
+MUSCLE_EXCLUDE = (r"retinaculum|tendinous arch|brevis of|flexor digitorum brevis|extensor (digitorum|hallucis) brevis|hallucis brevis|"
+                  r"pollicis brevis|accessorius|masseter|levator (anguli|labii)|rectus capitis|platysma|levatores costarum|\btrapezi(um|oid)$|"
+                  r"intercostal|transversus thoracis")  # Interkostalmuskeln: eigener Schritt (dünne Platten zwischen den Rippen)
+
+
+def is_muscle(name):
+    n = name.lower()
+    return bool(re.search(MUSCLE, n)) and not re.search(MUSCLE_EXCLUDE, n)
+
+
 def select(names):
     """names: dict id -> englischer Name. Rückgabe: dict id -> (layer, name)."""
     out = {}
     for pid, name in names.items():
         n = name.lower()
+        if is_muscle(name):
+            out[pid] = ('muscle', name)
+            continue
         if any(re.search(x, n) for x in EXCLUDE):
             continue
         for layer, pats in LAYERS.items():

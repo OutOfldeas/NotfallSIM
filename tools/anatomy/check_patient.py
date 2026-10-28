@@ -23,15 +23,18 @@ def pose_patient(h, M, height=1.80, mattress=0.84, arm=(14, -4), fore=0, breath=
     minZ = skin['pos'][:, 2].min()
     root = np.array([0, mattress - minZ * scale, 0])
     world = lambda q: root + scale * (R0 @ q.T).T
+    def skinned(Q, b, w0):
+        out = np.zeros_like(Q)
+        for i, s in enumerate(segs):
+            q = T[i] + (R[i] @ (Q - np.array(s['joint'])).T).T
+            out += q * (np.where(b[:, 0] == i, w0, 0) + np.where(b[:, 1] == i, 1 - w0, 0))[:, None]
+        return out
     def part(m):
+        if m.get('bones') is not None:   # gewichtete Teile (Muskeln) wie die Haut
+            return world(skinned(m['pos'], m['bones'], m['w0']))
         i = m['info']['segment']; j = np.array(segs[i]['joint'])
         return world(T[i] + (R[i] @ (m['pos'] - j).T).T)
-    out = np.zeros_like(P)
-    for i, s in enumerate(segs):
-        q = T[i] + (R[i] @ (P - np.array(s['joint'])).T).T
-        b, w0 = skin['bones'], skin['w0']
-        out += q * (np.where(b[:, 0] == i, w0, 0) + np.where(b[:, 1] == i, 1 - w0, 0))[:, None]
-    return world(out), part, (R, T, world, idx)
+    return world(skinned(P, skin['bones'], skin['w0'])), part, (R, T, world, idx)
 
 if __name__ == '__main__':
     h, M = load(sys.argv[1])

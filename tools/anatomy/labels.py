@@ -61,6 +61,45 @@ BONES = {
 }
 
 
+# ------------------------------------------------------------------ Muskeln (lateinisch, wie im Atlas)
+MUSCLE_LATIN = {
+    'external oblique': 'M. obliquus externus abdominis', 'internal oblique': 'M. obliquus internus abdominis',
+    'external intercostal muscle': 'Mm. intercostales externi', 'internal intercostal muscle': 'Mm. intercostales interni',
+    'innermost intercostal muscle': 'Mm. intercostales intimi', 'infraspinatus muscle': 'M. infraspinatus',
+    'sternocleidomastoid': 'M. sternocleidomastoideus', 'rhomboid major': 'M. rhomboideus major', 'rhomboid minor': 'M. rhomboideus minor',
+    'deltoid': 'M. deltoideus', 'multifidus': 'Mm. multifidi', 'iliococcygeus': 'M. iliococcygeus (M. levator ani)',
+    'pubococcygeus': 'M. pubococcygeus (M. levator ani)', 'extensor digitorum': 'M. extensor digitorum',
+}
+MUSCLE_PART = {'abdominal': 'Pars abdominalis', 'acromial': 'Pars acromialis', 'clavicular': 'Pars clavicularis', 'spinal': 'Pars spinalis',
+               'sternocostal': 'Pars sternocostalis', 'ascending': 'Pars ascendens', 'descending': 'Pars descendens',
+               'transverse': 'Pars transversa', 'inferior oblique': 'Pars obliqua inferior', 'superior oblique': 'Pars obliqua superior',
+               'vertical intermediate': 'Pars verticalis'}
+MUSCLE_HEAD = {'long': 'Caput longum', 'short': 'Caput breve', 'lateral': 'Caput laterale', 'medial': 'Caput mediale',
+               'humeral': 'Caput humerale', 'ulnar': 'Caput ulnare', 'humeroulnar': 'Caput humeroulnare', 'radial': 'Caput radiale'}
+
+
+def muscle_base(name):
+    """Muskel ohne Seite, Kopf und Teil (englisch), z. B. 'long head of left biceps femoris' → 'biceps femoris'."""
+    n = name.strip()
+    n = re.sub(r'^(.+?) (head|part) of ', '', n)
+    n = re.sub(r'^(left|right) ', '', n)
+    return n
+
+
+def german_muscle(name):
+    n = name.strip()
+    side = ''
+    m = re.search(r'\b(left|right)\b', n)
+    if m: side = ' ' + SIDE[m[1]]
+    extra = ''
+    mh = re.match(r'^(.+?) (head|part) of ', n)
+    if mh:
+        extra = ', ' + (MUSCLE_HEAD if mh[2] == 'head' else MUSCLE_PART).get(mh[1], mh[1])
+    base = muscle_base(n)
+    latin = MUSCLE_LATIN.get(base, 'M. ' + base)
+    return latin + extra + side
+
+
 def german(name):
     n = name.strip()
     if n in FIXED: return FIXED[n]

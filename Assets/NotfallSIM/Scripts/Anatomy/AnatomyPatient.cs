@@ -29,7 +29,7 @@ namespace NotfallSIM.Anatomy
         AnatomyRig _rig;
         Material _skin, _shorts, _xray, _highlight;
         readonly Dictionary<string, Material> _layerMats = new Dictionary<string, Material>();
-        readonly Dictionary<string, bool> _layerOn = new Dictionary<string, bool> { { "bone", true }, { "organ", true }, { "vessel", true }, { "nerve", true } };
+        readonly Dictionary<string, bool> _layerOn = new Dictionary<string, bool> { { "bone", true }, { "organ", true }, { "vessel", true }, { "nerve", true }, { "muscle", false } }; // Muskeln verdecken sonst die Organe
         readonly HashSet<AnatomyPart> _injured = new HashSet<AnatomyPart>();
         bool _xrayOn, _injuriesShown, _collidersBuilt;
         float _breathPhase;
@@ -185,7 +185,7 @@ namespace NotfallSIM.Anatomy
             if (!_xrayOn && hoverLabel) hoverLabel.text = "";
         }
 
-        /// <summary>„bone“, „organ“ (inkl. Gehirn), „vessel“ (Arterien und Venen), „nerve“.</summary>
+        /// <summary>„bone“, „organ“ (inkl. Gehirn), „vessel“ (Arterien und Venen), „nerve“, „muscle“.</summary>
         public void ToggleLayer(string layer)
         {
             if (!_layerOn.ContainsKey(layer)) return;
@@ -231,7 +231,14 @@ namespace NotfallSIM.Anatomy
             if (p.Collider) return;
             p.Renderer.gameObject.layer = 2;
             p.Collider = p.Renderer.gameObject.AddComponent<MeshCollider>();
-            p.Collider.sharedMesh = p.Filter.sharedMesh;
+            if (p.Skinned != null)
+            {
+                // Muskeln: Form in der aktuellen Lagerung (Arme auf der Trage), ohne Transform-Skalierung wie ein MeshFilter
+                var baked = new Mesh { name = p.Info.name + " (Lagerung)" };
+                p.Skinned.BakeMesh(baked);
+                p.Collider.sharedMesh = baked;
+            }
+            else p.Collider.sharedMesh = p.Filter.sharedMesh;
             p.Collider.enabled = p.Renderer.enabled;
         }
 
