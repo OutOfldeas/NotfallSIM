@@ -61,6 +61,7 @@ Assets/
     injury_risk.json             Unfall-Sandbox: Messwerte → Risikokurven → Verletzungen
     organ_model.json             Organmodell: Bauchkompression → Organdehnung gegen Gewebefestigkeit
     muscle_tone.json             Muskeltonus im Ragdoll: Maximalmomente je Gelenk, Reflex, Abstützen
+    injury_visuals.json          Sichtbare Verletzungszeichen: Prellmarken, Wunden, Schwellung, Amputation, Blutung
     scenarios/*.json             Szenarien
 tools/anatomy/                   Aufbereitung der Anatomie (Python), erzeugt body.bin
 ```

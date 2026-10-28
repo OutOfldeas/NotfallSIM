@@ -35,6 +35,7 @@ namespace NotfallSIM.Anatomy
         float _breathPhase;
         int _bsRight = -1, _bsLeft = -1, _bsAbd = -1;
         Camera _cam;
+        InjuryVisuals _visuals;
 
         public bool XRay => _xrayOn;
         /// <summary>Hat die Szene Bedienelemente (Röntgenblick-Knopf, Hover-Text) angeschlossen?</summary>
@@ -70,6 +71,9 @@ namespace NotfallSIM.Anatomy
             _rig = AnatomyBuilder.Build(transform, height, true, _skin, _shorts, LayerMaterial);
             Pose();
             foreach (var p in _rig.Parts) p.Renderer.enabled = false;
+            // Verletzungszeichen vor den Klickflächen: eine Amputation verändert die Haut
+            _visuals = gameObject.AddComponent<InjuryVisuals>();
+            _visuals.Init(sim, _rig, mattressTop, () => _xrayOn);
 
             var mesh = _rig.Skin.sharedMesh;
             _bsRight = mesh.GetBlendShapeIndex("AtmungThoraxRechts");
@@ -208,7 +212,8 @@ namespace NotfallSIM.Anatomy
         {
             foreach (var p in _rig.Parts)
             {
-                p.Renderer.enabled = _xrayOn && (_layerOn[Group(p.Info.layer)] || (_injuriesShown && _injured.Contains(p)));
+                bool amputated = _visuals != null && _visuals.HiddenParts.Contains(p);
+                p.Renderer.enabled = _xrayOn && !amputated && (_layerOn[Group(p.Info.layer)] || (_injuriesShown && _injured.Contains(p)));
                 if (p.Collider) p.Collider.enabled = p.Renderer.enabled; // ausgeblendete Ebenen verdecken den Mauszeiger nicht
             }
             // Ebenen-Knöpfe: ausgeschaltete Ebene abgedunkelt

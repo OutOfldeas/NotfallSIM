@@ -72,6 +72,7 @@ static class Tests
         Run("Organmodell: Versagensdehnung je Dehnrate, Seite, Kontrollfälle Viano/Hardy, Daten konsistent", OrganModel);
         Run("Crash: harter Aufprall verletzt, leichter nicht, Seite bestimmt Milz/Leber", CrashScenario);
         Run("Muskeltonus: Daten mit Quellen, Aktivierung je Zustand, Kniemoment plausibel", MuscleToneData);
+        Run("Verletzungszeichen: Ort an der Haut, Region, Befund, Schwellungsvolumen, Amputation, Blutlache", InjuryVisualsData);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -1253,6 +1254,95 @@ static class Tests
         Check(Math.Abs(harbo / anderson - 1) < 0.3, $"Knie: Harbo {harbo:F0} Nm vs. Anderson {anderson:F0} Nm");
         var d = MuscleTone.Drive(f, "Unterschenkel rechts", true, a.bracedLevel);
         Check(Math.Abs(d.Item2 * f.angleAtMaxTorque_deg * Math.PI / 180 - d.Item1) < 1e-9, "Steifigkeit × Winkel = Moment");
+    }
+
+    static void InjuryVisualsData()
+    {
+        var f = Load<InjuryVisualsFile>("injury_visuals.json");
+        var inj = Injuries.injuries.ToDictionary(x => x.id);
+        var src = new HashSet<string>(f.sources.Select(x => x.id));
+        foreach (var k in f.kinds)
+        {
+            Check(string.IsNullOrEmpty(k.sourceId) || src.Contains(k.sourceId), k.id + ": Quelle " + k.sourceId);
+            Check(k.colorCenter.Length == 3 && k.colorEdge.Length == 3 && k.opacity > 0 && k.opacity <= 1, k.id + ": Farbe");
+        }
+        foreach (var id in new[] { "schnitt", "riss_quetschwunde", "schuerfung", "stichwunde", "prellmarke", "haematom", "platzwunde", "offene_fraktur", "amputation" })
+            Check(f.kinds.Any(k => k.id == id), "Art fehlt: " + id);
+        var bp = f.bloodPool;
+        foreach (var id in new[] { bp.surfaceTensionSourceId, bp.densitySourceId, bp.formulaSourceId, f.spurt.sourceId }) Check(src.Contains(id), "Quelle fehlt: " + id);
+
+        var data = AnatomyFile.Read(File.ReadAllBytes(Path.Combine(DataRoot, "anatomy", "body.bin")), json =>
+        {
+            var ser = new DataContractJsonSerializer(typeof(AnatomyHeader));
+            using (var st = new MemoryStream(Encoding.UTF8.GetBytes(json))) return (AnatomyHeader)ser.ReadObject(st);
+        });
+        var skin = data.Meshes[0];
+        int tc = skin.Info.submeshes[0] / 3, n = skin.Info.vertexCount;
+        float scale = 1.75f / data.Header.modelHeight;
+        var nrm = SkinMarks.VertexNormals(skin.Positions, skin.Indices, skin.Indices.Length / 3);
+        var area = SkinMarks.VertexAreas(skin.Positions, skin.Indices, skin.Indices.Length / 3);
+        var adj = SkinMarks.Adjacency(n, skin.Indices, tc);
+        foreach (var m in f.marks)
+        {
+            Check(inj.ContainsKey(m.injuryId), m.id + ": unbekannte Verletzung " + m.injuryId);
+            var def = inj[m.injuryId];
+            var texts = (def.clinicalFindings ?? new string[0]).Concat((def.dynamicFindings ?? new DynamicFinding[0]).Select(x => x.text));
+            Check(texts.Contains(m.finding), m.id + ": Befund nicht in der Verletzung: " + m.finding);
+            bool swelling = m.swellingFromLoss || m.swelling_mL > 0;
+            Check(f.kinds.Any(k => k.id == m.kind) || (m.kind == "" && swelling), m.id + ": Art " + m.kind);
+            if (m.amputation) continue;
+            var p = SkinMarks.Select(data, m, scale, tc, nrm, adj);
+            Check(p != null && !p.HiddenByShorts, m.id + ": kein sichtbarer Hautort");
+            Check(p.HitRegion == (string.IsNullOrEmpty(m.region) ? def.region : m.region), $"{m.id}: Region {p.HitRegion} statt {def.region}");
+            if (m.kind != "") Check(p.Triangles.Length >= 3 * 20, $"{m.id}: zu wenige Dreiecke ({p.Triangles.Length / 3})");
+            if (swelling)
+            {
+                var d = SkinMarks.SwellingDeltas(p, nrm, area, n, 500, scale);
+                Check(Math.Abs(SkinMarks.DisplacedVolume_mL(d, nrm, area, scale) - 500) < 1, m.id + ": Schwellungsvolumen");
+            }
+            if (m.swellingFromLoss) Check(def.effects.Any(e => e.maxTotalLoss_mL > 0), m.id + ": Schwellung aus Verlust ohne Blutung");
+            if (m.bleeding) Check(def.effects.Any(e => e.effectType == "Hemorrhage"), m.id + ": äußere Blutung ohne Blutverlust");
+        }
+
+        // Wachstum mit dem Blutverlust und Bedingung
+        var grow = f.marks.First(x => x.growToLost_mL > x.growFromLost_mL && x.when != null && x.when.minLost_mL > 0);
+        Func<double, ExamContext> ctx = lost => new ExamContext { Time_s = 100, Lost_mL = _ => lost, Level = _ => 0, Events = new List<LogEntry>() };
+        Check(SkinMarks.Amount(grow, ctx(grow.when.minLost_mL - 1)) == 0, "Hämatom vor der Schwelle sichtbar");
+        double half = SkinMarks.Amount(grow, ctx((grow.growFromLost_mL + grow.growToLost_mL) / 2));
+        Check(Math.Abs(half - 0.5) < 1e-9, "Wachstum zur Hälfte");
+
+        // Schmale Zeichen werden unterteilt (Stich: wenige mm)
+        var stab = new SkinMark { id = "t", anchor = new MarkAnchor { meshes = new[] { "left rectus abdominis" }, offset = new float[] { -0.02f, 0.03f, 0 }, direction = new float[] { 0, 0, 1 } },
+                                  segments = new[] { "Abdomen" }, radius_m = 0.007f, stretch = 2.5f, stretchAxis = new float[] { 1, 0.2f, 0 } };
+        var sp = SkinMarks.Select(data, stab, scale, tc, nrm, adj);
+        Check(sp.Subdivisions >= 2 && sp.RFalloff.Count(x => x > 0.3f) >= 6, $"Stich zu grob ({sp.RFalloff.Count(x => x > 0.3f)} Vertices)");
+        for (int i = 0; i < sp.W.Length; i += 3) Check(Math.Abs(sp.W[i] + sp.W[i + 1] + sp.W[i + 2] - 1) < 1e-4, "Mischgewichte ≠ 1");
+
+        // Amputation Unterschenkel rechts: Haut distal weg, Stumpf zeigt nach distal, Fuß ausgeblendet, Oberschenkel nicht
+        var amp = new SkinMark { id = "amp", anchor = new MarkAnchor { meshes = new[] { "right tibia" }, offset = new float[] { 0, -0.06f, 0 }, direction = new float[] { 0, -1, 0 } },
+                                 segments = new[] { "Unterschenkel rechts" }, amputation = true };
+        var a = SkinMarks.Amputate(data, amp, scale, tc);
+        Check(a.RemovedTriangles > 500 && a.BoundaryEdges > 10, $"Amputation: {a.RemovedTriangles} entfernt, {a.BoundaryEdges} Randkanten");
+        double ny = 0;
+        for (int t = 0; t < a.CapTriangles.Length; t += 3)
+        {
+            int i = a.CapTriangles[t], j = a.CapTriangles[t + 1], k = a.CapTriangles[t + 2];
+            Func<int, int, float> P = (v, c) => a.CapPositions[3 * v + c];
+            float ux = P(j, 0) - P(i, 0), uy = P(j, 1) - P(i, 1), uz = P(j, 2) - P(i, 2), vx = P(k, 0) - P(i, 0), vy = P(k, 1) - P(i, 1), vz = P(k, 2) - P(i, 2);
+            ny += uz * vx - ux * vz; // y-Komponente des Kreuzprodukts
+        }
+        Check(ny < 0, "Stumpf zeigt nicht nach distal");
+        var segs = new HashSet<int> { data.SegmentIndex("Unterschenkel rechts") };
+        Func<string, bool> hidden = name => SkinMarks.IsDistal(data.Meshes.First(x => x.Info.name == name), a, segs);
+        Check(hidden("right talus") || hidden("right calcaneus"), "Fußknochen nicht ausgeblendet");
+        Check(!hidden("right femur") && !hidden("left tibia"), "falsche Teile ausgeblendet");
+
+        // Blutlache und Strahl
+        double thick = SkinMarks.PoolThickness_m(bp);
+        Check(thick > 0.002 && thick < 0.005, $"Dicke der Lache {thick * 1000:F2} mm");
+        Check(Math.Abs(SkinMarks.PoolRadius_m(1000, thick) - Math.Sqrt(1e-3 / (Math.PI * thick))) < 1e-12, "Radius der Lache");
+        double jet = SkinMarks.JetSpeed_m_s(120, bp.density_kg_m3, 1);
+        Check(jet > 5 && jet < 6, $"Strahl bei 120 mmHg {jet:F2} m/s");
     }
 
     static void CrashScenario()
