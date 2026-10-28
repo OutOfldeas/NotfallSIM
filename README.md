@@ -79,7 +79,9 @@ tools/anatomy/                   Aufbereitung der Anatomie (Python), erzeugt bod
    unter `Assets/NotfallSIM/Scenes/` an und trägt sie in die Build-Liste ein. Nach jedem `git pull` mit Änderungen
    an Editor-Skripten erneut ausführen.
 5. **Play** in der Szene `Hauptmenue`. Im Schockraum: Körperregionen anklicken zum Untersuchen, Maßnahmen per Button,
-   Zeitraffer 1x/5x/20x. Kamera: rechte Maustaste drehen, Mausrad zoomen, mittlere Maustaste verschieben.
+   Zeitraffer 1x/5x/20x. Kamera: rechte Maustaste umsehen, Mausrad oder +/− zoomen, mittlere Maustaste verschieben,
+   WASD/Pfeiltasten durch den Raum gehen, Q/E (Bild↓/Bild↑) tiefer/höher, Umschalt schneller, F zurück zum Patienten.
+   Die Kamera bleibt innerhalb der Wände.
    *Menü (Esc)* pausiert und führt zurück ins Hauptmenü oder startet denselben Fall neu.
    „Szenario beenden“ zeigt das Debriefing und speichert die Verläufe als CSV
    (Ordner: `Application.persistentDataPath/Sessions`, wird im Debriefing angezeigt).

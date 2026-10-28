@@ -41,6 +41,24 @@ namespace NotfallSIM.Rooms
             WorldMonitor(sim);
         }
 
+        /// <summary>Innenraum zwischen den Wänden, Boden und Decke.</summary>
+        public static Bounds InnerBounds => new Bounds(new Vector3(0, RoomH / 2, 0), new Vector3(RoomX * 2 - 0.1f, RoomH, RoomZ * 2 - 0.1f));
+
+        public const string HintText = "<b>Schockraum</b>\nLinksklick: Region untersuchen\nRechte Maus ziehen: umsehen\n"
+                                       + "Mausrad / +−: zoomen\nWASD / Pfeile: gehen, Q/E: tiefer/höher\nUmschalt: schneller · F: zurück zum Patienten";
+
+        /// <summary>Steuerungshinweis oben links aktualisieren (auch in älteren Szenen).</summary>
+        static void UpdateHint()
+        {
+            var go = GameObject.Find("Hinweis");
+            var t = go != null ? go.GetComponent<TMP_Text>() : null;
+            if (t == null) return;
+            t.text = HintText;
+            t.fontSize = 16;
+            var r = t.rectTransform;
+            r.sizeDelta = new Vector2(Mathf.Max(r.sizeDelta.x, 300), 132);
+        }
+
         /// <summary>Platzhalter aus alten Szenen entfernen: Boden-Ebene, Trage-Quader, Patient aus Grundkörpern.</summary>
         static void RemoveLegacy()
         {
@@ -68,8 +86,14 @@ namespace NotfallSIM.Rooms
             cam.nearClipPlane = 0.05f;
             var ray = cam.GetComponent<PhysicsRaycaster>() ?? cam.gameObject.AddComponent<PhysicsRaycaster>();
             ray.eventMask = ~(1 << 2); // Anatomie-Kollider (Ignore Raycast) stören die Untersuchung nicht
-            if (cam.GetComponent<OrbitCamera>() == null)
-                cam.gameObject.AddComponent<OrbitCamera>().Configure(new Vector3(0, 0.95f, 0.05f), 2.5f, 25f, 35f);
+            var orbit = cam.GetComponent<OrbitCamera>();
+            if (orbit == null)
+            {
+                orbit = cam.gameObject.AddComponent<OrbitCamera>();
+                orbit.Configure(new Vector3(0, 0.95f, 0.05f), 2.5f, 25f, 35f);
+            }
+            orbit.SetRoom(InnerBounds);
+            UpdateHint();
             var data = cam.GetUniversalAdditionalCameraData();
             if (data != null)
             {

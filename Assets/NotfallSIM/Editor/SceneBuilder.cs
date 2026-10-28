@@ -148,8 +148,8 @@ namespace NotfallSIM.EditorTools
 
             // Hinweis oben links
             // (links daneben, bei x 24–174, setzt PauseMenu zur Laufzeit den Knopf „Menü (Esc)“)
-            var hint = Label("Hinweis", root, "<b>Schockraum</b>\nRegion anklicken = untersuchen\nRechte Maus: Kamera drehen", 18, Dim);
-            Place(hint.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(190, -16), new Vector2(290, 84));
+            var hint = Label("Hinweis", root, NotfallSIM.Rooms.TraumaRoom.HintText, 16, Dim);
+            Place(hint.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(190, -16), new Vector2(300, 132));
 
             // Monitor oben rechts
             var monitor = Panel("Monitor", root, PanelColor);
