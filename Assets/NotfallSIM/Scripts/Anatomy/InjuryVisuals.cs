@@ -25,6 +25,7 @@ namespace NotfallSIM.Anatomy
             public SkinnedMeshRenderer Overlay; public MaterialPropertyBlock Mpb;
             public int Shape = -1; public double ShapeVolume_mL;
             public Bleeding Bleed;
+            public double LastWet_s = double.NaN, LastLost;  // Eintrocknung: Zeitpunkt des letzten frischen Bluts
         }
 
         class Bleeding
@@ -34,6 +35,7 @@ namespace NotfallSIM.Anatomy
             public Transform Emitter; public ParticleSystem Particles;
             public Transform Pool, FloorPool; public Vector3 PoolCenter;
             public double LastLost, LastT, Rate_mL_s; public float BeatPhase;
+            public MaterialPropertyBlock PoolMpb; public double PoolWet_s, PoolLost;
         }
 
         SimulationManager _sim;
@@ -237,6 +239,7 @@ namespace NotfallSIM.Anatomy
                 if (m.HasProperty("_Edge") && k.edge > 0) m.SetFloat("_Edge", k.edge);
                 if (m.HasProperty("_Irregular")) m.SetFloat("_Irregular", k.irregularity);
                 if (m.HasProperty("_NoiseScale") && k.noiseScale > 0) m.SetFloat("_NoiseScale", k.noiseScale);
+                if (m.HasProperty("_Depth")) m.SetFloat("_Depth", k.depth);
             }
             _materials[key] = m;
             return m;
@@ -362,6 +365,7 @@ namespace NotfallSIM.Anatomy
                 {
                     m.Overlay.enabled = amount > 0 && (!xray || m.Def.amputation);
                     m.Mpb.SetFloat("_Amount", (float)amount);
+                    m.Mpb.SetFloat("_Dry", m.Kind != null && m.Kind.dries ? (float)UpdateDryness(m, eng.InjuryBloodLoss_mL(m.Def.injuryId), t) : 0f);
                     m.Overlay.SetPropertyBlock(m.Mpb);
                 }
                 if (m.Bleed != null && started) UpdateBleeding(m.Bleed, eng.InjuryBloodLoss_mL(m.Bleed.InjuryId), t);
@@ -370,6 +374,21 @@ namespace NotfallSIM.Anatomy
             int count = skin.sharedMesh.blendShapeCount;
             foreach (var o in _overlays)
                 for (int s = 0; s < count && s < o.sharedMesh.blendShapeCount; s++) o.SetBlendShapeWeight(s, skin.GetBlendShapeWeight(s));
+        }
+
+        /// <summary>Blut wird frisch gehalten, solange die Verletzung blutet; danach trocknet es (drying in injury_visuals.json).
+        /// Wunden ohne Blutverlust sind bei Ankunft schon so alt wie die präklinische Zeit.</summary>
+        double UpdateDryness(Mark m, double lost, double t)
+        {
+            if (double.IsNaN(m.LastWet_s))
+            {
+                var def = _sim.Database != null ? _sim.Database.Get(m.Def.injuryId) : null;
+                bool bleeds = def?.effects != null && def.effects.Any(e => e.effectType == "Hemorrhage");
+                m.LastWet_s = bleeds ? t : t - (_file.drying != null ? _file.drying.preArrivalAge_min * 60 : 0);
+                m.LastLost = lost;
+            }
+            if (lost > m.LastLost + 1e-3) { m.LastWet_s = t; m.LastLost = lost; }
+            return SkinMarks.Dryness(_file.drying, t - m.LastWet_s);
         }
 
         void UpdateBleeding(Bleeding b, double lost, double t)
@@ -388,6 +407,11 @@ namespace NotfallSIM.Anatomy
             float maxR = Mathf.Min(MattressHalfWidth - Mathf.Abs(b.PoolCenter.x), MattressHalfLength - Mathf.Abs(b.PoolCenter.z)) + 0.03f;
             float onMattress = Mathf.Min((float)r, maxR);
             SetPool(b.Pool, onMattress);
+            if (b.PoolMpb == null) b.PoolMpb = new MaterialPropertyBlock();
+            if (lost > b.PoolLost + 1e-3) { b.PoolWet_s = t; b.PoolLost = lost; }
+            b.PoolMpb.SetFloat("_Dry", (float)SkinMarks.Dryness(_file.drying, t - b.PoolWet_s));
+            b.Pool.GetComponent<Renderer>().SetPropertyBlock(b.PoolMpb);
+            b.FloorPool.GetComponent<Renderer>().SetPropertyBlock(b.PoolMpb);
             double over = lost - System.Math.PI * maxR * maxR * _poolThickness * 1e6;
             SetPool(b.FloorPool, over > 0 ? (float)SkinMarks.PoolRadius_m(over, _poolThickness) : 0);
 

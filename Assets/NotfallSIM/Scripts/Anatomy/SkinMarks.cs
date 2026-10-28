@@ -20,6 +20,8 @@ namespace NotfallSIM.Anatomy
         public float irregularity;               // Unregelmäßigkeit des Rands (Riss/Quetschung groß, Schnitt klein)
         public float noiseScale;                 // Körnung des Rauschens (Schürfung fein)
         public int layer;                        // Reihenfolge übereinander: 0 Haut (Prellung), 1 Blut auf der Haut, 2 Wunde
+        public float depth;                      // Wundtiefe im Shader (0 flach … 1 tief klaffend)
+        public bool dries;                       // Blut trocknet nach dem Ende der Blutung ein
         public string evidence, sourceId, note;
     }
 
@@ -62,6 +64,14 @@ namespace NotfallSIM.Anatomy
     }
 
     [Serializable]
+    public class DryingParams
+    {
+        public double wetToDry_min;        // von frisch bis eingetrocknet nach dem Ende der Blutung
+        public double preArrivalAge_min;   // Alter von Wunden ohne laufende Blutung bei Ankunft
+        public string sourceId, note;
+    }
+
+    [Serializable]
     public class SpurtParams
     {
         public double velocityCoefficient; public string sourceId, note;
@@ -79,6 +89,7 @@ namespace NotfallSIM.Anatomy
         public SkinMark[] marks;
         public BloodPoolParams bloodPool;
         public SpurtParams spurt;
+        public DryingParams drying;
         public VisualSource[] sources;
     }
 
@@ -600,6 +611,10 @@ namespace NotfallSIM.Anatomy
             double capillary = Math.Sqrt(p.surfaceTension_N_m / (p.density_kg_m3 * 9.81));
             return 2 * capillary * Math.Sin(p.contactAngle_deg * Math.PI / 360);
         }
+
+        /// <summary>Eintrocknung 0 (frisch) … 1 (trocken) nach der Zeit seit dem letzten frischen Blut.</summary>
+        public static double Dryness(DryingParams p, double sinceWet_s) =>
+            p == null || p.wetToDry_min <= 0 ? 0 : Math.Max(0, Math.Min(1, sinceWet_s / (p.wetToDry_min * 60)));
 
         /// <summary>Radius einer runden Lache aus dem Volumen: V = π r² e.</summary>
         public static double PoolRadius_m(double volume_mL, double thickness_m) =>

@@ -1341,7 +1341,10 @@ static class Tests
         foreach (var id in new[] { "schnitt", "riss_quetschwunde", "schuerfung", "stichwunde", "prellmarke", "haematom", "platzwunde", "offene_fraktur", "amputation" })
             Check(f.kinds.Any(k => k.id == id), "Art fehlt: " + id);
         var bp = f.bloodPool;
-        foreach (var id in new[] { bp.surfaceTensionSourceId, bp.densitySourceId, bp.formulaSourceId, f.spurt.sourceId }) Check(src.Contains(id), "Quelle fehlt: " + id);
+        foreach (var id in new[] { bp.surfaceTensionSourceId, bp.densitySourceId, bp.formulaSourceId, f.spurt.sourceId, f.drying.sourceId }) Check(src.Contains(id), "Quelle fehlt: " + id);
+        foreach (var k in f.kinds) Check(k.depth >= 0 && k.depth <= 1, k.id + ": Tiefe");
+        foreach (var id in new[] { "schnitt", "stichwunde", "riss_quetschwunde", "offene_fraktur" }) Check(f.kinds.First(k => k.id == id).depth > 0, id + ": ohne Tiefe");
+        Check(SkinMarks.Dryness(f.drying, 0) == 0 && SkinMarks.Dryness(f.drying, f.drying.wetToDry_min * 60) == 1, "Eintrocknung");
 
         var data = AnatomyFile.Read(File.ReadAllBytes(Path.Combine(DataRoot, "anatomy", "body.bin")), json =>
         {

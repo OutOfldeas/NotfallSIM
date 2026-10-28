@@ -1,6 +1,8 @@
 // Verletzungszeichen auf der Haut und Blutlachen: Farbe aus der Vertexfarbe, Ausdehnung über _Amount mit
 // unregelmäßigem Rand (Rauschen je Pixel), feuchter Glanz über _Wet. Transparent über der Haut, URP, ohne Shader Graph.
 // UV0 = Modellposition (für das Rauschen, bleibt beim Wachsen ortsfest), UV1.x = Abfall 1 (Mitte) … 0 (Rand).
+// Tiefe: der Abfall dient als Höhenfeld (Wundgrund in der Mitte), daraus Normale (Oberflächengradient, Mikkelsen 2010),
+// Verschattung im Wundgrund und ein leicht erhabener Wundrand. Trocknung: _Dry 0 frisch … 1 eingetrocknet (dunkler, matt).
 Shader "NotfallSIM/Wound"
 {
     Properties
@@ -10,6 +12,9 @@ Shader "NotfallSIM/Wound"
         _NoiseScale ("Rauschmaßstab", Float) = 60
         _Edge ("Randunschärfe", Range(0.01, 0.5)) = 0.18
         _Irregular ("Unregelmäßigkeit des Rands", Range(0, 1)) = 0.35
+        _Depth ("Wundtiefe", Range(0, 1)) = 0
+        _Dry ("Eingetrocknet", Range(0, 1)) = 0
+        _DryColor ("Trockenes Blut", Color) = (0.24, 0.05, 0.04, 1)
     }
     SubShader
     {
@@ -26,7 +31,10 @@ Shader "NotfallSIM/Wound"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+            #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
+            #pragma multi_compile _ _FORWARD_PLUS
+            #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
@@ -36,6 +44,9 @@ Shader "NotfallSIM/Wound"
                 float _NoiseScale;
                 half _Edge;
                 half _Irregular;
+                half _Depth;
+                half _Dry;
+                half4 _DryColor;
             CBUFFER_END
 
             struct Attributes
@@ -71,6 +82,15 @@ Shader "NotfallSIM/Wound"
             }
             float fbm(float3 x) { return 0.5 * vnoise(x) + 0.3 * vnoise(x * 2.1) + 0.2 * vnoise(x * 4.3); }
 
+            half3 ShadeWound(Light l, float3 nrm, float3 v, half3 baseCol, half wet)
+            {
+                half ndl = saturate(dot(nrm, l.direction));
+                half atten = l.distanceAttenuation * l.shadowAttenuation;
+                float3 h = normalize(l.direction + v);
+                half spec = pow(saturate(dot(nrm, h)), lerp(16, 200, wet)) * wet * 1.5;
+                return (baseCol * ndl + spec) * l.color * atten;
+            }
+
             half4 frag (Varyings i) : SV_Target
             {
                 // Sichtbar, wo der Abfall (verrauscht) über der Schwelle liegt: wächst mit _Amount von der Mitte nach außen
@@ -78,17 +98,41 @@ Shader "NotfallSIM/Wound"
                 float f = i.falloff + (n - 0.5) * _Irregular;
                 float thr = 1 - _Amount;
                 float a = smoothstep(thr, thr + _Edge, f) * i.color.a * step(0.001, _Amount);
-                // leichte Fleckigkeit der Farbe
                 half3 baseCol = i.color.rgb * (0.85 + 0.3 * fbm(i.model * _NoiseScale * 2.7));
 
                 float3 nrm = normalize(i.normalWS);
-                Light l = GetMainLight(TransformWorldToShadowCoord(i.positionWS));
+                // Wundtiefe: Höhe h = −Tiefe im Wundgrund, Rand leicht erhaben; Normale aus dem Oberflächengradienten
+                float bed = smoothstep(0.35, 0.8, f);
+                float rim = smoothstep(0.15, 0.35, f) * (1 - bed);
+                float hgt = (_Depth * (-0.004 * bed + 0.0008 * rim));
+                float3 dpdx = ddx(i.positionWS), dpdy = ddy(i.positionWS);
+                float3 r1 = cross(dpdy, nrm), r2 = cross(nrm, dpdx);
+                float det = dot(dpdx, r1);
+                float3 grad = (abs(det) > 1e-12) ? (ddx(hgt) * r1 + ddy(hgt) * r2) / det : 0;
+                nrm = normalize(nrm - grad);
+                // Verschattung im Wundgrund, Rand leicht gerötet/erhaben
+                baseCol *= lerp(1, 0.45, bed * _Depth);
+                baseCol = lerp(baseCol, baseCol * half3(1.25, 0.9, 0.9), rim * _Depth);
+
+                // Trocknung: dunkler, bräunlich, matt
+                baseCol = lerp(baseCol, _DryColor.rgb, _Dry * 0.8);
+                half wet = _Wet * (1 - _Dry) * lerp(1, 1.2, bed);
+
                 float3 v = normalize(GetWorldSpaceViewDir(i.positionWS));
-                half ndl = saturate(dot(nrm, l.direction));
-                half3 diffuse = baseCol * (l.color * ndl * l.shadowAttenuation + SampleSH(nrm));
-                float3 h = normalize(l.direction + v);
-                half spec = pow(saturate(dot(nrm, h)), lerp(16, 160, _Wet)) * _Wet * 1.2 * l.shadowAttenuation;
-                return half4(diffuse + spec * l.color, a);
+                half3 col = baseCol * SampleSH(nrm);
+                col += ShadeWound(GetMainLight(TransformWorldToShadowCoord(i.positionWS)), nrm, v, baseCol, wet);
+                #if defined(_ADDITIONAL_LIGHTS)
+                InputData inputData = (InputData)0;
+                inputData.positionWS = i.positionWS;
+                inputData.normalWS = nrm;
+                inputData.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(i.positionCS);
+                uint pixelLightCount = GetAdditionalLightsCount();
+                LIGHT_LOOP_BEGIN(pixelLightCount)
+                    Light al = GetAdditionalLight(lightIndex, i.positionWS, half4(1, 1, 1, 1));
+                    col += ShadeWound(al, nrm, v, baseCol, wet);
+                LIGHT_LOOP_END
+                #endif
+                return half4(col, a);
             }
             ENDHLSL
         }
