@@ -3,7 +3,9 @@
 Grundsatz: Die nachgiebigere Struktur weicht der festeren aus, so wie es im Körper auch Abdrücke gibt
 (Impressio cardiaca der Lunge, Sulcus a. subclaviae, Impressio renalis der Leber, Rippenabdrücke).
 Reihenfolge der Festigkeit: Knochen > Arterien > Herz > Venen > Atemwege > Nervensystem > Zwerchfell >
-Nieren/Harnwege > Prostata > Leber > Milz > Pankreas > Nebennieren > Thymus > Gallenblase > Magen-Darm > Lunge.
+Nieren/Harnwege > Prostata > Leber > Milz > Skelettmuskeln > Pankreas > Nebennieren > Thymus > Gallenblase > Magen-Darm > Lunge.
+Muskeln untereinander: der kleinere weicht dem größeren aus; Köpfe und Teile desselben Muskels (und beide Seiten,
+z. B. an der Linea alba) dürfen sich berühren, ebenso die drei Schichten der Interkostalmuskeln.
 
 Erlaubt bleiben Verbindungen, die anatomisch zusammengehören: Äste eines Gefäßbaums, Mündungen ins Herz,
 Lungenlappen untereinander, Bronchien und Lungengefäße in der Lunge, Darmabschnitte, Niere–Harnleiter–Blase,
@@ -19,12 +21,14 @@ import scipy.sparse as sp
 from scipy.spatial import cKDTree
 import trimesh
 from anatomy_io import winding
+from labels import muscle_base
 
 
 def group_of(name, layer):
     n = name.lower()
     if layer == 'skin': return 'skin'
     if layer == 'bone': return 'bone'
+    if layer == 'muscle': return 'intercostal' if 'intercostal' in n else 'muscle:' + muscle_base(n)
     if layer == 'brain' or 'optic' in n or n == 'eyeball': return 'cns'
     if n.startswith('rückenmark'): return 'cns'
     if n == 'wall of heart': return 'heart'
@@ -51,8 +55,13 @@ CONNECT = {frozenset(p) for p in [('heart', 'art'), ('heart', 'pa'), ('heart', '
                                     ('pa', 'lung'), ('pv', 'lung'), ('air', 'lung'), ('cns', 'nerve')]}
 
 
+MUSCLE_PRIORITY = 54   # zwischen Milz (56) und Pankreas (52)
+
+
 def priority(name, layer):
-    return PRIORITY.get(group_of(name, layer), 40)
+    g = group_of(name, layer)
+    if g == 'intercostal' or g.startswith('muscle:'): return MUSCLE_PRIORITY
+    return PRIORITY.get(g, 40)
 
 
 def allowed(a, b):
@@ -249,8 +258,9 @@ def hilum(a, b):
     return any((re.search(v, a) and re.search(o, b)) or (re.search(v, b) and re.search(o, a)) for v, o in HILUM)
 
 
-def resolve(parts, log=print):
-    """parts: Liste von dicts mit name, layer, pos, faces. Ändert pos an Ort und Stelle (nachgiebigere zuerst geprüft gegen festere)."""
+def resolve(parts, log=print, skip=None):
+    """parts: Liste von dicts mit name, layer, pos, faces. Ändert pos an Ort und Stelle (nachgiebigere zuerst geprüft gegen festere).
+    skip(A, B) → True: Paar nicht prüfen (z. B. schon in einem früheren Lauf aufgelöst)."""
     vol = []
     for p in parts:
         try: vol.append(abs(trimesh.Trimesh(p['pos'], p['faces'], process=False).volume))
@@ -266,6 +276,7 @@ def resolve(parts, log=print):
             A = parts[j]
             if allowed((A['name'], A['layer']), (B['name'], B['layer'])): continue
             if hilum(A['name'], B['name']): continue   # Gefäß tritt ins Organ ein: Organ nicht aushöhlen
+            if skip is not None and skip(A, B): continue
             al, ah = bounds[j]
             if np.any(al > bh + 0.002) or np.any(ah < bl - 0.002): continue
             obst.append({'name': A['name'], 'tm': tms[j]})

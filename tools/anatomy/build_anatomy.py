@@ -26,7 +26,7 @@ from skimage import measure
 
 sys.path.insert(0, os.path.dirname(__file__))
 from parts import select, SKIN  # noqa: E402
-from labels import german       # noqa: E402
+from labels import german, german_muscle  # noqa: E402
 import collide                  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -36,6 +36,7 @@ PREVIEW = os.path.join(os.path.dirname(__file__), 'preview')
 LAYER_COLORS = {  # RGBA 0..1
     'skin': (0.86, 0.68, 0.56, 1), 'bone': (0.93, 0.90, 0.80, 1), 'organ': (0.75, 0.35, 0.33, 1), 'brain': (0.88, 0.72, 0.72, 1),
     'artery': (0.82, 0.12, 0.12, 1), 'vein': (0.18, 0.28, 0.75, 1), 'nerve': (0.98, 0.85, 0.25, 1),
+    'muscle': (0.70, 0.26, 0.24, 1),
 }
 ORGAN_COLORS = [(r'heart', (0.70, 0.12, 0.14, 1)), (r'lung', (0.93, 0.62, 0.64, 1)), (r'liver', (0.48, 0.20, 0.14, 1)),
                 (r'spleen', (0.45, 0.16, 0.30, 1)), (r'kidney', (0.55, 0.22, 0.18, 1)), (r'stomach|duoden|jejun|ileum|colon|rectum', (0.92, 0.70, 0.60, 1)),
@@ -380,19 +381,28 @@ def separate_lines(p, radii, others, gap=0.0006):
     return p
 
 
-def constrain_path(path, radii, skin_tm, bone_tm, margin_skin=0.004, margin_bone=0.0015, iters=8, others=()):
-    """Schematische Bahn innerhalb der Haut und außerhalb der Hindernisse (bone_tm: Knochen, Organe, andere Bahnen)
-    halten (iterativ projizieren, leicht glätten)."""
+def constrain_path(path, radii, skin_tm, bone_tm, margin_skin=0.004, margin_bone=0.0015, iters=8, others=(), zones=()):
+    """Schematische Bahn innerhalb der Haut und außerhalb der Hindernisse (bone_tm: Knochen, Organe, Muskeln, andere
+    Bahnen) halten (iterativ projizieren, leicht glätten). zones: [(Mitte, Radius, Ersatz-Hindernis)] — dort gilt das
+    Ersatz-Hindernis ohne den durchquerten Muskel (Durchtritt, z. B. Hiatus adductorius)."""
     p = np.array(path, float)
     for it in range(iters + 1):
         c, dist, tid = trimesh.proximity.closest_point(skin_tm, p)
         n = skin_tm.face_normals[tid]; depth = -np.sign(np.einsum('ij,ij->i', p - c, n)) * dist
         need = radii + margin_skin; bad = depth < need
         p[bad] = c[bad] - n[bad] * need[bad, None]
-        c, dist, tid = trimesh.proximity.closest_point(bone_tm, p)
-        n = bone_tm.face_normals[tid]; clear = np.sign(np.einsum('ij,ij->i', p - c, n)) * dist
-        need = radii + margin_bone; bad = clear < need
-        p[bad] = c[bad] + n[bad] * need[bad, None]
+        zone_of = np.full(len(p), -1)
+        for k, (zc, zr, _) in enumerate(zones):
+            zone_of[np.linalg.norm(p - zc, axis=1) < zr] = k
+        for k, tm in [(-1, bone_tm)] + [(k, z[2]) for k, z in enumerate(zones)]:
+            sel = zone_of == k
+            if not sel.any(): continue
+            q = p[sel]
+            c, dist, tid = trimesh.proximity.closest_point(tm, q)
+            n = tm.face_normals[tid]; clear = np.sign(np.einsum('ij,ij->i', q - c, n)) * dist
+            need = radii[sel] + margin_bone; bad = clear < need
+            q[bad] = c[bad] + n[bad] * need[bad, None]
+            p[sel] = q
         if others:
             p = separate_lines(p, radii, others)
         if it < iters:
@@ -533,8 +543,10 @@ def main():
     sel = select({i: names[i] for i in avail if i in names})
     print(f'{len(sel)} Teile ausgewählt')
 
-    raw = {pid: load(args.bp3d, pid) for pid in sel}
-    by_name = {names[pid]: raw[pid] for pid in sel}
+    # Rohdaten im Speicher nur für Nicht-Muskeln (Gelenke und Bahnen brauchen sie); die ca. 14 Mio. Muskel-Dreiecke
+    # werden einzeln geladen und sofort vereinfacht (sonst reicht der Speicher nicht)
+    raw = {pid: load(args.bp3d, pid) for pid, (layer, _) in sel.items() if layer != 'muscle'}
+    by_name = {names[pid]: raw[pid] for pid in raw}
     J_bp = joints_from_bones(by_name)
     origin = to_unity(J_bp['Hüftmitte'][None])[0]
     U = lambda v: to_unity(v) - origin
@@ -544,9 +556,16 @@ def main():
     # Anatomie zuerst (vereinfacht, Unity-Koordinaten, Normalen außen) — die Haut wird danach an die Knochen angepasst
     parts = []
     for pid, (layer, name) in sorted(sel.items(), key=lambda x: (x[1][0], x[1][1])):
-        m = raw[pid]
+        m = raw[pid] if pid in raw else load(args.bp3d, pid)
+        if layer == 'muscle':
+            # Segmentierungsreste (kleine abgetrennte Inseln) entfernen; Interkostalmuskeln bestehen aus vielen Feldern
+            comps = m.split(only_watertight=False)
+            big = max(c.area for c in comps)
+            keep = [c for c in comps if c.area >= max(0.03 * big, 150) or ('intercostal' in name and c.area > 400)]
+            m = trimesh.util.concatenate(keep)
         area = m.area
-        if layer == 'bone': target = int(np.clip(area / 20, 400, 6000))      # Röntgenblick aus der Nähe: Facetten vermeiden
+        if layer == 'muscle': target = int(np.clip(area / 40, 400, 6000))
+        elif layer == 'bone': target = int(np.clip(area / 20, 400, 6000))      # Röntgenblick aus der Nähe: Facetten vermeiden
         elif re.search(r'gyr|insula|lobule', name): target = int(np.clip(area / 15, 900, 5000))   # Rinde: Windungen erhalten
         elif name == 'diaphragm': target = 10000                                                 # dünne Platte, Hiatus erhalten
         elif layer in ('organ', 'brain'): target = int(np.clip(area / 40, 600, 8000))
@@ -572,18 +591,27 @@ def main():
             ck, cparts = pickle.load(open(cache, 'rb'))
             if ck == key: parts, hit = cparts, True
         except Exception: pass
+    seeded = 0
     if not hit and args.seed_cache:
+        # Teile, die es in einer früheren body.bin schon gab, übernehmen (dort bereits gegeneinander aufgelöst); danach
+        # werden nur noch Paare mit neuen Teilen (z. B. Muskeln) geprüft
         from anatomy_io import load as load_bin
         _, old = load_bin(args.seed_cache)
-        assert [m['info']['name'] for m in old[1:1 + len(parts)]] == [q['name'] for q in parts], 'body.bin passt nicht'
-        for q, m in zip(parts, old[1:1 + len(parts)]):
-            q['pos'], q['faces'] = m['pos'].astype(np.float64), m['tri'].astype(np.int64)
-        os.makedirs(PREVIEW, exist_ok=True); pickle.dump((key, parts), open(cache, 'wb'))
-        hit = True
+        prev = {(m['info']['name'], m['info']['layer']): m for m in old[1:] if not m['info'].get('schematic')}
+        for q in parts:
+            m = prev.get((q['name'], q['layer']))
+            if m is not None:
+                q['pos'], q['faces'], q['seeded'] = m['pos'].astype(np.float64), m['tri'].astype(np.int64), True
+                seeded += 1
+        print(f'{seeded} Teile aus {args.seed_cache} übernommen')
+        if seeded == len(parts):
+            os.makedirs(PREVIEW, exist_ok=True); pickle.dump((key, parts), open(cache, 'wb'))
+            hit = True
     if hit:
         print('Kollisionsauflösung aus dem Zwischenspeicher')
     else:
-        collide.resolve(parts)
+        collide.resolve(parts, skip=(lambda A, B: A.get('seeded') and B.get('seeded')) if seeded else None)
+        for q in parts: q.pop('seeded', None)
         os.makedirs(PREVIEW, exist_ok=True); pickle.dump((key, parts), open(cache, 'wb'))
         rest = collide.crossings(parts)
         print(f'Überschneidungen nach dem Auflösen: {len(rest)}' + (' — ' + '; '.join(f'{b} in {a} {d * 1000:.1f} mm' for d, a, b, c in rest[:6]) if rest else ''))
@@ -650,21 +678,42 @@ def main():
     counts = {}
     for q in parts:
         segk = int(np.argmax(segment_scores(q['pos'].mean(0)[None], J, radii)[0]))
-        add({'name': q['name'], 'label': german(q['name']), 'layer': q['layer'], 'segment': segk, 'color': q['color'], 'weights': False,
-             'blendShapes': []}, q['pos'], q['faces'])
+        if q['layer'] == 'muscle':
+            # Muskeln ziehen über Gelenke (Ursprung und Ansatz in verschiedenen Segmenten): gewichtet wie die Haut,
+            # sonst reißen sie beim Beugen auseinander
+            mb, mw = skin_weights(q['pos'], J, radii)
+            add({'name': q['name'], 'label': german_muscle(q['name']), 'layer': 'muscle', 'segment': segk, 'color': q['color'],
+                 'weights': True, 'blendShapes': []}, q['pos'], q['faces'], bones=mb, w0=mw[:, 0])
+        else:
+            add({'name': q['name'], 'label': german(q['name']), 'layer': q['layer'], 'segment': segk, 'color': q['color'], 'weights': False,
+                 'blendShapes': []}, q['pos'], q['faces'])
         counts[q['layer']] = counts.get(q['layer'], 0) + len(q['faces'])
     # Schematische Bahnen: innerhalb der Haut, außerhalb aller anderen Strukturen (Knochen, Organe, Gefäße, schon
     # gelegte Bahnen), je Segment ein Stück (folgt den Gelenken). Reihenfolge: Arterien, Venen, Nerven.
-    paths = schematic_paths(J, by_name, U)
+    # Rückenmark aus dem Wirbelkanal; periphere Bahnen entlang der Muskellücken (pathways.py)
+    import pathways
+    geo = pathways.Geo(parts, J)
+    cen_u = lambda n: geo.pos(n).mean(0)
+    paths = [x for x in schematic_paths(J, by_name, U) if x[0] == 'Rückenmark'] + pathways.routes(geo, cen_u)
     paths.sort(key=lambda x: {'artery': 0, 'vein': 1, 'nerve': 2}[x[1]])
+    passage_log = []
     built = []   # (layer, Trimesh) bereits gelegter Bahnen
     lines = []   # (layer, Mittellinie, Radien) bereits gelegter Bahnen
     for name, layer, pts, r0, r1 in paths:
         own = collide.group_of(name, layer)
-        obst = [trimesh.Trimesh(q['pos'], q['faces'], process=False) for q in parts
-                if not collide.allowed((name, layer), (q['name'], q['layer']))]
-        obst += [tm for l_, tm in built if l_ != layer]
+        obst_named = [(q['name'], geo.tm(q['name'])) for q in parts if not collide.allowed((name, layer), (q['name'], q['layer']))]
+        obst_named += [(None, tm) for l_, tm in built if l_ != layer]
+        obst = [tm for _, tm in obst_named]
         obst_tm = trimesh.util.concatenate(obst)
+        zones = []
+        if not isinstance(pts[0], np.ndarray) or len(np.shape(pts)) != 2:   # Wegpunkt-Beschreibung (pathways.py)
+            pts, passages, wlog = pathways.resolve_waypoints(pts, geo, obst, need=r0 + 0.0008)
+            for mu, pc, zr, note in passages:
+                alt = trimesh.util.concatenate([tm for n_, tm in obst_named if n_ != mu])
+                zones.append((pc, zr, alt))
+                passage_log.append((name, mu, pc.tolist(), zr, note))
+            narrow = [(note, round(cl * 1000, 1)) for kind, note, cl in wlog if kind == 'Gap' and cl < r0 + 0.0008]
+            if narrow: print(f'  {name}: enge Wegpunkte {narrow}')
         path = catmull(pts)
         rad = np.linspace(r0, r1, len(path))
         path, rad = resample(path, rad)
@@ -672,8 +721,8 @@ def main():
         # teilweise — so bleiben die Bahnen auch auf der Trage (Arme leicht bewegt) innerhalb der Haut
         others = [(ln, lr) for l_, ln, lr in lines if l_ != layer]
         # Armbahnen 8 mm unter der Haut (die Armhaut folgt der Lagerung nur teilweise), sonst 4 mm (Kniekehle ist eng)
-        msk = 0.008 if re.search(r'axillaris|brachialis|radialis|ulnaris|Plexus', name) else 0.004
-        path = constrain_path(path, rad, skin, obst_tm, margin_skin=msk, margin_bone=0.001, others=others)
+        msk = 0.008 if re.search(r'axillaris|brachialis|radialis|ulnaris|Plexus|musculocutaneus', name) else 0.004
+        path = constrain_path(path, rad, skin, obst_tm, margin_skin=msk, margin_bone=0.001, others=others, zones=zones)
         path, rad = resample(path, rad, step=0.005)
         # Armbahnen in der Achsel: 4 mm Abstand zu Skapula und Klavikula, weil sich der Arm auf der Trage um die Schulter
         # dreht (Teile des Oberarms bewegen sich dabei bis ~1 cm nach dorsal gegen das Schulterblatt)
@@ -685,7 +734,7 @@ def main():
             # in engen Logen (Kniekehle, Unterschenkel) Knochen, Gefäße und Haut gegenseitig im Weg sind
             if shoulder is not None:
                 path = constrain_path(path, rad, skin, shoulder, margin_skin=msk, margin_bone=0.004, iters=0)
-            path = constrain_path(path, rad, skin, obst_tm, margin_skin=msk, margin_bone=0.001, iters=0, others=others)
+            path = constrain_path(path, rad, skin, obst_tm, margin_skin=msk, margin_bone=0.001, iters=0, others=others, zones=zones)
         lines.append((layer, path.copy(), rad.copy()))
         for segk, piece, prad in split_by_segment(path, rad, J, radii):
             verts, faces = tube(piece, prad)
@@ -699,9 +748,10 @@ def main():
         'format': 'NotfallSIM-Anatomie', 'version': 1, 'units': 'm', 'axes': 'x rechts, y oben, z vorn; Ursprung Hüftgelenkmitte',
         'modelHeight': float(skin.vertices[:, 1].max() - skin.vertices[:, 1].min()), 'floorY': float(skin.vertices[:, 1].min()),
         'joints': [{'name': k, 'pos': v.tolist()} for k, v in J.items()], 'segments': segs, 'meshes': entries,
+        'passages': [{'pathway': a, 'muscle': b, 'point': c, 'radius': r, 'note': n} for a, b, c, r, n in passage_log],
         'attribution': 'Anatomie: BodyParts3D, © The Database Center for Life Science, lizenziert unter CC BY-SA 2.1 Japan '
                        '(https://lifesciencedb.jp/bp3d/). Bearbeitet für NotfallSIM (vereinfacht, Haut neu vernetzt). '
-                       'Nerven und Extremitätengefäße schematisch ergänzt.',
+                       'Skelettmuskeln aus BodyParts3D. Nerven und Extremitätengefäße schematisch ergänzt.',
     }
     os.makedirs(OUT, exist_ok=True)
     write_bin(os.path.join(OUT, 'body.bin'), header, meshes)

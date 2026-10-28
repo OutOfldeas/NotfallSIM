@@ -21,8 +21,9 @@ namespace NotfallSIM.Anatomy
     public class AnatomyPart
     {
         public AnatomyMeshInfo Info;
-        public MeshRenderer Renderer;
-        public MeshFilter Filter;
+        public Renderer Renderer;               // MeshRenderer (starr am Segment) oder SkinnedMeshRenderer (Muskeln)
+        public MeshFilter Filter;               // nur bei starren Teilen
+        public SkinnedMeshRenderer Skinned;     // Muskeln über Gelenke: wie die Haut gewichtet
         public MeshCollider Collider;   // nur im Röntgenblick, für den Namen unter der Maus
     }
 
@@ -74,6 +75,12 @@ namespace NotfallSIM.Anatomy
             foreach (var md in data.Meshes)
             {
                 if (md.Info.layer == "skin") rig.Skin = BuildSkin(rig, md, skin, shorts);
+                else if (withAnatomy && md.Info.weights && md.Bones != null)
+                {
+                    var smr = BuildWeighted(rig, md, md.Info.label, anatomyMaterial != null ? anatomyMaterial(md.Info) : null);
+                    smr.shadowCastingMode = ShadowCastingMode.Off;
+                    rig.Parts.Add(new AnatomyPart { Info = md.Info, Renderer = smr, Skinned = smr });
+                }
                 else if (withAnatomy)
                 {
                     var seg = rig.Bones[Mathf.Clamp(md.Info.segment, 0, rig.Bones.Length - 1)];
@@ -112,6 +119,33 @@ namespace NotfallSIM.Anatomy
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
             return mesh;
+        }
+
+        /// <summary>Gewichtetes Teil (z. B. Muskel über ein Gelenk) als SkinnedMeshRenderer an den Segmenten des Rigs.</summary>
+        static SkinnedMeshRenderer BuildWeighted(AnatomyRig rig, AnatomyMeshData md, string name, Material material)
+        {
+            var mesh = ToMesh(md);
+            int n = md.Info.vertexCount;
+            var w = new BoneWeight[n];
+            for (int i = 0; i < n; i++)
+            {
+                float w0 = md.Weight0[i] / 255f;
+                w[i] = new BoneWeight { boneIndex0 = md.Bones[2 * i], weight0 = w0, boneIndex1 = md.Bones[2 * i + 1], weight1 = 1 - w0 };
+            }
+            mesh.boneWeights = w;
+            var bind = new Matrix4x4[rig.Bones.Length];
+            var rootM = rig.Root.transform.localToWorldMatrix;
+            for (int i = 0; i < bind.Length; i++) bind[i] = rig.Bones[i].worldToLocalMatrix * rootM;
+            mesh.bindposes = bind;
+            var go = new GameObject(name);
+            go.transform.SetParent(rig.Root.transform, false);
+            var smr = go.AddComponent<SkinnedMeshRenderer>();
+            smr.sharedMesh = mesh;
+            smr.bones = rig.Bones;
+            smr.rootBone = rig.Bones[0];
+            smr.sharedMaterial = material;
+            smr.updateWhenOffscreen = true;
+            return smr;
         }
 
         static SkinnedMeshRenderer BuildSkin(AnatomyRig rig, AnatomyMeshData md, Material skin, Material shorts)

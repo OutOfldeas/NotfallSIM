@@ -194,6 +194,130 @@ for k, vn in V.items():
     if inside or not (front and lat): bad.append(f'{k}{" im Knochen" if inside else ""}{"" if front and lat else " nicht umschlossen"}')
 ok(not bad, 'Rückenmark im Wirbelkanal (C3–L2)', ', '.join(bad))
 
+# ---------------- Muskeln (BodyParts3D) und Leitungsbahnen in den Muskellücken
+if any(m['info']['layer'] == 'muscle' for m in M):
+    def ms(n, y, h=0.006):
+        q = S(n)['pos']
+        while h < 0.05:
+            sl = q[np.abs(q[:, 1] - y) < h]
+            if len(sl) >= 8: break
+            h *= 1.6
+        cc = sl.mean(0); cc[1] = y; return cc
+    def rng(n): q = S(n)['pos']; return q[:, 1].min(), q[:, 1].max()
+    passages = h.get('passages', [])
+    # Bauchwand an der Flanke (Höhe LWK 3): von außen nach innen M. obliquus externus, internus, transversus
+    y3 = vert_y(V['L3'])
+    for s, sx in (('right', 1), ('left', -1)):
+        lat = lambda n: S(n)['pos'][np.abs(S(n)['pos'][:, 1] - y3) < 0.01][:, 0].max() * sx if sx == 1 else -S(n)['pos'][np.abs(S(n)['pos'][:, 1] - y3) < 0.01][:, 0].min()
+        e, i_, t_ = lat(f'{s} external oblique'), lat(f'{s} internal oblique'), lat(f'{s} transversus abdominis')
+        ok(e >= i_ >= t_ - 0.002, f'Bauchwand {s}: externus außen, internus, transversus innen (Flanke L3)', f'{mm(e)} / {mm(i_)} / {mm(t_)}')
+        ok(ms(f'{s} rectus abdominis', y3)[2] > ms(f'{s} transversus abdominis', y3)[2], f'M. rectus abdominis {s} vorn')
+        ok(ms(f'{s} psoas major', y3)[0] * sx > c(V['L3'])[0] * sx and ms(f'{s} psoas major', y3)[2] > ms(f'{s} quadratus lumborum', y3)[2],
+           f'M. psoas {s} seitlich des LWK 3, vor dem M. quadratus lumborum')
+    for side, s, sx in (('rechts', 'right', 1), ('links', 'left', -1)):
+        hip, knee, ankle = J[f'Hüfte {side}'], J[f'Knie {side}'], J[f'Sprunggelenk {side}']
+        sh, el, wr = J[f'Schulter {side}'], J[f'Ellbogen {side}'], J[f'Handgelenk {side}']
+        ty = lambda t: hip[1] + (knee[1] - hip[1]) * t
+        sy = lambda t: knee[1] + (ankle[1] - knee[1]) * t
+        ay = lambda t: sh[1] + (el[1] - sh[1]) * t
+        fy = lambda t: el[1] + (wr[1] - el[1]) * t
+        L = lambda p: p[0] * sx            # lateral positiv
+        fem = lambda t: ms(f'{s} femur', ty(t))
+        # Muskeln untereinander
+        ok(ms(f'{s} gluteus maximus', hip[1] + 0.03)[2] < ms(f'{s} gluteus medius', hip[1] + 0.03)[2], f'M. gluteus maximus {s} oberflächlich (hinter) dem M. gluteus medius')
+        ok(L(ms(f'{s} sartorius', ty(0.08))) > L(ms(f'{s} sartorius', ty(0.85))), f'M. sartorius {s} zieht von lateral oben nach medial unten')
+        ok(ms(f'{s} rectus femoris', ty(0.4))[2] > fem(0.4)[2] and ms(f'long head of {s} biceps femoris', ty(0.6))[2] < fem(0.6)[2],
+           f'Oberschenkel {s}: Rectus femoris vor, Biceps femoris hinter dem Femur')
+        ok(L(ms(f'{s} vastus lateralis', ty(0.5))) > L(fem(0.5)) > L(ms(f'{s} vastus medialis', ty(0.75))), f'Vastus lateralis lateral, Vastus medialis medial ({s})')
+        ok(L(ms(f'{s} adductor longus', ty(0.3))) < L(fem(0.3)), f'Adduktoren {s} medial')
+        ok(ms(f'medial head of {s} gastrocnemius', sy(0.3))[2] < ms(f'{s} soleus', sy(0.3))[2], f'M. gastrocnemius {s} oberflächlich des M. soleus')
+        ok(ms(f'{s} tibialis anterior', sy(0.4))[2] > ms(f'{s} tibia', sy(0.4))[2] - 0.01 and L(ms(f'{s} tibialis anterior', sy(0.4))) > L(ms(f'{s} tibia', sy(0.4))),
+           f'M. tibialis anterior {s} vorn lateral der Tibia')
+        hum = lambda t: ms(f'{s} humerus', ay(t))
+        ok(ms(f'short head of {s} biceps brachii', ay(0.5))[2] > hum(0.5)[2] > ms(f'long head of {s} triceps brachii', ay(0.5))[2], f'Oberarm {s}: Bizeps vorn, Trizeps hinten')
+        ok(L(ms(f'acromial part of {s} deltoid', sh[1] - 0.02)) > L(sh), f'M. deltoideus {s} lateral über dem Humeruskopf')
+        ok(ms(f'{s} scalenus anterior', (rng(f'{s} scalenus anterior')[0] + rng(f'{s} scalenus anterior')[1]) / 2)[2] >
+           ms(f'{s} scalenus medius', (rng(f'{s} scalenus anterior')[0] + rng(f'{s} scalenus anterior')[1]) / 2)[2], f'M. scalenus anterior {s} vor dem M. scalenus medius')
+        ypm = sum(rng(f'{s} pectoralis minor')) / 2
+        ok(ms(f'sternocostal part of {s} pectoralis major', ypm)[2] > ms(f'{s} pectoralis minor', ypm)[2], f'M. pectoralis major {s} vor dem M. pectoralis minor')
+        ytr = vert_y(V['T5'])
+        ok(ms(f'transverse part of {s} trapezius', ytr)[2] < ms(f'{s} rhomboid major', ytr)[2] + 0.003, f'M. trapezius {s} oberflächlich der Mm. rhomboidei')
+        # Bahnen in den Lücken
+        fa, fv = path(f'A. femoralis {side}'), path(f'V. femoralis {side}')
+        a1 = at_y(fa, ty(0.08))
+        ok(L(a1) < L(ms(f'{s} sartorius', ty(0.08))) and a1[2] > ms(f'{s} pectineus', ty(0.08))[2],
+           f'A. femoralis {side} im Trigonum femorale: medial des M. sartorius, vor dem M. pectineus')
+        a3 = at_y(fa, ty(0.55)); sart = ms(f'{s} sartorius', ty(0.55))
+        ok(a3[2] < sart[2] and np.linalg.norm((a3 - sart)[[0, 2]]) < 0.045 and L(a3) < L(ms(f'{s} vastus medialis', ty(0.55))),
+           f'A. femoralis {side} im Adduktorenkanal: unter dem M. sartorius, medial des M. vastus medialis', f'Abstand zum Sartorius {mm(np.linalg.norm((a3 - sart)[[0, 2]]))}')
+        hz = [q for q in passages if q['pathway'] == f'A. femoralis {side}' and 'adductor magnus' in q['muscle']]
+        ok(len(hz) == 1, f'A. femoralis {side}: Durchtritt durch den Hiatus adductorius (M. adductor magnus) hinterlegt')
+        a5 = at_y(fa, ty(0.88))
+        ok(a5[2] < fem(0.88)[2], f'A. femoralis {side} nach dem Hiatus hinter dem Femur')
+        sci = path(f'N. ischiadicus {side}')
+        pir = S(f'{s} piriformis')['pos']
+        near = sci[np.linalg.norm(sci[:, [0, 2]] - pir.mean(0)[[0, 2]], axis=1) < 0.03]
+        ok(len(near) and near[:, 1].max() < pir[:, 1].min() + 0.01, f'N. ischiadicus {side} verlässt das Becken unter dem M. piriformis (Foramen infrapiriforme)',
+           f'höchster Nervenpunkt unter dem Muskel {mm(near[:, 1].max() - pir[:, 1].min()) if len(near) else "–"} über dessen Unterrand')
+        yq = S(f'{s} quadratus femoris')['pos'][:, 1].mean()
+        ok(at_y(sci, yq)[2] > ms(f'{s} gluteus maximus', yq)[2], f'N. ischiadicus {side} unter (vor) dem M. gluteus maximus')
+        s35 = at_y(sci, ty(0.35))
+        ok(ms(f'{s} adductor magnus', ty(0.35))[2] > s35[2] > ms(f'long head of {s} biceps femoris', ty(0.35))[2] - 0.005,
+           f'N. ischiadicus {side} zwischen M. adductor magnus und langem Bizepskopf')
+        ap = at_y(path(f'A. poplitea / tibialis posterior {side}'), sy(0.3))
+        ok(ms(f'{s} soleus', sy(0.3))[2] < ap[2] < ms(f'{s} tibialis posterior', sy(0.3))[2] + 0.01, f'A. tibialis posterior {side} zwischen M. soleus und M. tibialis posterior')
+        fc = path(f'N. fibularis communis {side}')
+        fibh = ms(f'{s} fibula', sy(0.07))
+        ok(np.linalg.norm((at_y(fc, sy(0.07)) - fibh)[[0, 2]]) < 0.03, f'N. fibularis communis {side} am Fibulakopf')
+        ok(any(q['pathway'] == f'N. fibularis communis {side}' and 'fibularis longus' in q['muscle'] for q in passages), f'N. fibularis communis {side} durch den M. fibularis longus')
+        fn = at_y(path(f'N. femoralis {side}'), vert_y(V['L5']) - 0.035)
+        ps, il = ms(f'{s} psoas major', fn[1]), ms(f'{s} iliacus', fn[1])
+        ok(L(ps) - 0.01 < L(fn) < L(il) + 0.01, f'N. femoralis {side} in der Rinne zwischen M. psoas und M. iliacus', f'lateral: Psoas {mm(L(ps))}, Nerv {mm(L(fn))}, Iliacus {mm(L(il))}')
+        # Arm
+        plex = path(f'Plexus brachialis / N. medianus {side}')
+        lo_sa, hi_sa = rng(f'{s} scalenus anterior')
+        ysc = lo_sa + 0.35 * (hi_sa - lo_sa)
+        pz = at_y(plex, ysc)
+        ok(ms(f'{s} scalenus medius', ysc)[2] - 0.004 < pz[2] < ms(f'{s} scalenus anterior', ysc)[2] + 0.004, f'Plexus brachialis {side} in der Skalenuslücke (zwischen M. scalenus anterior und medius)',
+           f'z: medius {mm(ms(f"{s} scalenus medius", ysc)[2])}, Plexus {mm(pz[2])}, anterior {mm(ms(f"{s} scalenus anterior", ysc)[2])}')
+        sub = S(f'{s} subclavian artery')['pos']; ysa = lo_sa + 0.15 * (hi_sa - lo_sa)
+        sl = sub[np.abs(sub[:, 1] - ysa) < 0.012]
+        ok(len(sl) and sl[:, 2].mean() < ms(f'{s} scalenus anterior', ysa)[2] + 0.006, f'A. subclavia {side} hinter dem M. scalenus anterior (Skalenuslücke)')
+        mid_med = at_y(plex, ay(0.4)); bic = ms(f'short head of {s} biceps brachii', ay(0.4))
+        ok(L(mid_med) < L(bic), f'N. medianus {side} medial des M. biceps (Sulcus bicipitalis medialis)')
+        pt = at_y(plex, fy(0.12))
+        ph, pu = ms(f'humeral head of {s} pronator teres', fy(0.12)), ms(f'ulnar head of {s} pronator teres', fy(0.12))
+        ok(min(ph[2], pu[2]) - 0.006 < pt[2] < max(ph[2], pu[2]) + 0.006, f'N. medianus {side} zwischen den Köpfen des M. pronator teres')
+        rad = path(f'N. radialis {side}'); r45 = at_y(rad, ay(0.45))
+        ok(r45[2] < hum(0.45)[2] and np.linalg.norm((r45 - hum(0.45))[[0, 2]]) < 0.03, f'N. radialis {side} im Sulcus n. radialis am Humerus')
+        ok(any(q['pathway'] == f'N. radialis {side}' and 'supinator' in q['muscle'] for q in passages), f'N. radialis {side}: R. profundus durch den M. supinator')
+        mc = path(f'N. musculocutaneus {side}')
+        ok(any(q['pathway'] == f'N. musculocutaneus {side}' and 'coracobrachialis' in q['muscle'] for q in passages), f'N. musculocutaneus {side} durchbohrt den M. coracobrachialis')
+        m6 = at_y(mc, ay(0.6))
+        ok(ms(f'{s} brachialis', ay(0.6))[2] - 0.006 < m6[2] < ms(f'short head of {s} biceps brachii', ay(0.6))[2] + 0.006, f'N. musculocutaneus {side} zwischen M. biceps und M. brachialis')
+        ar = at_y(path(f'A. radialis {side}'), fy(0.97)); fcr = ms(f'{s} flexor carpi radialis', fy(0.97))
+        ok(L(ar) > L(fcr) - 0.004, f'A. radialis {side} lateral der Sehne des M. flexor carpi radialis (Pulstaststelle)')
+    # Bahnen durchqueren Muskeln nur an den hinterlegten Durchtrittsstellen
+    muscles = {n: S(n) for n in by if S(n)['info']['layer'] == 'muscle'}
+    viol = []
+    for m in schem:
+        n = m['info']['name']
+        pts = path(n)
+        zones = [(np.array(q['point']), q['radius'], q['muscle']) for q in passages if q['pathway'] == n]
+        for mn, mm_ in muscles.items():
+            lo_b, hi_b = mm_['pos'].min(0), mm_['pos'].max(0)
+            sel = np.all((pts > lo_b) & (pts < hi_b), axis=1)
+            if not sel.any(): continue
+            q = pts[sel]
+            w = winding(q, mm_['pos'], mm_['tri']) > 0.5
+            if not w.any(): continue
+            inz = np.zeros(len(q), bool)
+            for zc, zr, zm in zones:
+                if zm == mn: inz |= np.linalg.norm(q - zc, axis=1) < zr
+            bad = w & ~inz
+            if bad.any(): viol.append(f'{n} in {mn} ({bad.sum()} Punkte)')
+    ok(not viol, 'Leitungsbahnen durchqueren Muskeln nur an den Durchtrittsstellen', ' | '.join(viol[:20]) + (f' … ({len(viol)})' if len(viol) > 20 else ''))
+
 npass = sum(r[0] for r in res)
 for good, text, d in res:
     print(('OK   ' if good else 'FEHL ') + text + (f'  [{d}]' if d else ''))

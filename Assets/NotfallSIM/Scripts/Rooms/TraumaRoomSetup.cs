@@ -148,7 +148,7 @@ namespace NotfallSIM.Rooms
             RuntimeUi.Column(box, 6, 12);
             box.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             var toggle = RuntimeUi.Button(box, "Röntgenblick", new Color(0.18f, 0.36f, 0.55f), patient.ToggleXRay, 46, 18);
-            string[] ids = { "bone", "organ", "vessel", "nerve" }, names = { "Knochen", "Organe", "Gefäße", "Nerven" };
+            string[] ids = { "bone", "organ", "vessel", "nerve", "muscle" }, names = { "Knochen", "Organe", "Gefäße", "Nerven", "Muskeln" };
             var images = new Image[ids.Length];
             for (int i = 0; i < ids.Length; i++)
             {

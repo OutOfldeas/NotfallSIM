@@ -178,7 +178,7 @@ namespace NotfallSIM.EditorTools
             var xrToggle = MakeButton(xr.transform, "Röntgenblick", new Color(0.18f, 0.36f, 0.55f), patient.ToggleXRay, 18);
             var layers = ButtonGrid(xr.transform, "Ebenen");
             var lg = layers.GetComponent<GridLayoutGroup>(); lg.cellSize = new Vector2(131, 38); lg.constraintCount = 2;
-            string[] layerIds = { "bone", "organ", "vessel", "nerve" }, layerNames = { "Knochen", "Organe", "Gefäße", "Nerven" };
+            string[] layerIds = { "bone", "organ", "vessel", "nerve", "muscle" }, layerNames = { "Knochen", "Organe", "Gefäße", "Nerven", "Muskeln" };
             var layerImages = new Image[layerIds.Length];
             for (int i = 0; i < layerIds.Length; i++)
             {

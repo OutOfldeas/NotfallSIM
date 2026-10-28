@@ -917,6 +917,19 @@ static class Tests
         for (int i = 0; i < skin.Info.vertexCount; i++)
             if (skin.Weight0[i] < 250 && !adjacent(skin.Bones[2 * i], skin.Bones[2 * i + 1])) foreign++;
         Check(foreign == 0, $"{foreign} Hautecken mischen nicht benachbarte Segmente");
+        // Muskeln (BodyParts3D): gewichtet wie die Haut, nur zwischen benachbarten Segmenten
+        var muscles = data.Meshes.Where(m => m.Info.layer == "muscle").ToList();
+        Check(muscles.Count >= 200, $"nur {muscles.Count} Muskeln");
+        foreach (var mu in muscles)
+        {
+            Check(mu.Info.weights && mu.Bones != null && mu.Weight0 != null, mu.Info.name + ": ohne Gewichte");
+            int bad = 0;
+            for (int i = 0; i < mu.Info.vertexCount; i++)
+                if (mu.Weight0[i] < 250 && !adjacent(mu.Bones[2 * i], mu.Bones[2 * i + 1])) bad++;
+            Check(bad == 0, $"{mu.Info.name}: {bad} Ecken mischen nicht benachbarte Segmente");
+            Check(mu.Info.label.StartsWith("M. ") || mu.Info.label.StartsWith("Mm. "), "Muskelname: " + mu.Info.label);
+        }
+        Check(muscles.Any(m => m.Bones.Where((b, i) => i % 2 == 0).Distinct().Count() > 1), "kein Muskel über ein Gelenk gewichtet");
         // Einatmung hebt die Vorderseite (Blendshape-Deltas entlang der äußeren Normalen)
         for (int s = 0; s < skin.BlendShapes.Count; s++)
         {
@@ -1002,6 +1015,8 @@ static class Tests
         Check(of("third lumbar vertebra") == "knochen_spongios" && of("right hip bone") == "knochen_spongios", "Spongiosa");
         Check(of("left costal cartilage") == "knorpel" && of("Rückenmark") == "rueckenmark" && of("Haut") == "haut", "Knorpel/Rückenmark/Haut");
         Check(of("descending aorta") == "arterie" && of("inferior vena cava") == "vene" && of("middle lobe of lung") == "lunge", "Gefäße/Lunge");
+        if (data.Meshes.Any(m => m.Info.layer == "muscle"))
+            Check(of("right gluteus maximus") == "skelettmuskel" && of("long head of left biceps femoris") == "skelettmuskel", "Muskeln → Skelettmuskel");
 
         // Plausibilität (Größenordnungen, die in allen Quellen gleich liegen)
         Func<string, TissueEntry> T = db.Get;
