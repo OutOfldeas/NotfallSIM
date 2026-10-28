@@ -1,4 +1,6 @@
+using System.Linq;
 using NotfallSIM.Anatomy;
+using NotfallSIM.Data;
 using NotfallSIM.Interaction;
 using NotfallSIM.Simulation;
 using NotfallSIM.UI;
@@ -39,6 +41,37 @@ namespace NotfallSIM.Rooms
             }
             if (!patient.HasUi) XRayPanel(sim, patient);
             WorldMonitor(sim);
+            AddMissingActionButtons(sim);
+        }
+
+        /// <summary>Maßnahmen, die nach dem Erzeugen der Szene in interventions.json dazugekommen sind (z. B. Druckverband),
+        /// bekommen einen Button nach dem Muster der vorhandenen — ohne „Alle Szenen erstellen“.</summary>
+        static void AddMissingActionButtons(SimulationManager sim)
+        {
+            var grid = GameObject.Find("Massnahmen-Raster");
+            var ivc = sim != null ? sim.GetComponent<InterventionController>() : null;
+            if (grid == null || ivc == null) return;
+            var existing = grid.GetComponentsInChildren<ActionButton>(true);
+            if (existing == null || existing.Length == 0) return;
+            var have = new System.Collections.Generic.HashSet<string>(existing.Select(b => b.Id));
+            var template = existing[0].gameObject;
+            foreach (var def in InjuryDatabase.LoadInterventions().interventions)
+            {
+                if (have.Contains(def.id)) continue;
+                var go = Object.Instantiate(template, grid.transform);
+                go.name = def.label;
+                var button = go.GetComponent<UnityEngine.UI.Button>();
+                if (button != null)
+                {
+                    for (int i = 0; i < button.onClick.GetPersistentEventCount(); i++)
+                        button.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
+                    string id = def.id;
+                    button.onClick.AddListener(() => ivc.Apply(id));
+                }
+                go.GetComponent<ActionButton>().Configure(sim, ivc, def.id, def.label, new Color(0.16f, 0.32f, 0.55f));
+                var text = go.GetComponentInChildren<TMPro.TMP_Text>();
+                if (text != null) text.text = def.label;
+            }
         }
 
         /// <summary>Innenraum zwischen den Wänden, Boden und Decke.</summary>

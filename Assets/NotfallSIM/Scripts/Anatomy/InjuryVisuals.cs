@@ -69,11 +69,13 @@ namespace NotfallSIM.Anatomy
             var marks = _file.marks.Where(m => _onset.ContainsKey(m.injuryId)).ToList();
 
             // 1) Amputationen: Haut kürzen, Stumpf, innere Teile distal ausblenden
+            HashSet<int> removed = null;
             foreach (var m in marks.Where(x => x.amputation))
             {
                 var a = SkinMarks.Amputate(data, m, rig.Scale, visibleTris);
                 if (a == null || a.RemovedTriangles == 0) { Debug.LogWarning("[Verletzungen] Amputation ohne Wirkung: " + m.id); continue; }
                 mesh.SetTriangles(a.KeptTriangles, 0);
+                removed = SkinMarks.RemovedVertices(skin.Indices, visibleTris, a.KeptTriangles);
                 var kind = KindOf(m);
                 // Stumpf ganz deckend (uv1 = 1), sonst sähe man am Rand in die hohle Gliedmaße
                 var stump = BuildSkinned("Stumpf " + m.id, a.CapPositions, null, a.CapFalloff.Select(_ => 1f).ToArray(),
@@ -96,6 +98,7 @@ namespace NotfallSIM.Anatomy
             {
                 var p = SkinMarks.Select(data, m, rig.Scale, visibleTris, normals, adj);
                 if (p == null || p.HiddenByShorts) { Debug.LogWarning("[Verletzungen] " + m.id + ": kein sichtbarer Hautort"); continue; }
+                SkinMarks.DropRemoved(p, removed);
                 patches[m] = p;
                 double vol = m.swellingFromLoss ? NominalLoss(m.injuryId) : m.swelling_mL;
                 if (vol <= 0) continue;
@@ -118,7 +121,7 @@ namespace NotfallSIM.Anatomy
                 }
                 if (mk.Kind != null && p.Triangles.Length > 0)
                     mk.Overlay = BuildSkinned("Verletzung " + m.id, p.Pos, p.Nrm, p.RFalloff, SkinMarks.Colors(mk.Kind, p), p.Src, p.W,
-                                              p.Triangles, mesh, mk.Kind, (_file.surfaceOffset_m > 0 ? _file.surfaceOffset_m : 0.0006f) / rig.Scale);
+                                              p.Triangles, mesh, mk.Kind, (_file.surfaceOffset_m > 0 ? _file.surfaceOffset_m : 0.0006f) * (1 + mk.Kind.layer) / rig.Scale);
                 if (m.bleeding) mk.Bleed = MakeBleeding(m, p.HitPoint, p.HitNormal, SegmentAt(skin, p.Vertices.Length > 0 ? p.Vertices[0] : 0));
                 _marks.Add(mk);
             }
@@ -199,6 +202,7 @@ namespace NotfallSIM.Anatomy
             smr.sharedMaterial = WoundMaterial(kind);
             smr.shadowCastingMode = ShadowCastingMode.Off;
             smr.updateWhenOffscreen = true;
+            smr.sortingOrder = kind != null ? kind.layer : 0; // Wunde über Blut über Prellung
             _overlays.Add(smr);
             return smr;
         }

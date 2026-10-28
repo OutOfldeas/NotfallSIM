@@ -88,6 +88,29 @@
       "reviewNotes": "Stoppt eine arterielle Extremitätenblutung vollständig (Blutungsort Extremity, z. B. offene Unterschenkelfraktur)."
     },
     {
+      "id": "druckverband_arm_li",
+      "label": "Druckverband Arm li.",
+      "logLabel": "Druckverband linker Unterarm angelegt",
+      "type": "HemorrhageControl",
+      "target": "LeftArm",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 0,
+      "successProbability": 1,
+      "once": true,
+      "effectDelay_s": 0,
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Externe Blutung zuerst mit direktem Druck bzw. Druckverband kontrollieren"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Stoppt die Blutung der Schnittverletzung am linken Unterarm (Blutungsort LeftArm) vollständig. Versagen des Druckverbands nicht modelliert."
+    },
+    {
       "id": "femur_schiene",
       "label": "Femur: Extension/Schiene",
       "logLabel": "Femurfraktur geschient (Extension)",
@@ -366,7 +389,7 @@
       "label": "Notfall-Laparotomie",
       "logLabel": "Notfall-Laparotomie (Damage Control)",
       "type": "HemorrhageControl",
-      "target": "Spleen,Liver",
+      "target": "Spleen,Liver,Abdomen",
       "compound": "",
       "volume_mL": 0,
       "rate_mL_min": 0,
@@ -382,7 +405,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Wirkt nach 15 min (OP-Saal bereit, Schnitt); stillt Milz- und Leberblutung. Zeit didaktisch."
+      "reviewNotes": "Wirkt nach 15 min (OP-Saal bereit, Schnitt); stillt Milz-, Leber- und Mesenterialblutung (Stichverletzung). Zeit didaktisch."
     }
   ]
 }
