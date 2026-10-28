@@ -167,5 +167,18 @@ static class Parity
         }, 1200);
         Run("betablocker", new PatientProfile { weight_kg = 65, age = 76, sex = "female", betaBlocker = true },
             (e, s) => { if (s == 0) e.ApplyInjury(Bleed("Pelvis", 0.6, 150, 3000)); }, 1800);
+        // Gerinnsel unter der Nachblutungsschwelle, Nachblutung nach Volumengabe; Bauchraum geteilt; Durchtrennung außen
+        Run("gerinnsel_nachblutung", new PatientProfile { weight_kg = 80, age = 35, sex = "male" }, (e, s) =>
+        {
+            if (s == 0)
+            {
+                var sp = Bleed("Spleen", 0.9, 100, 2500); sp.Lesion = "parenchymal"; e.ApplyInjury(sp);
+                var ab = Bleed("Abdomen", 0.6, 110, 3000); ab.Lesion = "partial"; e.ApplyInjury(ab);
+                var am = Bleed("Extremity", 0.8, 100, 0); am.Lesion = "transection"; e.ApplyInjury(am);
+                var pv = Bleed("Pelvis", 0.7, 150, 3000); pv.Lesion = "venous"; e.ApplyInjury(pv);
+            }
+            if (s == 6000) e.ApplyIntervention(Iv(InterventionType.HemorrhageControl, "Abdomen", mult: 0));
+            if (s == 9000) e.ApplyIntervention(Iv(InterventionType.FluidInfusion, "", "Blood", 1500, 150));
+        }, 1800);
     }
 }

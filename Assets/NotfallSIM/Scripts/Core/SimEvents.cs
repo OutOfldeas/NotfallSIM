@@ -38,7 +38,10 @@ namespace NotfallSIM.Core
         public string Compartment;
         public double Severity;          // 0..1
         public double BaseRate_mL_min;   // Blutung: Rate bei Severity 1 und normalem Blutdruck
-        public double MaxTotalLoss_mL;   // Blutung: Obergrenze (z. B. Tamponade-Effekt), 0 = unbegrenzt
+        public double MaxTotalLoss_mL;   // Blutung: Tamponadevolumen eines geschlossenen Raums (Becken, Oberschenkel), 0 = ohne
+        /// <summary>Art der Gefäßläsion: "partial" (seitlicher Einriss, zieht sich nicht zurück), "transection" (vollständig
+        /// durchtrennt: Retraktion, Gerinnsel möglich), "parenchymal" (Organ), "venous"; leer = ohne Gerinnsel.</summary>
+        public string Lesion;
         /// <summary>Fortschreitende Verletzungen (Spannungspneu): Anteil pro Minute bei Severity 1 bis zur Dekompensation.</summary>
         public double ProgressionRate_per_min;
         /// <summary>Schwere bei Beginn (0..1), z. B. akutes Subduralhämatom: von Anfang an eingetrübt.</summary>

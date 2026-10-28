@@ -313,6 +313,24 @@ Mechanische Eigenschaften der Gewebe: 19 Gewebetypen, 89 Einzelmessungen aus 21 
 
 **Grenzen:** Ex-vivo-Präparate (meist innerhalb 48 h post mortem; Einfrieren halbiert z. B. die Bruchdehnung von Rinderleber, Santago 2010), verschiedene Spannungs- und Dehnungsmaße zwischen Studien (2. Piola-Kirchhoff, wahr, technisch; Green-Lagrange vs. technisch), große Streuung zwischen Spendern (oft ± 30–100 %). Die Werte sind daher Größenordnungen für die Simulation, keine Grenzwerte für den Einzelfall. Noch nicht in der Physik genutzt: Stufe 2 (Organdehnung im Unfallmodell gegen die Versagensdehnung) baut darauf auf.
 
+## Blutungsphysik (Mock-Engine und Browser-Prototyp)
+
+Statt fester Raten mit linearer Obergrenze:
+
+| Baustein | Modell | Wert | Quelle |
+|---|---|---|---|
+| Fluss durch die Läsion | Q = Q₀ · √((MAD − P_Raum) / (MAD₀ − P_Raum,0)) (Ausflussformel/Bernoulli); Q₀ = Ausgangsrate der Verletzung (didaktisch) | – | [72] |
+| Bauchraum | IAP = IAP₀ · exp(V / (IAP₀ · C₀)); Milz, Leber und Mesenterium teilen sich den Raum | IAP₀ 7 mmHg, C₀ 400 mL/mmHg; ergibt +2 L ≈ 14 mmHg, Compliance bei +4 L ≈ 97 mL/mmHg | [73] |
+| Becken, Oberschenkel | Gegendruck linear, erreicht beim Tamponadevolumen den Ausgangs-MAD (bei Hypotonie früher) | Tamponadevolumen wie bisher (didaktisch) | Annahme |
+| Außen (Extremität, Arm) | kein Gegendruck | – | – |
+| Läsionsart | seitlicher Einriss (zieht sich nicht zurück, kein Gerinnsel), Durchtrennung (Retraktion, Gerinnsel), Parenchym, venös | – | [ATLS] |
+| Gerinnsel und Nachblutung | Gerinnsel, wenn der MAD 5 min unter 64 mmHg bleibt (Restfluss 10 %); löst sich, sobald der MAD 64 mmHg erreicht | 64 ± 2 mmHg | [74]; Bildungszeit und Restfluss Annahmen |
+
+Folge im Spiel: Großzügige Volumengabe vor der Blutstillung kann ein Gerinnsel lösen (permissive Hypotension). Die
+intraabdominelle Blutung tamponiert sich nicht von selbst (der Bauchraum fasst mehr als das Blutvolumen). Venöse und
+parenchymatöse Blutungen sickern (kein Strahl), arterielle spritzen. Pulse rechnet Blutungen mit eigenem Modell; Läsionsart
+und Gerinnsel gelten nur für die Mock-Engine.
+
 ## Sichtbare Verletzungszeichen (`injury_visuals.json`)
 
 Jedes Zeichen gehört zu einer Verletzung und zeigt einen ihrer Befundtexte (geprüft). Der Ort wird nicht von Hand
@@ -478,3 +496,5 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 70. Rosina J, Kvašňák E, Šuta D, Kolářová H, Málek J, Krajči L. Temperature dependence of blood surface tension. *Physiol Res*. 2007;56(Suppl 1):S93-S98. [PDF](https://www.biomed.cas.cz/physiolres/pdf/56/56_S93.pdf)
 71. Kenner T. The measurement of blood density and its meaning. *Basic Res Cardiol*. 1989;84(2):111-124. [DOI](https://doi.org/10.1007/BF01907921)
 72. White FM. *Fluid Mechanics*. 7th ed. McGraw-Hill; 2011. Kap. 3 (Bernoulli, Austrittsgeschwindigkeit).
+73. Malbrain MLNG, Peeters Y, Wise R. The neglected role of abdominal compliance in organ-organ interactions. *Crit Care*. 2016;20:67. [DOI](https://doi.org/10.1186/s13054-016-1220-x)
+74. Sondeen JL, Coppes VG, Holcomb JB. Blood pressure at which rebleeding occurs after resuscitation in swine with aortic injury. *J Trauma*. 2003;54(5 Suppl):S110-S117. [DOI](https://doi.org/10.1097/01.TA.0000047220.81795.3D)
