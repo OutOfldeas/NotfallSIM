@@ -1423,6 +1423,31 @@ static class Tests
         foreach (var d in Injuries.injuries.Where(x => x.effects.Any(e => e.effectType == "Hemorrhage" && (e.compartment == "Extremity" || e.compartment == "LeftArm"))))
             Check(f.marks.Any(m => m.injuryId == d.id && m.bleeding), d.id + ": äußere Blutung ohne sichtbare Blutung");
 
+        // Rinnsale: jeder Schritt abwärts, Ende an nach unten zeigender Haut oder in einer Mulde, Band zur Haut ausgerichtet
+        Func<int, float[]> down = _ => new float[] { 0, 0, -1 };   // Rückenlage: Schwerkraft nach dorsal
+        foreach (var m in f.marks.Where(x => x.rivulets > 0))
+        {
+            var pm = SkinMarks.Select(data, m, scale, tc, nrm, adj);
+            var riv = BloodFlow.Trace(skin.Positions, nrm, adj, skin.Indices[3 * pm.HitTriangle], down, (float)(f.rivulets.maxLength_m / scale), 1, null);
+            Check(riv.Path.Length >= 3, m.id + ": Rinnsal zu kurz");
+            for (int i = 1; i < riv.Path.Length; i++)
+            {
+                int a0 = riv.Path[i - 1], b0 = riv.Path[i];
+                float dz = skin.Positions[3 * b0 + 2] - skin.Positions[3 * a0 + 2];
+                Check(dz < 0, m.id + ": Rinnsal läuft bergauf");
+            }
+            BloodFlow.BuildStrip(riv, skin.Positions, nrm, 0.01f);
+            for (int t = 0; t < riv.Triangles.Length; t += 3)
+            {
+                int i0 = riv.Triangles[t], i1 = riv.Triangles[t + 1], i2 = riv.Triangles[t + 2];
+                Func<int, int, float> P = (v, c) => riv.Pos[3 * v + c];
+                float ux = P(i1, 0) - P(i0, 0), uy = P(i1, 1) - P(i0, 1), uz = P(i1, 2) - P(i0, 2), vx = P(i2, 0) - P(i0, 0), vy = P(i2, 1) - P(i0, 1), vz = P(i2, 2) - P(i0, 2);
+                float nx = uy * vz - uz * vy, ny2 = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+                Check(nx * riv.Nrm[3 * i0] + ny2 * riv.Nrm[3 * i0 + 1] + nz * riv.Nrm[3 * i0 + 2] >= 0, m.id + ": Rinnsal falsch ausgerichtet");
+            }
+        }
+        Check(BloodFlow.Width_mm(f.rivulets, 0) == f.rivulets.widthMin_mm && BloodFlow.Width_mm(f.rivulets, 1e6) == f.rivulets.widthMax_mm, "Rinnsalbreite");
+
         // Blutlache und Strahl
         double thick = SkinMarks.PoolThickness_m(bp);
         Check(thick > 0.002 && thick < 0.005, $"Dicke der Lache {thick * 1000:F2} mm");

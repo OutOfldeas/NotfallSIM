@@ -26,6 +26,14 @@ namespace NotfallSIM.Anatomy
             public int Shape = -1; public double ShapeVolume_mL;
             public Bleeding Bleed;
             public double LastWet_s = double.NaN, LastLost;  // Eintrocknung: Zeitpunkt des letzten frischen Bluts
+            public readonly List<Stream> Streams = new List<Stream>();
+        }
+
+        /// <summary>Ein Rinnsal über die Haut (BloodFlow), erscheint ab einem Verlust und wächst mit der Blutung.</summary>
+        class Stream
+        {
+            public SkinnedMeshRenderer Renderer; public MaterialPropertyBlock Mpb = new MaterialPropertyBlock();
+            public double AppearsAt_mL; public float Length_m; public float Reveal;
         }
 
         class Bleeding
@@ -126,7 +134,83 @@ namespace NotfallSIM.Anatomy
                     mk.Overlay = BuildSkinned("Verletzung " + m.id, p.Pos, p.Nrm, p.RFalloff, SkinMarks.Colors(mk.Kind, p), p.Src, p.W,
                                               p.Triangles, mesh, mk.Kind, (_file.surfaceOffset_m > 0 ? _file.surfaceOffset_m : 0.0006f) * (1 + mk.Kind.layer) / rig.Scale);
                 if (m.bleeding) mk.Bleed = MakeBleeding(m, p.HitPoint, p.HitNormal, SegmentAt(skin, p.Vertices.Length > 0 ? p.Vertices[0] : 0));
+                if (m.rivulets > 0 && _file.rivulets != null) MakeStreams(mk, p, normals, adj, removed);
                 _marks.Add(mk);
+            }
+        }
+
+        /// <summary>Rinnsale vom Wundort abwärts. Schwerkraft je Segment aus der Lagerung (Knochen in Ruhelage achsparallel).</summary>
+        void MakeStreams(Mark mk, SkinPatch p, float[] normals, List<int>[] adj, HashSet<int> removed)
+        {
+            var skin = _rig.Data.Meshes[0];
+            var gSeg = new float[_rig.Bones.Length][];
+            for (int i = 0; i < gSeg.Length; i++)
+            {
+                var g = _rig.Bones[i].InverseTransformDirection(Vector3.down).normalized;
+                gSeg[i] = new[] { g.x, g.y, g.z };
+            }
+            bool[] allowed = null;
+            if (removed != null && removed.Count > 0)
+            {
+                allowed = new bool[skin.Info.vertexCount];
+                for (int i = 0; i < allowed.Length; i++) allowed[i] = !removed.Contains(i);
+            }
+            var rp = _file.rivulets;
+            var def = _sim.Database != null ? _sim.Database.Get(mk.Def.injuryId) : null;
+            double rate = def?.effects != null ? def.effects.Where(e => e.effectType == "Hemorrhage").Sum(e => e.baseRate_mL_min) : 0;
+            float width = (float)(BloodFlow.Width_mm(rp, rate) / 1000 / _rig.Scale);
+            // Quellen: Wundvertices nahe der Mitte
+            var sources = Enumerable.Range(0, p.Vertices.Length).Where(i => p.Falloff[i] > 0.4f).Select(i => p.Vertices[i]).ToList();
+            if (sources.Count == 0) sources.Add(skin.Indices[3 * p.HitTriangle]);
+            var mat = RivuletMaterial();
+            var kind = _file.kinds.FirstOrDefault(k => k.id == "blutspur");
+            for (int r = 0; r < mk.Def.rivulets; r++)
+            {
+                int start = sources[(r * 7919) % sources.Count];
+                var riv = BloodFlow.Trace(skin.Positions, normals, adj, start, v => gSeg[SegmentAt(skin, v)],
+                                          (float)(rp.maxLength_m / _rig.Scale), 1000 * r + mk.Def.id.Length, allowed);
+                BloodFlow.BuildStrip(riv, skin.Positions, normals, width * (1 - 0.15f * r));
+                if (riv.Triangles.Length == 0) continue;
+                int n = riv.Across.Length;
+                var col = new float[4 * n];
+                var c0 = kind != null ? kind.colorCenter : new[] { 0.42f, 0.02f, 0.04f };
+                for (int i = 0; i < n; i++) { col[4 * i] = c0[0] * 0.8f; col[4 * i + 1] = c0[1] * 0.8f; col[4 * i + 2] = c0[2] * 0.8f; col[4 * i + 3] = 0.92f; } // im Rinnsal dicker, dunkler
+                var smr = BuildSkinned("Rinnsal " + mk.Def.id + " " + r, riv.Pos, riv.Nrm, riv.Across, col, riv.Src, null, riv.Triangles,
+                                       _rig.Skin.sharedMesh, kind, (_file.surfaceOffset_m > 0 ? _file.surfaceOffset_m : 0.0006f) * 2.5f / _rig.Scale, riv.Along, mat);
+                smr.sortingOrder = 1;
+                mk.Streams.Add(new Stream { Renderer = smr, AppearsAt_mL = r * rp.volumePerRivulet_mL, Length_m = riv.Length * _rig.Scale });
+            }
+        }
+
+        Material _rivuletMaterial;
+
+        Material RivuletMaterial()
+        {
+            if (_rivuletMaterial != null) return _rivuletMaterial;
+            var src = WoundMaterial(_file.kinds.FirstOrDefault(k => k.id == "blutspur"));
+            _rivuletMaterial = new Material(src);
+            if (_rivuletMaterial.HasProperty("_Strip")) _rivuletMaterial.SetFloat("_Strip", 1);
+            if (_rivuletMaterial.HasProperty("_Edge")) _rivuletMaterial.SetFloat("_Edge", 0.12f);
+            if (_rivuletMaterial.HasProperty("_Irregular")) _rivuletMaterial.SetFloat("_Irregular", 0.35f);
+            if (_rivuletMaterial.HasProperty("_Wet")) _rivuletMaterial.SetFloat("_Wet", 0.8f);
+            return _rivuletMaterial;
+        }
+
+        /// <summary>Rinnsale: erscheinen nacheinander mit dem Verlust, die Front läuft mit frontSpeed, solange es blutet.
+        /// Ohne Blutverlust der Verletzung (z. B. Kopfplatzwunde) sind sie bei Ankunft schon ganz da.</summary>
+        void UpdateStreams(Mark m, double lost, bool bleedsNow, bool hasHemorrhage, float dry, bool visible)
+        {
+            foreach (var st in m.Streams)
+            {
+                bool on = visible && (!hasHemorrhage || lost >= st.AppearsAt_mL);
+                if (!hasHemorrhage) st.Reveal = 1.2f;
+                else if (on && bleedsNow && st.Length_m > 0)
+                    st.Reveal = Mathf.Min(1.2f, st.Reveal + (float)(_file.rivulets.frontSpeed_m_s * Time.deltaTime / st.Length_m));
+                st.Renderer.enabled = on && st.Reveal > 0;
+                st.Mpb.SetFloat("_Reveal", st.Reveal);
+                st.Mpb.SetFloat("_Dry", dry);
+                st.Mpb.SetFloat("_Amount", 1);
+                st.Renderer.SetPropertyBlock(st.Mpb);
             }
         }
 
@@ -147,7 +231,7 @@ namespace NotfallSIM.Anatomy
         /// <summary>Gewichtetes Mesh an den Knochen des Körpers; Vertices als Mischung aus Hautvertices (src/w, je 3 oder 1),
         /// mit Gewichten und Blendshapes der Haut, damit Atmung, Schwellung und Lagerung mitgehen.</summary>
         SkinnedMeshRenderer BuildSkinned(string name, float[] pos, float[] nrm, float[] falloff, float[] col, int[] src, float[] w,
-                                         int[] tris, Mesh skinMesh, MarkKind kind, float offset)
+                                         int[] tris, Mesh skinMesh, MarkKind kind, float offset, float[] uv1y = null, Material material = null)
         {
             int n = falloff.Length;
             int per = w == null ? 1 : 3;
@@ -161,7 +245,7 @@ namespace NotfallSIM.Anatomy
                 nn[i] = nv;
                 c[i] = new Color(col[4 * i], col[4 * i + 1], col[4 * i + 2], col[4 * i + 3]);
                 uv0.Add(new Vector3(pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]));
-                uv1.Add(new Vector2(falloff[i], 0));
+                uv1.Add(new Vector2(falloff[i], uv1y != null ? uv1y[i] : 0));
                 var acc = new Dictionary<int, float>();
                 for (int q = 0; q < per; q++)
                 {
@@ -202,7 +286,7 @@ namespace NotfallSIM.Anatomy
             smr.sharedMesh = mesh;
             smr.bones = _rig.Skin.bones;
             smr.rootBone = _rig.Skin.rootBone;
-            smr.sharedMaterial = WoundMaterial(kind);
+            smr.sharedMaterial = material ?? WoundMaterial(kind);
             smr.shadowCastingMode = ShadowCastingMode.Off;
             smr.updateWhenOffscreen = true;
             smr.sortingOrder = kind != null ? kind.layer : 0; // Wunde über Blut über Prellung
@@ -365,8 +449,19 @@ namespace NotfallSIM.Anatomy
                 {
                     m.Overlay.enabled = amount > 0 && (!xray || m.Def.amputation);
                     m.Mpb.SetFloat("_Amount", (float)amount);
-                    m.Mpb.SetFloat("_Dry", m.Kind != null && m.Kind.dries ? (float)UpdateDryness(m, eng.InjuryBloodLoss_mL(m.Def.injuryId), t) : 0f);
+                    double lostNow = eng.InjuryBloodLoss_mL(m.Def.injuryId);
+                    double prevLost = m.LastLost;
+                    float dry = m.Kind != null && m.Kind.dries ? (float)UpdateDryness(m, lostNow, t) : 0f;
+                    m.Mpb.SetFloat("_Dry", dry);
                     m.Overlay.SetPropertyBlock(m.Mpb);
+                    if (m.Streams.Count > 0)
+                    {
+                        var def = _sim.Database != null ? _sim.Database.Get(m.Def.injuryId) : null;
+                        bool hasHem = def?.effects != null && def.effects.Any(e => e.effectType == "Hemorrhage");
+                        bool bleedsNow = lostNow > prevLost + 1e-4 && !_sim.Paused;
+                        if (m.Kind == null || !m.Kind.dries) dry = (float)SkinMarks.Dryness(_file.drying, t - (double.IsNaN(m.LastWet_s) ? t : m.LastWet_s));
+                        UpdateStreams(m, lostNow, bleedsNow, hasHem, dry, amount > 0 && !xray);
+                    }
                 }
                 if (m.Bleed != null && started) UpdateBleeding(m.Bleed, eng.InjuryBloodLoss_mL(m.Bleed.InjuryId), t);
             }
