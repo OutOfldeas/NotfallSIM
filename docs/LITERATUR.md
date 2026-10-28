@@ -366,6 +366,12 @@ ATLS (externe Blutung zuerst, penetrierendes Abdominaltrauma mit Schock: Laparot
 Blutungsraten sind didaktische Spielwerte wie bei den übrigen Verletzungen. Eine vollständig durchtrennte Arterie zieht sich
 zurück und kontrahiert (ATLS), daher blutet die Amputation hier langsamer als die offene Fraktur mit Gefäßverletzung.
 
+Wundtiefe und Eintrocknung: Der Abfall eines Wundzeichens dient im Shader als Höhenfeld (Wundgrund bis 4 mm tief, Rand
+leicht erhaben), daraus die Normale über den Oberflächengradienten (Mikkelsen 2010) und eine Verschattung im Wundgrund;
+Tiefe je Art (Schnitt klafft, Stich tief, Schürfung flach). Blut bleibt frisch und glänzend, solange die Verletzung blutet,
+und wird danach in etwa 15 min matt und dunkler (Annahme); die Bräunung durch Oxidation dauert Stunden bis Tage [79].
+Wunden ohne laufende Blutung sind bei Ankunft etwa 20 min alt (Annahme).
+
 Annahmen: Kontaktwinkel 90° (keine Messung für Blut auf Matratzenkunststoff gefunden); die Bauchdeckenhebung setzt das
 ganze intraperitoneale Blut an (Obergrenze); Galeaschwellung beim EDH 15 mL. Tropfen sind nur Darstellung, die Blutmenge
 kommt aus der Physiologie (Verlust je Verletzung).
@@ -516,3 +522,4 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 76. Lundsgaard C, Van Slyke DD. Cyanosis. *Medicine (Baltimore)*. 1923;2(1):1-76. [DOI](https://doi.org/10.1097/00005792-192302010-00001)
 77. Green S. Real-time approximations to subsurface scattering. In: Fernando R, ed. *GPU Gems*. Addison-Wesley; 2004. Kap. 16. [Online](https://developer.nvidia.com/gpugems/gpugems/part-iii-materials/chapter-16-real-time-approximations-subsurface-scattering)
 78. Weyrich T, Matusik W, Pfister H, et al. Analysis of human faces using a measurement-based skin reflectance model. *ACM Trans Graph*. 2006;25(3):1013-1024. [DOI](https://doi.org/10.1145/1141911.1141987)
+79. Bremmer RH, de Bruin KG, van Gemert MJC, van Leeuwen TG, Aalders MCG. Forensic quest for age determination of bloodstains. *Forensic Sci Int*. 2012;216(1-3):1-11. [DOI](https://doi.org/10.1016/j.forsciint.2011.07.027)
