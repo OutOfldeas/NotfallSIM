@@ -26,6 +26,8 @@ namespace NotfallSIM.Crash
         [SerializeField] string traumaRoomScene = "Schockraum";
 
         readonly CrashParams _p = new CrashParams();
+        bool Busy => rig.Running || rig.Playing;
+        GameObject _replayButton;
         float _slowMo = 0.2f;
         CrashResult _result;
 
@@ -49,13 +51,34 @@ namespace NotfallSIM.Crash
             SelectMechanism("pkw_frontal");
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
             resultText.text = "Mechanismus wählen und „Crash starten“ drücken.";
+            _replayButton = MakeReplayButton();
+        }
+
+        /// <summary>„Wiederholen“-Knopf neben „In den Schockraum“ (auch in älteren Szenen, daher zur Laufzeit).</summary>
+        GameObject MakeReplayButton()
+        {
+            if (toTraumaRoomButton == null) return null;
+            var go = Instantiate(toTraumaRoomButton, toTraumaRoomButton.transform.parent);
+            go.name = "Wiederholen";
+            go.transform.SetSiblingIndex(toTraumaRoomButton.transform.GetSiblingIndex());
+            var b = go.GetComponent<UnityEngine.UI.Button>();
+            if (b != null)
+            {
+                for (int i = 0; i < b.onClick.GetPersistentEventCount(); i++)
+                    b.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
+                b.onClick.AddListener(Replay);
+            }
+            var t = go.GetComponentInChildren<TMP_Text>();
+            if (t != null) t.text = "Crash wiederholen (R)";
+            go.SetActive(false);
+            return go;
         }
 
         // ---------------------------------------------------------------- UI-Aktionen (im SceneBuilder verdrahtet)
 
         public void SelectMechanism(string id)
         {
-            if (rig.Running) return;
+            if (Busy) return;
             _p.MechanismId = id;
             _p.Speed_kmh = Mechanisms[id].speed;
             ApplyCameraPreset();
@@ -64,20 +87,20 @@ namespace NotfallSIM.Crash
 
         public void ChangeSpeed(float direction)
         {
-            if (rig.Running) return;
+            if (Busy) return;
             var m = Mechanisms[_p.MechanismId];
             _p.Speed_kmh = Mathf.Clamp(_p.Speed_kmh + Mathf.Sign(direction) * m.step, m.min, m.max);
             Preview();
         }
 
-        public void ToggleBelt() { if (rig.Running) return; _p.Belted = !_p.Belted; Preview(); }
+        public void ToggleBelt() { if (Busy) return; _p.Belted = !_p.Belted; Preview(); }
 
-        public void ToggleAirbag() { if (rig.Running) return; _p.Airbag = !_p.Airbag; Preview(); }
+        public void ToggleAirbag() { if (Busy) return; _p.Airbag = !_p.Airbag; Preview(); }
 
         /// <summary>Insasse: entspannt (unvorbereitet) → angespannt (abgestützt) → bewusstlos.</summary>
         public void CycleOccupant()
         {
-            if (rig.Running) return;
+            if (Busy) return;
             _p.Occupant = _p.Occupant == OccupantState.Entspannt ? OccupantState.Angespannt
                         : _p.Occupant == OccupantState.Angespannt ? OccupantState.Bewusstlos : OccupantState.Entspannt;
             ShowSettings();
@@ -89,7 +112,7 @@ namespace NotfallSIM.Crash
         /// </summary>
         public void Calibrate()
         {
-            if (rig.Running) return;
+            if (Busy) return;
             StartCoroutine(CalibrateRoutine());
         }
 
@@ -111,7 +134,7 @@ namespace NotfallSIM.Crash
                         Height_m = (float)reference.height_m, Mass_kg = (float)reference.mass_kg, Male = true, Seed = 1000 + i,
                         Occupant = OccupantState.Bewusstlos   // Crashtest-Dummys haben keine Muskeln
                     };
-                    yield return rig.Run(rp, 1f, m => runs.Add(m));
+                    yield return rig.Run(rp, 1f, m => runs.Add(m), f => resultText.text = log + $"Referenz {reference.id}: Lauf {i + 1}/3 … {f:P0}", playback: false);
                 }
                 foreach (var f in InjuryRisk.ComputeFactors(cal, reference, runs))
                 {
@@ -139,21 +162,36 @@ namespace NotfallSIM.Crash
             return File.Exists(path) ? JsonUtility.FromJson<CalibrationFile>(File.ReadAllText(path)) : null;
         }
 
-        public void SetSlowMotion(float factor) { _slowMo = factor; ShowSettings(); }
+        public void SetSlowMotion(float factor)
+        {
+            _slowMo = factor;
+            if (rig.Playing) rig.PlaybackSpeed = Mathf.Clamp(factor, 0.02f, 1f);   // wirkt sofort auf die laufende Wiedergabe
+            ShowSettings();
+        }
+
+        /// <summary>Den zuletzt berechneten Crash erneut abspielen (mit der aktuell gewählten Zeitlupe).</summary>
+        public void Replay()
+        {
+            if (Busy || !rig.HasRecording) return;
+            StartCoroutine(rig.Replay(_slowMo));   // Körperteile bleiben nach Risiko eingefärbt
+        }
 
         public void StartCrash()
         {
-            if (rig.Running) return;
+            if (Busy) return;
             _p.Seed = UnityEngine.Random.Range(1, 100000);
             _result = null;
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
-            resultText.text = "Crash läuft …";
-            StartCoroutine(rig.Run(_p, _slowMo, OnMeasured));
+            if (_replayButton) _replayButton.SetActive(false);
+            resultText.text = "Crash wird berechnet …";
+            StartCoroutine(rig.Run(_p, _slowMo, OnMeasured,
+                f => resultText.text = f < 1 ? $"Crash wird berechnet … {f:P0}\n<size=80%>10 000 Physikschritte pro Sekunde Unfallzeit; danach flüssige Wiedergabe.</size>"
+                                              : "Wiedergabe …"));
         }
 
         public void GoToMainMenu()
         {
-            if (rig.Running) return;
+            if (Busy) return;
             Time.timeScale = 1;
             SceneManager.LoadScene(Simulation.SessionSetup.MainMenuScene);
         }
@@ -175,11 +213,13 @@ namespace NotfallSIM.Crash
             ShowSettings();
         }
 
-        void ShowSettings()
+        void ShowSettings() => settingsText.text = SettingsText();
+
+        string SettingsText()
         {
             var m = Mechanisms[_p.MechanismId];
             bool car = _p.MechanismId.StartsWith("pkw");
-            settingsText.text = $"<b>{m.label}</b>\n{(_p.MechanismId == "sturz_hoehe" ? "Höhe" : "Geschwindigkeit")}: {_p.Speed_kmh:0} {m.unit}" +
+            return $"<b>{m.label}</b>\n{(_p.MechanismId == "sturz_hoehe" ? "Höhe" : "Geschwindigkeit")}: {_p.Speed_kmh:0} {m.unit}" +
                                 (car ? $"\nGurt: {(_p.Belted ? "angelegt" : "nicht angelegt")}" : "") +
                                 (_p.MechanismId == "pkw_frontal" ? $"\nAirbag: {(_p.Airbag ? "ja" : "nein")}" : "") +
                                 $"\nInsasse: {MuscleTone.Label(_p.Occupant)}" +
@@ -239,6 +279,7 @@ namespace NotfallSIM.Crash
             sb.AppendLine("<size=80%>Welche Verletzungen gewürfelt wurden, zeigt erst der Schockraum. Werte aus einem starren Ragdoll — qualitativ, nicht mit Crashtest-Dummys vergleichbar.</size>");
             resultText.text = sb.ToString();
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(true);
+            if (_replayButton) _replayButton.SetActive(true);
         }
 
         List<Anatomy.CrashMark> _crashMarks = new List<Anatomy.CrashMark>();
@@ -325,6 +366,32 @@ namespace NotfallSIM.Crash
         {
             var o = Orbit();
             if (o != null && rig != null) o.Follow(rig.CameraTarget); // nach jedem Neuaufbau des Ragdolls neu anhängen
+            PlaybackKeys();
+        }
+
+        /// <summary>Wiedergabe: Leertaste Pause, Komma/Punkt spulen (±5 ms, mit Umschalt ±50 ms), R wiederholen.</summary>
+        void PlaybackKeys()
+        {
+            if (rig == null) return;
+            bool space, back, fwd, replay, shift;
+#if ENABLE_INPUT_SYSTEM
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb == null) return;
+            space = kb.spaceKey.wasPressedThisFrame; back = kb.commaKey.wasPressedThisFrame; fwd = kb.periodKey.wasPressedThisFrame;
+            replay = kb.rKey.wasPressedThisFrame; shift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
+#else
+            space = Input.GetKeyDown(KeyCode.Space); back = Input.GetKeyDown(KeyCode.Comma); fwd = Input.GetKeyDown(KeyCode.Period);
+            replay = Input.GetKeyDown(KeyCode.R); shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+#endif
+            if (replay) { Replay(); return; }
+            if (!rig.Playing) return;
+            if (space) rig.PlaybackPaused = !rig.PlaybackPaused;
+            float stepS = shift ? 0.05f : 0.005f;
+            if (back) { rig.PlaybackPaused = true; rig.Seek(-stepS); }
+            if (fwd) { rig.PlaybackPaused = true; rig.Seek(stepS); }
+            settingsText.text = SettingsText() + $"\n<b>Wiedergabe {rig.PlaybackTime * 1000:0} / {rig.RecordedDuration * 1000:0} ms</b>" +
+                                (rig.PlaybackPaused ? " (Pause)" : "") +
+                                "\n<size=80%>Leertaste Pause · , / . spulen (Umschalt: schneller) · R wiederholen</size>";
         }
     }
 }

@@ -41,12 +41,11 @@ namespace NotfallSIM.Crash
 
         public Ragdoll Ragdoll { get; private set; }
         public bool Running { get; private set; }
-        public float SimTime => Time.time - _t0;
+        /// <summary>Zeit im berechneten Crash (s) — während der Berechnung bzw. der Wiedergabe.</summary>
+        public float SimTime => Playing ? PlaybackTime : _simTime;
         public Transform CameraTarget => Ragdoll?.Pelvis.transform;
 
         readonly List<GameObject> _spawned = new List<GameObject>();
-        float _t0;
-        float _savedStep;
 
         // ------------------------------------------------------------------ Aufbau
 
@@ -96,7 +95,7 @@ namespace NotfallSIM.Crash
         }
 
         /// <summary>Baut die Szene für die gewählten Parameter und gibt die Dauer der Simulation zurück.</summary>
-        public float Build(CrashParams p, out Action<float> drive)
+        public float Build(CrashParams p, out Action<float, float> drive)
         {
             Clear();
             Ground();
@@ -140,11 +139,11 @@ namespace NotfallSIM.Crash
                         const float T = 0.1f;
                         Ragdoll.SetVelocity(new Vector3(0, 0, v));
                         Action<float> airbag = p.Airbag ? Airbag(car, wheel, t0 + 0.015f) : null;
-                        drive = time =>
+                        drive = (time, dt) =>
                         {
                             float u = Mathf.Clamp01((time - t0) / T);
                             float vel = v - v * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
-                            rbCar.MovePosition(rbCar.position + new Vector3(0, 0, vel * Time.fixedDeltaTime));
+                            rbCar.MovePosition(rbCar.position + new Vector3(0, 0, vel * dt));
                             airbag?.Invoke(time);
                         };
                         return 0.6f;
@@ -155,11 +154,11 @@ namespace NotfallSIM.Crash
                         // Δv ≈ halbe Aufprallgeschwindigkeit (gleich schwere Fahrzeuge, plastischer Stoß), Dauer 60 ms
                         const float T = 0.06f;
                         float dv = v / 2;
-                        drive = time =>
+                        drive = (time, dt) =>
                         {
                             float u = Mathf.Clamp01((time - t0) / T);
                             float vel = dv * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
-                            rbCar.MovePosition(rbCar.position + new Vector3(vel * Time.fixedDeltaTime, 0, 0));
+                            rbCar.MovePosition(rbCar.position + new Vector3(vel * dt, 0, 0));
                         };
                         return 0.5f;
                     }
@@ -184,11 +183,11 @@ namespace NotfallSIM.Crash
                     var rbBike = bike.GetComponent<Rigidbody>();
                     float tHit = gap / Mathf.Max(0.1f, v);
                     const float T = 0.04f;
-                    drive = time =>
+                    drive = (time, dt) =>
                     {
                         float u = Mathf.Clamp01((time - tHit) / T);
                         float vel = v - v * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
-                        rbBike.MovePosition(rbBike.position + new Vector3(0, 0, vel * Time.fixedDeltaTime));
+                        rbBike.MovePosition(rbBike.position + new Vector3(0, 0, vel * dt));
                     };
                     return 1.2f;
                 }
@@ -209,10 +208,10 @@ namespace NotfallSIM.Crash
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, hipY, 0), Quaternion.identity, RagdollPose.Standing, H, p.Mass_kg, p.Male, invertKneeFlexion);
                     var rbCar = car.GetComponent<Rigidbody>();
                     const float brakeAt = 0.25f, decel = 8f;
-                    drive = time =>
+                    drive = (time, dt) =>
                     {
                         float vel = time < brakeAt ? v : Mathf.Max(0, v - decel * (time - brakeAt));
-                        rbCar.MovePosition(rbCar.position + new Vector3(-vel * Time.fixedDeltaTime, 0, 0));
+                        rbCar.MovePosition(rbCar.position + new Vector3(-vel * dt, 0, 0));
                     };
                     return 2.0f;
                 }
@@ -301,43 +300,199 @@ namespace NotfallSIM.Crash
 
         // ------------------------------------------------------------------ Ablauf
 
-        /// <summary>Startet den Crash. <paramref name="slowMotion"/> = Zeitlupenfaktor (1 = Echtzeit).</summary>
-        public IEnumerator Run(CrashParams p, float slowMotion, Action<List<CrashMeasurement>> done)
+        /// <summary>
+        /// Startet den Crash in zwei Phasen:
+        /// 1. <b>Berechnen</b>: Die Physik läuft mit <see cref="crashStep_s"/> (10 kHz) als manuelle Simulation
+        ///    (<see cref="SimulationMode.Script"/>), verteilt auf Frames mit höchstens <see cref="computeBudget_ms"/> Rechenzeit.
+        ///    Echtzeit mit 10 000 Physikschritten pro Sekunde schafft kein Rechner — so ruckelt nichts, und die Messung bleibt gleich.
+        /// 2. <b>Abspielen</b>: Die aufgezeichneten Posen laufen flüssig in Echtzeit oder Zeitlupe (<see cref="Replay"/>).
+        /// </summary>
+        /// <param name="slowMotion">Zeitlupenfaktor der Wiedergabe (1 = Echtzeit).</param>
+        /// <param name="progress">Fortschritt der Berechnung 0..1 (für die Anzeige).</param>
+        /// <param name="playback">false = nur rechnen (Kalibrierung).</param>
+        public IEnumerator Run(CrashParams p, float slowMotion, Action<List<CrashMeasurement>> done, Action<float> progress = null, bool playback = true)
         {
             Running = true;
-            float duration = Build(p, out Action<float> drive);
-            _savedStep = Time.fixedDeltaTime;
-            Time.fixedDeltaTime = crashStep_s;
-            Time.timeScale = Mathf.Clamp(slowMotion, 0.02f, 1f);
-            yield return new WaitForFixedUpdate();
-            foreach (var s in Ragdoll.Sensors) s.StartRecording();
+            float duration = Build(p, out Action<float, float> drive);
+            float dt = crashStep_s;
+            int steps = Mathf.CeilToInt(duration / dt);
+
+            var savedMode = Physics.simulationMode;
+            Physics.simulationMode = SimulationMode.Script;
+            _savedMode = savedMode; _modeSaved = true;
+            CrashSensor.ClearLookup();
+            BeginRecording();
+            SetVisible(false);   // Zwischenstände der Berechnung nicht zeigen
+
+            foreach (var s in Ragdoll.Sensors) s.StartRecording(dt, steps + 1);
             ShoulderBeltImpulse_Ns = LapBeltImpulse_Ns = 0;
-            var beltRec = gameObject.AddComponent<BeltRecorder>();
-            beltRec.Begin(this);
             var gauges = gameObject.AddComponent<CrashGauges>();
             gauges.Begin(Ragdoll);
-            _t0 = Time.time;
-            var driver = gameObject.AddComponent<CrashDriver>();
-            driver.Init(drive, _t0);
             var tone = LoadMuscleTone();
-            MuscleToneDriver muscles = null;
-            if (tone != null)
+            var muscles = tone != null ? new MuscleToneDriver(Ragdoll, tone, p.Occupant, p.Male) : null;
+            BeltJoints.TryGetValue("Sternum", out var beltShoulder);
+            BeltJoints.TryGetValue("Becken", out var beltLap);
+
+            var watch = new System.Diagnostics.Stopwatch();
+            int step = 0, everyFrame = Mathf.Max(1, Mathf.RoundToInt(recordInterval_s / dt));
+            RecordFrame(0);
+            while (step < steps)
             {
-                muscles = gameObject.AddComponent<MuscleToneDriver>();
-                muscles.Begin(Ragdoll, tone, p.Occupant, p.Male, _t0);
+                watch.Restart();
+                // mindestens ein Schritt je Frame, sonst so viele, wie ins Zeitbudget passen
+                do
+                {
+                    float t = step * dt;
+                    _simTime = t;
+                    // Reihenfolge wie früher in FixedUpdate: Antrieb, Muskeln, Messung des letzten Schritts, dann Physik
+                    drive?.Invoke(t, dt);
+                    muscles?.Apply(t);
+                    foreach (var s in Ragdoll.Sensors) s.Step(dt);
+                    if (beltShoulder) ShoulderBeltImpulse_Ns += beltShoulder.currentForce.magnitude * dt;
+                    if (beltLap) LapBeltImpulse_Ns += beltLap.currentForce.magnitude * dt;
+                    gauges.Step();
+                    Physics.Simulate(dt);
+                    step++;
+                    if (step % everyFrame == 0 || step == steps) RecordFrame(step * dt);
+                } while (step < steps && watch.Elapsed.TotalMilliseconds < computeBudget_ms);
+                progress?.Invoke((float)step / steps);
+                yield return null;
             }
-            while (Time.time - _t0 < duration) yield return null;
             foreach (var s in Ragdoll.Sensors) s.StopRecording();
-            Destroy(beltRec);
             gauges.Stop();
-            Destroy(driver);
-            if (muscles != null) Destroy(muscles);
-            Time.timeScale = 1;
-            Time.fixedDeltaTime = _savedStep;
-            Running = false;
             var measured = Measure(p, gauges);
             Destroy(gauges);
-            done(measured);
+            Running = false;
+
+            if (playback) yield return Replay(slowMotion, () => done(measured));
+            else
+            {
+                SetVisible(true);
+                RestorePhysics();
+                done(measured);
+            }
+        }
+
+        // ------------------------------------------------------------------ Aufzeichnung und Wiedergabe
+
+        [Tooltip("Maximale Rechenzeit für die Crashphysik pro Frame (ms). Kleiner = flüssigere Anzeige, längere Berechnung.")]
+        [SerializeField] float computeBudget_ms = 12f;
+        [Tooltip("Abstand der aufgezeichneten Posen (s). 2 ms reichen für flüssige Zeitlupe bis ×0,05.")]
+        [SerializeField] float recordInterval_s = 0.002f;
+
+        readonly List<Transform> _tracked = new List<Transform>();
+        readonly List<RigidbodyInterpolation> _savedInterp = new List<RigidbodyInterpolation>();
+        readonly List<Rigidbody> _trackedBodies = new List<Rigidbody>();
+        readonly List<float> _frameTimes = new List<float>();
+        readonly List<Vector3[]> _framePos = new List<Vector3[]>();
+        readonly List<Quaternion[]> _frameRot = new List<Quaternion[]>();
+        readonly List<(Renderer r, bool on)> _renderers = new List<(Renderer, bool)>();
+        SimulationMode _savedMode; bool _modeSaved;
+        float _simTime;
+
+        /// <summary>Ist ein berechneter Crash zum (erneuten) Abspielen vorhanden?</summary>
+        public bool HasRecording => _frameTimes.Count > 1 && Ragdoll != null;
+        public bool Playing { get; private set; }
+        public bool PlaybackPaused { get; set; }
+        /// <summary>Wiedergabezeit bzw. Dauer des aufgezeichneten Crashs (s).</summary>
+        public float PlaybackTime { get; private set; }
+        public float RecordedDuration => _frameTimes.Count > 0 ? _frameTimes[_frameTimes.Count - 1] : 0;
+        /// <summary>Zeitlupenfaktor der laufenden Wiedergabe (änderbar).</summary>
+        public float PlaybackSpeed { get; set; } = 1;
+
+        void BeginRecording()
+        {
+            _tracked.Clear(); _trackedBodies.Clear(); _savedInterp.Clear();
+            _frameTimes.Clear(); _framePos.Clear(); _frameRot.Clear();
+            var bodies = new List<Rigidbody>(Ragdoll.Root.GetComponentsInChildren<Rigidbody>(true));
+            foreach (var go in _spawned) if (go) bodies.AddRange(go.GetComponentsInChildren<Rigidbody>(true));
+            foreach (var rb in bodies.Distinct())
+            {
+                _trackedBodies.Add(rb); _tracked.Add(rb.transform); _savedInterp.Add(rb.interpolation);
+                rb.interpolation = RigidbodyInterpolation.None;   // Interpolation würde die Wiedergabe überschreiben
+            }
+        }
+
+        void RecordFrame(float time)
+        {
+            var pos = new Vector3[_tracked.Count];
+            var rot = new Quaternion[_tracked.Count];
+            for (int i = 0; i < _tracked.Count; i++)
+            {
+                if (!_tracked[i]) continue;
+                pos[i] = _tracked[i].position; rot[i] = _tracked[i].rotation;
+            }
+            _frameTimes.Add(time); _framePos.Add(pos); _frameRot.Add(rot);
+        }
+
+        /// <summary>Pose zum Zeitpunkt t (s) aus den Aufzeichnungen, linear bzw. sphärisch interpoliert.</summary>
+        public void ShowPose(float t)
+        {
+            if (_frameTimes.Count == 0) return;
+            t = Mathf.Clamp(t, 0, RecordedDuration);
+            int hi = _frameTimes.BinarySearch(t);
+            if (hi < 0) hi = ~hi;
+            hi = Mathf.Clamp(hi, 1, _frameTimes.Count - 1);
+            int lo = hi - 1;
+            float span = _frameTimes[hi] - _frameTimes[lo];
+            float u = span > 0 ? Mathf.Clamp01((t - _frameTimes[lo]) / span) : 1;
+            var p0 = _framePos[lo]; var p1 = _framePos[hi]; var r0 = _frameRot[lo]; var r1 = _frameRot[hi];
+            for (int i = 0; i < _tracked.Count; i++)
+                if (_tracked[i]) _tracked[i].SetPositionAndRotation(Vector3.LerpUnclamped(p0[i], p1[i], u), Quaternion.SlerpUnclamped(r0[i], r1[i], u));
+            PlaybackTime = t;
+        }
+
+        /// <summary>Spielt den berechneten Crash ab (auch erneut, mit anderer Zeitlupe). Pause und Spulen über
+        /// <see cref="PlaybackPaused"/> und <see cref="Seek"/>.</summary>
+        public IEnumerator Replay(float slowMotion, Action finished = null)
+        {
+            if (!HasRecording) { finished?.Invoke(); yield break; }
+            if (!_modeSaved) { _savedMode = Physics.simulationMode; _modeSaved = true; }
+            Physics.simulationMode = SimulationMode.Script;   // keine Physik während der Wiedergabe
+            Playing = true; PlaybackPaused = false;
+            PlaybackSpeed = Mathf.Clamp(slowMotion, 0.02f, 1f);
+            ShowPose(0);
+            SetVisible(true);
+            float t = 0;
+            while (t < RecordedDuration)
+            {
+                if (!PlaybackPaused) t += Time.deltaTime * PlaybackSpeed;
+                else t = PlaybackTime;    // Seek während der Pause übernehmen
+                ShowPose(t);
+                yield return null;
+            }
+            ShowPose(RecordedDuration);
+            Playing = false;
+            RestorePhysics();
+            finished?.Invoke();
+        }
+
+        /// <summary>Während der Wiedergabe springen (s, relativ).</summary>
+        public void Seek(float delta_s) { if (Playing) ShowPose(PlaybackTime + delta_s); }
+
+        void SetVisible(bool on)
+        {
+            if (!on)
+            {
+                _renderers.Clear();
+                // nur Bewegtes ausblenden (Ragdoll, Haut, Fahrzeuge, Airbag); Boden und Hindernisse bleiben sichtbar
+                var all = new List<Renderer>(Ragdoll.Root.GetComponentsInChildren<Renderer>(true));
+                foreach (var tr in _tracked) if (tr) all.AddRange(tr.GetComponentsInChildren<Renderer>(true));
+                foreach (var r in all.Distinct()) { _renderers.Add((r, r.enabled)); r.enabled = false; }
+            }
+            else
+            {
+                foreach (var e in _renderers) if (e.r) e.r.enabled = e.on;
+                _renderers.Clear();
+            }
+        }
+
+        /// <summary>Nach Berechnung/Wiedergabe: normale Physik und Interpolation wieder an (Ragdoll liegt in der Endlage).</summary>
+        void RestorePhysics()
+        {
+            for (int i = 0; i < _trackedBodies.Count; i++)
+                if (_trackedBodies[i]) _trackedBodies[i].interpolation = _savedInterp[i];
+            if (_modeSaved) { Physics.simulationMode = _savedMode; _modeSaved = false; }
         }
 
         /// <summary>
@@ -414,7 +569,8 @@ namespace NotfallSIM.Crash
 
         void OnDisable()
         {
-            if (Running) { Time.timeScale = 1; Time.fixedDeltaTime = _savedStep > 0 ? _savedStep : 0.02f; }
+            if (_modeSaved) Physics.simulationMode = _savedMode;   // Szenenwechsel mitten im Crash
+            _modeSaved = false;
         }
     }
 
@@ -422,46 +578,34 @@ namespace NotfallSIM.Crash
     /// Muskeltonus während des Crashs: Gelenkantriebe halten die Ausgangshaltung mit einem Moment bis
     /// Maximalmoment × Aktivierung (MuscleTone). Der passive Tonus aus dem RagdollBuilder bleibt erhalten.
     /// </summary>
-    /// <summary>Summiert die Gurtkraft (Gelenkkraft der Gurtfedern) über die Zeit.</summary>
-    public class BeltRecorder : MonoBehaviour
+    public class MuscleToneDriver
     {
-        CrashRig _rig;
-        public void Begin(CrashRig rig) { _rig = rig; }
-        void FixedUpdate()
-        {
-            if (_rig == null) return;
-            float dt = Time.fixedDeltaTime;
-            if (_rig.BeltJoints.TryGetValue("Sternum", out var s) && s) _rig.ShoulderBeltImpulse_Ns += s.currentForce.magnitude * dt;
-            if (_rig.BeltJoints.TryGetValue("Becken", out var b) && b) _rig.LapBeltImpulse_Ns += b.currentForce.magnitude * dt;
-        }
-    }
-
-    public class MuscleToneDriver : MonoBehaviour
-    {
-        MuscleToneFile _f;
-        OccupantState _state;
-        bool _male;
-        float _t0;
+        readonly MuscleToneFile _f;
+        readonly OccupantState _state;
+        readonly bool _male;
+        double _lastActivation = double.NaN;
         class Driven { public string Segment; public ConfigurableJoint Joint; public float Passive; }
         readonly List<Driven> _joints = new List<Driven>();
 
-        public void Begin(Ragdoll rd, MuscleToneFile f, OccupantState state, bool male, float t0)
+        public MuscleToneDriver(Ragdoll rd, MuscleToneFile f, OccupantState state, bool male)
         {
-            _f = f; _state = state; _male = male; _t0 = t0;
+            _f = f; _state = state; _male = male;
             foreach (var kv in rd.Segments)
             {
                 var j = kv.Value.GetComponent<ConfigurableJoint>();
                 if (j == null || f.joints.All(x => x.segment != kv.Key)) continue;
                 _joints.Add(new Driven { Segment = kv.Key, Joint = j, Passive = j.slerpDrive.positionSpring });
             }
-            Apply();
+            Apply(0);
         }
 
-        void FixedUpdate() => Apply();
-
-        void Apply()
+        /// <summary>Gelenkantriebe für die Aktivierung zum Zeitpunkt t (s). Nur neu setzen, wenn sich die Aktivierung ändert —
+        /// meist ist sie konstant, und 10 000 Antriebe pro Sekunde neu zu setzen kostet viel.</summary>
+        public void Apply(float t)
         {
-            double a = MuscleTone.Activation(_f.activation, _state, Time.time - _t0);
+            double a = MuscleTone.Activation(_f.activation, _state, t);
+            if (a == _lastActivation) return;
+            _lastActivation = a;
             foreach (var d in _joints)
             {
                 var drive = MuscleTone.Drive(_f, d.Segment, _male, a);
@@ -477,14 +621,5 @@ namespace NotfallSIM.Crash
                 };
             }
         }
-    }
-
-    /// <summary>Bewegt das (kinematische) Fahrzeug in jedem Physikschritt nach dem Crashpuls.</summary>
-    public class CrashDriver : MonoBehaviour
-    {
-        Action<float> _drive;
-        float _t0;
-        public void Init(Action<float> drive, float t0) { _drive = drive; _t0 = t0; }
-        void FixedUpdate() { _drive?.Invoke(Time.time - _t0); }
     }
 }

@@ -181,7 +181,7 @@ Die Diagnosebewertung steht getrennt von den Behandlungszielen. Im Browser-Proto
 
 Die Sandbox misst am Ragdoll wie an einem Crashtest-Dummy und übersetzt die Werte über Risikokurven in Verletzungen der Datenbank (`injury_risk.json`). Mehrere Messwerte für dieselbe Verletzung werden als 1 − Π(1 − p) kombiniert; der Schweregrad wächst mit dem Risiko.
 
-**Messtechnik wie beim Dummy:** Physikschritt 0,1 ms (10 kHz). Alle Kanäle werden mit dem Kanalfilter nach SAE J211 / ISO 6487 gefiltert (Butterworth, vor- und rückwärts): Kopf CFC 1000, Brustwirbelsäule CFC 180, Brustkorbdeflexion CFC 600, Halskraft CFC 1000, Halsmoment CFC 600, Femur und Kontaktkräfte CFC 600.
+**Messtechnik wie beim Dummy:** Physikschritt 0,1 ms (10 kHz). Die Physik läuft dafür als manuelle Simulation (`Physics.Simulate`) getrennt von der Anzeige; abgespielt werden danach die aufgezeichneten Posen (alle 2 ms) — Echtzeit mit 10 000 Physikschritten pro Sekunde wäre nicht zu schaffen. Alle Kanäle werden mit dem Kanalfilter nach SAE J211 / ISO 6487 gefiltert (Butterworth, vor- und rückwärts): Kopf CFC 1000, Brustwirbelsäule CFC 180, Brustkorbdeflexion CFC 600, Halskraft CFC 1000, Halsmoment CFC 600, Femur und Kontaktkräfte CFC 600.
 
 **Brustkorb:** Vor dem Thorax sitzt eine Sternum-Platte (0,45 kg), federnd und gedämpft gelagert (26 kN/m, 520 N·s/m, Anschlag bei 90 mm) — angelehnt an das Thoraxmodell von Lobdell (1973), Werte noch zu prüfen. Der Schultergurt greift am Sternum an. Daraus: Deflexion und Viscous Criterion (Brustkorbtiefe 0,229 m wie Hybrid III).
 

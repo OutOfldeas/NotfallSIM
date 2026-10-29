@@ -57,21 +57,24 @@ namespace NotfallSIM.Crash
 
         void Awake() { _rb = GetComponent<Rigidbody>(); }
 
-        public void StartRecording()
+        /// <param name="dt">Physikschritt (CrashRig rechnet die Physik selbst, siehe <see cref="CrashRig.Run"/>).</param>
+        /// <param name="expectedSteps">Erwartete Schrittzahl, damit die Listen nicht wachsen müssen.</param>
+        public void StartRecording(float dt, int expectedSteps = 0)
         {
             Accel_g.Clear(); Force_kN.Clear(); LateralImpulse = TotalImpulse = 0; Contacts.Clear();
+            if (expectedSteps > Accel_g.Capacity) { Accel_g.Capacity = expectedSteps; Force_kN.Capacity = expectedSteps; }
             _prevV = CrashPhysics.Velocity(_rb);
             _stepImpulse = 0;
-            Dt_s = Time.fixedDeltaTime;
+            Dt_s = dt;
             _recording = true;
         }
 
         public void StopRecording() => _recording = false;
 
-        void FixedUpdate()
+        /// <summary>Ein Messschritt vor jedem Physikschritt (früher FixedUpdate): Beschleunigung und Kontaktkraft des letzten Schritts.</summary>
+        public void Step(float dt)
         {
             if (!_recording) return;
-            float dt = Time.fixedDeltaTime;
             Vector3 v = CrashPhysics.Velocity(_rb);
             Accel_g.Add(((v - _prevV) / dt).magnitude / 9.81);
             Force_kN.Add(_stepImpulse / dt / 1000.0);
@@ -89,12 +92,18 @@ namespace NotfallSIM.Crash
         void OnCollisionEnter(Collision c) => Collect(c);
         void OnCollisionStay(Collision c) => Collect(c);
 
+        // Bei 10 kHz kommen Kontakte tausendfach je Sekunde: Komponentensuche je Kollider nur einmal
+        static readonly Dictionary<Collider, (CrashSensor sensor, CrashSurface surface)> _lookup = new Dictionary<Collider, (CrashSensor, CrashSurface)>();
+        public static void ClearLookup() => _lookup.Clear();
+
         void Collect(Collision c)
         {
             if (!_recording) return;
-            var otherSensor = c.collider.GetComponentInParent<CrashSensor>();
+            if (!_lookup.TryGetValue(c.collider, out var hit))
+                _lookup[c.collider] = hit = (c.collider.GetComponentInParent<CrashSensor>(), c.collider.GetComponentInParent<CrashSurface>());
+            var otherSensor = hit.sensor;
             if (otherSensor != null && otherSensor._body == _body) return; // eigenes Ragdoll
-            var surface = c.collider.GetComponentInParent<CrashSurface>();
+            var surface = hit.surface;
             if (surface != null && !surface.countsForInjury) return;
             float impulse = c.impulse.magnitude;
             if (impulse <= 0) return;
@@ -146,7 +155,8 @@ namespace NotfallSIM.Crash
 
         public void Stop() => _recording = false;
 
-        void FixedUpdate()
+        /// <summary>Ein Messschritt vor jedem Physikschritt (früher FixedUpdate).</summary>
+        public void Step()
         {
             if (!_recording || _rd == null || _rd.Sternum == null) return;
             var thorax = _rd.Thorax.transform;
