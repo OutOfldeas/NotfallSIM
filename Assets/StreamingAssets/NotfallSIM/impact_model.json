@@ -1,0 +1,105 @@
+{
+  "version": "1.0.0",
+  "note": "Nachgiebiger Kontakt und Verletzungsschwellen für Aufpralle in der Unfall-Sandbox (stumpfe und spitze Gewalt). Kontakt: Kraft F = k(δ)·δ + c·δ̇ (Kelvin-Voigt, nur Druck), δ = Eindrücktiefe in den Körperkollider, c aus der Restitution e (ζ = −ln e / √(π² + ln² e), c = 2ζ√(k·m_eff)). k(δ) stückweise linear: k1 bis knee1, dann linear auf k2 bis knee2, darüber k2 (Durchschlag auf Knochen/Wirbelsäule). Kopf: k hängt von der Kontaktfläche ab (log-linear zwischen den Stützstellen). Werte ohne Quelle sind als Annahme gekennzeichnet (evidence).",
+  "regions": [
+    {
+      "region": "Kopf",
+      "k1_N_m": 1800000, "k2_N_m": 4200000, "knee1_m": 0.004, "knee2_m": 0.008,
+      "areaStiffness": [ { "area_cm2": 5, "k_N_m": 1800000 }, { "area_cm2": 52, "k_N_m": 4200000 } ],
+      "restitution": 0.5, "effectiveMass_kg": 4.5, "depth_m": 0.19, "maxArea_cm2": 52,
+      "evidence": "human", "sourceId": "allsop1991",
+      "note": "Steifigkeit Schläfe/Scheitel durch die Kopfschwarte: 1800 N/mm (5 cm²) bzw. 4200 N/mm (52 cm²). Restitution Annahme."
+    },
+    {
+      "region": "Thorax",
+      "k1_N_m": 26200, "k2_N_m": 60000, "knee1_m": 0.041, "knee2_m": 0.076,
+      "areaStiffness": [],
+      "restitution": 0.3, "effectiveMass_kg": 20, "depth_m": 0.23, "maxArea_cm2": 300,
+      "evidence": "human", "sourceId": "melvin1988",
+      "note": "Bis 41 mm etwa linear 26,2 N/mm (Melvin et al., zitiert nach Thorax Injury Biomechanics). Melvin gibt ab 76 mm ca. 120 N/mm an; mit diesem Wert erreicht das Pendel (23,4 kg, 6,7 m/s) nur 29 % Kompression bei 6,7 kN statt der ca. 40 % in Kroells Versuchen. Daher 60 N/mm: 32 % bei 4,7 kN (Kompromiss, Annahme). Restitution Annahme (Thorax dissipiert den Großteil)."
+    },
+    {
+      "region": "Abdomen",
+      "k1_N_m": 27000, "k2_N_m": 63000, "knee1_m": 0.06, "knee2_m": 0.15,
+      "areaStiffness": [],
+      "restitution": 0.25, "effectiveMass_kg": 15, "depth_m": 0.226, "maxArea_cm2": 300,
+      "evidence": "human", "sourceId": "hardy2001",
+      "note": "Dynamische Steifigkeit starrer Stab 27 kN/m (6,3 m/s) bzw. 63 kN/m (9,2 m/s), hier als Verhärtung mit der Tiefe angenähert; Bauchtiefe aus dem Anatomiemodell (organ_model.json)."
+    },
+    {
+      "region": "Becken",
+      "k1_N_m": 100000, "k2_N_m": 1000000, "knee1_m": 0.02, "knee2_m": 0.04,
+      "areaStiffness": [],
+      "restitution": 0.3, "effectiveMass_kg": 20, "depth_m": 0.3, "maxArea_cm2": 200,
+      "evidence": "annahme", "sourceId": "",
+      "note": "Weichteile über dem Beckenring, dann Knochen. Annahme."
+    },
+    {
+      "region": "Oberschenkel",
+      "k1_N_m": 50000, "k2_N_m": 1000000, "knee1_m": 0.025, "knee2_m": 0.04,
+      "areaStiffness": [],
+      "restitution": 0.3, "effectiveMass_kg": 8, "depth_m": 0.15, "maxArea_cm2": 150,
+      "evidence": "annahme", "sourceId": "",
+      "note": "Muskel über dem Femur, dann Knochen. Annahme."
+    },
+    {
+      "region": "Unterschenkel",
+      "k1_N_m": 50000, "k2_N_m": 1000000, "knee1_m": 0.01, "knee2_m": 0.02,
+      "areaStiffness": [],
+      "restitution": 0.3, "effectiveMass_kg": 3.5, "depth_m": 0.1, "maxArea_cm2": 80,
+      "evidence": "annahme", "sourceId": "",
+      "note": "Schienbeinkante nur dünn bedeckt. Annahme."
+    },
+    {
+      "region": "Arm",
+      "k1_N_m": 30000, "k2_N_m": 800000, "knee1_m": 0.012, "knee2_m": 0.025,
+      "areaStiffness": [],
+      "restitution": 0.3, "effectiveMass_kg": 2, "depth_m": 0.08, "maxArea_cm2": 60,
+      "evidence": "annahme", "sourceId": "",
+      "note": "Annahme."
+    }
+  ],
+  "fractures": {
+    "skull": {
+      "points": [ { "area_cm2": 5, "force50_N": 5000 }, { "area_cm2": 52, "force50_N": 12500 } ],
+      "cv": 0.2, "injuryId": "schaedelfraktur", "sourceId": "allsop1991",
+      "note": "Schläfe/Scheitel, 31 Leichenköpfe: Fraktur bei 5,0 kN (5 cm² Kreisfläche, SD 1,0 kN) bzw. 12,5 kN (52 cm² Platte). Dazwischen log-linear. Normalverteilt mit Variationskoeffizient 0,2 (aus SD/Mittelwert der 5-cm²-Gruppe)."
+    },
+    "longBones": [
+      { "segment": "Oberschenkel", "moment50_Nm": 447, "cv": 0.2, "injuryRight": "femur_schaft_rechts", "injuryLeft": "femur_schaft_links", "sourceId": "kerrigan2004",
+        "note": "Seitliche Biegung Femurmitte, 50 % Frakturrisiko bei 447 Nm. Kraft aus Moment für Dreipunktbiegung F = 4M/L (L = Segmentlänge). CV Annahme." },
+      { "segment": "Unterschenkel", "moment50_Nm": 312, "cv": 0.2, "injuryRight": "unterschenkelfraktur_rechts", "injuryLeft": "unterschenkelfraktur_links", "sourceId": "kerrigan2004",
+        "note": "Seitliche Biegung Unterschenkelmitte, 50 % bei 312 Nm. CV Annahme." }
+    ],
+    "ribs": {
+      "aisIntercept": -3.78, "aisSlope": 19.56, "injuryRight": "rippenserienfraktur_rechts", "injuryLeft": "rippenserienfraktur_links", "sourceId": "kroell1974",
+      "note": "AIS = −3,78 + 19,56 · Kompression (Kroell); ab AIS 3 Rippenserienfraktur. Kompression = Eindrücktiefe / Thoraxtiefe."
+    }
+  },
+  "penetration": {
+    "skin": { "intercept_N": -15.45, "perTipRadius_um": 0.016, "perTipAngle_deg": 0.69, "perCuttingAngle_deg": 0.16, "minimum_N": 5, "clothingFactor": 1.5, "sourceId": "niannaidh2015",
+      "note": "Kraft zum Durchstechen der Haut aus der Klingengeometrie (Regression, R² 0,97, quasistatisch). Kleidung (eine Lage Jeansstoff) etwa +50 %." },
+    "tissues": [
+      { "id": "weichteil", "resistance_N": 25, "evidence": "annahme", "note": "Fett und Muskel nach dem Hautdurchstich: geringer Widerstand (Haut leistet den Großteil, Ní Annaidh 2015)." },
+      { "id": "knochen", "resistance_N": 1500, "evidence": "annahme", "note": "Rippe, Schädel, Beckenschaufel: stoppt die Klinge meist." },
+      { "id": "organ", "resistance_N": 15, "evidence": "annahme", "note": "Parenchym und Lunge." }
+    ],
+    "regions": [
+      { "region": "Kopf", "wall_m": 0.007, "boneHitProbability": 1.0, "deep": "", "deepRight": "", "deepLeft": "", "probability": 0, "note": "Kopfschwarte, dann Schädelkalotte: Stich bleibt meist in der Schwarte (Skalpwunde)." },
+      { "region": "Thorax", "wall_m": 0.03, "boneHitProbability": 0.5, "deep": "", "deepRight": "stichverletzung_thorax_rechts", "deepLeft": "stichverletzung_thorax_links", "probability": 1.0, "note": "Haut, Muskel, Rippe oder Zwischenrippenraum (etwa die Hälfte der Fläche ist Rippe, Annahme); dahinter Pleura und Lunge." },
+      { "region": "Abdomen", "wall_m": 0.025, "boneHitProbability": 0, "deep": "", "deepRight": "stichverletzung_abdomen_rechts", "deepLeft": "stichverletzung_abdomen_links", "probability": 1.0, "note": "Bauchwand, dann Peritonealhöhle: rechts Leber, links Mesenterium/Milz (vereinfachend)." },
+      { "region": "Becken", "wall_m": 0.05, "boneHitProbability": 0.6, "deep": "", "deepRight": "", "deepLeft": "", "probability": 0, "note": "Gesäß- und Hüftmuskulatur, Beckenknochen. Nur Weichteilwunde." },
+      { "region": "Oberschenkel", "wall_m": 0.035, "boneHitProbability": 0.1, "deep": "", "deepRight": "stichverletzung_oberschenkel_rechts", "deepLeft": "stichverletzung_oberschenkel_links", "probability": 0.5, "note": "Ab ca. 3,5 cm Tiefe Gefäß-Nerven-Straße erreichbar; ob die A. femoralis getroffen wird, hängt von Ort und Richtung ab (hier 50 %, Annahme)." },
+      { "region": "Unterschenkel", "wall_m": 0.02, "boneHitProbability": 0.4, "deep": "", "deepRight": "", "deepLeft": "", "probability": 0, "note": "Nur Weichteilwunde (Annahme)." },
+      { "region": "Arm", "wall_m": 0.01, "boneHitProbability": 0.2, "deep": "", "deepRight": "schnittverletzung_unterarm_rechts", "deepLeft": "schnittverletzung_unterarm_links", "probability": 0.5, "note": "Unterarm: A. radialis/ulnaris oberflächlich (50 %, Annahme); Oberarm nur Weichteil." }
+    ]
+  },
+  "sources": [
+    { "id": "allsop1991", "citation": "Allsop DL, Perl TR, Warner CY. Force/deflection and fracture characteristics of the temporo-parietal region of the human head. SAE Technical Paper 912907. Stapp Car Crash Conference 1991.", "url": "https://doi.org/10.4271/912907", "note": "Steifigkeit 1800 bzw. 4200 N/mm, Fraktur 5,0 bzw. 12,5 kN (5 bzw. 52 cm²)" },
+    { "id": "melvin1988", "citation": "Melvin JW, et al. Thoracic impact response (zitiert in: Thorax Injury Biomechanics, in: Accidental Injury, Springer).", "url": "https://musculoskeletalkey.com/thorax-injury-biomechanics/", "note": "Bis 41 mm ca. 26,2 N/mm, ab 76 mm ca. 120 N/mm; Kroell: AIS = −3,78 + 19,56·C" },
+    { "id": "hardy2001", "citation": "Hardy WN, Schneider LW, Rouhana SW. Abdominal impact response to rigid-bar, seatbelt, and airbag loading. Stapp Car Crash J. 2001;45:1-32.", "url": "https://doi.org/10.4271/2001-22-0001", "note": "Dynamische Bauchsteifigkeit 27 bzw. 63 kN/m (6,3 bzw. 9,2 m/s), siehe organ_model.json" },
+    { "id": "kerrigan2004", "citation": "Kerrigan JR, Drinkwater DC, Kam CY, et al. Tolerance of the human leg and thigh in dynamic latero-medial bending. Int J Crashworthiness. 2004;9(6):607-623.", "url": "https://doi.org/10.1533/ijcr.2004.0315", "note": "50 % Frakturrisiko: Femur Mitte 447 Nm, distal 372 Nm, Unterschenkel Mitte 312 Nm" },
+    { "id": "kroell1974", "citation": "Kroell CK, Schneider DC, Nahum AM. Impact tolerance and response of the human thorax II. SAE Technical Paper 741187. 1974.", "url": "https://doi.org/10.4271/741187", "note": "AIS = −3,78 + 19,56 · Kompression (lineare Anpassung)" },
+    { "id": "niannaidh2015", "citation": "Ní Annaidh A, Cassidy M, Curtis M, Destrade M, Gilchrist MD. Toward a predictive assessment of stab-penetration forces. Am J Forensic Med Pathol. 2015;36(3):162-166.", "url": "https://doi.org/10.1097/PAF.0000000000000075", "note": "Durchstichkraft = −15,45 + 0,016·Spitzenradius(µm) + 0,69·Spitzenwinkel(°) + 0,16·Schneidwinkel(°); Jeans ca. +50 %" }
+  ]
+}

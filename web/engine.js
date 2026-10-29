@@ -195,6 +195,9 @@
     Extremity: [(0.285 + 0.039) / 2, "legR"], RightThigh: [(0.530 + 0.285) / 2, "legR"], LeftThigh: [(0.530 + 0.285) / 2, "legL"],
     LeftArm: [(0.630 + 0.485) / 2, "armL"], RightArm: [(0.630 + 0.485) / 2, "armR"],
     Pelvis: [0.53, "trunk"], Abdomen: [0.62, "trunk"], Liver: [0.66, "trunk"], Spleen: [0.66, "trunk"],
+    RightLeg: [(0.285 + 0.039) / 2, "legR"], LeftLeg: [(0.285 + 0.039) / 2, "legL"],
+    RightThighArtery: [(0.530 + 0.285) / 2, "legR"], LeftThighArtery: [(0.530 + 0.285) / 2, "legL"],
+    RightChest: [0.72, "trunk"], LeftChest: [0.72, "trunk"],
   };
   const Positions = {
     flach: [0, 0, 0, 0, 0, 0], beine_hoch: [0, 45, 45, 0, 0, 150], bein_rechts_hoch: [0, 45, 0, 0, 0, 75],
@@ -214,7 +217,7 @@
   }
   function spaceOf(c) {
     if (c === "Spleen" || c === "Liver" || c === "Abdomen") return "Peritoneum";
-    if (c === "Extremity" || c === "LeftArm" || c === "RightArm") return "";
+    if (c === "Extremity" || c === "LeftArm" || c === "RightArm" || c === "RightThighArtery" || c === "LeftThighArtery") return "";
     return c;
   }
   const canClot = (l) => l === "transection" || l === "parenchymal" || l === "venous";

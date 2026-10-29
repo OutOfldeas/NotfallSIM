@@ -1,5 +1,5 @@
 {
-  "version": "0.8.0",
+  "version": "0.9.0",
   "injuries": [
     {
       "id": "becken_instabil",
@@ -1254,7 +1254,7 @@
           "description": "Tourniquet angelegt",
           "type": "deadline",
           "tags": [
-            "intervention:HemorrhageControl:Extremity:tourniquet"
+            "intervention:HemorrhageControl:Extremity,RightThighArtery,LeftThighArtery:tourniquet"
           ],
           "limit": 120,
           "relativeTo": "",
@@ -1367,7 +1367,7 @@
           "description": "Tourniquet angelegt",
           "type": "deadline",
           "tags": [
-            "intervention:HemorrhageControl:Extremity:tourniquet"
+            "intervention:HemorrhageControl:Extremity,RightThighArtery,LeftThighArtery:tourniquet"
           ],
           "limit": 120,
           "relativeTo": "",
@@ -1673,6 +1673,1231 @@
           "minBodyLoss": 0,
           "maxBodyLoss": 1,
           "requiresTag": "intervention:HemorrhageControl:LeftArm",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "schaedelfraktur",
+      "name": "Kalottenfraktur (Schädeldachfraktur)",
+      "region": "Kopf",
+      "icd10": "S02.0",
+      "aisSeverity": 2,
+      "effects": [],
+      "clinicalFindings": [
+        "Kopfplatzwunde mit tastbarer Stufe der Kalotte",
+        "Prellmarke und Schwellung über der Fraktur",
+        "Bewusstsein zunächst erhalten"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Head Trauma: Schädelfraktur als Hinweis auf erhebliche Krafteinwirkung, CCT-Indikation"
+        },
+        {
+          "citation": "Allsop DL, Perl TR, Warner CY. Force/deflection and fracture characteristics of the temporo-parietal region of the human head. SAE Technical Paper 912907. 1991.",
+          "url": "https://doi.org/10.4271/912907",
+          "note": "Bruchkraft 5,0 kN (5 cm²) bzw. 12,5 kN (52 cm²)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Lineare Kalottenfraktur ohne intrakranielle Blutung: kein eigener physiologischer Effekt. Entsteht in der Unfall-Sandbox aus Kraft und Kontaktfläche am Kopf (impact_model.json). Begleitende Hirnverletzungen über HIC (injury_risk.json).",
+      "imaging": [
+        {
+          "modality": "CCT",
+          "finding": "Lineare Kalottenfraktur ohne Dislokation, kein epi- oder subdurales Hämatom, keine Kontusionen.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "kopf_untersucht",
+          "description": "Kopf untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Kopf"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "D-Teil: Kopfwunde, Stufe, Bewusstsein, Pupillen. Zeitziel didaktisch."
+        },
+        {
+          "id": "kopf_bildgebung",
+          "description": "Bildgebung des Kopfes",
+          "type": "deadline",
+          "tags": [
+            "imaging:cct",
+            "imaging:ct_ganzkoerper"
+          ],
+          "limit": 1800,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Schädelfraktur: CCT zum Ausschluss einer intrakraniellen Blutung (ATLS). 30 min didaktisch."
+        }
+      ],
+      "dynamicFindings": []
+    },
+    {
+      "id": "femur_schaft_links",
+      "name": "Geschlossene Femurschaftfraktur links",
+      "region": "Oberschenkel links",
+      "icd10": "S72.3",
+      "aisSeverity": 3,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "LeftThigh",
+          "baseRate_mL_min": 20,
+          "maxTotalLoss_mL": 1000,
+          "lesion": "venous",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Fehlstellung und Verkürzung des linken Oberschenkels",
+        "Starker Bewegungsschmerz, ggf. Krepitation",
+        "Durchblutung, Motorik und Sensibilität distal prüfen"
+      ],
+      "sources": [
+        {
+          "citation": "Lieurance R, Benjamin JB, Rappaport WD. Blood loss and transfusion in patients with isolated femur fractures. J Orthop Trauma. 1992;6(2):175-179.",
+          "url": "https://www.crisis-medicine.com/femur-fracture-blood-loss/",
+          "note": "53 isolierte Femurschaftfrakturen: geschätzter Verlust präoperativ Ø ca. 740 mL, gesamt inkl. OP Ø ca. 1,2 L. Zahlen bisher nur aus Sekundärquelle (Link), Volltext prüfen"
+        },
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Musculoskeletal Trauma: Femurfraktur als Blutungsquelle"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Spiegelbild von femur_schaft_rechts. v0.2: Obergrenze von 1500 auf 1000 mL und Rate von 40 auf 20 mL/min gesenkt — isolierte Femurschaftfrakturen bluten präoperativ eher 0,5–1 L. Hypotonie bei Femurfraktur spricht für eine weitere Blutungsquelle. Dynamische Befunde: Schwellung als Zeichen des Blutverlusts in die Weichteile; Schwelle didaktisch.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Dislozierte Femurschaftfraktur links mit ausgedehntem Weichteilhämatom des Oberschenkels.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "oberschenkel_untersucht",
+          "description": "Oberschenkel untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Oberschenkel rechts",
+            "exam:Oberschenkel links"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Femurfraktur als Blutungsquelle erkennen. Zeitziel didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Oberschenkel links deutlich geschwollen und gespannt",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 400,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Bein in Extensionsschiene, Länge weitgehend wiederhergestellt",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:RightThigh,LeftThigh",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "unterschenkelfraktur_rechts",
+      "name": "Geschlossene Unterschenkelfraktur rechts",
+      "region": "Unterschenkel rechts",
+      "icd10": "S82.2",
+      "aisSeverity": 3,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "RightLeg",
+          "baseRate_mL_min": 10,
+          "maxTotalLoss_mL": 500,
+          "lesion": "venous",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Fehlstellung und Schwellung des rechten Unterschenkels",
+        "Druckschmerz und Krepitation über der rechten Tibia",
+        "Haut intakt; Durchblutung, Motorik und Sensibilität distal prüfen"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Musculoskeletal Trauma: Schienung, Kontrolle von pDMS, Kompartmentsyndrom beachten"
+        },
+        {
+          "citation": "Kerrigan JR, Drinkwater DC, Kam CY, et al. Tolerance of the human leg and thigh in dynamic latero-medial bending. Int J Crashworthiness. 2004;9(6):607-623.",
+          "url": "https://doi.org/10.1533/ijcr.2004.0315",
+          "note": "50 % Frakturrisiko bei 312 Nm (Unterschenkelmitte)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Geschlossene Tibiaschaftfraktur; Blutverlust in die Weichteile bis ca. 0,5 L (Annahme). Kompartmentsyndrom nicht modelliert.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Geschlossene Tibiaschaftfraktur rechts mit Fibulafraktur, Weichteilschwellung.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "unterschenkel_rechts_untersucht",
+          "description": "Unterschenkel rechts untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Unterschenkel rechts"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "E-Teil (Bodycheck): Fehlstellung, pDMS. Zeitziel didaktisch."
+        },
+        {
+          "id": "unterschenkel_rechts_schiene",
+          "description": "Bein geschient",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:RightThigh,LeftThigh,RightLeg,LeftLeg"
+          ],
+          "limit": 1200,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Fraktur reponieren und schienen (Schmerz, Blutung, Weichteile). 20 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Unterschenkel rechts geschwollen, Haut gespannt",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 200,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Bein geschient, Fehlstellung ausgeglichen",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:RightThigh,LeftThigh,RightLeg,LeftLeg",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "unterschenkelfraktur_links",
+      "name": "Geschlossene Unterschenkelfraktur links",
+      "region": "Unterschenkel links",
+      "icd10": "S82.2",
+      "aisSeverity": 3,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "LeftLeg",
+          "baseRate_mL_min": 10,
+          "maxTotalLoss_mL": 500,
+          "lesion": "venous",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Fehlstellung und Schwellung des linken Unterschenkels",
+        "Druckschmerz und Krepitation über der linken Tibia",
+        "Haut intakt; Durchblutung, Motorik und Sensibilität distal prüfen"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Musculoskeletal Trauma: Schienung, Kontrolle von pDMS, Kompartmentsyndrom beachten"
+        },
+        {
+          "citation": "Kerrigan JR, Drinkwater DC, Kam CY, et al. Tolerance of the human leg and thigh in dynamic latero-medial bending. Int J Crashworthiness. 2004;9(6):607-623.",
+          "url": "https://doi.org/10.1533/ijcr.2004.0315",
+          "note": "50 % Frakturrisiko bei 312 Nm (Unterschenkelmitte)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Geschlossene Tibiaschaftfraktur; Blutverlust in die Weichteile bis ca. 0,5 L (Annahme). Kompartmentsyndrom nicht modelliert.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Geschlossene Tibiaschaftfraktur links mit Fibulafraktur, Weichteilschwellung.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "unterschenkel_links_untersucht",
+          "description": "Unterschenkel links untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Unterschenkel links"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "E-Teil (Bodycheck): Fehlstellung, pDMS. Zeitziel didaktisch."
+        },
+        {
+          "id": "unterschenkel_links_schiene",
+          "description": "Bein geschient",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:RightThigh,LeftThigh,RightLeg,LeftLeg"
+          ],
+          "limit": 1200,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Fraktur reponieren und schienen (Schmerz, Blutung, Weichteile). 20 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Unterschenkel links geschwollen, Haut gespannt",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 200,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Bein geschient, Fehlstellung ausgeglichen",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:RightThigh,LeftThigh,RightLeg,LeftLeg",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "rippenserienfraktur_rechts",
+      "name": "Rippenserienfraktur rechts (Rippen 4–7)",
+      "region": "Thorax",
+      "icd10": "S22.4",
+      "aisSeverity": 3,
+      "effects": [],
+      "clinicalFindings": [
+        "Druckschmerz und Krepitation über den Rippen 4–7 rechts",
+        "Prellmarke an der rechten Thoraxwand",
+        "Schmerzbedingt flache Atmung"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Thoracic Trauma: Rippenfrakturen als Hinweis auf intrathorakale Verletzungen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Spiegelbild von rippenserienfraktur_links. Ohne eigenen physiologischen Effekt im Mock — dient als Befund und Mechanismus-Hinweis. Schmerzbedingte Hypoventilation ggf. in Phase 2 ergänzen.",
+      "imaging": [
+        {
+          "modality": "XrayChest",
+          "finding": "Frakturen der Rippen 4–7 rechts lateral.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Rippenserienfraktur rechts 4–7 mit Lungenkontusion im rechten Oberlappen.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [],
+      "dynamicFindings": []
+    },
+    {
+      "id": "stichverletzung_thorax_links",
+      "name": "Stichverletzung Thorax links mit Hämatopneumothorax",
+      "region": "Thorax",
+      "icd10": "S21.1",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "TensionPneumothorax",
+          "compartment": "LeftLung",
+          "baseRate_mL_min": 0,
+          "maxTotalLoss_mL": 0,
+          "lesion": "",
+          "progressionRate_per_min": 0.03,
+          "initialLevel": 0
+        },
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "LeftChest",
+          "baseRate_mL_min": 35,
+          "maxTotalLoss_mL": 2500,
+          "lesion": "parenchymal",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Stichwunde im 4. Zwischenrippenraum links vordere Axillarlinie",
+        "Atemabhängig schmerzend, Tachypnoe"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Thoracic Trauma: penetrierende Thoraxverletzung, Hämato-/Pneumothorax: Thoraxdrainage; massiver Hämatothorax (> 1500 mL) → Thorakotomie"
+        },
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "Thoraxdrainage bei Pneumo-/Hämatothorax"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Stichkanal durch die Pleura: Pneumothorax mit langsamer Spannungsentwicklung (halb so schnell wie spannungspneu_links, Annahme) und Blutung in die Pleurahöhle (Gegendruck mit wachsendem Volumen, Kapazität ca. 2,5 L). Entsteht in der Unfall-Sandbox, wenn eine Klinge die Thoraxwand durchdringt (impact_model.json).",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Links fehlendes Lungengleiten und Erguss im Pleuraspalt – vereinbar mit Hämatopneumothorax.",
+          "resolvedByTag": "intervention:ChestDrain:LeftLung",
+          "resolvedFinding": "Links Lungengleiten nach Drainage wieder nachweisbar, geringer Resterguss.",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "XrayChest",
+          "finding": "Hämatopneumothorax links mit Verschattung basal und Pneumothoraxsaum.",
+          "resolvedByTag": "intervention:ChestDrain:LeftLung",
+          "resolvedFinding": "Thoraxdrainage links in situ, Lunge entfaltet, kleiner Resterguss.",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Hämatopneumothorax links mit Stichkanal durch den 4. ICR, Lungenlazeration im Oberlappen.",
+          "resolvedByTag": "intervention:ChestDrain:LeftLung",
+          "resolvedFinding": "Thoraxdrainage links in situ, kein relevanter Restpneumothorax.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "thorax_untersucht",
+          "description": "Thorax untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Thorax"
+          ],
+          "limit": 150,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "B-Teil: Stichwunde, Atemgeräusch, Perkussion. Zeitziel didaktisch."
+        },
+        {
+          "id": "entlastung",
+          "description": "Thorax entlastet (Nadel oder Drainage)",
+          "type": "deadline",
+          "tags": [
+            "intervention:NeedleDecompression:LeftLung",
+            "intervention:ChestDrain:LeftLung"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Pneumothorax mit Spannungsentwicklung entlasten (ATLS). 10 min didaktisch."
+        },
+        {
+          "id": "drainage",
+          "description": "Thoraxdrainage angelegt",
+          "type": "deadline",
+          "tags": [
+            "intervention:ChestDrain:LeftLung"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Hämatopneumothorax: Thoraxdrainage (ATLS, S3). 15 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Abgeschwächtes Atemgeräusch links",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:LeftLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Gedämpfter Klopfschall basal links",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 400,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Hypersonorer Klopfschall apikal links",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:LeftLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Zunehmende Dyspnoe, Patient unruhig",
+          "minLevel": 0.3,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:LeftLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Trachea nach rechts verlagert (Spätzeichen)",
+          "minLevel": 0.8,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:LeftLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Thoraxdrainage links: Blut und Luft entleeren sich",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:ChestDrain:LeftLung",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "stichverletzung_thorax_rechts",
+      "name": "Stichverletzung Thorax rechts mit Hämatopneumothorax",
+      "region": "Thorax",
+      "icd10": "S21.1",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "TensionPneumothorax",
+          "compartment": "RightLung",
+          "baseRate_mL_min": 0,
+          "maxTotalLoss_mL": 0,
+          "lesion": "",
+          "progressionRate_per_min": 0.03,
+          "initialLevel": 0
+        },
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "RightChest",
+          "baseRate_mL_min": 35,
+          "maxTotalLoss_mL": 2500,
+          "lesion": "parenchymal",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Stichwunde im 4. Zwischenrippenraum rechts vordere Axillarlinie",
+        "Atemabhängig schmerzend, Tachypnoe"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Thoracic Trauma: penetrierende Thoraxverletzung, Hämato-/Pneumothorax: Thoraxdrainage; massiver Hämatothorax (> 1500 mL) → Thorakotomie"
+        },
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "Thoraxdrainage bei Pneumo-/Hämatothorax"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Stichkanal durch die Pleura: Pneumothorax mit langsamer Spannungsentwicklung (halb so schnell wie spannungspneu_links, Annahme) und Blutung in die Pleurahöhle (Gegendruck mit wachsendem Volumen, Kapazität ca. 2,5 L). Entsteht in der Unfall-Sandbox, wenn eine Klinge die Thoraxwand durchdringt (impact_model.json).",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Rechts fehlendes Lungengleiten und Erguss im Pleuraspalt – vereinbar mit Hämatopneumothorax.",
+          "resolvedByTag": "intervention:ChestDrain:RightLung",
+          "resolvedFinding": "Rechts Lungengleiten nach Drainage wieder nachweisbar, geringer Resterguss.",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "XrayChest",
+          "finding": "Hämatopneumothorax rechts mit Verschattung basal und Pneumothoraxsaum.",
+          "resolvedByTag": "intervention:ChestDrain:RightLung",
+          "resolvedFinding": "Thoraxdrainage rechts in situ, Lunge entfaltet, kleiner Resterguss.",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Hämatopneumothorax rechts mit Stichkanal durch den 4. ICR, Lungenlazeration im Oberlappen.",
+          "resolvedByTag": "intervention:ChestDrain:RightLung",
+          "resolvedFinding": "Thoraxdrainage rechts in situ, kein relevanter Restpneumothorax.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "thorax_untersucht",
+          "description": "Thorax untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Thorax"
+          ],
+          "limit": 150,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "B-Teil: Stichwunde, Atemgeräusch, Perkussion. Zeitziel didaktisch."
+        },
+        {
+          "id": "entlastung",
+          "description": "Thorax entlastet (Nadel oder Drainage)",
+          "type": "deadline",
+          "tags": [
+            "intervention:NeedleDecompression:RightLung",
+            "intervention:ChestDrain:RightLung"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Pneumothorax mit Spannungsentwicklung entlasten (ATLS). 10 min didaktisch."
+        },
+        {
+          "id": "drainage",
+          "description": "Thoraxdrainage angelegt",
+          "type": "deadline",
+          "tags": [
+            "intervention:ChestDrain:RightLung"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Hämatopneumothorax: Thoraxdrainage (ATLS, S3). 15 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Abgeschwächtes Atemgeräusch rechts",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:RightLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Gedämpfter Klopfschall basal rechts",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 400,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Hypersonorer Klopfschall apikal rechts",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:RightLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Zunehmende Dyspnoe, Patient unruhig",
+          "minLevel": 0.3,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:RightLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Trachea nach links verlagert (Spätzeichen)",
+          "minLevel": 0.8,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:ChestDrain:RightLung",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Thoraxdrainage rechts: Blut und Luft entleeren sich",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:ChestDrain:RightLung",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "stichverletzung_abdomen_rechts",
+      "name": "Stichverletzung rechter Oberbauch mit Leberverletzung",
+      "region": "Abdomen",
+      "icd10": "S31.1",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "Liver",
+          "baseRate_mL_min": 90,
+          "maxTotalLoss_mL": 3000,
+          "lesion": "partial",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Etwa 2 cm lange Stichwunde im rechten Oberbauch",
+        "Wunde blutet nach außen nur wenig"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Penetrierendes Abdominaltrauma: bei Schock oder Peritonitis sofortige Laparotomie; eFAST zur Blutungssuche"
+        },
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "Polytrauma-Leitlinie: Damage Control bei instabilem Patienten"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Stichkanal in die Leber; Rate und Obergrenze didaktisch. Gegendruck aus dem Bauchraum wie bei den anderen intraabdominellen Blutungen.",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Freie Flüssigkeit im Morison-Pouch (hepatorenal) und im kleinen Becken.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Stichkanal im rechten Oberbauch durch die Bauchwand in das Lebersegment VI mit aktiver Blutung, Hämatoperitoneum.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "abdomen_untersucht",
+          "description": "Abdomen untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Abdomen"
+          ],
+          "limit": 240,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "C-Teil: Wunde und Abdomen als Blutungsquelle prüfen. Zeitziel didaktisch."
+        },
+        {
+          "id": "efast",
+          "description": "eFAST durchgeführt",
+          "type": "deadline",
+          "tags": [
+            "imaging:efast"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "eFAST als Adjunct zum Primary Survey sucht freie Flüssigkeit (ATLS). 5 min didaktisch."
+        },
+        {
+          "id": "laparotomie",
+          "description": "Notfall-Laparotomie angeordnet",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:Spleen,Liver,Abdomen:laparotomie"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Penetrierendes Abdominaltrauma mit Schock: sofortige Laparotomie (ATLS). 15 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        },
+        {
+          "id": "txa",
+          "description": "Tranexamsäure gegeben",
+          "type": "deadline",
+          "tags": [
+            "intervention:Medication:TXA"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "So früh wie möglich, spätestens 3 h nach Trauma (Rossaint 2023, Grade 1A). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Druckschmerz im rechten Oberbauch",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Zunehmende Distension des Abdomens",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 800,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Spleen,Liver",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "stichverletzung_oberschenkel_rechts",
+      "name": "Stichverletzung Oberschenkel rechts mit Verletzung der A. femoralis",
+      "region": "Oberschenkel rechts",
+      "icd10": "S75.0",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "RightThighArtery",
+          "baseRate_mL_min": 150,
+          "maxTotalLoss_mL": 0,
+          "lesion": "partial",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Stichwunde an der Innenseite des rechten Oberschenkels",
+        "Spritzende, hellrote Blutung"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Externe lebensbedrohliche Blutung: direkter Druck, Tourniquet"
+        },
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "Lebensbedrohliche Extremitätenblutung: Tourniquet (x vor ABCDE)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Teildurchtrennung der A. femoralis superficialis; Rate didaktisch (schnell lebensbedrohlich). Tourniquet stoppt die Blutung. Entsteht in der Unfall-Sandbox bei tiefem Stich in den Oberschenkel (50 %, impact_model.json).",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Kontrastmittelaustritt aus der A. femoralis superficialis rechts mit großem Weichteilhämatom.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "tourniquet",
+          "description": "Tourniquet angelegt",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:Extremity,RightThighArtery,LeftThighArtery:tourniquet"
+          ],
+          "limit": 120,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Lebensbedrohliche Extremitätenblutung zuerst stoppen (xABCDE; S3: Tourniquet sofort). 2 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Spritzende, hellrote Blutung aus der Stichwunde",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Extremity,RightThighArtery,LeftThighArtery:tourniquet",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Tourniquet am rechten Oberschenkel, Blutung steht",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:Extremity,RightThighArtery,LeftThighArtery:tourniquet",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "stichverletzung_oberschenkel_links",
+      "name": "Stichverletzung Oberschenkel links mit Verletzung der A. femoralis",
+      "region": "Oberschenkel links",
+      "icd10": "S75.0",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "LeftThighArtery",
+          "baseRate_mL_min": 150,
+          "maxTotalLoss_mL": 0,
+          "lesion": "partial",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Stichwunde an der Innenseite des linken Oberschenkels",
+        "Spritzende, hellrote Blutung"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Externe lebensbedrohliche Blutung: direkter Druck, Tourniquet"
+        },
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "Lebensbedrohliche Extremitätenblutung: Tourniquet (x vor ABCDE)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Teildurchtrennung der A. femoralis superficialis; Rate didaktisch (schnell lebensbedrohlich). Tourniquet stoppt die Blutung. Entsteht in der Unfall-Sandbox bei tiefem Stich in den Oberschenkel (50 %, impact_model.json).",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Kontrastmittelaustritt aus der A. femoralis superficialis links mit großem Weichteilhämatom.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "tourniquet",
+          "description": "Tourniquet angelegt",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:Extremity,RightThighArtery,LeftThighArtery:tourniquet"
+          ],
+          "limit": 120,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Lebensbedrohliche Extremitätenblutung zuerst stoppen (xABCDE; S3: Tourniquet sofort). 2 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Spritzende, hellrote Blutung aus der Stichwunde",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Extremity,RightThighArtery,LeftThighArtery:tourniquet",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Tourniquet am linken Oberschenkel, Blutung steht",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:Extremity,RightThighArtery,LeftThighArtery:tourniquet",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "schnittverletzung_unterarm_rechts",
+      "name": "Schnittverletzung rechter Unterarm mit Verletzung der A. radialis",
+      "region": "Arm rechts",
+      "icd10": "S55.1",
+      "aisSeverity": 3,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "RightArm",
+          "baseRate_mL_min": 40,
+          "maxTotalLoss_mL": 0,
+          "lesion": "partial",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Etwa 6 cm lange, glattrandige Schnittwunde an der Beugeseite des rechten Unterarms (Abwehrverletzung)",
+        "Radialispuls rechts distal der Wunde nicht tastbar"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Externe Blutung: direkter Druck bzw. Druckverband, Tourniquet wenn das nicht reicht"
+        },
+        {
+          "citation": "Trentzsch H, Huber-Wagner S. S3-Leitlinie Polytrauma/Schwerverletzten-Behandlung: Neuerungen 2016. Bayerisches Ärzteblatt. 2017;(1-2):8-14.",
+          "url": "https://www.bayerisches-aerzteblatt.de/fileadmin/aerzteblatt/ausgaben/2017/01/einzelpdf/BAB_1-2_2017_8_14.pdf",
+          "note": "Lebensbedrohliche Extremitätenblutung: Tourniquet"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Spiegelbild von schnittverletzung_unterarm_links. Teildurchtrennung der A. radialis, Rate didaktisch; Druckverband stoppt die Blutung. Sehnen- und Nervenverletzung (N. medianus) nicht modelliert.",
+      "imaging": [],
+      "criteria": [
+        {
+          "id": "druckverband",
+          "description": "Blutung am rechten Unterarm gestillt",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:RightArm"
+          ],
+          "limit": 180,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Externe Blutung im C-Teil sofort stillen (direkter Druck, Druckverband). 3 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Hellrote, pulsierende Blutung aus der Schnittwunde",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:RightArm",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Druckverband am rechten Unterarm, Blutung steht",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:RightArm",
           "requiresTagDelay_s": 0,
           "untilTag": "",
           "untilTagDelay_s": 0
