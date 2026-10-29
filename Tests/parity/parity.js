@@ -166,13 +166,40 @@ if (process.argv[3]) {
       e.advance(0.1);
     }
   }
+  // Coach wie in Parity.cs
+  {
+    const { coachTip, coachStrategy, coachCautions } = require("../../web/engine.js");
+    const ivDefs = JSON.parse(fs.readFileSync(root + "/interventions.json", "utf8")).interventions;
+    const dir = root + "/scenarios";
+    const cases = fs.readdirSync(dir).filter((f) => f.endsWith(".json")).sort().map((f) => JSON.parse(fs.readFileSync(dir + "/" + f, "utf8")));
+    for (const m of data.mechanisms.mechanisms) for (let seed = 1; seed <= 5; seed++) cases.push(generateScenario(data, m.id, (seed * 7919) >>> 0));
+    const script = ["intervention:Oxygen::o2", "exam:Thorax", "exam:Becken", "exam:Abdomen", "result:Imaging:efast", "intervention:FluidInfusion:Blood::ek",
+      "intervention:FluidInfusion:Blood::ek", "intervention:HemorrhageControl:Pelvis:beckengurt", "exam:Kopf", "exam:Oberschenkel rechts",
+      "exam:Oberschenkel links", "diagnosis:sdh_akut_links", "result:Imaging:ct_ganzkoerper"];
+    for (const s of cases) {
+      const log = [], tips = [];
+      let ctx = null;
+      for (let k = 0; k <= script.length; k++) {
+        const t = 15 + 20 * k;
+        const v = { time: t, hr: k % 3 === 1 ? 128 : 84, sbp: k % 3 === 1 ? 82 : 124, dbp: 70, gcs: k % 3 === 2 ? 7 : 14, be: k % 3 === 1 ? -8 : -1,
+          calcium: k > 6 ? 1.02 : 1.18, temp: 36.2, intubated: false, arrest: false };
+        ctx = { scenario: s, injury: (id) => byId[id] || null, interventions: ivDefs, imaging: mods, events: log, vitals: v };
+        const tip = coachTip(ctx);
+        tips.push(`${tip.key}:${tip.phase}:${tip.deadline != null ? N(tip.deadline) : "-"}`);
+        if (k < script.length) log.push({ time: t + 1, tag: script[k] });
+      }
+      const strat = coachStrategy(ctx);
+      lines.push(`coach|${s.id}|` + tips.join(",") + "|" + strat.map((i) => `${i.key}:${i.phase}:${i.done != null ? N(i.done) : "-"}:${i.deadline != null ? N(i.deadline) : "-"}:${i.missed ? 1 : 0}`).join(",")
+        + "|" + coachCautions(ctx).join(","));
+    }
+  }
   const gref = fs.readFileSync(process.argv[3], "utf8").trim().split("\n");
   const diff = gref.findIndex((l, i) => l !== lines[i]);
   if (gref.length !== lines.length || diff >= 0) {
     console.log(`Zufallsszenarien weichen ab (Zeile ${diff + 1}):\n  C#: ${gref[diff]}\n  JS: ${lines[diff]}`);
     process.exit(1);
   }
-  console.log(`${lines.filter((l) => !l.startsWith("exam|")).length} Zufallsszenarien und ${lines.filter((l) => l.startsWith("exam|")).length} Befunde im Verlauf identisch`);
+  console.log(`${lines.filter((l) => !l.startsWith("exam|") && !l.startsWith("coach|")).length} Zufallsszenarien, ${lines.filter((l) => l.startsWith("exam|")).length} Befunde im Verlauf und ${lines.filter((l) => l.startsWith("coach|")).length} Coach-Verläufe identisch`);
 }
 
 const ref = fs.readFileSync(process.argv[2], "utf8").trim().split("\n").map((l) => l.split(";"));

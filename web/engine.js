@@ -513,6 +513,136 @@
     });
   }
 
+  // ---------------------------------------------------------------- Coach (Data/Coach.cs): Tipp und Strategie nach xABCDE
+  const COACH_PHASES = ["x", "A", "B", "C", "D", "E", "Bildgebung", "Verlauf"];
+  const COACH_PHASE_NAMES = { x: "x – kritische Blutung", A: "A – Atemweg", B: "B – Atmung", C: "C – Kreislauf", D: "D – Neurologie",
+    E: "E – Entkleiden, Wärme", Bildgebung: "Bildgebung und Versorgung", Verlauf: "Re-Evaluation", Vermeiden: "Vermeiden" };
+  const SURVEY_REGIONS = ["Thorax", "Abdomen", "Becken", "Oberschenkel rechts", "Oberschenkel links", "Kopf"];
+  const BODY_CHECK = ["Unterschenkel rechts", "Unterschenkel links", "Arm rechts", "Arm links"];
+  const coachSpecific = (tag) => ["intervention:HemorrhageControl", "intervention:NeedleDecompression", "intervention:ChestDrain",
+    "intervention:NeurosurgicalDecompression", "intervention:Osmotherapy", "intervention:Medication:Antibiotic", "imaging:cct"].some((p) => tag.startsWith(p));
+  function coachKnown(c, si, d) {
+    if ((d.effects || []).some((e) => e.effectType === "Hemorrhage" && (e.lesion === "partial" || e.lesion === "transection")
+      && ["Extremity", "LeftArm", "RightArm"].includes(e.compartment))) return true;
+    for (const e of c.events) {
+      if (e.tag == null || e.time < si.onsetTime_s) continue;
+      if (e.tag === "exam:" + d.region || e.tag === "diagnosis:" + d.id) return true;
+      if (e.tag.startsWith("result:Imaging:")) {
+        const m = c.imaging.find((x) => x.id === e.tag.substring(15));
+        if (m && (d.imaging || []).some((f) => m.covers.includes(f.modality))) return true;
+      }
+    }
+    return false;
+  }
+  function* coachLinked(c, tag) {
+    for (const si of c.scenario.injuries || []) {
+      const d = c.injury(si.injuryId);
+      if (!d) continue;
+      const same = (d.criteria || []).some((x) => (x.tags || []).includes(tag));
+      const parts = tag.split(":"), target = parts.length > 2 ? parts[2] : "";
+      const place = (d.effects || []).some((e) => target.split(",").includes(e.compartment));
+      const brain = ["intervention:NeurosurgicalDecompression", "intervention:Osmotherapy", "imaging:cct"].some((p) => tag.startsWith(p))
+        && (d.effects || []).some((e) => e.effectType === "TraumaticBrainInjury");
+      if (same || place || brain) yield d.id;
+    }
+  }
+  function coachPhase(tag) {
+    if (tag.startsWith("exam:")) {
+      const r = tag.substring(5);
+      return r === "Thorax" ? "B" : r === "Kopf" ? "D" : r === "Abdomen" || r === "Becken" || r.startsWith("Oberschenkel") ? "C" : "E";
+    }
+    if (tag.startsWith("imaging:")) return tag === "imaging:efast" ? "C" : tag === "imaging:cct" ? "D" : "Bildgebung";
+    if (tag.startsWith("intervention:HemorrhageControl:Extremity") || tag.startsWith("intervention:HemorrhageControl:LeftArm")) return "x";
+    if (tag.startsWith("intervention:Intubation")) return "A";
+    if (["intervention:Oxygen", "intervention:NeedleDecompression", "intervention:ChestDrain"].some((p) => tag.startsWith(p))) return "B";
+    if (tag.startsWith("intervention:NeurosurgicalDecompression") || tag.startsWith("intervention:Osmotherapy")) return "D";
+    if (tag.startsWith("intervention:HemorrhageControl")) return tag.includes("laparotomie") || tag.includes("angio_op") ? "Bildgebung" : "C";
+    if (tag.startsWith("intervention:Medication:Antibiotic") || tag.startsWith("intervention:Supportive")) return "E";
+    return "C";
+  }
+  const coachDef = (c, tag) => c.interventions.find((d) => `intervention:${d.type}:${d.target ? d.target : d.compound}:${d.id}`.startsWith(tag));
+  const coachKey = (c, tag) => tag.startsWith("exam:") ? tag : tag.startsWith("imaging:") ? tag.substring(8) : (coachDef(c, tag) || {}).id || tag;
+  function coachAction(c, tag, description) {
+    if (tag.startsWith("exam:")) return `${tag.substring(5)} untersuchen`;
+    if (tag.startsWith("imaging:")) { const m = c.imaging.find((x) => x.id === tag.substring(8)); return m ? m.label : description; }
+    const d = coachDef(c, tag); return d ? d.label : description;
+  }
+  function coachCandidates(c, onlyKnown) {
+    const v = c.vitals, now = v.time, ev = c.events, items = [];
+    const active = (c.scenario.injuries || []).filter((si) => (onlyKnown ? si.onsetTime_s <= now : true))
+      .map((si) => ({ si, def: c.injury(si.injuryId) })).filter((x) => x.def);
+    const known = new Set(active.filter((x) => !onlyKnown || coachKnown(c, x.si, x.def)).map((x) => x.def.id));
+    for (const r of evaluate(c.scenario.assessment || [], ev)) {
+      const cr = r.criterion;
+      if (r.outcome === "NotApplicable" && onlyKnown) continue;
+      const tag = cr.tags[0];
+      if (cr.type === "maxCount") { items.push({ phase: "Vermeiden", key: tag, action: cr.description, why: cr.rationale, deadline: null, done: null, missed: r.outcome === "Exceeded", treats: false }); continue; }
+      if (onlyKnown && coachSpecific(tag) && ![...coachLinked(c, tag)].some((id) => known.has(id))) continue;
+      items.push({ phase: coachPhase(tag), key: coachKey(c, tag), action: coachAction(c, tag, cr.description), why: cr.rationale, treats: coachSpecific(tag),
+        deadline: r.outcome === "NotApplicable" ? null : r.deadline, done: r.time,
+        missed: (r.outcome === "Missed" && now > r.deadline) || r.outcome === "Late" });
+    }
+    const first = (prefix) => { const e = ev.find((x) => x.tag != null && x.tag.startsWith(prefix)); return e ? e.time : null; };
+    const add = (phase, key, action, why, tagPrefix) => {
+      if (items.some((i) => i.key === key)) return;
+      items.push({ phase, key, action, why, deadline: null, done: first(tagPrefix), missed: false, treats: false });
+    };
+    const shock = !v.arrest && (v.sbp < 90 || v.hr > 110 || v.be < -6);
+    const bleeding = active.some((x) => (x.def.effects || []).some((e) => e.effectType === "Hemorrhage"));
+    const vit = `HF ${Math.round(v.hr)}, RR ${Math.round(v.sbp)}/${Math.round(v.dbp)}`;
+    if (onlyKnown && v.gcs <= 8 && !v.intubated)
+      add("A", "intubation", "Atemweg sichern: Narkose und Intubation", `GCS ${v.gcs} – Schutzreflexe unsicher (GCS ≤ 8: Intubation, S3 GoR A). Im Schock Einleitung vorsichtig dosieren (Ketamin oder reduziertes Propofol).`, "intervention:Intubation");
+    add("B", "o2", "Sauerstoff geben", "Jeder Schwerverletzte bekommt O2, bis die Oxygenierung gesichert ist.", "intervention:Oxygen");
+    add("B", "exam:Thorax", "Thorax untersuchen", "Atemgeräusch, Thoraxbewegung, Trachea, Halsvenen: Spannungspneu und Hämatothorax ausschließen.", "exam:Thorax");
+    add("C", "bga", "BGA abnehmen", "Base Excess und Laktat zeigen den Schock früher als Puls und Blutdruck; Hb, Calcium, Kalium.", "intervention:BloodGas::");
+    for (const region of ["Abdomen", "Becken", "Oberschenkel rechts", "Oberschenkel links"])
+      add("C", "exam:" + region, `${region} untersuchen`, "Blutungsquellen suchen: Thorax, Abdomen, Becken, lange Röhrenknochen (und nach außen).", "exam:" + region);
+    if (onlyKnown ? shock : bleeding) {
+      add("C", "efast", "eFAST", "Freie Flüssigkeit im Bauch, Perikard, Pneumothorax – am Bett in 1 min.", "imaging:efast");
+      add("C", "ek", "Blutprodukte: EK, dazu FFP etwa 1:1", onlyKnown ? `Schockzeichen (${vit}). Früh Blut statt viel Kristalloid; permissive Hypotonie RRsys 80–90 ohne SHT.` : "Bei Schockzeichen früh Blutprodukte, Kristalloide restriktiv.", "intervention:FluidInfusion:Blood");
+      add("C", "txa", "Tranexamsäure 1 g", "Bei relevanter Blutung so früh wie möglich, spätestens 3 h nach Trauma (CRASH-2).", "intervention:Medication:TXA");
+    }
+    const units = ev.filter((e) => e.tag != null && e.tag.startsWith("intervention:FluidInfusion:Blood")).length;
+    if (onlyKnown ? units >= 2 : bleeding) {
+      add("C", "ffp", "Plasma (FFP) zu den EK", "Nur EK verdünnt die Gerinnungsfaktoren; Massivtransfusion EK:FFP 1:1 bis 2:1.", "intervention:FluidInfusion:Plasma");
+      if (!onlyKnown || v.calcium < 1.1)
+        add("C", "calcium", "Calcium substituieren", `Citrat aus Blutprodukten senkt das ionisierte Calcium${onlyKnown ? ` (aktuell ${v.calcium.toFixed(2).replace(".", ",")} mmol/L)` : ""}; < 1,0 mmol/L schwächt Herz und Gerinnung.`, "intervention:Medication:Calcium");
+    }
+    add("D", "exam:Kopf", "Kopf untersuchen: GCS, Pupillen", "Bewusstsein, Pupillen, Lateralisation – SHT früh erkennen.", "exam:Kopf");
+    add("E", "waerme", "Wärmeerhalt und Infusionswärmer", `Hypothermie verschlechtert die Gerinnung (letale Trias)${onlyKnown && v.temp > 0 ? `; aktuell ${de1(v.temp)} °C` : ""}.`, "intervention:Supportive:Warming");
+    for (const region of BODY_CHECK)
+      add("E", "exam:" + region, `${region} untersuchen (Bodycheck)`, "Komplett entkleiden und alles ansehen: offene Frakturen, Wunden, Durchblutung.", "exam:" + region);
+    const primaryDone = SURVEY_REGIONS.every((r) => first("exam:" + r) != null);
+    if (!onlyKnown || primaryDone) {
+      if (onlyKnown && shock) add("Bildgebung", "instabil", "Instabil: nicht ins CT – Blutungsquelle stoppen", `${vit}. Erst Blutung kontrollieren (Beckengurt, Not-OP/Angiographie, Laparotomie), dann CT.`, "\u0000");
+      else add("Bildgebung", "ct_ganzkoerper", "Ganzkörper-CT", "Nach dem Primary Survey beim stabilen Patienten (S3: Polytrauma-Spirale).", "imaging:ct_ganzkoerper");
+    }
+    return items;
+  }
+  const coachOrder = (p) => COACH_PHASES.indexOf(p);
+  function coachTip(c) {
+    if (c.vitals.arrest) return { phase: "C", key: "arrest", action: "Kreislaufstillstand: Reanimation", why: "Traumatischer Stillstand: Ursachen behandeln (Hypovolämie, Spannungspneu, Hypoxie, Tamponade). Der Fall endet hier – im Debriefing nachsehen, was gefehlt hat.", deadline: null, done: null };
+    const open = coachCandidates(c, true).filter((i) => i.done == null && i.phase !== "Vermeiden");
+    open.sort((a, b) => coachOrder(a.phase) - coachOrder(b.phase) || (a.treats ? 0 : 1) - (b.treats ? 0 : 1) || (a.deadline ?? Infinity) - (b.deadline ?? Infinity));
+    return open[0] || { phase: "Verlauf", key: "nibp", action: "Re-Evaluation nach xABCDE", deadline: null, done: null,
+      why: "Primary Survey abgeschlossen. Vitalwerte im Blick behalten (NIBP messen), BGA in 10–15 min kontrollieren, nach jeder Maßnahme und jeder Verschlechterung wieder bei x/A beginnen." };
+  }
+  function coachStrategy(c) {
+    const ord = (i) => (i.phase === "Vermeiden" ? 99 : coachOrder(i.phase));
+    return coachCandidates(c, false).sort((a, b) => ord(a) - ord(b) || (a.deadline ?? Infinity) - (b.deadline ?? Infinity));
+  }
+  function coachCautions(c) {
+    return evaluate(c.scenario.assessment || [], c.events)
+      .filter((r) => r.criterion.type === "maxCount" && r.criterion.tags.every((t) => !t.startsWith("state:") && !t.startsWith("warning:")) && r.count >= r.criterion.limit)
+      .map((r) => `Grenze erreicht: ${r.criterion.description}`);
+  }
+  function coachStatus(i, now) {
+    if (i.phase === "Vermeiden") return i.missed ? "überschritten" : "eingehalten";
+    if (i.done != null) return `erledigt ${clock(i.done)}` + (i.missed ? " (zu spät)" : "");
+    if (i.deadline != null) return now > i.deadline ? `überfällig (Ziel ${clock(i.deadline)})` : `offen, Ziel bis ${clock(i.deadline)}`;
+    return "offen";
+  }
+
   function shockClass(f) { return f < 0.15 ? "I" : f < 0.30 ? "II" : f < 0.40 ? "III" : "IV"; }
 
   // ---------------------------------------------------------------- Simulation (Simulation/SimulationManager.cs)
@@ -547,6 +677,12 @@
     get vitals() { return this.engine.current; }
     get isAway() { return this.engine.current.time < this.awayUntil; }
     log(message, tag) { this.events.push({ time: this.engine.current.time, message, tag }); }
+
+    /** Für Tipp und Strategie (Data/Coach.cs). */
+    coachContext() {
+      return { scenario: this.scenario, injury: (id) => this.injuries[id] || null, interventions: this.data.interventions.interventions,
+        imaging: this.data.imaging.modalities, events: this.events, vitals: this.engine.current };
+    }
 
     /** Rückt um dt Sekunden in Schritten von 0,1 s vor (wie SimulationManager.Update). */
     advance(dt) {
@@ -866,7 +1002,7 @@
     };
   }
 
-  const api = { NibpCycle, monitorAlarms, perfusionIndex, spo2Valid, ALARM_LIMITS, formatDose, doseUsual, doseClamp, examFindings, evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
+  const api = { coachTip, coachStrategy, coachCautions, coachStatus, COACH_PHASE_NAMES, NibpCycle, monitorAlarms, perfusionIndex, spo2Valid, ALARM_LIMITS, formatDose, doseUsual, doseClamp, examFindings, evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.NotfallEngine = api;
 })(typeof window !== "undefined" ? window : globalThis);

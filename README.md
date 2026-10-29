@@ -92,6 +92,12 @@ tools/anatomy/                   Aufbereitung der Anatomie (Python), erzeugt bod
    Größe ändern, dazu eine Gesamtgröße. Das „ד oben rechts an jedem Panel blendet es aus; die Ziffern 1–7 blenden
    einzelne Interfaces wieder ein bzw. aus (1 Monitor, 2 Maßnahmen, 3 Verdachtsdiagnosen, 4 Befunde, 5 Protokoll,
    6 Röntgenblick, 7 Hinweis), H alle aus und wieder ein. Die Einstellungen bleiben gespeichert.
+   *Tipp (T)* zeigt den nächsten sinnvollen Schritt nach xABCDE mit Begründung und Zeitziel und lässt den passenden
+   Knopf aufleuchten. Er nutzt nur, was man im Schockraum wissen kann (Vitalwerte, eigene Untersuchungen,
+   Bildgebung, gesetzte Verdachtsdiagnosen, sichtbare Blutungen); gezielte Maßnahmen wie Beckengurt oder Entlastung
+   schlägt er erst vor, wenn die Verletzung erkennbar ist. *Strategie (G)* listet das optimale Vorgehen für den Fall
+   nach Phasen mit Zeitzielen und Stand (erledigt, offen, überfällig) und den Verletzungen — das ist die Lösung.
+   Beides wird im Protokoll vermerkt (`help:tip`, `help:strategy`). Logik in `Data/Coach.cs`, gleich im Browser.
    *Protokoll* (unten) mit Reitern: Verlauf (alle Einträge vollständig), Untersuchung (Befunde jeder untersuchten
    Region), Bildgebung (alle Radiologiebefunde im Wortlaut) und Labor (BGA, Gerinnung); scrollbar, „Groß“ zum Lesen,
    neue Einträge in anderen Reitern werden gezählt.

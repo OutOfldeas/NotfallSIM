@@ -28,6 +28,9 @@ namespace NotfallSIM.UI
 
         public string Id => id;
         public bool IsIntervention => controller != null;
+        float _highlight;
+        /// <summary>Knopf einige Sekunden gelb pulsieren lassen (Tipp).</summary>
+        public void Highlight(float seconds) => _highlight = seconds;
         public void Relabel(string buttonLabel) => label = buttonLabel;
 
         public void Configure(SimulationManager simulation, InterventionController ivc, string actionId, string buttonLabel, Color baseColor)
@@ -54,6 +57,7 @@ namespace NotfallSIM.UI
 
             Color c = pending ? Pending : done ? Done : blocked ? Blocked : normal;
             if (_flash > 0) { _flash -= Time.unscaledDeltaTime; c = Color.Lerp(c, Color.white, Mathf.Clamp01(_flash / 0.25f) * 0.6f); }
+            if (_highlight > 0) { _highlight -= Time.unscaledDeltaTime; c = Color.Lerp(c, new Color(0.95f, 0.76f, 0.2f), 0.35f + 0.35f * Mathf.Sin(Time.unscaledTime * 8f)); }
             _bg.color = c;
             if (_button) _button.interactable = !blocked || pending;
             if (_text) _text.text = state.Length > 0 ? $"{label}\n<size=70%>{state}</size>" : label;

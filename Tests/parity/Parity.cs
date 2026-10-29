@@ -124,6 +124,34 @@ static class Parity
                     DiagnosisLine(s, byId, mods, diffs)));
             }
         ExamCourse(byId, Load<FindingsDatabaseFile>(Path.Combine(root, "findings.json")));
+        // Coach: Tipp und Strategie entlang einer festen Ereignisfolge, wechselnde Vitalwerte (stabil, Schock, Koma)
+        var ivDefs = Load<InterventionDatabaseFile>(Path.Combine(root, "interventions.json")).interventions;
+        var cases = Directory.GetFiles(Path.Combine(root, "scenarios"), "*.json").OrderBy(f => Path.GetFileName(f), StringComparer.Ordinal)
+            .Select(f => Load<ScenarioDefinition>(f)).ToList();
+        foreach (var m in mech.mechanisms) for (uint seed = 1; seed <= 5; seed++) cases.Add(ScenarioGenerator.Generate(mech, m.id, inj, seed * 7919u));
+        string[] script = { "intervention:Oxygen::o2", "exam:Thorax", "exam:Becken", "exam:Abdomen", "result:Imaging:efast", "intervention:FluidInfusion:Blood::ek",
+                            "intervention:FluidInfusion:Blood::ek", "intervention:HemorrhageControl:Pelvis:beckengurt", "exam:Kopf", "exam:Oberschenkel rechts",
+                            "exam:Oberschenkel links", "diagnosis:sdh_akut_links", "result:Imaging:ct_ganzkoerper" };
+        foreach (var s in cases)
+        {
+            var log = new System.Collections.Generic.List<LogEntry>();
+            var tips = new System.Collections.Generic.List<string>();
+            CoachContext ctx = null;
+            for (int k = 0; k <= script.Length; k++)
+            {
+                double t = 15 + 20 * k;
+                var v = new VitalSigns { SimTime_s = t, HeartRate_bpm = k % 3 == 1 ? 128 : 84, SystolicBP_mmHg = k % 3 == 1 ? 82 : 124, DiastolicBP_mmHg = 70,
+                                         GCS = k % 3 == 2 ? 7 : 14, BaseExcess = k % 3 == 1 ? -8 : -1, IonizedCalcium = k > 6 ? 1.02 : 1.18, Temperature_C = 36.2 };
+                ctx = new CoachContext { Scenario = s, Injury = id => byId.ContainsKey(id) ? byId[id] : null, Interventions = ivDefs, Imaging = mods, Events = log, Vitals = v };
+                var tip = Coach.Tip(ctx);
+                tips.Add($"{tip.Key}:{tip.Phase}:{(tip.Deadline_s.HasValue ? N(tip.Deadline_s.Value) : "-")}");
+                if (k < script.Length) log.Add(new LogEntry { Time_s = t + 1, Tag = script[k] });
+            }
+            var strat = Coach.Strategy(ctx);
+            Console.WriteLine($"coach|{s.id}|" + string.Join(",", tips) + "|" + string.Join(",", strat.Select(i =>
+                $"{i.Key}:{i.Phase}:{(i.Done_s.HasValue ? N(i.Done_s.Value) : "-")}:{(i.Deadline_s.HasValue ? N(i.Deadline_s.Value) : "-")}:{(i.Missed ? 1 : 0)}")) +
+                "|" + string.Join(",", Coach.Cautions(ctx)));
+        }
     }
 
     static void Main(string[] args)

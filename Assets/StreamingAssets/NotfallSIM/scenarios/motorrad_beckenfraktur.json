@@ -90,7 +90,7 @@
       "description": "BGA mit Base Excess abgenommen",
       "type": "deadline",
       "tags": [
-        "intervention:BloodGas"
+        "intervention:BloodGas::"
       ],
       "limit": 600,
       "relativeTo": "",

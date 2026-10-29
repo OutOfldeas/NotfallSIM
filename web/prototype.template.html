@@ -139,6 +139,23 @@ svg.body { width: 100%; height: auto; display: block; }
 .act.done { border-color: var(--ok); }
 .act.done small { color: var(--ok); }
 .act:disabled { opacity: .5; cursor: not-allowed; }
+.coach { margin-top: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--surface-2); display: grid; gap: 6px; }
+.coach h3 { margin: 0; font-size: 15px; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.coach .phase { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.coach .act-name { font-size: 17px; font-weight: 600; }
+.coach .why { font-size: 13.5px; color: var(--fg); margin: 0; max-width: 75ch; }
+.coach .st { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.coach .caution { color: var(--warn); font-size: 13px; }
+.coach ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.coach li { display: grid; gap: 1px; padding-left: 14px; position: relative; }
+.coach li::before { content: ""; position: absolute; left: 0; top: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+.coach li.done::before { background: var(--ok); } .coach li.missed::before { background: var(--crit); }
+.coach li .why { font-size: 12.5px; color: var(--muted); }
+.coach .grp { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+.coach .close { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; }
+.btn.coach-tip { border-color: var(--warn); }
+.act.hint, .region.hint .skin { animation: hintPulse .8s ease-in-out 5 alternate; }
+@keyframes hintPulse { to { box-shadow: 0 0 0 3px var(--warn); fill: var(--warn-bg); } }
 .dose { border: 1px solid var(--accent); border-radius: 8px; padding: 12px; margin-bottom: 10px; background: var(--surface-2); display: grid; gap: 8px; }
 .dose-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .dose-val { font-family: var(--font-mono); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -261,8 +278,13 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
           <button type="button" data-speed="20" aria-pressed="false">20×</button>
         </div>
       </div>
+      <div class="row">
+        <button type="button" class="btn coach-tip" id="tipBtn" title="Nächster sinnvoller Schritt nach xABCDE (ohne Diagnosen zu verraten)">Tipp</button>
+        <button type="button" class="btn coach-strat" id="stratBtn" title="Optimales Vorgehen für diesen Fall – zeigt die Lösung">Strategie</button>
+      </div>
       <button type="button" class="btn danger" id="endBtn">Szenario beenden</button>
     </div>
+    <div class="coach" id="coachBox" hidden></div>
   </section>
 
   <section class="panel" id="goalsPanel" hidden>
@@ -397,7 +419,7 @@ function start() {
   sim = new E.Simulation(DATA, generated ? generated.scenario : selected, mode, undefined, ctInRoom);
   speed = 1; paused = false; logCount = 0; imgCount = 0;
   $("imagingResults").innerHTML = "";
-  renderGoals(); closeDose(); MON.nibp = null; MON.alarms = []; MON.silencedUntil = 0;
+  renderGoals(); closeDose(); coachMode = null; $("coachBox").hidden = true; MON.nibp = null; MON.alarms = []; MON.silencedUntil = 0;
   $("log").innerHTML = ""; $("labResult").hidden = true;
   $("findings").innerHTML = `<p class="muted" style="margin:6px 0 0">Tippe eine Körperregion an, um sie zu untersuchen. Rechts und links sind aus Sicht des Patienten.</p>`;
   document.querySelectorAll(".region").forEach((r) => r.classList.remove("examined"));
@@ -416,7 +438,7 @@ function loop(now) {
   const dt = Math.min(0.25, (now - lastFrame) / 1000);
   lastFrame = now;
   if (!paused && !sim.vitals.arrest) sim.advance(dt * speed);
-  if (now - lastRender > 400) { lastRender = now; renderMonitor(); renderLog(); renderActions(); renderImaging(); renderAway(); }
+  if (now - lastRender > 400) { lastRender = now; renderMonitor(); renderLog(); renderActions(); renderImaging(); renderAway(); if (coachMode === "strategy") renderStrategy(); }
   requestAnimationFrame(loop);
 }
 
@@ -592,6 +614,50 @@ $("actions").addEventListener("click", (e) => {
   if (def && def.dose) { openDose(def); return; }
   if (sim.apply(b.dataset.id)) { renderActions(); renderLog(); renderMonitor(); }
 });
+
+// ---------- Tipp und Strategie (wie CoachUi.cs) ----------
+let coachMode = null;
+function hintKey(key) {
+  document.querySelectorAll(".hint").forEach((el) => el.classList.remove("hint"));
+  if (!key) return;
+  const el = key.startsWith("exam:") ? document.querySelector(`.region[data-region="${key.substring(5)}"]`)
+    : document.querySelector(`.act[data-id="${key}"]`) || document.querySelector(`[data-img="${key}"]`);
+  if (el) { void el.getBoundingClientRect(); el.classList.add("hint"); }
+}
+function showTip() {
+  if (!sim || sim.ended) return;
+  const c = sim.coachContext(), tip = E.coachTip(c);
+  coachMode = "tip";
+  const cautions = E.coachCautions(c).map((x) => `<p class="caution">${esc(x)}</p>`).join("");
+  $("coachBox").innerHTML = `<h3><span class="phase">Tipp · ${esc(E.COACH_PHASE_NAMES[tip.phase])}</span><button type="button" class="close" aria-label="Schließen" data-close>×</button></h3>
+    <div class="act-name">${esc(tip.action)}</div>${tip.deadline != null ? `<div class="st">${esc(E.coachStatus(tip, c.vitals.time))}</div>` : ""}
+    <p class="why">${esc(tip.why || "")}</p>${cautions}`;
+  $("coachBox").hidden = false;
+  hintKey(tip.key);
+  sim.log(`Tipp angezeigt: ${tip.action}`, "help:tip"); renderLog();
+}
+function renderStrategy() {
+  const c = sim.coachContext(), now = c.vitals.time;
+  let html = `<h3><span class="phase">Strategie · optimales Vorgehen – zeigt die Lösung</span><button type="button" class="close" aria-label="Schließen" data-close>×</button></h3>`;
+  let phase = null, list = "";
+  for (const i of E.coachStrategy(c)) {
+    if (i.phase !== phase) { if (phase) html += `<ol>${list}</ol>`; list = ""; phase = i.phase; html += `<div class="grp">${esc(E.COACH_PHASE_NAMES[i.phase])}</div>`; }
+    const done = i.done != null || (i.phase === "Vermeiden" && !i.missed);
+    list += `<li class="${i.missed ? "missed" : done ? "done" : ""}"><span><b>${esc(i.action)}</b> <span class="st">${esc(E.coachStatus(i, now))}</span></span>${i.why ? `<span class="why">${esc(i.why)}</span>` : ""}</li>`;
+  }
+  html += `<ol>${list}</ol>`;
+  const names = sim.scenario.injuries.map((si) => sim.injuries[si.injuryId]).filter(Boolean).map((d) => d.name);
+  html += `<div class="grp">Verletzungen in diesem Fall</div><p class="why">${esc(names.join(", "))}</p>`;
+  $("coachBox").innerHTML = html;
+}
+function showStrategy() {
+  if (!sim) return;
+  coachMode = "strategy"; renderStrategy(); $("coachBox").hidden = false;
+  sim.log("Strategie angezeigt", "help:strategy"); renderLog();
+}
+$("tipBtn").onclick = showTip;
+$("stratBtn").onclick = showStrategy;
+$("coachBox").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) { coachMode = null; $("coachBox").hidden = true; } });
 
 // ---------- Dosis (Simulation läuft weiter, wie beim Aufziehen am Patienten) ----------
 let doseDef = null, doseValue = 0;

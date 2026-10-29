@@ -83,6 +83,7 @@ static class Tests
         Run("Maßnahmen: Kontraindikationen gültig, Gerinnungslabor, Medikamente bekannt", NewInterventionData);
         Run("Dosierung: Angaben gültig, Wirkung skaliert, Überdosis, Perfusor verstellen und stoppen", Dosing);
         Run("Patientenmonitor: NIBP-Zyklus, Fehlmessung, Alarme mit Prioritäten, Pulsoxymetrie ohne Signal", PatientMonitorChecks);
+        Run("Coach: Tipp nach xABCDE ohne Spoiler, spezifische Maßnahme erst nach Befund, Strategie vollständig", CoachChecks);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -1479,6 +1480,51 @@ static class Tests
         double sbp0 = na(new double[0]), sbp1 = na(new[] { 1.0 }), sbp3 = na(new[] { 3.0 }), sbp10 = na(new[] { 10.0 }), stop = na(new[] { 3.0, 0 });
         Check(Math.Abs(sbp1 - sbp0 - 20) < 0.5 && sbp3 > sbp1 && sbp10 - sbp0 < 40, $"Noradrenalin RRsys ohne {sbp0:F0}, 0,1 {sbp1:F0}, 0,3 {sbp3:F0}, 1,0 {sbp10:F0}");
         Check(Math.Abs(stop - sbp0) < 0.5, "Perfusor aus: Wirkung weg");
+    }
+
+    static void CoachChecks()
+    {
+        var s = Scenarios.First(x => x.id == "motorrad_beckenfraktur");
+        var defs = Injuries.injuries.ToDictionary(d => d.id);
+        var log = new List<LogEntry>();
+        var shock = new VitalSigns { SimTime_s = 30, HeartRate_bpm = 125, SystolicBP_mmHg = 88, DiastolicBP_mmHg = 60, RespirationRate_bpm = 24,
+                                     SpO2_percent = 95, EtCO2_mmHg = 30, GCS = 14, BaseExcess = -7, IonizedCalcium = 1.15, Temperature_C = 36.3 };
+        Func<double, CoachContext> ctx = t => { var v = shock; v.SimTime_s = t;
+            return new CoachContext { Scenario = s, Injury = id => defs[id], Interventions = Interventions.interventions, Imaging = Imaging.modalities, Events = log, Vitals = v }; };
+        Action<double, string> ev = (t, tag) => log.Add(new LogEntry { Time_s = t, Tag = tag, Message = tag });
+
+        var tip = Coach.Tip(ctx(30));
+        Check(tip.Phase == "B" && tip.Key == "o2" && tip.Deadline_s == 120, "zuerst Sauerstoff (B, Ziel 2 min): " + tip);
+        ev(31, "intervention:Oxygen::o2");
+        tip = Coach.Tip(ctx(35));
+        Check(tip.Key == "exam:Thorax", "dann Thorax untersuchen: " + tip);
+        ev(40, "exam:Thorax");
+        tip = Coach.Tip(ctx(45));
+        Check(tip.Phase == "C" && tip.Key == "exam:Becken", "im Schock: Becken untersuchen (Ziel 3 min) – nicht schon Beckengurt: " + tip);
+        Check(Coach.Tip(ctx(45)).Key != "beckengurt" && !Coach.Strategy(ctx(45)).All(i => i.Key != "beckengurt"), "Beckengurt nur in der Strategie, solange das Becken nicht untersucht ist");
+        ev(50, "exam:Becken");
+        tip = Coach.Tip(ctx(55));
+        Check(tip.Key == "beckengurt", "nach dem Befund: Beckengurt: " + tip);
+        ev(60, "intervention:HemorrhageControl:Pelvis:beckengurt");
+        tip = Coach.Tip(ctx(65));
+        Check(tip.Phase == "C", "weiter im C: " + tip);
+
+        var strat = Coach.Strategy(ctx(65));
+        Check(strat.Any(i => i.Key == "beckengurt" && i.Done_s == 60), "Strategie: Beckengurt erledigt um 01:00");
+        Check(strat.Any(i => i.Phase == "Vermeiden" && i.Action.Contains("Kristalloide")), "Strategie nennt, was zu vermeiden ist");
+        Check(strat.All(i => i.Key != "intubation"), "keine Intubation ohne SHT in der Strategie");
+        var order = strat.Where(i => i.Phase != "Vermeiden").Select(i => "xABCDE".IndexOf(i.Phase.Length == 1 ? i.Phase[0] : 'Z')).Select(k => k < 0 ? 9 : k).ToList();
+        Check(order.SequenceEqual(order.OrderBy(k => k)), "Strategie in xABCDE-Reihenfolge");
+
+        // Sichtbare Blutung (Amputation) kommt vor allem anderen
+        var amp = new ScenarioDefinition { id = "t", injuries = new[] { new ScenarioInjury { injuryId = "amputation_unterschenkel_rechts", severity = 0.8 } },
+                                           assessment = defs["amputation_unterschenkel_rechts"].criteria, patient = new PatientProfile() };
+        var c2 = new CoachContext { Scenario = amp, Injury = id => defs[id], Interventions = Interventions.interventions, Imaging = Imaging.modalities, Events = new List<LogEntry>(), Vitals = shock };
+        Check(Coach.Tip(c2).Key == "tourniquet" && Coach.Tip(c2).Phase == "x", "Amputation: zuerst Tourniquet (x): " + Coach.Tip(c2));
+        // GCS ≤ 8: Atemweg vor allem außer x
+        var coma = shock; coma.GCS = 6;
+        var c3 = new CoachContext { Scenario = s, Injury = id => defs[id], Interventions = Interventions.interventions, Imaging = Imaging.modalities, Events = new List<LogEntry>(), Vitals = coma };
+        Check(Coach.Tip(c3).Phase == "A", "GCS 6: Atemweg zuerst");
     }
 
     static void PatientMonitorChecks()
