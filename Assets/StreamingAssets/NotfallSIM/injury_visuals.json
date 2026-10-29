@@ -15,7 +15,11 @@
   "spurt": {
     "velocityCoefficient": 1.0,
     "sourceId": "bernoulli",
-    "note": "Ideale Austrittsgeschwindigkeit aus dem systolischen Druck (Obergrenze); Reibung in der Wunde und Gewebe vermindern sie. Tropfen sind nur Darstellung, die Blutmenge kommt aus der Physiologie."
+    "airDensity_kg_m3": 1.2,
+    "dragCoefficient": 0.47,
+    "dropRadius_mm": 1.5,
+    "dragSourceId": "bernoulli",
+    "note": "Austrittsgeschwindigkeit aus dem systolischen Druck an der Wunde (systolisch minus 78 mmHg je Meter über dem Herzen), ideal (Obergrenze). Tropfen mit Luftwiderstand einer Kugel (c_W 0,47, Radius 1,5 mm: Annahme), Schwerkraft 9,81 m/s². Tropfen sind Darstellung, die Blutmenge kommt aus der Physiologie."
   },
   "drying": {
     "wetToDry_min": 15,
@@ -24,13 +28,17 @@
     "note": "Frisches Blut glänzt; nach dem Ende der Blutung wird es in etwa 15 min matt und dunkler (Annahme für eine dünne Schicht auf der Haut). Die Bräunung durch Oxidation zu Methämoglobin dauert Stunden bis Tage (Bremmer 2012) und spielt im Szenario kaum eine Rolle. Wunden ohne laufende Blutung sind bei Ankunft etwa 20 min alt (Annahme: präklinische Zeit)."
   },
   "rivulets": {
-    "frontSpeed_m_s": 0.02,
+    "muLow_mPas": 65,
+    "shearLow_per_s": 0.1,
+    "muHigh_mPas": 5,
+    "shearHigh_per_s": 1000,
+    "viscositySourceId": "alexy2022",
     "volumePerRivulet_mL": 40,
     "widthMin_mm": 3,
     "widthMax_mm": 12,
     "widthAtRate_mL_min": 120,
     "maxLength_m": 0.5,
-    "note": "Darstellungsannahmen: Front 2 cm/s, je 40 mL Verlust ein weiteres Rinnsal, Breite 3–12 mm mit der dritten Wurzel des Flusses. Der Weg ergibt sich aus der Schwerkraft in der Lagerung (steilster Abstieg über die Haut); wo die Haut nach unten zeigt, tropft das Blut ab."
+    "note": "Weg: steilster Abstieg nach der Schwerkraft in der aktuellen Lagerung, Abtropfen wo die Haut nach unten zeigt. Geschwindigkeit der Front: laminarer Rieselfilm (Nußelt) auf dem örtlichen Gefälle mit dem äußeren Blutfluss aus der Physiologie, Blut scherverdünnend (Potenzgesetz zwischen 65 mPa·s bei 0,1/s und 5 mPa·s bei 1000/s, Alexy 2022); Filmdicke höchstens so dick wie eine ruhende Lache. Benetzung trockener Haut und Gerinnung an der Front bremsen in Wirklichkeit zusätzlich (nicht modelliert). Zahl der Rinnsale (je 40 mL eines) und Breite 3–12 mm: Darstellungsannahmen."
   },
   "hematoma": {
     "hbDiffusivity_m2_s": 4.2e-13,
@@ -77,8 +85,9 @@
     {"id": "rosina2007", "citation": "Rosina J, Kvašňák E, Šuta D, Kolářová H, Málek J, Krajči L. Temperature dependence of blood surface tension. Physiol Res. 2007;56(Suppl 1):S93–S98.", "url": "https://www.biomed.cas.cz/physiolres/pdf/56/56_S93.pdf", "note": "Vollblut σ(t) = (−0,473·t + 70,105)·10⁻³ N/m; bei 37 °C 52,6 mN/m."},
     {"id": "kenner1989", "citation": "Kenner T. The measurement of blood density and its meaning. Basic Res Cardiol. 1989;84(2):111–124.", "url": "https://doi.org/10.1007/BF01907921", "note": "Dichte des Vollbluts ≈ 1,06 g/mL."},
     {"id": "degennes2004", "citation": "de Gennes P-G, Brochard-Wyart F, Quéré D. Capillarity and Wetting Phenomena. New York: Springer; 2004. Kap. 2 (Pfützen: Dicke e = 2κ⁻¹ sin(θ/2)).", "url": "https://doi.org/10.1007/978-0-387-21656-0", "note": ""},
-    {"id": "bernoulli", "citation": "Torricelli/Bernoulli: Austrittsgeschwindigkeit v = √(2Δp/ρ), z. B. White FM. Fluid Mechanics. 7th ed. McGraw-Hill; 2011, Kap. 3.", "url": "", "note": ""},
+    {"id": "bernoulli", "citation": "Bernoulli/Torricelli und Widerstand einer Kugel: White FM. Fluid Mechanics. 7th ed. McGraw-Hill; 2011, Kap. 3 und 7.", "url": "", "note": ""},
     {"id": "bremmer2012", "citation": "Bremmer RH, de Bruin KG, van Gemert MJC, van Leeuwen TG, Aalders MCG. Forensic quest for age determination of bloodstains. Forensic Sci Int. 2012;216(1-3):1-11.", "url": "https://doi.org/10.1016/j.forsciint.2011.07.027", "note": "Farbänderung von Blutflecken über die Zeit (Oxidation zu Methämoglobin, Hemichrom)."},
-    {"id": "stam2012", "citation": "Stam B, van Gemert MJC, van Leeuwen TG, Aalders MCG. How the blood pool properties at onset affect the temporal behavior of simulated bruises. Med Biol Eng Comput. 2012;50(2):165-171.", "url": "https://doi.org/10.1007/s11517-012-0860-5", "note": "Diffusionskoeffizient von Hämoglobin im Gewebe 4,2·10⁻¹³ m²/s; Ausbreitung über Stunden bis Tage."}
+    {"id": "stam2012", "citation": "Stam B, van Gemert MJC, van Leeuwen TG, Aalders MCG. How the blood pool properties at onset affect the temporal behavior of simulated bruises. Med Biol Eng Comput. 2012;50(2):165-171.", "url": "https://doi.org/10.1007/s11517-012-0860-5", "note": "Diffusionskoeffizient von Hämoglobin im Gewebe 4,2·10⁻¹³ m²/s; Ausbreitung über Stunden bis Tage."},
+    {"id": "alexy2022", "citation": "Alexy T, Detterich J, Connes P, et al. Physical properties of blood and their relationship to clinical conditions. Front Physiol. 2022;13:906768.", "url": "https://doi.org/10.3389/fphys.2022.906768", "note": "Viskosität von Vollblut (Hkt 40 %): ≈ 5 mPa·s bei 1000/s, 65 mPa·s bei 0,1/s."}
   ]
 }

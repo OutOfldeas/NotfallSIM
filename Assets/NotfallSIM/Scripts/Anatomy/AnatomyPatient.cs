@@ -36,6 +36,9 @@ namespace NotfallSIM.Anatomy
         int _bsRight = -1, _bsLeft = -1, _bsAbd = -1;
         Camera _cam;
         InjuryVisuals _visuals;
+        Transform _regionsRoot;
+        string _positionId = "flach";
+        int _eventsSeen;
 
         public bool XRay => _xrayOn;
         /// <summary>Hat die Szene Bedienelemente (Röntgenblick-Knopf, Hover-Text) angeschlossen?</summary>
@@ -114,6 +117,44 @@ namespace NotfallSIM.Anatomy
             root.localPosition = new Vector3(0, mattressTop - minZ * _rig.Scale, 0);
         }
 
+        /// <summary>Lagerung sichtbar machen — mit denselben Winkeln, mit denen die Physiologie die Höhe der Blutungsorte rechnet
+        /// (MockPhysiologyEngine.Positions). Oberkörper um die Lendenwirbelsäule, Beine um die Hüfte, Arme um die Schulter.
+        /// Ohne Rückenlehne/Beinstütze an der Trage: der angehobene Teil liegt frei.</summary>
+        void ApplyPosition(string id)
+        {
+            if (!NotfallSIM.Engines.MockPhysiologyEngine.Positions.TryGetValue(id ?? "", out var a)) return;
+            _positionId = id;
+            // Modellachsen: x rechts, y kopfwärts, z ventral. Positiver x-Winkel kippt kopfwärts nach ventral (= nach oben).
+            _rig.Bone("Abdomen").localRotation = Quaternion.Euler((float)a[0], 0, 0);
+            _rig.Bone("Oberschenkel rechts").localRotation = Quaternion.Euler(-(float)a[1], 0, 0);
+            _rig.Bone("Oberschenkel links").localRotation = Quaternion.Euler(-(float)a[2], 0, 0);
+            _rig.Bone("Oberarm rechts").localRotation = a[3] > 0 ? Quaternion.Euler(-(float)a[3], 0, -4) : Quaternion.Euler(14, 0, -4);
+            _rig.Bone("Oberarm links").localRotation = a[4] > 0 ? Quaternion.Euler(-(float)a[4], 0, 4) : Quaternion.Euler(14, 0, 4);
+        }
+
+        /// <summary>Neue Lagerung aus dem Protokoll übernehmen: Pose, Klickflächen, Kollider gewichteter Teile, Blut neu verlegen.</summary>
+        void FollowPositioning()
+        {
+            var ev = sim.Events;
+            if (ev == null || ev.Count == _eventsSeen) return;
+            string latest = null;
+            for (int i = _eventsSeen; i < ev.Count; i++)
+                if (ev[i].Tag != null && ev[i].Tag.StartsWith("intervention:Positioning:"))
+                    latest = ev[i].Tag.Split(':')[2];
+            _eventsSeen = ev.Count;
+            if (latest == null || latest == _positionId) return;
+            ApplyPosition(latest);
+            BuildRegions();
+            foreach (var p in _rig.Parts)
+                if (p.Skinned != null && p.Collider != null)
+                {
+                    var baked = new Mesh { name = p.Info.name + " (Lagerung)" };
+                    p.Skinned.BakeMesh(baked);
+                    p.Collider.sharedMesh = baked;
+                }
+            if (_visuals != null) _visuals.Repose();
+        }
+
         /// <summary>
         /// Klickflächen genau auf der sichtbaren Haut: Die gelagerte Haut wird einmal „eingefroren“ (BakeMesh), jedes
         /// Hautdreieck gehört zur Region seines dominanten Segments, je Region ein MeshCollider mit BodyRegion.
@@ -136,7 +177,9 @@ namespace NotfallSIM.Anatomy
                 if (!byRegion.TryGetValue(region, out var list)) byRegion[region] = list = new List<int>();
                 list.Add(tris[t]); list.Add(tris[t + 1]); list.Add(tris[t + 2]);
             }
+            if (_regionsRoot != null) { _regionsRoot.gameObject.SetActive(false); Destroy(_regionsRoot.gameObject); }
             var parent = new GameObject("Klickflächen").transform;
+            _regionsRoot = parent;
             parent.SetParent(transform, false);
             parent.SetPositionAndRotation(_rig.Skin.transform.position, _rig.Skin.transform.rotation);
             foreach (var kv in byRegion)
@@ -265,6 +308,7 @@ namespace NotfallSIM.Anatomy
         {
             if (_rig == null || sim == null || sim.Engine == null) return;
             if (_xrayOn && hoverLabel && _cam) Hover();
+            FollowPositioning();
             if (sim.Paused) return; // Pause: Atmung steht
             var v = sim.Vitals;
 

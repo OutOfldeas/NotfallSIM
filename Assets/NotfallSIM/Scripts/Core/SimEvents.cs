@@ -61,7 +61,8 @@ namespace NotfallSIM.Core
         NeurosurgicalDecompression, // Kraniotomie; wirkt mit Verzögerung (CT, Transport, OP)
         BloodGas,            // BGA: Ergebnis nach Verzögerung, ohne physiologischen Effekt
         Supportive,          // Wärmeerhalt, Analgesie u. Ä.; im Mock ohne physiologischen Effekt
-        Vasopressor          // Noradrenalin: hebt den Blutdruck, erhöht damit aber auch den Blutfluss aus Läsionen
+        Vasopressor,         // Noradrenalin: hebt den Blutdruck, erhöht damit aber auch den Blutfluss aus Läsionen
+        Positioning          // Lagerung (Ziel = Lagerungs-ID): Höhe der Blutungsorte über dem Herzen, Autotransfusion
     }
 
     public class InterventionEvent

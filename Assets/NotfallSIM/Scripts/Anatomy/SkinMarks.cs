@@ -87,6 +87,7 @@ namespace NotfallSIM.Anatomy
     public class SpurtParams
     {
         public double velocityCoefficient; public string sourceId, note;
+        public double airDensity_kg_m3, dragCoefficient, dropRadius_mm; public string dragSourceId;
     }
 
     [Serializable]
@@ -655,6 +656,10 @@ namespace NotfallSIM.Anatomy
         /// <summary>Radius einer runden Lache aus dem Volumen: V = π r² e.</summary>
         public static double PoolRadius_m(double volume_mL, double thickness_m) =>
             volume_mL <= 0 ? 0 : Math.Sqrt(volume_mL * 1e-6 / (Math.PI * thickness_m));
+
+        /// <summary>Luftwiderstand eines Bluttropfens als a = k·v² (1/m): k = 3·ρ_Luft·c_W / (8·ρ_Blut·r).</summary>
+        public static double DropDrag_per_m(SpurtParams sp, double bloodDensity = 1060) =>
+            sp == null || sp.dropRadius_mm <= 0 ? 0 : 3 * sp.airDensity_kg_m3 * sp.dragCoefficient / (8 * bloodDensity * sp.dropRadius_mm / 1000);
 
         /// <summary>Austrittsgeschwindigkeit eines Strahls aus dem Druck (Torricelli/Bernoulli): v = Cv·√(2·Δp/ρ).</summary>
         public static double JetSpeed_m_s(double pressure_mmHg, double density_kg_m3, double cv) =>

@@ -27,6 +27,9 @@ namespace NotfallSIM.Anatomy
             public Bleeding Bleed;
             public double LastWet_s = double.NaN, LastLost;  // Eintrocknung: Zeitpunkt des letzten frischen Bluts
             public readonly List<Stream> Streams = new List<Stream>();
+            public SkinPatch Patch;                          // für den Neuaufbau der Rinnsale nach Umlagerung
+            public double StreamT = double.NaN;              // Simulationszeit der letzten Rinnsal-Aktualisierung
+            public double OnSkin_mL;                         // Blut, das gerade als Rinnsal auf der Haut liegt
         }
 
         /// <summary>Ein Rinnsal über die Haut (BloodFlow), erscheint ab einem Verlust und wächst mit der Blutung.</summary>
@@ -34,6 +37,7 @@ namespace NotfallSIM.Anatomy
         {
             public SkinnedMeshRenderer Renderer; public MaterialPropertyBlock Mpb = new MaterialPropertyBlock();
             public double AppearsAt_mL; public float Length_m; public float Reveal;
+            public Rivulet Riv; public float Width_m; public double Thickness_m;
         }
 
         class Bleeding
@@ -44,6 +48,8 @@ namespace NotfallSIM.Anatomy
             public Transform Pool, FloorPool; public Vector3 PoolCenter;
             public double LastLost, LastT, Rate_mL_s; public float BeatPhase;
             public MaterialPropertyBlock PoolMpb; public double PoolWet_s, PoolLost;
+            public Mark Owner;                                // Zeichen mit den Rinnsalen dieser Blutung
+            public Vector3 FloorCenter; public float MattressShare = 1; // Anteil, der auf die Trage tropft (Rest auf den Boden)
         }
 
         SimulationManager _sim;
@@ -55,6 +61,8 @@ namespace NotfallSIM.Anatomy
         readonly Dictionary<string, double> _onset = new Dictionary<string, double>();
         double _poolThickness;
         float _mattressTop;
+        float[] _normals; List<int>[] _adj; HashSet<int> _removed;
+        Vector3 _heartModel; int _thoraxSeg = -1;
 
         /// <summary>Strukturen distal einer Amputation (im Röntgenblick ausgeblendet).</summary>
         public readonly HashSet<AnatomyPart> HiddenParts = new HashSet<AnatomyPart>();
@@ -90,6 +98,15 @@ namespace NotfallSIM.Anatomy
             var normals = SkinMarks.VertexNormals(skin.Positions, skin.Indices, skin.Indices.Length / 3);
             var areas = SkinMarks.VertexAreas(skin.Positions, skin.Indices, skin.Indices.Length / 3);
             var adj = SkinMarks.Adjacency(skin.Info.vertexCount, skin.Indices, visibleTris);
+            _normals = normals; _adj = adj;
+            var heart = data.Meshes.FirstOrDefault(x => x.Info.name == "wall of heart");
+            _thoraxSeg = data.SegmentIndex("Thorax");
+            if (heart != null)
+            {
+                var c = Vector3.zero;
+                for (int i = 0; i < heart.Positions.Length; i += 3) c += new Vector3(heart.Positions[i], heart.Positions[i + 1], heart.Positions[i + 2]);
+                _heartModel = c / (heart.Positions.Length / 3);
+            }
             var mesh = rig.Skin.sharedMesh;
             var marks = _file.marks.Where(m => _onset.ContainsKey(m.injuryId)).ToList();
             // Zeichen aus dem Crash-Simulator: ohne eigene Verletzung, von Anfang an da
@@ -114,6 +131,7 @@ namespace NotfallSIM.Anatomy
                 if (a == null || a.RemovedTriangles == 0) { Debug.LogWarning("[Verletzungen] Amputation ohne Wirkung: " + m.id); continue; }
                 mesh.SetTriangles(a.KeptTriangles, 0);
                 removed = SkinMarks.RemovedVertices(skin.Indices, visibleTris, a.KeptTriangles);
+                _removed = removed;
                 var kind = KindOf(m);
                 // Stumpf ganz deckend (uv1 = 1), sonst sähe man am Rand in die hohle Gliedmaße
                 var stump = BuildSkinned("Stumpf " + m.id, a.CapPositions, null, a.CapFalloff.Select(_ => 1f).ToArray(),
@@ -151,7 +169,7 @@ namespace NotfallSIM.Anatomy
             foreach (var kv in patches)
             {
                 var m = kv.Key; var p = kv.Value;
-                var mk = new Mark { Def = m, Kind = KindOf(m), Mpb = new MaterialPropertyBlock() };
+                var mk = new Mark { Def = m, Kind = KindOf(m), Mpb = new MaterialPropertyBlock(), Patch = p };
                 if (m.swellingFromLoss || m.swelling_mL > 0)
                 {
                     mk.Shape = mesh.GetBlendShapeIndex("Schwellung " + m.id);
@@ -162,8 +180,67 @@ namespace NotfallSIM.Anatomy
                                               p.Triangles, mesh, mk.Kind, (_file.surfaceOffset_m > 0 ? _file.surfaceOffset_m : 0.0006f) * (1 + mk.Kind.layer) / rig.Scale);
                 if (m.bleeding) mk.Bleed = MakeBleeding(m, p.HitPoint, p.HitNormal, SegmentAt(skin, p.Vertices.Length > 0 ? p.Vertices[0] : 0));
                 if (m.rivulets > 0 && _file.rivulets != null) MakeStreams(mk, p, normals, adj, removed);
+                if (mk.Bleed != null) { mk.Bleed.Owner = mk; UpdatePoolPlacement(mk.Bleed); }
                 _marks.Add(mk);
             }
+            foreach (var mk in _marks) if (mk.Bleed != null && mk.Bleed.Owner == null) { mk.Bleed.Owner = mk; UpdatePoolPlacement(mk.Bleed); }
+        }
+
+        /// <summary>Nach einer Umlagerung: Rinnsale neu nach der Schwerkraft verlegen (Fortschritt bleibt), Lachen neu platzieren.</summary>
+        public void Repose()
+        {
+            if (_file == null) return;
+            foreach (var mk in _marks)
+            {
+                if (mk.Streams.Count > 0 && mk.Patch != null)
+                {
+                    var reveal = mk.Streams.Select(x => x.Reveal).ToList();
+                    foreach (var st in mk.Streams) { _overlays.Remove(st.Renderer); Destroy(st.Renderer.gameObject); }
+                    mk.Streams.Clear();
+                    MakeStreams(mk, mk.Patch, _normals, _adj, _removed);
+                    for (int i = 0; i < mk.Streams.Count && i < reveal.Count; i++) mk.Streams[i].Reveal = Mathf.Min(reveal[i], 1.2f);
+                }
+                if (mk.Bleed != null) UpdatePoolPlacement(mk.Bleed);
+            }
+        }
+
+        /// <summary>Weltposition eines Hautvertex in der aktuellen Lagerung (dominantes Segment).</summary>
+        Vector3 SkinWorld(int v)
+        {
+            var skin = _rig.Data.Meshes[0];
+            int seg = SegmentAt(skin, v);
+            var p = new Vector3(skin.Positions[3 * v], skin.Positions[3 * v + 1], skin.Positions[3 * v + 2]);
+            return _rig.Bones[seg].TransformPoint(_rig.Skin.sharedMesh.bindposes[seg].MultiplyPoint3x4(p));
+        }
+
+        /// <summary>Herz in Weltkoordinaten (für die Hydrostatik des Blutstrahls).</summary>
+        Vector3 HeartWorld() => _thoraxSeg >= 0
+            ? _rig.Bones[_thoraxSeg].TransformPoint(_rig.Skin.sharedMesh.bindposes[_thoraxSeg].MultiplyPoint3x4(_heartModel))
+            : _rig.Root.transform.position;
+
+        static bool OnMattress(Vector3 w) => Mathf.Abs(w.x) < MattressHalfWidth && Mathf.Abs(w.z) < MattressHalfLength;
+
+        /// <summary>Die Lache entsteht dort, wo das Blut abtropft: Enden der Rinnsale, senkrecht auf Trage oder Boden projiziert.
+        /// Ohne abtropfende Rinnsale (z. B. Stumpf, Strahl) unter der Wunde.</summary>
+        void UpdatePoolPlacement(Bleeding b)
+        {
+            var drips = b.Owner != null ? b.Owner.Streams.Where(s => s.Riv != null && s.Riv.Drips).Select(s => SkinWorld(s.Riv.Path[s.Riv.Path.Length - 1])).ToList()
+                                        : new List<Vector3>();
+            var mat = drips.Where(OnMattress).ToList();
+            var floor = drips.Where(w => !OnMattress(w)).ToList();
+            var under = b.Emitter.position;
+            Vector3 m = mat.Count > 0 ? mat.Aggregate(Vector3.zero, (a, x) => a + x) / mat.Count : under;
+            b.PoolCenter = new Vector3(Mathf.Clamp(m.x, -MattressHalfWidth + 0.03f, MattressHalfWidth - 0.03f), _mattressTop + 0.002f,
+                                       Mathf.Clamp(m.z, -MattressHalfLength + 0.03f, MattressHalfLength - 0.03f));
+            b.MattressShare = drips.Count > 0 ? mat.Count / (float)drips.Count : (OnMattress(under) ? 1 : 0);
+            if (floor.Count > 0)
+            {
+                var f = floor.Aggregate(Vector3.zero, (a, x) => a + x) / floor.Count;
+                b.FloorCenter = new Vector3(f.x, 0.002f, f.z);
+            }
+            else b.FloorCenter = new Vector3(Mathf.Sign(b.PoolCenter.x == 0 ? 1 : b.PoolCenter.x) * (MattressHalfWidth + 0.12f), 0.002f, b.PoolCenter.z);
+            b.Pool.position = b.PoolCenter;
+            b.FloorPool.position = b.FloorCenter;
         }
 
         /// <summary>Rinnsale vom Wundort abwärts. Schwerkraft je Segment aus der Lagerung (Knochen in Ruhelage achsparallel).</summary>
@@ -205,7 +282,8 @@ namespace NotfallSIM.Anatomy
                 var smr = BuildSkinned("Rinnsal " + mk.Def.id + " " + r, riv.Pos, riv.Nrm, riv.Across, col, riv.Src, null, riv.Triangles,
                                        _rig.Skin.sharedMesh, kind, (_file.surfaceOffset_m > 0 ? _file.surfaceOffset_m : 0.0006f) * 2.5f / _rig.Scale, riv.Along, mat);
                 smr.sortingOrder = 1;
-                mk.Streams.Add(new Stream { Renderer = smr, AppearsAt_mL = r * rp.volumePerRivulet_mL, Length_m = riv.Length * _rig.Scale });
+                mk.Streams.Add(new Stream { Renderer = smr, AppearsAt_mL = r * rp.volumePerRivulet_mL, Length_m = riv.Length * _rig.Scale,
+                                            Riv = riv, Width_m = width * (1 - 0.15f * r) * _rig.Scale });
             }
         }
 
@@ -223,16 +301,29 @@ namespace NotfallSIM.Anatomy
             return _rivuletMaterial;
         }
 
-        /// <summary>Rinnsale: erscheinen nacheinander mit dem Verlust, die Front läuft mit frontSpeed, solange es blutet.
-        /// Ohne Blutverlust der Verletzung (z. B. Kopfplatzwunde) sind sie bei Ankunft schon ganz da.</summary>
-        void UpdateStreams(Mark m, double lost, bool bleedsNow, bool hasHemorrhage, float dry, bool visible)
+        /// <summary>Rinnsale: erscheinen nacheinander mit dem Verlust. Die Front läuft mit der Geschwindigkeit eines Blutfilms auf dem
+        /// örtlichen Gefälle (BloodFlow.FilmSpeed), getrieben vom äußeren Blutfluss, in Simulationszeit. Ohne Blutverlust der
+        /// Verletzung (z. B. Kopfplatzwunde) sind sie bei Ankunft schon ganz da.</summary>
+        void UpdateStreams(Mark m, double lost, double t, bool hasHemorrhage, float dry, bool visible)
         {
+            double dt = double.IsNaN(m.StreamT) ? 0 : System.Math.Max(0, t - m.StreamT);
+            m.StreamT = t;
+            var active = m.Streams.Where(st => !hasHemorrhage || lost >= st.AppearsAt_mL).ToList();
+            double flow = m.Bleed != null ? m.Bleed.Rate_mL_s * 1e-6 : 0;   // m³/s aus der Physiologie
+            double rho = _file.bloodPool.density_kg_m3;
+            m.OnSkin_mL = 0;
             foreach (var st in m.Streams)
             {
-                bool on = visible && (!hasHemorrhage || lost >= st.AppearsAt_mL);
+                bool on = visible && active.Contains(st);
                 if (!hasHemorrhage) st.Reveal = 1.2f;
-                else if (on && bleedsNow && st.Length_m > 0)
-                    st.Reveal = Mathf.Min(1.2f, st.Reveal + (float)(_file.rivulets.frontSpeed_m_s * Time.deltaTime / st.Length_m));
+                else if (active.Contains(st) && flow > 0 && dt > 0 && st.Length_m > 0)
+                {
+                    double q = flow / active.Count;
+                    double u = BloodFlow.FilmSpeed_m_s(_file.rivulets, q, st.Width_m, st.Riv.SlopeAt(Mathf.Clamp01(st.Reveal)), rho, _poolThickness, out double h);
+                    st.Thickness_m = h;
+                    st.Reveal = Mathf.Min(1.2f, st.Reveal + (float)(u * dt / st.Length_m));
+                }
+                if (active.Contains(st)) m.OnSkin_mL += st.Width_m * st.Thickness_m * Mathf.Min(1, st.Reveal) * st.Length_m * 1e6;
                 st.Renderer.enabled = on && st.Reveal > 0;
                 st.Mpb.SetFloat("_Reveal", st.Reveal);
                 st.Mpb.SetFloat("_Dry", dry);
@@ -374,7 +465,7 @@ namespace NotfallSIM.Anatomy
             em.localPosition = bind.MultiplyPoint3x4(p + nrm * (0.015f / _rig.Scale));
             em.localRotation = Quaternion.LookRotation(bind.MultiplyVector(nrm).normalized);
             b.Emitter = em;
-            b.Particles = MakeParticles(em.gameObject);
+            b.Particles = MakeParticles(em.gameObject, _file.spurt);
 
             var world = em.position;
             b.PoolCenter = new Vector3(Mathf.Clamp(world.x, -MattressHalfWidth + 0.05f, MattressHalfWidth - 0.05f), _mattressTop + 0.002f,
@@ -386,7 +477,7 @@ namespace NotfallSIM.Anatomy
             return b;
         }
 
-        static ParticleSystem MakeParticles(GameObject go)
+        static ParticleSystem MakeParticles(GameObject go, SpurtParams sp)
         {
             var ps = go.AddComponent<ParticleSystem>();
             ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
@@ -400,6 +491,17 @@ namespace NotfallSIM.Anatomy
             main.maxParticles = 1500;
             var emission = ps.emission; emission.rateOverTime = 0;
             var shape = ps.shape; shape.enabled = false;
+            // Luftwiderstand der Tropfen: a = k·v², k = 3·ρ_Luft·c_W / (8·ρ_Blut·r) (Kugel, Newton-Bereich)
+            double k = SkinMarks.DropDrag_per_m(sp);
+            if (k > 0)
+            {
+                var lim = ps.limitVelocityOverLifetime;
+                lim.enabled = true;
+                lim.limit = 1000f;                         // keine Obergrenze, nur Widerstand
+                lim.drag = (float)k;
+                lim.multiplyDragByParticleVelocity = true; // VERIFY in Unity: Widerstand ∝ v² wie erwartet
+                lim.multiplyDragByParticleSize = false;
+            }
             var col = ps.collision;
             col.enabled = true; col.type = ParticleSystemCollisionType.World; col.lifetimeLoss = 1f; col.bounce = 0f;
             col.collidesWith = ~(1 << 2); // nicht mit den Röntgen-Kollidern
@@ -489,9 +591,8 @@ namespace NotfallSIM.Anatomy
                     {
                         var def = DefOf(m.Def.injuryId);
                         bool hasHem = def?.effects != null && def.effects.Any(e => e.effectType == "Hemorrhage");
-                        bool bleedsNow = lostNow > prevLost + 1e-4 && !_sim.Paused;
                         if (m.Kind == null || !m.Kind.dries) dry = (float)SkinMarks.Dryness(_file.drying, t - (double.IsNaN(m.LastWet_s) ? t : m.LastWet_s));
-                        UpdateStreams(m, lostNow, bleedsNow, hasHem, dry, amount > 0 && !xray);
+                        UpdateStreams(m, lostNow, t, hasHem, dry, amount > 0 && !xray);
                     }
                 }
                 if (m.Bleed != null && started) UpdateBleeding(m.Bleed, eng.InjuryBloodLoss_mL(m.Bleed.InjuryId), t);
@@ -528,8 +629,11 @@ namespace NotfallSIM.Anatomy
             }
             if (double.IsNaN(b.LastLost) || t > b.LastT) { b.LastLost = lost; b.LastT = t; }
 
-            // Lache: Fläche = Volumen / Dicke; was über den Rand der Trage geht, auf den Boden
-            double r = SkinMarks.PoolRadius_m(lost, _poolThickness);
+            // Lache: was nicht als Rinnsal auf der Haut liegt; Anteil auf Trage bzw. Boden nach den Abtropfstellen.
+            // Fläche = Volumen / Dicke; was über den Rand der Trage geht, ebenfalls auf den Boden.
+            double pooled = System.Math.Max(0, lost - (b.Owner != null ? b.Owner.OnSkin_mL : 0));
+            double toMattress = pooled * b.MattressShare;
+            double r = SkinMarks.PoolRadius_m(toMattress, _poolThickness);
             float maxR = Mathf.Min(MattressHalfWidth - Mathf.Abs(b.PoolCenter.x), MattressHalfLength - Mathf.Abs(b.PoolCenter.z)) + 0.03f;
             float onMattress = Mathf.Min((float)r, maxR);
             SetPool(b.Pool, onMattress);
@@ -538,7 +642,7 @@ namespace NotfallSIM.Anatomy
             b.PoolMpb.SetFloat("_Dry", (float)SkinMarks.Dryness(_file.drying, t - b.PoolWet_s));
             b.Pool.GetComponent<Renderer>().SetPropertyBlock(b.PoolMpb);
             b.FloorPool.GetComponent<Renderer>().SetPropertyBlock(b.PoolMpb);
-            double over = lost - System.Math.PI * maxR * maxR * _poolThickness * 1e6;
+            double over = System.Math.Max(0, toMattress - System.Math.PI * maxR * maxR * _poolThickness * 1e6) + pooled * (1 - b.MattressShare);
             SetPool(b.FloorPool, over > 0 ? (float)SkinMarks.PoolRadius_m(over, _poolThickness) : 0);
 
             // Strahl: je Herzschlag ein Schwall, Geschwindigkeit aus dem systolischen Druck
@@ -548,7 +652,11 @@ namespace NotfallSIM.Anatomy
             b.BeatPhase += dt * (float)v.HeartRate_bpm / 60f;
             if (b.BeatPhase < 1) return;
             b.BeatPhase -= Mathf.Floor(b.BeatPhase);
-            float speed = (float)SkinMarks.JetSpeed_m_s(v.SystolicBP_mmHg, _file.bloodPool.density_kg_m3, _file.spurt.velocityCoefficient);
+            // Druck an der Wunde: systolisch minus Höhe über dem Herzen (ρ·g·Δh, 78 mmHg/m)
+            float dh = b.Emitter.position.y - HeartWorld().y;
+            double pWound = v.SystolicBP_mmHg - NotfallSIM.Engines.MockPhysiologyEngine.HydrostaticMmHgPerM * dh;
+            float speed = (float)SkinMarks.JetSpeed_m_s(pWound, _file.bloodPool.density_kg_m3, _file.spurt.velocityCoefficient);
+            if (speed <= 0.05f) return;
             int count = Mathf.Clamp((int)(b.Rate_mL_s * 6), 4, 40);
             var dir = b.Emitter.forward;
             var ep = new ParticleSystem.EmitParams();

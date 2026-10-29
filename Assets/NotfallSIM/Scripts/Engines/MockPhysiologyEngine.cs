@@ -57,6 +57,72 @@ namespace NotfallSIM.Engines
         // Bildungszeit und Restfluss: Annahmen.
         const double RebleedMap_mmHg = 64, ClotFormation_s = 300, ClotFlowFactor = 0.1;
 
+        // Hydrostatik: Druck am Blutungsort = Druck auf Herzhöhe − ρ·g·Δh (Δh = Höhe über dem Herzen).
+        // ρ = 1060 kg/m³ (Kenner 1989), g = 9,81 m/s² → 78,0 mmHg je Meter.
+        public const double HydrostaticMmHgPerM = 1060 * 9.81 / 133.322;
+        // Venöse Läsionen bluten mit dem venösen Druck, nicht mit dem MAD: mittlerer Füllungsdruck ≈ 7 mmHg (Guyton & Hall),
+        // skaliert mit dem MAD relativ zum Ausgangswert (fällt im Schock mit). Deshalb wirkt Hochlagern bei venöser Blutung stark.
+        public const double VenousPressure_mmHg = 7;
+
+        // Lage der Blutungsorte als Anteil der Körpergröße vom Boden im Stehen (Winter 2009: Hüfte 0,530, Knie 0,285,
+        // Sprunggelenk 0,039, Schulter 0,818, Ellbogen 0,630, Handgelenk 0,485). Herz auf Höhe 4. ICR: 0,72 (Annahme).
+        const double HipLevel = 0.530, ShoulderLevel = 0.818, HeartLevel = 0.72;
+        static readonly Dictionary<string, KeyValuePair<double, string>> Sites = new Dictionary<string, KeyValuePair<double, string>>
+        {
+            { "Extremity", new KeyValuePair<double, string>((0.285 + 0.039) / 2, "legR") },   // Unterschenkel rechts
+            { "RightThigh", new KeyValuePair<double, string>((0.530 + 0.285) / 2, "legR") },
+            { "LeftThigh", new KeyValuePair<double, string>((0.530 + 0.285) / 2, "legL") },
+            { "LeftArm", new KeyValuePair<double, string>((0.630 + 0.485) / 2, "armL") },     // Unterarm links
+            { "RightArm", new KeyValuePair<double, string>((0.630 + 0.485) / 2, "armR") },
+            { "Pelvis", new KeyValuePair<double, string>(0.53, "trunk") },
+            { "Abdomen", new KeyValuePair<double, string>(0.62, "trunk") },
+            { "Liver", new KeyValuePair<double, string>(0.66, "trunk") },
+            { "Spleen", new KeyValuePair<double, string>(0.66, "trunk") },
+        };
+
+        /// <summary>Lagerungen: Oberkörper (Kopf hoch, Grad), Beine rechts/links, Arme rechts/links (Grad gegen die Liegefläche),
+        /// Autotransfusion (mL, zentral verschobenes Volumen). Beine 45° aus flacher Rückenlage: halbes Volumen des klassischen
+        /// Passive Leg Raising aus halbsitzender Lage (≈ 300 mL, Monnet 2015) — Annahme.</summary>
+        public static readonly Dictionary<string, double[]> Positions = new Dictionary<string, double[]>
+        {
+            //                               Oberkörper, Bein re, Bein li, Arm re, Arm li, Autotransfusion
+            { "flach",            new double[] { 0,  0,  0,  0,  0,   0 } },
+            { "beine_hoch",       new double[] { 0, 45, 45,  0,  0, 150 } },
+            { "bein_rechts_hoch", new double[] { 0, 45,  0,  0,  0,  75 } },
+            { "oberkoerper_30",   new double[] { 30, 0,  0,  0,  0,   0 } },
+            { "arm_links_hoch",   new double[] { 0,  0,  0,  0, 90,   0 } },
+        };
+        double[] _position = Positions["flach"];
+        double _height_m = 1.8;
+
+        public string PositionId { get; private set; } = "flach";
+
+        /// <summary>Höhe eines Blutungsorts über dem Herzen (m) in der aktuellen Lagerung.</summary>
+        public double SiteHeight_m(string compartment)
+        {
+            if (!Sites.TryGetValue(compartment ?? "", out var site)) return 0;
+            return SiteHeight(site.Key, site.Value, _position, _height_m);
+        }
+
+        public static double SiteHeight(double level, string limb, double[] pos, double height_m)
+        {
+            double rad = Math.PI / 180, trunk = pos[0] * rad;
+            double heart = (HeartLevel - HipLevel) * height_m * Math.Sin(trunk);
+            double h;
+            switch (limb)
+            {
+                case "legR": h = (HipLevel - level) * height_m * Math.Sin(pos[1] * rad); break;
+                case "legL": h = (HipLevel - level) * height_m * Math.Sin(pos[2] * rad); break;
+                case "armR": case "armL":
+                    double arm = (limb == "armR" ? pos[3] : pos[4]) * rad;
+                    double shoulder = (ShoulderLevel - HipLevel) * height_m * Math.Sin(trunk);
+                    h = shoulder + (ShoulderLevel - level) * height_m * Math.Sin(arm - trunk);
+                    break;
+                default: h = (level - HipLevel) * height_m * Math.Sin(trunk); break;
+            }
+            return h - heart;
+        }
+
         static string SpaceOf(string compartment)
         {
             switch (compartment)
@@ -79,8 +145,11 @@ namespace NotfallSIM.Engines
             string space = SpaceOf(b.Injury.Compartment);
             if (space == "") return 0;
             if (space == "Peritoneum") return AbdominalPressure_mmHg(spaceVolume_mL);
-            return b.Injury.MaxTotalLoss_mL > 0 ? spaceVolume_mL / b.Injury.MaxTotalLoss_mL * _baselineMap : 0;
+            return b.Injury.MaxTotalLoss_mL > 0 ? spaceVolume_mL / b.Injury.MaxTotalLoss_mL * ReferencePressure(b) : 0;
         }
+
+        /// <summary>Treibender Druck auf Herzhöhe im Ausgangszustand: MAD, bei venösen Läsionen der venöse Druck.</summary>
+        double ReferencePressure(Bleed b) => b.Injury.Lesion == "venous" ? VenousPressure_mmHg : _baselineMap;
 
         /// <summary>Hat sich an der Blutung dieser Verletzung ein Gerinnsel gebildet?</summary>
         public bool InjuryClotted(string injuryId)
@@ -182,6 +251,8 @@ namespace NotfallSIM.Engines
             _brain.Clear();
             _infusions.Clear();
             _oxygen = _arrest = _intubated = _vasopressor = false;
+            _position = Positions["flach"]; PositionId = "flach";
+            _height_m = patient.height_cm > 100 ? patient.height_cm / 100 : 1.8;
             // Lehrbuch: idealisierter Patient. Register: Ausgangswerte und Reaktionsstärke streuen.
             _hrBaseOffset = 0; _hrResponse = 1; _sbpOffset = 0;
             if (Mode == PhysiologyMode.Registry)
@@ -258,6 +329,9 @@ namespace NotfallSIM.Engines
                 case InterventionType.Vasopressor:
                     _vasopressor = true;
                     break;
+                case InterventionType.Positioning:
+                    if (Positions.TryGetValue(iv.TargetCompartment ?? "", out var pos)) { _position = pos; PositionId = iv.TargetCompartment; UpdateVitals(); }
+                    break;
                 case InterventionType.Osmotherapy:
                     foreach (var bi in _brain.Values) bi.Level = Math.Max(0, bi.Level - TbiOsmotherapyReduction);
                     break;
@@ -300,7 +374,10 @@ namespace NotfallSIM.Engines
                     }
                     double back = BackPressure(b, spaceVolume[SpaceOf(inj.Compartment)]);
                     double back0 = BackPressure(b, 0);
-                    double drive = Math.Max(0, map - back) / Math.Max(1, _baselineMap - back0);
+                    double pref = ReferencePressure(b);
+                    double p = (inj.Lesion == "venous" ? VenousPressure_mmHg * map / _baselineMap : map)
+                               - HydrostaticMmHgPerM * SiteHeight_m(inj.Compartment);
+                    double drive = Math.Max(0, p - back) / Math.Max(0.5, pref - back0);
                     double rate = inj.BaseRate_mL_min * inj.Severity * b.Multiplier * Math.Sqrt(drive) * (b.Clotted ? ClotFlowFactor : 1);
                     double loss = rate * minutes;
                     b.Lost_mL += loss;
@@ -367,6 +444,8 @@ namespace NotfallSIM.Engines
                 return;
             }
 
+            // Kreislauf: zentral verfügbares Volumen inkl. Autotransfusion durch Lagerung (nur Hämodynamik, nicht Hb/Laktat)
+            double fh = Math.Max(0, 1 - (_volume + _position[5]) / _baselineVolume);
             double gcs = Math.Min(Interp(tbi, TbiPoints, TbiGcs), Interp(f, LossPoints, ShockGcs));
             // Ungeschützter Atemweg bei tiefer Bewusstlosigkeit: Hypoventilation, Hypoxie, Hyperkapnie.
             double airway = !_intubated && gcs <= 8 ? Math.Min(1, (8 - gcs) / 5.0 + 0.2) : 0;
@@ -377,9 +456,9 @@ namespace NotfallSIM.Engines
             // erst ab höherer Spannung obstruktiver Blutdruckabfall.
             double sbpDrop = tp > TpHypotensionOnset ? (tp - TpHypotensionOnset) / (1 - TpHypotensionOnset) * TpMaxSbpDrop : 0;
             double hr0 = ShockTables.Hr(Mode, 0);
-            double hr = hr0 + _hrBaseOffset + (ShockTables.Hr(Mode, f) - hr0) * _hrResponse;
-            double sbp = ShockTables.Sbp(Mode, f) + _sbpOffset - sbpDrop + 50 * cushing + (_vasopressor ? VasopressorSbpRise : 0);
-            double dbp = ShockTables.Dbp(Mode, f) + _sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + (_vasopressor ? VasopressorDbpRise : 0);
+            double hr = hr0 + _hrBaseOffset + (ShockTables.Hr(Mode, fh) - hr0) * _hrResponse;
+            double sbp = ShockTables.Sbp(Mode, fh) + _sbpOffset - sbpDrop + 50 * cushing + (_vasopressor ? VasopressorSbpRise : 0);
+            double dbp = ShockTables.Dbp(Mode, fh) + _sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + (_vasopressor ? VasopressorDbpRise : 0);
             double spo2 = Interp(f, ShockTables.SpO2Air) - TpMaxSpO2Drop * tp - AirwayMaxSpO2Drop * airway
                           + (_oxygen ? 3 : 0) + (_intubated ? 3 : 0);
             spo2 = Math.Max(50, Math.Min(100, spo2));

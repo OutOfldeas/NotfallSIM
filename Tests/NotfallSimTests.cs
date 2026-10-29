@@ -73,6 +73,7 @@ static class Tests
         Run("Crash: harter Aufprall verletzt, leichter nicht, Seite bestimmt Milz/Leber", CrashScenario);
         Run("Muskeltonus: Daten mit Quellen, Aktivierung je Zustand, Kniemoment plausibel", MuscleToneData);
         Run("Blutungsphysik: Bauchdruck nach Malbrain, Gerinnsel unter 64 mmHg, Nachblutung nach Volumen, Tamponade", BleedingPhysics);
+        Run("Lagerung und Hydrostatik: Höhe über dem Herzen, Druck −78 mmHg/m, venöse Blutung steht hochgelagert, Autotransfusion", PositioningPhysics);
         Run("Haut: Daten mit Quellen, Blässe/Schweiß nach Schockklasse, Zyanose aus Desoxy-Hb (Anämie maskiert)", SkinData);
         Run("Crash-Zeichen: Prellung/Platzwunde/Schürfung nach Schwellen, Ort an der Haut, Gurtmarken", CrashMarksData);
         Run("Verletzungszeichen: Ort an der Haut, Region, Befund, Schwellungsvolumen, Amputation, Blutlache", InjuryVisualsData);
@@ -1308,6 +1309,48 @@ static class Tests
         Check(liverFirstMinute(true) < liverFirstMinute(false), "Bauchraum nicht geteilt");
     }
 
+    static void PositioningPhysics()
+    {
+        var flat = MockPhysiologyEngine.Positions["flach"];
+        Check(Math.Abs(MockPhysiologyEngine.HydrostaticMmHgPerM - 78.0) < 0.1, "ρg in mmHg/m");
+        Check(MockPhysiologyEngine.SiteHeight(0.66, "trunk", flat, 1.8) == 0 && MockPhysiologyEngine.SiteHeight(0.162, "legR", flat, 1.8) == 0, "flach nicht auf Herzhöhe");
+        double arm = MockPhysiologyEngine.SiteHeight((0.630 + 0.485) / 2, "armL", MockPhysiologyEngine.Positions["arm_links_hoch"], 1.8);
+        Check(arm > 0.4 && arm < 0.5, $"Unterarm senkrecht {arm:F2} m über dem Herzen");
+        double leg = MockPhysiologyEngine.SiteHeight((0.285 + 0.039) / 2, "legR", MockPhysiologyEngine.Positions["beine_hoch"], 1.8);
+        Check(leg > 0.4 && leg < 0.5, $"Unterschenkel bei 45° {leg:F2} m");
+        double liver = MockPhysiologyEngine.SiteHeight(0.66, "trunk", MockPhysiologyEngine.Positions["oberkoerper_30"], 1.8);
+        Check(liver < 0 && liver > -0.1, $"Leber bei Oberkörper 30° {liver:F3} m (unter dem Herzen)");
+
+        Func<string, string, string, double, double, double> rate = (compartment, lesion, position, baseRate, seconds) =>
+        {
+            var e = new MockPhysiologyEngine(1); e.Initialize(new PatientProfile { weight_kg = 80, height_cm = 180 });
+            if (position != null) e.ApplyIntervention(new InterventionEvent { Type = InterventionType.Positioning, TargetCompartment = position });
+            e.ApplyInjury(new InjuryEvent { InjuryId = "x", Effect = InjuryEffectType.Hemorrhage, Compartment = compartment, Severity = 1, BaseRate_mL_min = baseRate, Lesion = lesion });
+            Advance(e, seconds);
+            return e.InjuryBloodLoss_mL("x") / (seconds / 60);
+        };
+        // Venös am Oberschenkel: 15 cm über dem Herzen übersteigen den venösen Druck (7 mmHg) — Blutung steht
+        double vFlat = rate("RightThigh", "venous", null, 20, 60), vUp = rate("RightThigh", "venous", "bein_rechts_hoch", 20, 60);
+        Check(vFlat > 15 && vUp < 0.5, $"venös flach {vFlat:F1}, hoch {vUp:F1} mL/min");
+        // Arteriell am Unterschenkel: Hochlagern senkt, stoppt aber nicht
+        double aFlat = rate("Extremity", "partial", null, 120, 60), aUp = rate("Extremity", "partial", "bein_rechts_hoch", 120, 60);
+        Check(aUp < 0.85 * aFlat && aUp > 0.5 * aFlat, $"arteriell flach {aFlat:F0}, hoch {aUp:F0} mL/min");
+        // Arm hoch: Schnittverletzung deutlich weniger
+        double armFlat = rate("LeftArm", "partial", null, 40, 60), armUp = rate("LeftArm", "partial", "arm_links_hoch", 40, 60);
+        Check(armUp < 0.85 * armFlat, $"Arm flach {armFlat:F0}, hoch {armUp:F0} mL/min");
+        // Beine hoch: Autotransfusion hebt den Blutdruck des hypovolämen Patienten, ohne das Blutvolumen zu ändern
+        Func<string, VitalSigns> hypo = position =>
+        {
+            var e = new MockPhysiologyEngine(1); e.Initialize(new PatientProfile { weight_kg = 80, height_cm = 180, initialBloodLoss_mL = 1600 });
+            if (position != null) e.ApplyIntervention(new InterventionEvent { Type = InterventionType.Positioning, TargetCompartment = position });
+            return e.Current;
+        };
+        var vf = hypo(null); var vp = hypo("beine_hoch");
+        Check(vp.SystolicBP_mmHg > vf.SystolicBP_mmHg && vp.BloodVolume_mL == vf.BloodVolume_mL && vp.BloodLossFraction == vf.BloodLossFraction, "Autotransfusion");
+        foreach (var iv in Interventions.interventions.Where(x => x.type == "Positioning"))
+            Check(MockPhysiologyEngine.Positions.ContainsKey(iv.target) && !iv.once, iv.id + ": unbekannte Lagerung oder einmalig");
+    }
+
     static void SkinData()
     {
         var p = Load<SkinParams>("skin.json");
@@ -1481,6 +1524,7 @@ static class Tests
                 float dz = skin.Positions[3 * b0 + 2] - skin.Positions[3 * a0 + 2];
                 Check(dz < 0, m.id + ": Rinnsal läuft bergauf");
             }
+            Check(riv.EdgeSlope.Length == riv.Path.Length - 1 && riv.EdgeSlope.All(x => x > 0) && Math.Abs(riv.EdgeEnd.Last() - 1) < 1e-5, m.id + ": Gefälle entlang des Pfads");
             BloodFlow.BuildStrip(riv, skin.Positions, nrm, 0.01f);
             for (int t = 0; t < riv.Triangles.Length; t += 3)
             {
@@ -1491,7 +1535,31 @@ static class Tests
                 Check(nx * riv.Nrm[3 * i0] + ny2 * riv.Nrm[3 * i0 + 1] + nz * riv.Nrm[3 * i0 + 2] >= 0, m.id + ": Rinnsal falsch ausgerichtet");
             }
         }
+        // Bein 45° hoch (Unity: Euler(−45,0,0) am Oberschenkel): Schwerkraft im Beinsystem (0, sin45, −cos45) — Blut läuft zum Knie
+        {
+            var us = f.marks.First(x => x.id == "us_offene_fraktur");
+            var pu = SkinMarks.Select(data, us, scale, tc, nrm, adj);
+            int legR = data.SegmentIndex("Oberschenkel rechts"), shinR = data.SegmentIndex("Unterschenkel rechts");
+            float sq = (float)Math.Sqrt(0.5);
+            Func<int, float[]> raised = v => { int sg = SkinMarks.DominantSegment(skin.Bones, skin.Weight0, v); return sg == legR || sg == shinR ? new[] { 0, sq, -sq } : new float[] { 0, 0, -1 }; };
+            int start = skin.Indices[3 * pu.HitTriangle];
+            var rv = BloodFlow.Trace(skin.Positions, nrm, adj, start, raised, (float)(f.rivulets.maxLength_m / scale), 1, null);
+            int end = rv.Path.Last();
+            Check(skin.Positions[3 * end + 1] - skin.Positions[3 * start + 1] > 0.03f, "hochgelagertes Bein: Blut läuft nicht Richtung Knie");
+        }
         Check(BloodFlow.Width_mm(f.rivulets, 0) == f.rivulets.widthMin_mm && BloodFlow.Width_mm(f.rivulets, 1e6) == f.rivulets.widthMax_mm, "Rinnsalbreite");
+        // Rieselfilm: schneller bei mehr Gefälle und mehr Fluss, steht auf ebener Haut; Viskosität im gemessenen Bereich
+        var rp = f.rivulets; double e0 = SkinMarks.PoolThickness_m(f.bloodPool), hh;
+        Check(src.Contains(rp.viscositySourceId), "Quelle Viskosität");
+        double q = 25e-6 / 60;   // 25 mL/min
+        double uSteep = BloodFlow.FilmSpeed_m_s(rp, q, 0.01, 1.0, 1060, e0, out hh), uFlat = BloodFlow.FilmSpeed_m_s(rp, q, 0.01, 0.1, 1060, e0, out _);
+        double uLow = BloodFlow.FilmSpeed_m_s(rp, q / 10, 0.01, 1.0, 1060, e0, out _);
+        Check(uSteep > uFlat && uSteep > uLow && BloodFlow.FilmSpeed_m_s(rp, q, 0.01, 0, 1060, e0, out _) == 0, $"Rieselfilm {uSteep:F3}/{uFlat:F3}/{uLow:F3} m/s");
+        Check(uSteep > 0.01 && uSteep < 0.5 && hh > 0 && hh <= e0, $"Rieselfilm senkrecht {uSteep * 100:F1} cm/s, {hh * 1000:F2} mm");
+        Check(Math.Abs(BloodFlow.Viscosity_Pa_s(rp, rp.shearLow_per_s) * 1000 - rp.muLow_mPas) < 1e-6 && Math.Abs(BloodFlow.Viscosity_Pa_s(rp, rp.shearHigh_per_s) * 1000 - rp.muHigh_mPas) < 1e-6, "Viskosität an den Messpunkten");
+        // Strahl: Luftwiderstand einer Kugel in plausibler Größe (bei 5 m/s weniger als die Schwerkraft)
+        double kd = SkinMarks.DropDrag_per_m(f.spurt);
+        Check(kd > 0 && kd * 25 < 9.81, $"Luftwiderstand k = {kd:F3}/m");
 
         // Blutlache und Strahl
         double thick = SkinMarks.PoolThickness_m(bp);
