@@ -144,7 +144,10 @@ Prüfen ohne Unity:
 
 Menü *NotfallSIM › Unfall-Sandbox erstellen* legt `Assets/NotfallSIM/Scenes/UnfallSandbox.unity` an.
 Play → Mechanismus wählen (PKW frontal, PKW seitlich, Motorrad, Fußgänger, Sturz), Geschwindigkeit bzw.
-Höhe und Gurt einstellen, „Crash starten“. Der Crash läuft in Zeitlupe mit 0,5-ms-Physikschritt.
+Höhe und Gurt einstellen, „Crash starten“. Der Crash wird zuerst mit 0,1-ms-Physikschritt (10 kHz) berechnet —
+verteilt auf Frames, mit Fortschrittsanzeige — und dann flüssig abgespielt, in Echtzeit oder Zeitlupe. Während der
+Wiedergabe: Leertaste Pause, `,` / `.` spulen (mit Umschalt in größeren Schritten), R oder „Crash wiederholen“ spielt ihn
+erneut ab (auch mit anderer Zeitlupe), ohne neu zu rechnen.
 Danach zeigt die Sandbox die Messwerte wie beim Crashtest-Dummy (HIC15, Brustbeschleunigung, Kontaktkräfte),
 das Verletzungsrisiko je Region, färbt den Körper danach ein und übergibt den Fall auf Knopfdruck verdeckt an
 den Schockraum (Schockraum-Szene muss erzeugt sein).
