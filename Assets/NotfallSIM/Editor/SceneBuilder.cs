@@ -365,10 +365,11 @@ namespace NotfallSIM.EditorTools
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             var g = go.AddComponent<GridLayoutGroup>();
-            g.cellSize = new Vector2(150, 44);
-            g.spacing = new Vector2(6, 6);
+            bool many = name == "Massnahmen-Raster" && InjuryDatabase.LoadInterventions().interventions.Length > 26;
+            g.cellSize = many ? new Vector2(100, 40) : new Vector2(150, 44);
+            g.spacing = many ? new Vector2(5, 5) : new Vector2(6, 6);
             g.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            g.constraintCount = 2;
+            g.constraintCount = many ? 3 : 2;
             return go.transform;
         }
 

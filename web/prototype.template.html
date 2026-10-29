@@ -12,7 +12,7 @@
   --skin: #e7c3a7; --cloth: #9fb1c7; --region-stroke: #6f7f7b;
   /* Monitor ist ein Gerät: in beiden Themes dunkel */
   --mon-bg: #050908; --mon-line: #1b2624; --mon-label: #8a9a96;
-  --mon-hr: #45e07c; --mon-bp: #ff6464; --mon-spo2: #4cc9f2; --mon-rr: #f3d34e; --mon-co2: #f0b54a; --mon-alarm: #ff3b30;
+  --mon-hr: #45e07c; --mon-bp: #ff6464; --mon-spo2: #4cc9f2; --mon-rr: #f3d34e; --mon-co2: #f0b54a; --mon-temp: #e9ecef; --mon-alarm: #ff3b30;
   --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -44,13 +44,14 @@ button { font: inherit; color: inherit; }
 .mon-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-family: var(--font-mono); font-size: 12px; color: var(--mon-label); }
 .mon-head strong { color: #e8f0ee; font-weight: 500; }
 .mon-clock { font-variant-numeric: tabular-nums; color: #e8f0ee; font-size: 15px; }
-.vitals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.vitals { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+@media (max-width: 560px) { .vitals { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .vital { border-top: 2px solid currentColor; padding-top: 4px; min-width: 0; }
 .vital .lab { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; opacity: .85; display: flex; justify-content: space-between; }
 .vital .val { font-family: var(--font-display); font-weight: 600; font-size: clamp(26px, 7.5vw, 48px); line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .vital.bp .val { font-size: clamp(20px, 5.2vw, 38px); }
 .vital .sub { font-family: var(--font-mono); font-size: 11px; opacity: .8; font-variant-numeric: tabular-nums; }
-.v-hr { color: var(--mon-hr); } .v-bp { color: var(--mon-bp); } .v-spo2 { color: var(--mon-spo2); } .v-rr { color: var(--mon-rr); } .v-co2 { color: var(--mon-co2); }
+.v-hr { color: var(--mon-hr); } .v-bp { color: var(--mon-bp); } .v-spo2 { color: var(--mon-spo2); } .v-rr { color: var(--mon-rr); } .v-co2 { color: var(--mon-co2); } .v-temp { color: var(--mon-temp); }
 .vital.alarm .val { color: #fff; background: var(--mon-alarm); border-radius: 3px; padding-inline: 3px; animation: blink 1s steps(2, start) infinite; }
 @keyframes blink { 50% { background: transparent; color: var(--mon-alarm); } }
 @media (prefers-reduced-motion: reduce) { .vital.alarm .val { animation: none; } }
@@ -189,6 +190,7 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
       <div class="vital v-spo2" id="vSpo2"><div class="lab"><span>SpO₂</span><span>%</span></div><div class="val">--</div></div>
       <div class="vital v-rr" id="vRr"><div class="lab"><span>AF</span><span>/min</span></div><div class="val">--</div></div>
       <div class="vital v-co2" id="vCo2"><div class="lab"><span>etCO₂</span><span>mmHg</span></div><div class="val">--</div></div>
+      <div class="vital v-temp" id="vTemp"><div class="lab"><span>Temp</span><span>°C</span></div><div class="val">--</div></div>
     </div>
     <div class="mon-arrest" id="monArrest" hidden>ASYSTOLIE / PEA – KEIN PULS</div>
   </div>
@@ -452,7 +454,7 @@ waveSetup(); requestAnimationFrame(waveLoop);
 
 function resetMonitor() {
   W8.ch.forEach((ch) => { ch.ctx.clearRect(0, 0, ch.w, ch.h); ch.lastY = null; }); W8.cursor = 0;
-  ["vHr", "vSpo2", "vRr", "vCo2"].forEach((id) => setVital(id, "--", false));
+  ["vHr", "vSpo2", "vRr", "vCo2", "vTemp"].forEach((id) => setVital(id, "--", false));
   setVital("vBp", "--/--", false); $("vMap").textContent = "MAD --"; $("monClock").textContent = "00:00";
   $("monArrest").hidden = true; $("vitals").hidden = false;
   $("monScenario").innerHTML = "<strong>NotfallSIM</strong> · Szenario wählen";
@@ -464,6 +466,7 @@ function renderMonitor() {
   if (v.arrest) {
     ["vHr", "vSpo2", "vRr"].forEach((id) => setVital(id, "---", true));
     setVital("vBp", "---", true); $("vMap").textContent = "MAD ---"; setVital("vCo2", R(v.etco2), true);
+    setVital("vTemp", v.temp.toFixed(1).replace(".", ","), v.temp < 35);
     return;
   }
   setVital("vHr", R(v.hr), v.hr > 120 || v.hr < 50);
@@ -472,14 +475,15 @@ function renderMonitor() {
   setVital("vSpo2", R(v.spo2), v.spo2 < 90);
   setVital("vRr", R(v.rr), v.rr > 30 || v.rr < 8);
   setVital("vCo2", R(v.etco2), v.etco2 < 25 || v.etco2 > 50);
+  setVital("vTemp", v.temp.toFixed(1).replace(".", ","), v.temp < 35);
 }
 
 // ---------- Maßnahmen ----------
 function renderActions() {
-  const pendingIds = new Set(sim.delayed.map((d) => d.iv.type));
+  const pendingIds = new Set(sim.delayed.map((d) => d.iv.id));
   $("actions").innerHTML = DATA.interventions.interventions.map((d) => {
     const used = sim.used.has(d.id), blocked = (d.once && used) || sim.ended || sim.vitals.arrest || sim.isAway;
-    const running = pendingIds.has(d.type) && used;
+    const running = pendingIds.has(d.id) && used;
     let note = d.effectDelay_s > 0 ? `wirkt nach ${R(d.effectDelay_s / 60)} min` : (d.once ? "einmalig" : "wiederholbar");
     if (running) note = d.type === "BloodGas" ? "Analyse läuft …" : "angeordnet …";
     else if (used && d.once) note = "erledigt";
@@ -575,7 +579,7 @@ function renderLab() {
   const r = sim.labResults[sim.labResults.length - 1];
   if (!r) return;
   $("labResult").hidden = false;
-  $("labResult").innerHTML = `<div class="eyebrow">BGA · abgenommen ${E.clock(r.sampled)}</div><table class="bga"><tbody>` +
+  $("labResult").innerHTML = `<div class="eyebrow">${r.title || "BGA"} · abgenommen ${E.clock(r.sampled)}</div><table class="bga"><tbody>` +
     r.values.map(([k, v, u, abn]) => `<tr class="${abn ? "abn" : ""}"><td>${k}</td><td>${v}</td><td>${u}</td></tr>`).join("") + `</tbody></table>`;
 }
 

@@ -164,6 +164,8 @@ namespace NotfallSIM.Data
         public double successProbability = 1;
         public bool once;           // nur einmal pro Durchlauf möglich
         public double effectDelay_s; // Zeit von Anordnung bis Wirkung (0 = sofort)
+        [System.Runtime.Serialization.OptionalField] public string[] contraindicatedBy;   // Verletzungs-IDs, bei denen die Maßnahme schadet
+        [System.Runtime.Serialization.OptionalField] public string contraindicationNote;  // Begründung für die Warnung
         public SourceRef[] sources;
         public string evidenceStatus;
         public string reviewNotes;

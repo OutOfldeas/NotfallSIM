@@ -177,7 +177,9 @@ namespace NotfallSIM.Simulation
             {
                 // Werte zum Abnahmezeitpunkt, Ergebnis nach der Laufzeit des Analysegeräts.
                 var v = Engine.Current;
-                string result = $"BGA-Ergebnis (abgenommen {Clock(v.SimTime_s)}): " + BloodGas.Report(v);
+                string result = iv.Compound == "Coag"
+                    ? $"Gerinnung (abgenommen {Clock(v.SimTime_s)}): " + BloodGas.CoagReport(v)
+                    : $"BGA-Ergebnis (abgenommen {Clock(v.SimTime_s)}): " + BloodGas.Report(v);
                 _delayed.Add((v.SimTime_s + delay_s, iv, label, result));
                 Log($"Maßnahme: {label}", tag);
                 return;

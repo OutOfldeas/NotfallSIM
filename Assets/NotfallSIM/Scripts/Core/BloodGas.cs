@@ -53,5 +53,15 @@ namespace NotfallSIM.Core
                    $"HCO3 {D(v.HCO3, "0.0")} mmol/L · BE {(v.BaseExcess >= 0 ? "+" : "")}{D(v.BaseExcess, "0.0")} mmol/L · Laktat {D(v.Lactate, "0.0")} mmol/L · " +
                    $"Hb {D(v.Hb, "0.0")} g/dL · K {D(v.Potassium, "0.0")} mmol/L · Ca++ {D(v.IonizedCalcium, "0.00")} mmol/L · Glukose {D(v.Glucose, "0")} mg/dL";
         }
+
+        /// <summary>INR aus der Faktorenaktivität (Annahme: 1 + (1/Aktivität − 1)/2; 50 % → 1,5, 30 % → 2,2).</summary>
+        public static double Inr(double factors) => 1 + (1 / Math.Max(0.05, factors) - 1) / 2;
+
+        /// <summary>Gerinnungslabor. Gemessen bei 37 °C im Citratplasma: Hypothermie, Azidose und Calciummangel fallen hier nicht auf.</summary>
+        public static string CoagReport(VitalSigns v)
+        {
+            return $"Quick {D(100 * v.FactorActivity, "0")} % · INR {D(Inr(v.FactorActivity), "0.0")} · Fibrinogen {D(v.Fibrinogen_g_L, "0.0")} g/L " +
+                   "(Labor misst bei 37 °C — Hypothermie und Azidose bremsen die Gerinnung zusätzlich)";
+        }
     }
 }

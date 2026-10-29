@@ -11,7 +11,8 @@ function run(name, p, plan, seconds) {
     if (step % 300 === 0) {
       const v = e.current;
       out.push([name, step / 10, N(v.hr), N(v.sbp), N(v.dbp), N(v.rr), N(v.spo2), N(v.etco2), N(v.bv), N(v.gcs), N(v.be), v.arrest ? 1 : 0,
-        N(v.hb), N(v.ph), N(v.paco2), N(v.pao2), N(v.potassium), N(v.calcium), N(v.glucose)]);
+        N(v.hb), N(v.ph), N(v.paco2), N(v.pao2), N(v.potassium), N(v.calcium), N(v.glucose),
+        N(v.temp), N(v.factors), N(v.fib), N(v.coag)]);
     }
     e.advance(0.1);
   }
@@ -73,6 +74,26 @@ run("lagerung", { weight_kg: 80, age: 35, sex: "male", height_cm: 175, initialBl
   if (s === 6000) e.applyIntervention(iv("Positioning", { target: "arm_links_hoch" }));
   if (s === 8000) e.applyIntervention(iv("Positioning", { target: "flach" }));
 }, 1200);
+run("trias", { weight_kg: 70, age: 40, sex: "male", initialBloodLoss_mL: 1200, initialTemperature_C: 35.5 }, (e, s) => {
+  if (s === 0) {
+    e.applyInjury({ ...bleed("Liver", 0.7, 90, 2500), lesion: "parenchymal" });
+    e.applyInjury({ ...bleed("Extremity", 0.6, 60, 0), lesion: "partial" });
+  }
+  const med = (c) => e.applyIntervention(iv("Medication", { compound: c }));
+  if (s === 300) e.applyIntervention(iv("FluidInfusion", { target: "", compound: "BalancedCrystalloid", volume_mL: 2000, rate_mL_min: 200 }));
+  if (s === 600) med("Fentanyl");
+  if (s === 1500) med("Ketamin");
+  if (s === 2400) e.applyIntervention(iv("FluidInfusion", { target: "", compound: "Blood", volume_mL: 1000, rate_mL_min: 100 }));
+  if (s === 3000) med("Propofol");
+  if (s === 3010) e.applyIntervention(iv("Intubation"));
+  if (s === 4000) e.applyIntervention(iv("Supportive", { compound: "FluidWarmer" }));
+  if (s === 4200) e.applyIntervention(iv("FluidInfusion", { target: "", compound: "Plasma", volume_mL: 1000, rate_mL_min: 50 }));
+  if (s === 5000) med("TXA");
+  if (s === 5200) med("Fibrinogen");
+  if (s === 5400) med("Calcium");
+  if (s === 6000) e.applyIntervention(iv("Supportive", { compound: "Warming" }));
+  if (s === 7000) e.applyIntervention(iv("HemorrhageControl", { target: "Extremity,Liver", rateMultiplier: 0.1 }));
+}, 1800);
 
 // Zufallsszenarien (Datei als drittes Argument)
 if (process.argv[3]) {
@@ -144,7 +165,7 @@ if (process.argv[3]) {
 const ref = fs.readFileSync(process.argv[2], "utf8").trim().split("\n").map((l) => l.split(";"));
 let maxDiff = 0, worst = "", fails = 0;
 if (ref.length !== out.length) { console.log(`Zeilenzahl verschieden: C# ${ref.length}, JS ${out.length}`); process.exit(1); }
-const cols = ["HF", "RRsys", "RRdia", "AF", "SpO2", "etCO2", "BV", "GCS", "BE", "Stillstand", "Hb", "pH", "pCO2", "pO2", "K", "Ca", "Glukose"];
+const cols = ["HF", "RRsys", "RRdia", "AF", "SpO2", "etCO2", "BV", "GCS", "BE", "Stillstand", "Hb", "pH", "pCO2", "pO2", "K", "Ca", "Glukose", "Temp", "Faktoren", "Fibrinogen", "Gerinnung"];
 for (let i = 0; i < ref.length; i++) {
   for (let c = 2; c < 2 + cols.length; c++) {
     const d = Math.abs(Number(ref[i][c]) - Number(out[i][c]));

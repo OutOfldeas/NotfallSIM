@@ -33,7 +33,7 @@ namespace NotfallSIM.Engines
         // Anteil eines Infusionsvolumens, der (vereinfachend) intravasal wirksam bleibt.
         static readonly Dictionary<string, double> Retention = new Dictionary<string, double>
         {
-            { "BalancedCrystalloid", 0.3 }, { "Saline", 0.3 }, { "Blood", 1.0 }
+            { "BalancedCrystalloid", 0.3 }, { "Saline", 0.3 }, { "Blood", 1.0 }, { "Plasma", 1.0 }
         };
 
         class Bleed
@@ -163,6 +163,7 @@ namespace NotfallSIM.Engines
             public string Compound;
             public double Remaining_mL;
             public double Rate_mL_min;
+            public bool Warmed;
         }
 
         // Spannungspneumothorax, spontan atmender Patient. Level 0..1 = Schwere der Spannung.
@@ -203,6 +204,78 @@ namespace NotfallSIM.Engines
             public double Level;
             public bool Stopped;
         }
+
+        // ---------------- Temperatur (docs/LITERATUR.md, Abschnitt Letale Trias)
+        // Spezifische Wärme des Körpers 2,98 kJ/(kg·K) (Xu 2022; früher üblich 3,47); Infusionen bringen ihre Temperatur mit:
+        // ΔT = m_Infusion · c_Infusion · (T_Infusion − T) / (m_Körper · c_Körper).
+        public const double BodyHeatCapacity_kJ_kgK = 2.98;
+        static readonly Dictionary<string, double[]> FluidThermal = new Dictionary<string, double[]>
+        {   // Temperatur ungewärmt (°C), spezifische Wärme (kJ/(kg·K)), Dichte (kg/L)
+            { "BalancedCrystalloid", new[] { 20.0, 4.18, 1.0 } }, { "Saline", new[] { 20.0, 4.18, 1.0 } },
+            { "Blood", new[] { 4.0, 3.6, 1.06 } }, { "Plasma", new[] { 4.0, 3.9, 1.03 } },
+        };
+        public const double FluidWarmerTemp_C = 38;
+        // Auskühlung entkleidet im Schockraum (Annahme), in Narkose doppelt (Umverteilung, Sessler 2008), aktive Wärme
+        public const double ExposureCooling_C_per_h = 0.5, AnesthesiaCoolingFactor = 2, ActiveWarming_C_per_h = 0.5;
+
+        // ---------------- Gerinnung
+        // Konzentrationen relativ zum Normalwert im Plasma; Verdünnung nach Massenbilanz im Plasmavolumen (Blutvolumen −
+        // Erythrozytenvolumen). Fibrinogen normal 2,5 g/L; kritisch < 1,5 g/L (Rossaint 2023).
+        public const double FibrinogenNormal_g_L = 2.5, FibrinogenConcentrate_g = 2;
+        // Hyperfibrinolyse im Schock (akute traumatische Koagulopathie, Brohi 2003) ohne TXA: Abbau je Minute bei 40 % Verlust
+        public const double LysisPerMinAt40 = 0.02;
+        // Wirkung der wirksamen Gerinnung C (0..1) auf die Blutung (Annahme): diffus/venös/Parenchym bis ×2, arteriell bis ×1,3;
+        // Gerinnsel bilden sich nur bei C ≥ 0,5, unter 0,3 lösen sie sich.
+        public const double CoagDiffuseGain = 1.0, CoagArterialGain = 0.3, CoagClotMin = 0.5, CoagClotLost = 0.3;
+        public const double CalciumPerGram_mmol_L = 0.2;   // 1 g CaCl2 (6,8 mmol) in ~15 L Extrazellulärraum, ionisiert ≈ +0,2 (Annahme)
+
+        // ---------------- Medikamente: Wirkung über die Zeit (voll bis full_min, abklingend bis end_min)
+        //                                        SBP-Anteil, Anteil je Blutverlust (Verstärkung im Schock), HF, Atemdepression, voll, Ende (min)
+        public static readonly Dictionary<string, double[]> Drugs = new Dictionary<string, double[]>
+        {
+            { "Fentanyl", new[] { -0.10, -0.33,  -8, 0.3, 20, 40 } },  // Sympathikolyse, Atemdepression (spontan atmend)
+            { "Ketamin",  new[] {  0.10, -0.29, 12, 0.0, 10, 20 } },  // sympathomimetisch; im tiefen Schock (≥ 35 %) kein Anstieg
+            { "Propofol", new[] { -0.20, -0.67, -5, 0.6,  5, 15 } },  // Induktion: MAD −16 bis −23 % (normovoläm), im Schock stärker
+        };
+        readonly List<KeyValuePair<string, double>> _drugs = new List<KeyValuePair<string, double>>();
+        double _weight_kg = 75, _temp = 36.5, _factors = 1, _fib = 1, _calciumGiven_g;
+        bool _warming, _fluidWarmer, _txa;
+
+        /// <summary>Wirkstärke 0..1 eines Medikaments t Minuten nach der Gabe.</summary>
+        public static double DrugLevel(double[] d, double t_min) =>
+            t_min < 0 ? 0 : t_min <= d[4] ? 1 : t_min >= d[5] ? 0 : 1 - (t_min - d[4]) / (d[5] - d[4]);
+
+        /// <summary>Summe der Medikamentenwirkungen: SBP-Faktor, HF-Änderung, Atemdepression 0..1.</summary>
+        void DrugEffects(double lossFraction, out double sbpFactor, out double hrAdd, out double resp)
+        {
+            sbpFactor = 1; hrAdd = 0; resp = 0;
+            foreach (var kv in _drugs)
+            {
+                var d = Drugs[kv.Key];
+                double w = DrugLevel(d, (_time - kv.Value) / 60);
+                if (w <= 0) continue;
+                double pct = d[0] + d[1] * lossFraction;
+                if (kv.Key == "Ketamin") pct = Math.Max(0, pct);       // erschöpfte Katecholamine: kein Anstieg mehr
+                sbpFactor *= 1 + pct * w;
+                hrAdd += d[2] * w;
+                resp = Math.Max(resp, d[3] * w);
+            }
+        }
+
+        /// <summary>Wirksame Gerinnung 0..1 aus Faktoren, Fibrinogen, Temperatur, pH und ionisiertem Calcium.</summary>
+        public static double Coagulation(double factors, double fibRel, double temp_C, double pH, double ica)
+        {
+            double cf = Clamp01((factors - 0.2) / 0.3);                                   // Faktoren < 20 % → keine Gerinnung, ≥ 50 % → voll
+            double cfib = Clamp01((fibRel * FibrinogenNormal_g_L - 0.8) / 0.7);           // Fibrinogen 0,8 … 1,5 g/L
+            double t = Math.Max(0.3, Math.Min(1, 1 - 0.075 * Math.Max(0, 35 - temp_C))); // Thrombozyten unter 35 °C (Wolberg 2004)
+            double ph = Math.Max(0.2, Math.Min(1, 1 - (7.35 - pH) / 0.35 * 0.6));          // FVIIa/TF −60 % bei pH 7,0 (Meng 2003)
+            double ca = Math.Max(0.5, Math.Min(1, 0.5 + 0.5 * (ica - 0.6) / 0.4));         // Cofaktor Calcium, < 1,0 mmol/L
+            return Math.Min(cf, cfib) * t * ph * ca;
+        }
+
+        static double Clamp01(double x) => Math.Max(0, Math.Min(1, x));
+
+        double IonizedCa => Math.Min(1.3, BloodGas.IonizedCalcium(_transfused_mL) + CalciumPerGram_mmol_L * _calciumGiven_g);
 
         readonly Dictionary<string, Bleed> _bleeds = new Dictionary<string, Bleed>();
         readonly Dictionary<string, Tension> _tension = new Dictionary<string, Tension>();
@@ -252,6 +325,10 @@ namespace NotfallSIM.Engines
             _infusions.Clear();
             _oxygen = _arrest = _intubated = _vasopressor = false;
             _position = Positions["flach"]; PositionId = "flach";
+            _drugs.Clear(); _warming = _fluidWarmer = _txa = false;
+            _weight_kg = patient.weight_kg > 0 ? patient.weight_kg : 75;
+            _temp = patient.initialTemperature_C > 0 ? patient.initialTemperature_C : 36.5;
+            _factors = 1; _fib = 1; _calciumGiven_g = 0;
             _height_m = patient.height_cm > 100 ? patient.height_cm / 100 : 1.8;
             // Lehrbuch: idealisierter Patient. Register: Ausgangswerte und Reaktionsstärke streuen.
             _hrBaseOffset = 0; _hrResponse = 1; _sbpOffset = 0;
@@ -309,7 +386,25 @@ namespace NotfallSIM.Engines
                             b.Multiplier = Math.Min(b.Multiplier, iv.RateMultiplier);
                     break;
                 case InterventionType.FluidInfusion:
-                    _infusions.Add(new Infusion { Compound = iv.Compound, Remaining_mL = iv.Volume_mL, Rate_mL_min = iv.Rate_mL_min });
+                    _infusions.Add(new Infusion { Compound = iv.Compound, Remaining_mL = iv.Volume_mL, Rate_mL_min = iv.Rate_mL_min, Warmed = _fluidWarmer });
+                    break;
+                case InterventionType.Medication:
+                    switch (iv.Compound)
+                    {
+                        case "TXA": _txa = true; break;
+                        case "Fibrinogen":
+                            _fib += FibrinogenConcentrate_g / (Math.Max(500, _volume - _redCellVolume) / 1000 * FibrinogenNormal_g_L);
+                            break;
+                        case "Calcium": _calciumGiven_g += 1; break;
+                        default:
+                            if (iv.Compound != null && Drugs.ContainsKey(iv.Compound)) _drugs.Add(new KeyValuePair<string, double>(iv.Compound, _time));
+                            break;
+                    }
+                    UpdateVitals();
+                    break;
+                case InterventionType.Supportive:
+                    if (iv.Compound == "Warming") _warming = true;
+                    if (iv.Compound == "FluidWarmer") _fluidWarmer = true;
                     break;
                 case InterventionType.Oxygen:
                     _oxygen = true;
@@ -367,10 +462,11 @@ namespace NotfallSIM.Engines
                 foreach (var b in _bleeds.Values)
                 {
                     var inj = b.Injury;
+                    double coag = Current.Coagulation;
                     if (CanClot(inj.Lesion))
                     {
-                        if (map < RebleedMap_mmHg) { b.ClotTimer_s += dt_s; if (b.ClotTimer_s >= ClotFormation_s) b.Clotted = true; }
-                        else { b.ClotTimer_s = 0; b.Clotted = false; }
+                        if (map < RebleedMap_mmHg && coag >= CoagClotMin) { b.ClotTimer_s += dt_s; if (b.ClotTimer_s >= ClotFormation_s) b.Clotted = true; }
+                        else if (map >= RebleedMap_mmHg || coag < CoagClotLost) { b.ClotTimer_s = 0; b.Clotted = false; }
                     }
                     double back = BackPressure(b, spaceVolume[SpaceOf(inj.Compartment)]);
                     double back0 = BackPressure(b, 0);
@@ -378,7 +474,9 @@ namespace NotfallSIM.Engines
                     double p = (inj.Lesion == "venous" ? VenousPressure_mmHg * map / _baselineMap : map)
                                - HydrostaticMmHgPerM * SiteHeight_m(inj.Compartment);
                     double drive = Math.Max(0, p - back) / Math.Max(0.5, pref - back0);
-                    double rate = inj.BaseRate_mL_min * inj.Severity * b.Multiplier * Math.Sqrt(drive) * (b.Clotted ? ClotFlowFactor : 1);
+                    bool arterial = inj.Lesion == "partial" || inj.Lesion == "transection";
+                    double coagGain = 1 + (arterial ? CoagArterialGain : CoagDiffuseGain) * (1 - coag);
+                    double rate = inj.BaseRate_mL_min * inj.Severity * b.Multiplier * Math.Sqrt(drive) * (b.Clotted ? ClotFlowFactor : 1) * coagGain;
                     double loss = rate * minutes;
                     b.Lost_mL += loss;
                     if (_volume > 0) _redCellVolume -= loss * _redCellVolume / _volume;
@@ -407,10 +505,30 @@ namespace NotfallSIM.Engines
             {
                 double given = Math.Min(inf.Rate_mL_min * minutes, inf.Remaining_mL);
                 inf.Remaining_mL -= given;
+                if (given <= 0) continue;
                 double retention = Retention.TryGetValue(inf.Compound ?? "", out var r) ? r : 0.3;
+                // Gerinnung: Mischung im Plasma (Kristalloid und EK ohne Gerinnungsfaktoren, Plasma mit normalen Spiegeln)
+                double plasma = Math.Max(500, _volume - _redCellVolume);
+                double plasmaIn = inf.Compound == "Blood" ? given * (1 - EkHematocrit) : given * retention;
+                double conc = inf.Compound == "Plasma" ? 1 : 0;
+                _factors = (_factors * plasma + conc * plasmaIn) / (plasma + plasmaIn);
+                _fib = (_fib * plasma + conc * plasmaIn) / (plasma + plasmaIn);
+                // Wärme: Infusion mit ihrer Temperatur (ungewärmt: Raum bzw. Kühlschrank)
+                if (FluidThermal.TryGetValue(inf.Compound ?? "", out var th))
+                {
+                    double tIn = inf.Warmed ? FluidWarmerTemp_C : th[0];
+                    _temp += given / 1000 * th[2] * th[1] * (tIn - _temp) / (_weight_kg * BodyHeatCapacity_kJ_kgK);
+                }
                 _volume += given * retention;
                 if (inf.Compound == "Blood") { _redCellVolume += given * EkHematocrit; _transfused_mL += given; }
+                if (inf.Compound == "Plasma") _transfused_mL += given;   // Citrat auch im Plasma
             }
+            // Hyperfibrinolyse im Schock, solange keine Tranexamsäure gegeben wurde
+            double lossNow = Math.Max(0, 1 - _volume / _baselineVolume);
+            if (!_txa && !_arrest && lossNow > 0.15) _fib = Math.Max(0, _fib - LysisPerMinAt40 * (lossNow / 0.4) * minutes);
+            // Temperatur: entkleidet kühlt aus (in Narkose schneller), Wärmeerhalt wärmt bis 37 °C
+            if (_warming) _temp = Math.Min(37, _temp + ActiveWarming_C_per_h * dt_s / 3600);
+            else _temp -= ExposureCooling_C_per_h * (_intubated ? AnesthesiaCoolingFactor : 1) * dt_s / 3600;
             _infusions.RemoveAll(i => i.Remaining_mL <= 0);
 
             _redCellVolume = Math.Max(0, Math.Min(_redCellVolume, _volume));
@@ -436,7 +554,8 @@ namespace NotfallSIM.Engines
                 Current = new VitalSigns
                 {
                     Hb = hb, pH = 6.90, PaCO2 = 70, PaO2 = 30, HCO3 = 4, Potassium = 6.5,
-                    IonizedCalcium = BloodGas.IonizedCalcium(_transfused_mL), Glucose = BloodGas.Glucose(f),
+                    IonizedCalcium = IonizedCa, Glucose = BloodGas.Glucose(f),
+                    Temperature_C = _temp, FactorActivity = _factors, Fibrinogen_g_L = _fib * FibrinogenNormal_g_L, Coagulation = 0,
                     SimTime_s = _time, BloodVolume_mL = _volume, BloodLossFraction = f,
                     EtCO2_mmHg = 5, CardiacArrest = true, GCS = 3, BaseExcess = -20, Lactate = 12, Anisocoria = tbi >= TbiAnisocoriaLevel,
                     Intubated = _intubated
@@ -457,8 +576,15 @@ namespace NotfallSIM.Engines
             double sbpDrop = tp > TpHypotensionOnset ? (tp - TpHypotensionOnset) / (1 - TpHypotensionOnset) * TpMaxSbpDrop : 0;
             double hr0 = ShockTables.Hr(Mode, 0);
             double hr = hr0 + _hrBaseOffset + (ShockTables.Hr(Mode, fh) - hr0) * _hrResponse;
-            double sbp = ShockTables.Sbp(Mode, fh) + _sbpOffset - sbpDrop + 50 * cushing + (_vasopressor ? VasopressorSbpRise : 0);
-            double dbp = ShockTables.Dbp(Mode, fh) + _sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + (_vasopressor ? VasopressorDbpRise : 0);
+            DrugEffects(f, out double drugSbp, out double drugHr, out double drugResp);
+            double hypoCa = Math.Max(0, Math.Min(1, (1.0 - IonizedCa) / 0.4));       // ionisiertes Ca < 1,0: schwächere Kontraktion (Annahme)
+            double sbp = (ShockTables.Sbp(Mode, fh) + _sbpOffset - sbpDrop + 50 * cushing + (_vasopressor ? VasopressorSbpRise : 0)) * drugSbp - 15 * hypoCa;
+            double dbp = (ShockTables.Dbp(Mode, fh) + _sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + (_vasopressor ? VasopressorDbpRise : 0)) * drugSbp - 8 * hypoCa;
+            hr += drugHr;
+            // Atemdepression durch Opioid/Hypnotikum wirkt wie ein ungeschützter Atemweg (nur spontan atmend)
+            double respDep = _intubated ? 0 : drugResp;
+            double rrFactor = 1 - 0.5 * respDep;
+            airway = Math.Max(airway, respDep);
             double spo2 = Interp(f, ShockTables.SpO2Air) - TpMaxSpO2Drop * tp - AirwayMaxSpO2Drop * airway
                           + (_oxygen ? 3 : 0) + (_intubated ? 3 : 0);
             spo2 = Math.Max(50, Math.Min(100, spo2));
@@ -473,7 +599,7 @@ namespace NotfallSIM.Engines
                 SystolicBP_mmHg = sbp,
                 DiastolicBP_mmHg = dbp,
                 MeanArterialPressure_mmHg = dbp + (sbp - dbp) / 3.0,
-                RespirationRate_bpm = _intubated ? 14 : ShockTables.Rr(Mode, f) + TpMaxRrAdd * tp - 6 * airway - 6 * cushing,
+                RespirationRate_bpm = _intubated ? 14 : (ShockTables.Rr(Mode, f) + TpMaxRrAdd * tp - 6 * airway - 6 * cushing) * rrFactor,
                 SpO2_percent = spo2,
                 EtCO2_mmHg = Interp(f, ShockTables.EtCo2) - TpMaxEtCo2Drop * tp + AirwayMaxEtCo2Rise * airway,
                 BaseExcess = be,
@@ -484,8 +610,12 @@ namespace NotfallSIM.Engines
                 pH = ph,
                 PaO2 = BloodGas.PaO2(spo2, _oxygen, _intubated),
                 Potassium = BloodGas.Potassium(ph),
-                IonizedCalcium = BloodGas.IonizedCalcium(_transfused_mL),
+                IonizedCalcium = IonizedCa,
                 Glucose = BloodGas.Glucose(f),
+                Temperature_C = _temp,
+                FactorActivity = _factors,
+                Fibrinogen_g_L = _fib * FibrinogenNormal_g_L,
+                Coagulation = Coagulation(_factors, _fib, _temp, ph, IonizedCa),
                 GCS = Math.Round(gcs),
                 Anisocoria = tbi >= TbiAnisocoriaLevel,
                 Intubated = _intubated,

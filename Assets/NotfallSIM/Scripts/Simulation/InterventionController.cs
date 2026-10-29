@@ -45,6 +45,20 @@ namespace NotfallSIM.Simulation
             }
             _used.Add(def.id);
             sim.ApplyIntervention(ev, string.IsNullOrEmpty(def.logLabel) ? def.label : def.logLabel, def.effectDelay_s);
+            WarnContraindicated(def);
+        }
+
+        /// <summary>Warnung im Protokoll (Tag "warning:contraindicated:&lt;id&gt;"), wenn eine aktive Verletzung die Maßnahme verbietet.</summary>
+        void WarnContraindicated(InterventionDefinition def)
+        {
+            if (def.contraindicatedBy == null || def.contraindicatedBy.Length == 0 || sim.Scenario == null) return;
+            double t = sim.Vitals.SimTime_s;
+            foreach (var si in sim.Scenario.injuries)
+                if (si.onsetTime_s <= t && System.Array.IndexOf(def.contraindicatedBy, si.injuryId) >= 0)
+                {
+                    sim.Note($"Warnung: {def.label} kontraindiziert — {def.contraindicationNote}", "warning:contraindicated:" + def.id);
+                    return;
+                }
         }
     }
 }

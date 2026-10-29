@@ -39,6 +39,10 @@ namespace NotfallSIM.Core
         public double Potassium;       // mmol/L
         public double IonizedCalcium;  // mmol/L
         public double Glucose;         // mg/dL
+        public double Temperature_C;   // Körperkerntemperatur
+        public double FactorActivity;  // Gerinnungsfaktoren relativ (1 = normal; Quick ≈ 100 · Wert)
+        public double Fibrinogen_g_L;
+        public double Coagulation;     // wirksame Gerinnung 0..1 (Faktoren, Fibrinogen, Temperatur, pH, Calcium)
 
         public override string ToString() =>
             $"t={SimTime_s:F0}s HF={HeartRate_bpm:F0} RR={SystolicBP_mmHg:F0}/{DiastolicBP_mmHg:F0} " +
