@@ -10,7 +10,8 @@ namespace NotfallSIM.UI
     /// „Ansicht &amp; Ton“ im Schockraum: Lautstärken (gesamt, Monitor-Ton, Alarme) und Stumm, jedes Interface
     /// (Monitor, Maßnahmen, Verdachtsdiagnosen, Befunde, Protokoll, Röntgenblick, Hinweis) ein- und ausblenden und
     /// in der Größe ändern, dazu eine Gesamtgröße. Jedes Panel bekommt ein „×“ zum Ausblenden. Einstellungen bleiben
-    /// gespeichert (PlayerPrefs). Tasten: V Einstellungen, H alle Interfaces aus/ein, M stumm.
+    /// gespeichert (PlayerPrefs). Tasten: 1–7 einzelnes Interface ein/aus (in der Reihenfolge der Liste),
+    /// V Einstellungen, H alle Interfaces aus/ein, M stumm.
     /// </summary>
     public class ViewSettings : MonoBehaviour
     {
@@ -23,7 +24,7 @@ namespace NotfallSIM.UI
         const string K = "NotfallSIM.View.";
         static readonly float[] Scales = { 0.6f, 0.7f, 0.8f, 0.9f, 1f, 1.1f, 1.25f, 1.4f, 1.6f };
 
-        class Entry { public string Label, Name; public RectTransform Panel; public TMP_Text Toggle, Size; public Image ToggleBg; }
+        class Entry { public int Key; public string Label, Name; public RectTransform Panel; public TMP_Text Toggle, Size; public Image ToggleBg; }
         readonly List<Entry> _entries = new List<Entry>();
         GameObject _overlay;
         TMP_Text _master, _monitor, _alarm, _mute, _global, _hideAll;
@@ -69,11 +70,12 @@ namespace NotfallSIM.UI
             ob.anchoredPosition = new Vector2(24, -70);
             ob.sizeDelta = new Vector2(150, 40);
 
-            foreach (var pe in Panels)
+            for (int i = 0; i < Panels.Length; i++)
             {
+                var pe = Panels[i];
                 var p = FindPanel(pe.name);
                 if (p == null) continue;
-                _entries.Add(new Entry { Label = pe.label, Name = pe.name, Panel = p });
+                _entries.Add(new Entry { Key = i + 1, Label = pe.label, Name = pe.name, Panel = p });
                 AddCloseButton(p, pe.name);
             }
 
@@ -117,7 +119,7 @@ namespace NotfallSIM.UI
             FlexW(hide);
             FlexW(RuntimeUi.Button(actions, "Zurücksetzen", new Color(0.25f, 0.27f, 0.30f), ResetAll, 40, 15));
             FlexW(RuntimeUi.Button(actions, "Schließen", new Color(0.12f, 0.45f, 0.38f), Toggle, 40, 15));
-            RuntimeUi.Label(box, "<size=85%>Tasten: V Einstellungen · H alle Interfaces aus/ein · M stumm</size>", 15, new Color(0.6f, 0.68f, 0.7f), 22);
+            RuntimeUi.Label(box, "<size=85%>Tasten: 1–7 Interface ein/aus · V Einstellungen · H alle aus/ein · M stumm</size>", 15, new Color(0.6f, 0.68f, 0.7f), 22);
 
             // gespeicherte Einstellungen anwenden
             foreach (var e in _entries)
@@ -133,16 +135,28 @@ namespace NotfallSIM.UI
         void Update()
         {
             bool v, h, m;
+            int digit = 0;
 #if ENABLE_INPUT_SYSTEM
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb == null) return;
             v = kb.vKey.wasPressedThisFrame; h = kb.hKey.wasPressedThisFrame; m = kb.mKey.wasPressedThisFrame;
+            var digits = new[] { kb.digit1Key, kb.digit2Key, kb.digit3Key, kb.digit4Key, kb.digit5Key, kb.digit6Key, kb.digit7Key };
+            var pad = new[] { kb.numpad1Key, kb.numpad2Key, kb.numpad3Key, kb.numpad4Key, kb.numpad5Key, kb.numpad6Key, kb.numpad7Key };
+            for (int i = 0; i < digits.Length; i++) if (digits[i].wasPressedThisFrame || pad[i].wasPressedThisFrame) digit = i + 1;
 #else
             v = Input.GetKeyDown(KeyCode.V); h = Input.GetKeyDown(KeyCode.H); m = Input.GetKeyDown(KeyCode.M);
+            for (int i = 0; i < 7; i++)
+                if (Input.GetKeyDown(KeyCode.Alpha1 + i) || Input.GetKeyDown(KeyCode.Keypad1 + i)) digit = i + 1;
 #endif
             if (v) Toggle();
             if (h) ToggleHideAll();
             if (m) ToggleMute();
+            if (digit > 0)
+            {
+                // Ziffer 1–7: Interface ein-/ausblenden (auch nach „ד oder H wieder aufrufen)
+                var e = _entries.FirstOrDefault(x => x.Key == digit);
+                if (e != null) { if (_allHidden) { _allHidden = false; _hiddenByH.Clear(); } SetVisible(e, !e.Panel.gameObject.activeSelf); }
+            }
         }
 
         // ------------------------------------------------------------------ Aktionen
@@ -239,7 +253,7 @@ namespace NotfallSIM.UI
             foreach (var e in _entries)
             {
                 bool on = e.Panel.gameObject.activeSelf;
-                e.Toggle.text = e.Label + (on ? "  <color=#7CE08F><size=80%>sichtbar</size></color>" : "  <color=#8A8F96><size=80%>aus</size></color>");
+                e.Toggle.text = $"<color=#8A9A96>[{e.Key}]</color> " + e.Label + (on ? "  <color=#7CE08F><size=80%>sichtbar</size></color>" : "  <color=#8A8F96><size=80%>aus</size></color>");
                 e.ToggleBg.color = on ? new Color(0.16f, 0.3f, 0.24f) : new Color(0.2f, 0.22f, 0.26f);
                 e.Size.text = Pct(e.Panel.localScale.x);
             }

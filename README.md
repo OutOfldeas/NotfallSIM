@@ -89,8 +89,12 @@ tools/anatomy/                   Aufbereitung der Anatomie (Python), erzeugt bod
    *Menü (Esc)* pausiert und führt zurück ins Hauptmenü oder startet denselben Fall neu.
    *Ansicht & Ton (V)* darunter: Lautstärke gesamt, Monitor-Ton und Alarme, Stumm (M); jedes Interface
    (Monitor, Maßnahmen, Verdachtsdiagnosen, Befunde, Protokoll, Röntgenblick, Hinweis) ein-/ausblenden und in der
-   Größe ändern, dazu eine Gesamtgröße. Das „ד oben rechts an jedem Panel blendet es aus, H blendet alle aus und
-   wieder ein. Die Einstellungen bleiben gespeichert.
+   Größe ändern, dazu eine Gesamtgröße. Das „ד oben rechts an jedem Panel blendet es aus; die Ziffern 1–7 blenden
+   einzelne Interfaces wieder ein bzw. aus (1 Monitor, 2 Maßnahmen, 3 Verdachtsdiagnosen, 4 Befunde, 5 Protokoll,
+   6 Röntgenblick, 7 Hinweis), H alle aus und wieder ein. Die Einstellungen bleiben gespeichert.
+   *Protokoll* (unten) mit Reitern: Verlauf (alle Einträge vollständig), Untersuchung (Befunde jeder untersuchten
+   Region), Bildgebung (alle Radiologiebefunde im Wortlaut) und Labor (BGA, Gerinnung); scrollbar, „Groß“ zum Lesen,
+   neue Einträge in anderen Reitern werden gezählt.
    „Szenario beenden“ zeigt das Debriefing und speichert die Verläufe als CSV
    (Ordner: `Application.persistentDataPath/Sessions`, wird im Debriefing angezeigt).
 6. **Szenario wechseln:** im Inspector des Objekts `Simulation` das Feld *Scenario Id* setzen
