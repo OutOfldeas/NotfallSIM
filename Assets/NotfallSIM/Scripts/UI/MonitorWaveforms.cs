@@ -30,6 +30,7 @@ namespace NotfallSIM.UI
         [SerializeField] RawImage[] mirror = new RawImage[0]; // z. B. der Monitor im Raum
 
         public bool Sound { get => sound; set => sound = value; }
+        public RawImage[] MirrorImages => mirror;
 
         /// <summary>Kurven in neue Bildflächen zeichnen (der Monitor baut sein Layout zur Laufzeit neu auf).</summary>
         public void Retarget(RawImage ecg, RawImage pleth, RawImage capno)

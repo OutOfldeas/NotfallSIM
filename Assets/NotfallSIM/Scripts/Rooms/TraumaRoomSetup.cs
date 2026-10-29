@@ -43,6 +43,7 @@ namespace NotfallSIM.Rooms
             WorldMonitor(sim);
             AddMissingActionButtons(sim);
             PatientMonitor.Install(sim);   // Monitor mit NIBP-Zyklus, Alarmen und allen Werten (auch in alten Szenen)
+            ProtocolPanel.Install(sim);    // Protokoll mit Reitern: Verlauf, Untersuchung, Bildgebung, Labor
             ViewSettings.Ensure();         // Lautstärke, Stumm, Interfaces ein-/ausblenden und skalieren
         }
 
@@ -95,7 +96,7 @@ namespace NotfallSIM.Rooms
 
         public const string HintText = "<b>Schockraum</b>\nLinksklick: Region untersuchen\nRechte Maus ziehen: umsehen\n"
                                        + "Mausrad / +−: zoomen\nWASD / Pfeile: gehen, Q/E: tiefer/höher\nUmschalt: schneller · F: zurück zum Patienten\n"
-                                       + "V: Ansicht & Ton · H: Interfaces aus · M: stumm";
+                                       + "1–7: Interfaces ein/aus · V: Ansicht & Ton\nH: alle aus/ein · M: stumm";
 
         /// <summary>Steuerungshinweis oben links aktualisieren (auch in älteren Szenen).</summary>
         static void UpdateHint()
@@ -106,7 +107,7 @@ namespace NotfallSIM.Rooms
             t.text = HintText;
             t.fontSize = 16;
             var r = t.rectTransform;
-            r.sizeDelta = new Vector2(Mathf.Max(r.sizeDelta.x, 300), 154);
+            r.sizeDelta = new Vector2(Mathf.Max(r.sizeDelta.x, 300), 176);
         }
 
         /// <summary>Platzhalter aus alten Szenen entfernen: Boden-Ebene, Trage-Quader, Patient aus Grundkörpern.</summary>

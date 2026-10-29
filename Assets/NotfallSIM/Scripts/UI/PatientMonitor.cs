@@ -54,7 +54,8 @@ namespace NotfallSIM.UI
                 panel.gameObject.AddComponent<VerticalLayoutGroup>();
                 panel.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             }
-            var pm = panel.gameObject.AddComponent<PatientMonitor>();
+            // Logik auf eigenem Objekt: läuft weiter (NIBP, Alarme, Kurven, Ton), auch wenn das Panel ausgeblendet ist
+            var pm = new GameObject("Patientenmonitor (Logik)").AddComponent<PatientMonitor>();
             pm._sim = sim;
             pm.Build(panel);
             pm.BuildWorld();
@@ -88,8 +89,15 @@ namespace NotfallSIM.UI
             Fixed(silence, 130);
             _silenceLabel = silence.GetComponentInChildren<TMP_Text>();
 
-            var waves = panel.GetComponent<MonitorWaveforms>();
-            if (waves == null) { waves = panel.gameObject.AddComponent<MonitorWaveforms>(); waves.Configure(_sim, null, null, null); }
+            var oldWaves = Object.FindAnyObjectByType<MonitorWaveforms>();   // aus der Szene (Panel) oder am Monitor im Raum
+            var waves = gameObject.AddComponent<MonitorWaveforms>();
+            waves.Configure(_sim, null, null, null);
+            if (oldWaves != null)
+            {
+                var m = oldWaves.MirrorImages;   // Kurven am Monitor im Raum übernehmen
+                if (m != null && m.Length == 3) waves.SetMirror(m[0], m[1], m[2]);
+                Destroy(oldWaves);
+            }
 
             var ecg = WaveRow(panel, "II", HrC, out var hrCol);
             ValueBlock(hrCol, "HF", "/min", HrC, out _hr, out _hrLim, 44);
