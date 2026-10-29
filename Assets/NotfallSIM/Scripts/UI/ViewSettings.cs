@@ -41,7 +41,7 @@ namespace NotfallSIM.UI
         /// <summary>Panel eines Interfaces finden (Kind eines Bildschirm-Canvas, auch wenn ausgeblendet).</summary>
         public static RectTransform FindPanel(string name)
         {
-            foreach (var c in Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            foreach (var c in Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include))
             {
                 if (!c.isRootCanvas || c.renderMode == RenderMode.WorldSpace) continue;
                 var t = c.transform.Find(name);

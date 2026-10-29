@@ -27,6 +27,13 @@ namespace NotfallSIM.UI
         public void EndAndShow()
         {
             if (sim.Ended) { Show(); return; }
+            if (sim.Database == null)
+            {
+                // nach Neukompilieren im Play-Modus sind die Laufzeitdaten weg (Unity: Preferences › General › Script Changes While Playing)
+                text.text = "Die Simulation wurde durch Neukompilieren im Play-Modus unterbrochen. Bitte Play beenden und neu starten.";
+                Show();
+                return;
+            }
             sim.EndScenario();
             string dir = recorder.ExportCsv();
             var diagnoses = sim.Scenario == null ? null

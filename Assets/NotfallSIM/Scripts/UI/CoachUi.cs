@@ -177,7 +177,7 @@ namespace NotfallSIM.UI
         void Highlight(string key)
         {
             if (string.IsNullOrEmpty(key)) return;
-            foreach (var b in Object.FindObjectsByType<ActionButton>(FindObjectsSortMode.None))
+            foreach (var b in Object.FindObjectsByType<ActionButton>())
                 if (b.Id == key) b.Highlight(4f);
         }
     }

@@ -183,7 +183,7 @@ namespace NotfallSIM.Crash
         {
             var t = _host != null ? _host.GetComponentInChildren<Canvas>() : null;
             if (t != null) return t;
-            var all = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            var all = FindObjectsByType<Canvas>();
             return all.FirstOrDefault(c => c.isRootCanvas);
         }
 

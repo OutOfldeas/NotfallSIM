@@ -89,7 +89,7 @@ namespace NotfallSIM.Crash
         /// <summary>Mechanismus-Knopf „Stumpfe/spitze Gewalt“ unter „Sturz aus der Höhe“ (auch in älteren Szenen, daher zur Laufzeit).</summary>
         void MakeGewaltButton()
         {
-            var texts = FindObjectsByType<TMP_Text>(FindObjectsSortMode.None);
+            var texts = FindObjectsByType<TMP_Text>();
             if (texts.Any(t => t.text == "Stumpfe/spitze Gewalt")) return;
             var fall = texts.FirstOrDefault(t => t.text == "Sturz aus der Höhe");
             var src = fall != null ? fall.GetComponentInParent<UnityEngine.UI.Button>() : null;
