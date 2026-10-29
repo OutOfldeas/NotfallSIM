@@ -46,7 +46,7 @@ namespace NotfallSIM.Crash
     /// - Vorlauf: Fahrzeuge fahren 3 s; Insasse und Fußgänger werden dabei kinematisch gehalten (keine Haltungsänderung).
     /// - Motorrad: Maschine stoppt am Hindernis, Fahrer fliegt weiter. Helm dämpft die Kopfbeschleunigung pauschal.
     /// </summary>
-    public class CrashRig : MonoBehaviour
+    public partial class CrashRig : MonoBehaviour
     {
         [Tooltip("Physikschritt während des Aufpralls (s). Crashtests messen mit ≥ 10 kHz; 0,5 ms ist ein Kompromiss.")]
         [SerializeField] float crashStep_s = 0.0001f; // 10 kHz: nötig für den Kopffilter CFC 1000 (SAE J211)
@@ -390,7 +390,8 @@ namespace NotfallSIM.Crash
         public IEnumerator Run(CrashParams p, float slowMotion, Action<List<CrashMeasurement>> done, Action<float> progress = null, bool playback = true)
         {
             Running = true;
-            float duration = Build(p, out Action<float, float> drive, out var approach);
+            Action<float, float> drive; CrashApproach approach;   // vorab deklariert (mcs-Fehler bei out var in Iteratoren)
+            float duration = Build(p, out drive, out approach);
             float dt = crashStep_s;
             int steps = Mathf.CeilToInt(duration / dt);
 
@@ -450,8 +451,9 @@ namespace NotfallSIM.Crash
             ShoulderBeltImpulse_Ns = LapBeltImpulse_Ns = 0;
             var gauges = gameObject.AddComponent<CrashGauges>();
             gauges.Begin(Ragdoll);
-            BeltJoints.TryGetValue("Sternum", out var beltShoulder);
-            BeltJoints.TryGetValue("Becken", out var beltLap);
+            ConfigurableJoint beltShoulder, beltLap;
+            BeltJoints.TryGetValue("Sternum", out beltShoulder);
+            BeltJoints.TryGetValue("Becken", out beltLap);
 
             // ---- Phase 2: Aufprall mit 0,1 ms und Messung (Zeit t ab Ende des Vorlaufs, wie früher ab Start)
             int step = 0, everyFrame = Mathf.Max(1, Mathf.RoundToInt(recordInterval_s / dt));

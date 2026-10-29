@@ -98,7 +98,7 @@
       "label": "Tourniquet",
       "logLabel": "Tourniquet angelegt",
       "type": "HemorrhageControl",
-      "target": "Extremity",
+      "target": "Extremity,RightThighArtery,LeftThighArtery",
       "compound": "",
       "volume_mL": 0,
       "rate_mL_min": 0,
@@ -117,7 +117,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Stoppt eine arterielle Extremitätenblutung vollständig (Blutungsort Extremity, z. B. offene Unterschenkelfraktur)."
+      "reviewNotes": "Stoppt eine arterielle Extremitätenblutung vollständig (Blutungsort Extremity, z. B. offene Unterschenkelfraktur). Gilt für arterielle Blutungen an Unterschenkel und Oberschenkel (Ziele Extremity, RightThighArtery, LeftThighArtery)."
     },
     {
       "id": "druckverband_arm_li",
@@ -146,11 +146,37 @@
       "reviewNotes": "Stoppt die Blutung der Schnittverletzung am linken Unterarm (Blutungsort LeftArm) vollständig. Versagen des Druckverbands nicht modelliert."
     },
     {
-      "id": "femur_schiene",
-      "label": "Femur: Extension/Schiene",
-      "logLabel": "Femurfraktur geschient (Extension)",
+      "id": "druckverband_arm_re",
+      "label": "Druckverband Arm re.",
+      "logLabel": "Druckverband rechter Unterarm angelegt",
       "type": "HemorrhageControl",
-      "target": "RightThigh",
+      "target": "RightArm",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 0,
+      "successProbability": 1,
+      "once": true,
+      "effectDelay_s": 0,
+      "contraindicatedBy": [],
+      "contraindicationNote": "",
+      "dose": null,
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Externe Blutung zuerst mit direktem Druck bzw. Druckverband kontrollieren"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Stoppt die Blutung der Schnittverletzung am linken Unterarm (Blutungsort LeftArm) vollständig. Versagen des Druckverbands nicht modelliert."
+    },
+    {
+      "id": "femur_schiene",
+      "label": "Bein schienen",
+      "logLabel": "Bein geschient (Femur: Extension, Unterschenkel: Schiene)",
+      "type": "HemorrhageControl",
+      "target": "RightThigh,LeftThigh,RightLeg,LeftLeg",
       "compound": "",
       "volume_mL": 0,
       "rate_mL_min": 0,
@@ -163,7 +189,7 @@
       "dose": null,
       "sources": [],
       "evidenceStatus": "draft",
-      "reviewNotes": "Reposition und Schienung reduzieren den Blutverlust in den Oberschenkel; Faktor 0,7 didaktisch, Evidenz noch zu prüfen."
+      "reviewNotes": "Reposition und Schienung reduzieren den Blutverlust in den Oberschenkel; Faktor 0,7 didaktisch, Evidenz noch zu prüfen. Wirkt auf Femur- und Unterschenkelfrakturen beider Seiten."
     },
     {
       "id": "vel_500",
@@ -609,11 +635,57 @@
       "reviewNotes": "Bei Erfolg sinkt die Spannung auf 15 % und steigt danach mit 20 % der Rate weiter (Re-Spannung möglich)."
     },
     {
+      "id": "nadel_re",
+      "label": "Nadeldekompression re.",
+      "logLabel": "Nadeldekompression rechts",
+      "type": "NeedleDecompression",
+      "target": "RightLung",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 0.57,
+      "once": false,
+      "effectDelay_s": 0,
+      "contraindicatedBy": [],
+      "contraindicationNote": "",
+      "dose": null,
+      "sources": [
+        {
+          "citation": "Ahmad SJS, et al. Meta-analysis of the optimal needle length and decompression site for tension pneumothorax and consensus recommendations on current ATLS and ETC guidelines. World J Emerg Surg. 2025;20:39.",
+          "url": "https://doi.org/10.1186/s13017-025-00613-7",
+          "note": "Kombinierte Versagerrate ca. 43 % (sehr heterogene, überwiegend retrospektive Daten)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Bei Erfolg sinkt die Spannung auf 15 % und steigt danach mit 20 % der Rate weiter (Re-Spannung möglich)."
+    },
+    {
       "id": "drainage_li",
       "label": "Thoraxdrainage li.",
       "logLabel": "Thoraxdrainage links",
       "type": "ChestDrain",
       "target": "LeftLung",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": true,
+      "effectDelay_s": 0,
+      "contraindicatedBy": [],
+      "contraindicationNote": "",
+      "dose": null,
+      "sources": [],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Im Mock sofortige und vollständige Entlastung; Anlagezeit wird noch nicht simuliert."
+    },
+    {
+      "id": "drainage_re",
+      "label": "Thoraxdrainage re.",
+      "logLabel": "Thoraxdrainage rechts",
+      "type": "ChestDrain",
+      "target": "RightLung",
       "compound": "",
       "volume_mL": 0,
       "rate_mL_min": 0,

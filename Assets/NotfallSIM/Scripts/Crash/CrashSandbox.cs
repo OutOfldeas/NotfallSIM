@@ -39,7 +39,12 @@ namespace NotfallSIM.Crash
                 { "motorrad",    ("Motorrad gegen PKW", 50, 10, 120, 10, "km/h") },
                 { "fussgaenger", ("Fußgänger", 40, 10, 90, 10, "km/h") },
                 { "sturz_hoehe", ("Sturz aus der Höhe", 6, 1, 30, 1, "m") },
+                { "gewalt",      ("Stumpfe/spitze Gewalt", 0, 0, 0, 0, "m/s") },
             };
+
+        ImpactSandbox _impact;
+        bool Gewalt => _p.MechanismId == "gewalt";
+        public float SlowMotion => _slowMo;
 
         public void Configure(CrashRig crashRig, TMP_Text settings, TMP_Text results, GameObject toTraumaRoom, Camera camera)
         {
@@ -48,6 +53,10 @@ namespace NotfallSIM.Crash
 
         void Start()
         {
+            _impact = GetComponent<ImpactSandbox>();
+            if (_impact == null) _impact = gameObject.AddComponent<ImpactSandbox>();
+            _impact.Init(rig, this, cam);
+            MakeGewaltButton();
             SelectMechanism("pkw_frontal");
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
             resultText.text = "Mechanismus wählen und „Crash starten“ drücken.";
@@ -77,15 +86,61 @@ namespace NotfallSIM.Crash
             return go;
         }
 
+        /// <summary>Mechanismus-Knopf „Stumpfe/spitze Gewalt“ unter „Sturz aus der Höhe“ (auch in älteren Szenen, daher zur Laufzeit).</summary>
+        void MakeGewaltButton()
+        {
+            var texts = FindObjectsByType<TMP_Text>(FindObjectsSortMode.None);
+            if (texts.Any(t => t.text == "Stumpfe/spitze Gewalt")) return;
+            var fall = texts.FirstOrDefault(t => t.text == "Sturz aus der Höhe");
+            var src = fall != null ? fall.GetComponentInParent<UnityEngine.UI.Button>() : null;
+            if (src == null) return;
+            var go = Instantiate(src.gameObject, src.transform.parent);
+            go.name = "Stumpfe/spitze Gewalt";
+            go.transform.SetSiblingIndex(src.transform.GetSiblingIndex() + 1);
+            var b = go.GetComponent<UnityEngine.UI.Button>();
+            for (int i = 0; i < b.onClick.GetPersistentEventCount(); i++)
+                b.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
+            b.onClick.AddListener(() => SelectMechanism("gewalt"));
+            go.GetComponentInChildren<TMP_Text>().text = "Stumpfe/spitze Gewalt";
+        }
+
+        /// <summary>Ergebnis der Gewalt-Sandbox übernehmen (Szenario und Zeichen für den Schockraum, Anzeige).</summary>
+        public void SetGewaltResult(CrashResult result, List<Anatomy.CrashMark> marks, string text)
+        {
+            if (result != null) { _result = result; _crashMarks = marks ?? new List<Anatomy.CrashMark>(); }
+            resultText.text = text;
+            if (toTraumaRoomButton) toTraumaRoomButton.SetActive(_result != null && Gewalt);
+            if (_replayButton) _replayButton.SetActive(rig.HasRecording && result != null);
+            ShowSettings();
+        }
+
+        /// <summary>Zeichen aus den Kontakten des letzten berechneten Aufpralls (für die Gewalt-Sandbox).</summary>
+        public List<Anatomy.CrashMark> GenerateContactMarks() => GenerateMarks();
+
         // ---------------------------------------------------------------- UI-Aktionen (im SceneBuilder verdrahtet)
 
         public void SelectMechanism(string id)
         {
             if (Busy) return;
+            bool wasGewalt = Gewalt;
             _p.MechanismId = id;
             _p.Speed_kmh = Mechanisms[id].speed;
             ApplyCameraPreset();
             RelabelSpeedButtons();
+            _result = null;
+            if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
+            if (_replayButton) _replayButton.SetActive(false);
+            if (id == "gewalt")
+            {
+                if (_impact.Activate(_p)) { ShowSettings(); return; }
+                resultText.text = "Gewalt-Sandbox: impact_model.json oder objects.json fehlt.";
+                _p.MechanismId = "pkw_frontal";
+            }
+            else if (wasGewalt)
+            {
+                _impact.Deactivate();
+                resultText.text = "Mechanismus wählen und „Crash starten“ drücken.";
+            }
             Preview();
         }
 
@@ -96,6 +151,7 @@ namespace NotfallSIM.Crash
         public void ChangeSpeed(float direction)
         {
             if (Busy) return;
+            if (Gewalt) { _impact.ChangeSpeed(direction); ShowSettings(); return; }
             var m = Mechanisms[_p.MechanismId];
             if (_p.MechanismId == "sturz_hoehe")
             {
@@ -111,6 +167,7 @@ namespace NotfallSIM.Crash
         void RelabelSpeedButtons()
         {
             bool fall = _p.MechanismId == "sturz_hoehe";
+            if (Gewalt) { SetButtonText(_minusText, "", "– langsamer"); SetButtonText(_plusText, "", "+ schneller"); return; }
             SetButtonText(_minusText, "– langsamer", fall ? "– niedriger" : "– langsamer");
             SetButtonText(_plusText, "+ schneller", fall ? "+ höher" : "+ schneller");
         }
@@ -209,6 +266,7 @@ namespace NotfallSIM.Crash
         public void StartCrash()
         {
             if (Busy) return;
+            if (Gewalt) { resultText.text = "In der Gewalt-Sandbox startet jede Einwirkung selbst: Körper schleudern oder Gegenstand wählen und klicken."; return; }
             _p.Seed = UnityEngine.Random.Range(1, 100000);
             _result = null;
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
@@ -247,6 +305,7 @@ namespace NotfallSIM.Crash
 
         string SettingsText()
         {
+            if (Gewalt && _impact != null) return _impact.SettingsText() + $"\nZeitlupe: {(_slowMo >= 1 ? "aus" : $"×{_slowMo:0.##}")}";
             var m = Mechanisms[_p.MechanismId];
             bool car = _p.MechanismId.StartsWith("pkw");
             bool fall = _p.MechanismId == "sturz_hoehe";
@@ -391,14 +450,15 @@ namespace NotfallSIM.Crash
         {
             var o = Orbit();
             if (o == null) return;
-            Vector3 offset = _p.MechanismId == "pkw_seite" ? new Vector3(0.4f, 1.4f, 3.2f) : new Vector3(3.4f, 1.1f, 0.6f);
+            Vector3 offset = _p.MechanismId == "pkw_seite" ? new Vector3(0.4f, 1.4f, 3.2f)
+                           : Gewalt ? new Vector3(2.0f, 1.8f, 0.3f) : new Vector3(3.4f, 1.1f, 0.6f);
             o.ConfigureFromOffset(new Vector3(0, 0.2f, 0), offset);
         }
 
         void Update()
         {
             var o = Orbit();
-            if (o != null && rig != null) o.Follow(rig.CameraTarget); // nach jedem Neuaufbau des Ragdolls neu anhängen
+            if (o != null && rig != null) o.Follow(Gewalt ? null : rig.CameraTarget); // nach jedem Neuaufbau neu anhängen; Gewalt: feste Ansicht zum Zielen
             PlaybackKeys();
         }
 
@@ -423,7 +483,7 @@ namespace NotfallSIM.Crash
             if (back) { rig.PlaybackPaused = true; rig.Seek(-stepS); }
             if (fwd) { rig.PlaybackPaused = true; rig.Seek(stepS); }
             float rel = rig.PlaybackTime - rig.CrashStart;
-            string phase = rel < 0 ? (_p.MechanismId == "sturz_hoehe" ? "freier Fall" : "Anfahrt") : "Aufprall";
+            string phase = rel < 0 ? (_p.MechanismId == "sturz_hoehe" ? "freier Fall" : Gewalt ? "Flug" : "Anfahrt") : "Aufprall";
             settingsText.text = SettingsText() + $"\n<b>Wiedergabe {phase}: t = {rel * 1000:+0;-0;0} ms</b>" +
                                 (rig.PlaybackPaused ? " (Pause)" : "") +
                                 "\n<size=80%>Leertaste Pause · , / . spulen (Umschalt: schneller) · R wiederholen</size>";

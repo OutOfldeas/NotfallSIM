@@ -188,6 +188,16 @@ namespace NotfallSIM.Crash
         /// </summary>
         public static CrashResult BuildScenario(InjuryRiskDatabaseFile risk, MechanismDatabaseFile mechDb, IEnumerable<InjuryDefinition> injuryDefs,
                                                 IList<CrashMeasurement> measurements, CrashSetup setup, uint seed)
+            => BuildScenario(risk, mechDb, injuryDefs, measurements, setup, seed, null, null, null);
+
+        /// <summary>
+        /// Wie oben, dazu direkte Verletzungen aus dem Aufprallmodell (stumpfe/spitze Gewalt, <see cref="ImpactModel.Evaluate"/>):
+        /// Sie werden nach den Messwert-Verletzungen mit ihrer Wahrscheinlichkeit gewürfelt (Schweregrad aus dem Modell, sofort vorhanden).
+        /// <paramref name="title"/> und <paramref name="description"/> ersetzen die Texte aus mechanisms.json (null = von dort).
+        /// </summary>
+        public static CrashResult BuildScenario(InjuryRiskDatabaseFile risk, MechanismDatabaseFile mechDb, IEnumerable<InjuryDefinition> injuryDefs,
+                                                IList<CrashMeasurement> measurements, CrashSetup setup, uint seed,
+                                                IList<DirectInjury> direct, string title, string descriptionOverride)
         {
             var defs = injuryDefs.ToDictionary(d => d.id);
             var result = new CrashResult { Risks = Evaluate(risk, measurements) };
@@ -227,9 +237,21 @@ namespace NotfallSIM.Crash
                 });
             }
 
+            // Direkte Verletzungen (Aufprallmodell): eigene Wahrscheinlichkeit, Schweregrad aus Kraft bzw. Stichtiefe
+            foreach (var d in direct ?? new DirectInjury[0])
+            {
+                if (!defs.ContainsKey(d.InjuryId)) continue;
+                double prev = result.InjuryProbability.TryGetValue(d.InjuryId, out double q0) ? q0 : 0;
+                result.InjuryProbability[d.InjuryId] = 1 - (1 - prev) * (1 - d.Probability);
+                double pick = rng.Next();
+                if (pick >= d.Probability || chosen.Any(c => c.injuryId == d.InjuryId)) continue;
+                if (ScenarioGenerator.Conflicts(mechDb, chosen, d.InjuryId)) continue;
+                chosen.Add(new ScenarioInjury { injuryId = d.InjuryId, severity = ScenarioGenerator.Round2(Math.Max(0.1, Math.Min(1, d.Severity))), onsetTime_s = 0 });
+            }
+
             var mech = mechDb.mechanisms.FirstOrDefault(m => m.id == setup.MechanismId);
             double loss = ScenarioGenerator.PrehospitalLoss(chosen, defs, setup.Rescue_min, mechDb.prehospital);
-            string description = mech != null
+            string description = descriptionOverride != null ? descriptionOverride : mech != null
                 ? ScenarioGenerator.FillTemplate(mech.descriptionTemplate, setup.Age, setup.Male, setup.Unrestrained, setup.Speed_kmh, setup.FallHeight_m, setup.Rescue_min)
                 : "Unfall aus der Crash-Simulation.";
             if (loss >= mechDb.prehospital.reportThreshold_mL) description += $" Präklinisch geschätzter Blutverlust ca. {loss:0} mL.";
@@ -238,9 +260,9 @@ namespace NotfallSIM.Crash
             result.Scenario = new ScenarioDefinition
             {
                 id = $"crash_{setup.MechanismId}_{seed}",
-                title = "Crash: " + (mech?.label ?? setup.MechanismId),
+                title = title ?? "Crash: " + (mech?.label ?? setup.MechanismId),
                 description = description,
-                mechanism = (mech?.label ?? setup.MechanismId) + " (physikalisch simuliert)",
+                mechanism = (title ?? mech?.label ?? setup.MechanismId) + " (physikalisch simuliert)",
                 patient = new PatientProfile
                 {
                     sex = setup.Male ? "male" : "female", age = setup.Age, weight_kg = setup.Weight_kg, height_cm = setup.Height_cm,

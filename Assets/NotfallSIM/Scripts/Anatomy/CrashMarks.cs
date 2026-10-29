@@ -68,7 +68,8 @@ namespace NotfallSIM.Anatomy
         }
 
         static string SurfaceLabel(string s) =>
-            s == "ground" ? "Bodenkontakt" : s == "airbag" ? "Airbag" : s == "vehicle" ? "Fahrzeug" : "Aufprall";
+            s == "ground" ? "Bodenkontakt" : s == "airbag" ? "Airbag" : s == "vehicle" ? "Fahrzeug"
+            : s != null && s.StartsWith("object:") ? "Gegenstand" : "Aufprall";
 
         public static List<CrashMark> Generate(CrashMarkRules r, IEnumerable<ContactSummary> contacts,
                                                double shoulderBeltImpulse_Ns, double lapBeltImpulse_Ns)
@@ -110,6 +111,26 @@ namespace NotfallSIM.Anatomy
             if (shoulderBeltImpulse_Ns >= r.bruiseImpulse_Ns && r.shoulderBelt != null) list.Add(Belt(r.shoulderBelt));
             if (lapBeltImpulse_Ns >= r.bruiseImpulse_Ns && r.lapBelt != null) list.Add(Belt(r.lapBelt));
             return list;
+        }
+
+        /// <summary>Stich- bzw. Pfählungswunde am Einstich (Modellraum); <paramref name="k"/> macht die Id eindeutig.</summary>
+        public static CrashMark Stab(string segment, string region, float[] modelPoint, float[] modelInside, string objectLabel,
+                                     double depth_m, bool embedded, int k)
+        {
+            if (modelPoint == null || modelInside == null) return null;
+            var outward = new[] { modelPoint[0] - modelInside[0], modelPoint[1] - modelInside[1], modelPoint[2] - modelInside[2] };
+            string finding = (embedded ? "Pfählungs-/Stichwunde mit steckendem Fremdkörper " : "Stichwunde ") +
+                             $"{segment} {FaceLabel(outward)} ({objectLabel}, Stichkanal ca. {depth_m * 100:0} cm)";
+            return new CrashMark
+            {
+                Region = region, Finding = finding,
+                Mark = new SkinMark
+                {
+                    id = $"crash_stich_{k}", injuryId = "", kind = "stichwunde", region = region,
+                    anchor = new MarkAnchor { meshes = new string[0], point = (float[])modelInside.Clone(), offset = new float[0], direction = outward },
+                    segments = new[] { segment }, radius_m = 0.012f, stretch = 2.2f, stretchAxis = new float[0], when = Always
+                }
+            };
         }
 
         static CrashMark Belt(BeltTemplate t) => new CrashMark

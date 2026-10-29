@@ -97,6 +97,88 @@
         "^A\\. radialis links$"
       ],
       "note": "Teildurchtrennung"
+    },
+    {
+      "injuryId": "schaedelfraktur",
+      "meshes": [
+        "^(left|right) parietal bone$",
+        "^(left|right) temporal bone$",
+        "^frontal bone$"
+      ],
+      "note": "Kalotte (Ort in der Sandbox aus dem Anprall)"
+    },
+    {
+      "injuryId": "femur_schaft_links",
+      "meshes": [
+        "^left femur$"
+      ],
+      "note": ""
+    },
+    {
+      "injuryId": "unterschenkelfraktur_rechts",
+      "meshes": [
+        "^right tibia$",
+        "^right fibula$"
+      ],
+      "note": ""
+    },
+    {
+      "injuryId": "unterschenkelfraktur_links",
+      "meshes": [
+        "^left tibia$",
+        "^left fibula$"
+      ],
+      "note": ""
+    },
+    {
+      "injuryId": "rippenserienfraktur_rechts",
+      "meshes": [
+        "^right (fourth|fifth|sixth|seventh) rib$"
+      ],
+      "note": "Rippen 4–7 rechts"
+    },
+    {
+      "injuryId": "stichverletzung_thorax_links",
+      "meshes": [
+        "lobe of left lung$"
+      ],
+      "note": "linke Lunge"
+    },
+    {
+      "injuryId": "stichverletzung_thorax_rechts",
+      "meshes": [
+        "lobe of right lung$",
+        "^middle lobe of lung$"
+      ],
+      "note": "rechte Lunge"
+    },
+    {
+      "injuryId": "stichverletzung_abdomen_rechts",
+      "meshes": [
+        "^liver$"
+      ],
+      "note": "Leber"
+    },
+    {
+      "injuryId": "stichverletzung_oberschenkel_rechts",
+      "meshes": [
+        "^A\\. femoralis rechts$"
+      ],
+      "note": "A. femoralis"
+    },
+    {
+      "injuryId": "stichverletzung_oberschenkel_links",
+      "meshes": [
+        "^A\\. femoralis links$"
+      ],
+      "note": "A. femoralis"
+    },
+    {
+      "injuryId": "schnittverletzung_unterarm_rechts",
+      "meshes": [
+        "^A\\. radialis rechts$"
+      ],
+      "note": "Teildurchtrennung"
     }
   ]
 }

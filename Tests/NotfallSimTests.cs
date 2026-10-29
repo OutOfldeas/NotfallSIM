@@ -84,6 +84,7 @@ static class Tests
         Run("Dosierung: Angaben gültig, Wirkung skaliert, Überdosis, Perfusor verstellen und stoppen", Dosing);
         Run("Patientenmonitor: NIBP-Zyklus, Fehlmessung, Alarme mit Prioritäten, Pulsoxymetrie ohne Signal", PatientMonitorChecks);
         Run("Coach: Tipp nach xABCDE ohne Spoiler, spezifische Maßnahme erst nach Befund, Strategie vollständig", CoachChecks);
+        Run("Aufprallmodell: Kontakt gegen Versuche (Faust, Thoraxpendel), Frakturschwellen, Durchstich, Stichkanal → Verletzung", ImpactModelChecks);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -1480,6 +1481,91 @@ static class Tests
         double sbp0 = na(new double[0]), sbp1 = na(new[] { 1.0 }), sbp3 = na(new[] { 3.0 }), sbp10 = na(new[] { 10.0 }), stop = na(new[] { 3.0, 0 });
         Check(Math.Abs(sbp1 - sbp0 - 20) < 0.5 && sbp3 > sbp1 && sbp10 - sbp0 < 40, $"Noradrenalin RRsys ohne {sbp0:F0}, 0,1 {sbp1:F0}, 0,3 {sbp3:F0}, 1,0 {sbp10:F0}");
         Check(Math.Abs(stop - sbp0) < 0.5, "Perfusor aus: Wirkung weg");
+    }
+
+    static void ImpactModelChecks()
+    {
+        var m = Load<NotfallSIM.Crash.ImpactModelFile>("impact_model.json");
+        var objs = Load<NotfallSIM.Crash.SandboxObjectFile>("objects.json");
+        var injuries = new HashSet<string>(Injuries.injuries.Select(i => i.id));
+        var srcIds = new HashSet<string>(m.sources.Select(x => x.id));
+        foreach (var r in m.regions)
+        {
+            Check(r.k1_N_m > 0 && r.k2_N_m >= r.k1_N_m && r.knee2_m > r.knee1_m && r.depth_m > 0 && r.effectiveMass_kg > 0, r.region + ": Kennwerte");
+            Check(r.evidence == "annahme" || srcIds.Contains(r.sourceId), r.region + ": Quelle fehlt");
+            Check(r.areaStiffness.Zip(r.areaStiffness.Skip(1), (x, y) => y.area_cm2 > x.area_cm2).All(b => b), r.region + ": Flächen-Stützstellen aufsteigend");
+        }
+        // Faustschlag (Walilko 2005): 2,9 kg, 9,14 m/s gegen den Kopf → im Mittel 3427 ± 811 N
+        var faust = objs.objects.First(o => o.id == "faust");
+        var head = NotfallSIM.Crash.ImpactModel.Region(m, "Kopf");
+        var punch = NotfallSIM.Crash.ImpactModel.Simulate(head, faust.mass_kg, 9.14, faust.contactArea_cm2, faust.stiffness_N_m);
+        Check(punch.peakForce_N > 2400 && punch.peakForce_N < 5000, $"Faustschlag {punch.peakForce_N:0} N (Walilko: 3427 ± 811 N)");
+        // Thoraxpendel (Kroell): 23,4 kg mit 6,7 m/s → ca. 40 % Kompression
+        var thorax = NotfallSIM.Crash.ImpactModel.Region(m, "Thorax");
+        var pend = NotfallSIM.Crash.ImpactModel.Simulate(thorax, 23.4, 6.7, 150);
+        double comp = pend.maxDelta_m / thorax.depth_m;
+        Check(comp > 0.28 && comp < 0.55, $"Thoraxpendel 6,7 m/s: Kompression {comp:P0} (Kroell: ca. 40 %), Kraft {pend.peakForce_N:0} N");
+        var slow = NotfallSIM.Crash.ImpactModel.Simulate(thorax, 23.4, 4.3, 150);
+        Check(slow.maxDelta_m < pend.maxDelta_m, "langsamer → weniger Kompression");
+        // Abdomen (Hardy 2001): starrer Stab 48 kg, 6,3 m/s → Kompression unter ca. 50 %
+        var abd = NotfallSIM.Crash.ImpactModel.Region(m, "Abdomen");
+        var bar = NotfallSIM.Crash.ImpactModel.Simulate(abd, 48, 6.3, 100);
+        Check(bar.maxDelta_m / abd.depth_m > 0.15 && bar.maxDelta_m / abd.depth_m < 0.6, $"Bauch 48 kg 6,3 m/s: Kompression {bar.maxDelta_m / abd.depth_m:P0}");
+        // Kontaktfläche: kleiner Hammer gibt am Kopf weichere Steifigkeit als große Platte (Allsop)
+        Check(NotfallSIM.Crash.ImpactModel.Stiffness(head, 0.001, 5) < NotfallSIM.Crash.ImpactModel.Stiffness(head, 0.001, 52), "Kopfsteifigkeit wächst mit der Fläche");
+        // Frakturen
+        Check(Math.Abs(NotfallSIM.Crash.ImpactModel.SkullFractureProbability(m, 5000, 5) - 0.5) < 0.01, "Schädel 5 kN / 5 cm² = 50 %");
+        Check(Math.Abs(NotfallSIM.Crash.ImpactModel.SkullFractureProbability(m, 12500, 52) - 0.5) < 0.01, "Schädel 12,5 kN / 52 cm² = 50 %");
+        Check(NotfallSIM.Crash.ImpactModel.SkullFractureProbability(m, 3500, 30) < 0.01, "Faustschlag bricht den Schädel nicht");
+        var femur = m.fractures.longBones.First(b => b.segment == "Oberschenkel");
+        Check(Math.Abs(NotfallSIM.Crash.ImpactModel.LongBoneProbability(femur, 4 * 447 / 0.43, 0.43) - 0.5) < 0.01, "Femur 50 % bei 447 Nm");
+        // Durchstich (Ní Annaidh 2015)
+        double knife = NotfallSIM.Crash.ImpactModel.SkinPenetrationForce(m, objs.objects.First(o => o.id == "messer"), false);
+        double screw = NotfallSIM.Crash.ImpactModel.SkinPenetrationForce(m, objs.objects.First(o => o.id == "schraubendreher"), false);
+        Check(knife > 10 && knife < 25 && screw > 2 * knife, $"Durchstich Messer {knife:0} N, Schraubendreher {screw:0} N");
+        Check(Math.Abs(NotfallSIM.Crash.ImpactModel.SkinPenetrationForce(m, objs.objects.First(o => o.id == "messer"), true) - 1.5 * knife) < 1e-9, "Kleidung +50 %");
+        // Stichkanal → Verletzung
+        Func<double> zero = () => 0.0;
+        var deep = NotfallSIM.Crash.ImpactModel.Evaluate(m, null, new[] { new NotfallSIM.Crash.PenetrationResult { Region = "Thorax", Side = -1, Depth_m = 0.06 } }, zero);
+        Check(deep.Count == 1 && deep[0].InjuryId == "stichverletzung_thorax_links" && deep[0].Probability == 1, "tiefer Stich links → Hämatopneumothorax links");
+        Check(NotfallSIM.Crash.ImpactModel.Evaluate(m, null, new[] { new NotfallSIM.Crash.PenetrationResult { Region = "Thorax", Side = -1, Depth_m = 0.06, HitBone = true } }, zero).Count == 0, "Klinge an der Rippe gestoppt → keine innere Verletzung");
+        Check(NotfallSIM.Crash.ImpactModel.Evaluate(m, null, new[] { new NotfallSIM.Crash.PenetrationResult { Region = "Thorax", Side = 1, Depth_m = 0.02 } }, zero).Count == 0, "flacher Stich → nur Weichteil");
+        Check(NotfallSIM.Crash.ImpactModel.Evaluate(m, null, new[] { new NotfallSIM.Crash.PenetrationResult { Region = "Arm rechts", Segment = "Oberarm rechts", Side = 1, Depth_m = 0.05 } }, zero).Count == 0, "Oberarm: kein Unterarmgefäß");
+        var blunt = NotfallSIM.Crash.ImpactModel.Evaluate(m, new[] {
+            new NotfallSIM.Crash.BluntContact { Region = "Kopf", Segment = "Kopf", PeakForce_N = 9000, Area_cm2 = 5 },
+            new NotfallSIM.Crash.BluntContact { Region = "Oberschenkel links", Segment = "Oberschenkel links", PeakForce_N = 6000, SegmentLength_m = 0.43, Side = -1 },
+            new NotfallSIM.Crash.BluntContact { Region = "Thorax", Segment = "Thorax", MaxIndentation_m = 0.1, Side = 1 } }, null, zero);
+        Check(blunt.Any(x => x.InjuryId == "schaedelfraktur" && x.Probability > 0.9), "Hammer 9 kN → Schädelfraktur");
+        Check(blunt.Any(x => x.InjuryId == "femur_schaft_links" && x.Probability > 0.9), "6 kN quer → Femurfraktur links");
+        Check(blunt.Any(x => x.InjuryId == "rippenserienfraktur_rechts" && x.Probability > 0.5), "43 % Kompression rechts → Rippenserie rechts");
+        // Jede Verletzung im Modell existiert
+        foreach (var id in new[] { m.fractures.skull.injuryId, m.fractures.ribs.injuryLeft, m.fractures.ribs.injuryRight }
+                 .Concat(m.fractures.longBones.SelectMany(b => new[] { b.injuryLeft, b.injuryRight }))
+                 .Concat(m.penetration.regions.SelectMany(r => new[] { r.deep, r.deepLeft, r.deepRight })).Where(x => !string.IsNullOrEmpty(x)))
+            Check(injuries.Contains(id), "unbekannte Verletzung " + id);
+        // Gegenstände
+        var objSrc = new HashSet<string>(objs.sources.Select(x => x.id));
+        foreach (var o in objs.objects)
+        {
+            Check(new[] { "stumpf", "spitz" }.Contains(o.kind) && new[] { "werfen", "gefuehrt", "statisch" }.Contains(o.mode) && new[] { "box", "sphere", "capsule" }.Contains(o.shape), o.id + ": Art/Modus/Form");
+            Check(o.size_m.Length == 3 && o.size_m.All(x => x > 0), o.id + ": Größe");
+            Check(o.mode == "statisch" || (o.mass_kg > 0 && o.minSpeed_m_s <= o.defaultSpeed_m_s && o.defaultSpeed_m_s <= o.maxSpeed_m_s), o.id + ": Masse/Geschwindigkeit");
+            Check(!o.Sharp || (o.tipAngle_deg > 0 && o.bladeLength_m > 0), o.id + ": Klinge");
+            Check(string.IsNullOrEmpty(o.sourceId) || objSrc.Contains(o.sourceId), o.id + ": Quelle");
+        }
+        // Szenario aus direkten Verletzungen (Gewalt-Sandbox): sicher, reproduzierbar, ohne Messwerte
+        var direct = NotfallSIM.Crash.ImpactModel.Evaluate(m, null, new[] { new NotfallSIM.Crash.PenetrationResult { Region = "Thorax", Side = -1, Depth_m = 0.07, Embedded = true } }, zero);
+        var gs = NotfallSIM.Crash.InjuryRisk.BuildScenario(Risk, Mechanisms, Injuries.injuries, new List<NotfallSIM.Crash.CrashMeasurement>(),
+            new NotfallSIM.Crash.CrashSetup { MechanismId = "gewalt", Rescue_min = 15 }, 7, direct, "Stumpfe/spitze Gewalt", "Messerstich links thorakal.").Scenario;
+        Check(gs.injuries.Length == 1 && gs.injuries[0].injuryId == "stichverletzung_thorax_links" && gs.injuries[0].onsetTime_s == 0, "Gewalt-Szenario: Stichverletzung übernommen");
+        Check(gs.title == "Stumpfe/spitze Gewalt" && gs.description.StartsWith("Messerstich") && gs.assessment.Length > 0, "Gewalt-Szenario: Titel, Text, Bewertung");
+        var none = NotfallSIM.Crash.InjuryRisk.BuildScenario(Risk, Mechanisms, Injuries.injuries, new List<NotfallSIM.Crash.CrashMeasurement>(),
+            new NotfallSIM.Crash.CrashSetup { MechanismId = "gewalt" }, 7, new List<NotfallSIM.Crash.DirectInjury>(), "Stumpfe/spitze Gewalt", "Nichts.").Scenario;
+        Check(none.injuries.Length == 0, "ohne Einwirkung keine Verletzung");
+        // Stichwunde als sichtbares Zeichen
+        var stab = NotfallSIM.Anatomy.CrashMarks.Stab("Thorax", "Thorax", new[] { -0.08f, 0.35f, 0.12f }, new[] { -0.05f, 0.35f, 0f }, "Messerstich", 0.07, true, 1);
+        Check(stab.Mark.kind == "stichwunde" && stab.Finding.Contains("steckendem Fremdkörper") && stab.Finding.Contains("ventral"), "Stichwunde: " + stab.Finding);
+        Check(NotfallSIM.Anatomy.CrashMarks.Stab("Thorax", "Thorax", null, null, "x", 0.01, false, 2) == null, "Stichwunde ohne Ort → keine Marke");
     }
 
     static void CoachChecks()

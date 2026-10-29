@@ -60,6 +60,8 @@ Assets/
     differentials.json           Differenzialdiagnosen ohne Physiologie, mit „spricht dagegen“
     injury_risk.json             Unfall-Sandbox: Messwerte → Risikokurven → Verletzungen
     organ_model.json             Organmodell: Bauchkompression → Organdehnung gegen Gewebefestigkeit
+    impact_model.json            Gewalt-Sandbox: Kontaktsteifigkeit je Region, Frakturschwellen, Stichwiderstand
+    objects.json                 Gewalt-Sandbox: Gegenstände (Masse, Form, Fläche, Klingengeometrie, Geschwindigkeit)
     muscle_tone.json             Muskeltonus im Ragdoll: Maximalmomente je Gelenk, Reflex, Abstützen
     injury_visuals.json          Sichtbare Verletzungszeichen: Prellmarken, Wunden, Schwellung, Amputation, Blutung
     scenarios/*.json             Szenarien
@@ -194,9 +196,25 @@ den Schockraum (Schockraum-Szene muss erzeugt sein).
   Viscous Criterion, Nij aus dem Halsgelenk, axiale Femurkraft; Fahrerairbag zuschaltbar
 - „Kalibrieren“ stellt die Referenztests aus `calibration.json` nach und speichert Korrekturfaktoren
   (danach `calibration.json` committen)
+- **Stumpfe/spitze Gewalt** (Mechanismus-Knopf unter „Sturz aus der Höhe“): Der Körper liegt am Boden. Werkzeug
+  „Körper ziehen“: ein Körperteil mit der linken Maus packen, ziehen, schwungvoll loslassen (oder aus der Höhe fallen
+  lassen). Gegenstand wählen und auf ein Körperteil klicken: Stein und Ziegel werden geworfen, Faust, Hammer,
+  Baseballschläger, Messer, Schraubendreher und Glasscherbe schlagen bzw. stechen aus 35 cm mit der wirksamen Masse
+  von Arm und Gegenstand (–/+ ändert die Geschwindigkeit). Wand, Tischkante, Bordstein und Bewehrungsstab werden
+  durch Klick auf den Boden aufgestellt; dann den Körper dagegen schleudern. Ziehen läuft live; der Aufprall wird mit
+  nachgiebigem Kontakt berechnet (0,1 ms während jedes Kontakts, sonst 1 ms) und abgespielt. Verletzungen sammeln sich
+  über alle Einwirkungen und gehen samt Prellmarken und Stichwunden in den Schockraum. „Neuer Körper“ beginnt von vorn
+  - Kontakt — `SoftContact.cs`: Kontaktmodifikation von PhysX; je Kontaktpunkt höchstens F·dt mit
+    F = k(δ)·δ + c·δ̇ aus `impact_model.json` (Kopf nach Fläche, Thorax nach Melvin/Kroell, Bauch nach Hardy)
+  - Frakturen und Stichkanäle — `ImpactModel.cs` (ohne Unity, getestet), `PenetrationSystem.cs`: Durchstich ab der
+    Kraft nach Ní Annaidh 2015 (Kleidung +50 %), danach Gelenk im Stichkanal, Widerstand je Gewebeschicht,
+    Rippe oder Schädel stoppen die Klinge, eine stecken gebliebene Klinge bleibt im Körper
+  - Ablauf — `CrashRig.Impact.cs`, `ImpactSandbox.cs`
 - **Noch nie in Unity gelaufen.** Erste Prüfpunkte: Knie knicken richtig herum (sonst *Invert Knee Flexion*
   am Objekt `Unfall`), keine Teile „explodieren“ beim Start, Werte in plausibler Größenordnung
   (PKW frontal 50 km/h mit Gurt: HIC eher unter 500, Brust 30–50 g).
+  Gewalt-Sandbox: Vorzeichen der Kontaktnormale in `SoftContact` (Kommentar „VERIFY“) — falsch herum heißt: Gegenstände
+  sinken ein oder prallen zu stark ab; Faustschlag gegen den Kopf sollte um 3–4 kN zeigen (Walilko 2005).
 
 ## Tests
 

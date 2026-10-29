@@ -1,0 +1,380 @@
+{
+  "version": "1.0.0",
+  "note": "Gegenstände der Unfall-Sandbox. kind: stumpf | spitz. mode: werfen (fliegt mit Anfangsgeschwindigkeit), gefuehrt (Schlag oder Stich: Masse = wirksame Masse aus Gegenstand und Arm), statisch (steht in der Szene; der Körper wird dagegen geschleudert). contactArea_cm2: Kontaktfläche stumpfer Gegenstände (Schädelfraktur hängt von der Fläche ab). Klingengeometrie für den Hautdurchstich (impact_model.json, Ní Annaidh 2015): Spitzenradius in µm, Spitzen- und Schneidwinkel in Grad. Größen in m (x quer, y hoch, z Länge bzw. Flugrichtung). stiffness_N_m: Eigensteifigkeit des Gegenstands, in Reihe mit der Körpersteifigkeit (0 = starr).",
+  "objects": [
+    {
+      "id": "faust",
+      "label": "Faustschlag",
+      "kind": "stumpf",
+      "mode": "gefuehrt",
+      "shape": "sphere",
+      "size_m": [
+        0.09,
+        0.09,
+        0.09
+      ],
+      "mass_kg": 2.9,
+      "contactArea_cm2": 30,
+      "stiffness_N_m": 100000,
+      "tipRadius_um": 0,
+      "tipAngle_deg": 0,
+      "cuttingAngle_deg": 0,
+      "bladeLength_m": 0,
+      "defaultSpeed_m_s": 9,
+      "minSpeed_m_s": 2,
+      "maxSpeed_m_s": 15,
+      "color": [
+        0.85,
+        0.66,
+        0.55
+      ],
+      "evidence": "human",
+      "sourceId": "walilko2005",
+      "note": "Olympia-Boxer mit Handschuh: Faust 9,14 ± 2,06 m/s, wirksame Masse 2,9 ± 2,0 kg, Kraft im Mittel 3427 ± 811 N. Faust-Steifigkeit 100 kN/m so gewählt, dass ein Schlag mit diesen Werten gegen den Kopf etwa diese Kraft ergibt (Handschuh-Faust; ohne Handschuh eher steifer). Kontaktfläche Annahme."
+    },
+    {
+      "id": "stein",
+      "label": "Stein (Wurf)",
+      "kind": "stumpf",
+      "mode": "werfen",
+      "shape": "sphere",
+      "size_m": [
+        0.1,
+        0.1,
+        0.1
+      ],
+      "mass_kg": 1.2,
+      "contactArea_cm2": 6,
+      "stiffness_N_m": 0,
+      "tipRadius_um": 0,
+      "tipAngle_deg": 0,
+      "cuttingAngle_deg": 0,
+      "bladeLength_m": 0,
+      "defaultSpeed_m_s": 15,
+      "minSpeed_m_s": 3,
+      "maxSpeed_m_s": 30,
+      "color": [
+        0.5,
+        0.48,
+        0.45
+      ],
+      "evidence": "annahme",
+      "sourceId": "",
+      "note": "Faustgroßer Stein, Wurfgeschwindigkeit Annahme."
+    },
+    {
+      "id": "ziegel",
+      "label": "Ziegelstein (Wurf)",
+      "kind": "stumpf",
+      "mode": "werfen",
+      "shape": "box",
+      "size_m": [
+        0.115,
+        0.071,
+        0.24
+      ],
+      "mass_kg": 2.5,
+      "contactArea_cm2": 8,
+      "stiffness_N_m": 0,
+      "tipRadius_um": 0,
+      "tipAngle_deg": 0,
+      "cuttingAngle_deg": 0,
+      "bladeLength_m": 0,
+      "defaultSpeed_m_s": 12,
+      "minSpeed_m_s": 3,
+      "maxSpeed_m_s": 25,
+      "color": [
+        0.66,
+        0.3,
+        0.22
+      ],
+      "evidence": "annahme",
+      "sourceId": "",
+      "note": "Normalformat 240 × 115 × 71 mm; Kante als Kontakt. Annahme."
+    },
+    {
+      "id": "hammer",
+      "label": "Hammerschlag",
+      "kind": "stumpf",
+      "mode": "gefuehrt",
+      "shape": "box",
+      "size_m": [
+        0.03,
+        0.03,
+        0.11
+      ],
+      "mass_kg": 2.0,
+      "contactArea_cm2": 5,
+      "stiffness_N_m": 0,
+      "tipRadius_um": 0,
+      "tipAngle_deg": 0,
+      "cuttingAngle_deg": 0,
+      "bladeLength_m": 0,
+      "defaultSpeed_m_s": 10,
+      "minSpeed_m_s": 2,
+      "maxSpeed_m_s": 20,
+      "color": [
+        0.35,
+        0.36,
+        0.4
+      ],
+      "evidence": "annahme",
+      "sourceId": "",
+      "note": "Bahn ca. 5 cm²; wirksame Masse aus Kopf und Arm, Geschwindigkeit Annahme."
+    },
+    {
+      "id": "baseballschlaeger",
+      "label": "Baseballschläger",
+      "kind": "stumpf",
+      "mode": "gefuehrt",
+      "shape": "capsule",
+      "size_m": [
+        0.065,
+        0.065,
+        0.84
+      ],
+      "mass_kg": 0.9,
+      "contactArea_cm2": 25,
+      "stiffness_N_m": 0,
+      "tipRadius_um": 0,
+      "tipAngle_deg": 0,
+      "cuttingAngle_deg": 0,
+      "bladeLength_m": 0,
+      "defaultSpeed_m_s": 25,
+      "minSpeed_m_s": 5,
+      "maxSpeed_m_s": 35,
+      "color": [
+        0.72,
+        0.56,
+        0.36
+      ],
+      "evidence": "annahme",
+      "sourceId": "",
+      "note": "Holzschläger ca. 0,9 kg; Geschwindigkeit am Treffpunkt Annahme."
+    },
+    {
+      "id": "messer",
+      "label": "Messerstich",
+      "kind": "spitz",
+      "mode": "gefuehrt",
+      "shape": "box",
+      "size_m": [
+        0.02,
+        0.003,
+        0.15
+      ],
+      "mass_kg": 2.0,
+      "contactArea_cm2": 0.5,
+      "stiffness_N_m": 0,
+      "tipRadius_um": 200,
+      "tipAngle_deg": 35,
+      "cuttingAngle_deg": 20,
+      "bladeLength_m": 0.15,
+      "defaultSpeed_m_s": 6,
+      "minSpeed_m_s": 1,
+      "maxSpeed_m_s": 12,
+      "color": [
+        0.8,
+        0.82,
+        0.85
+      ],
+      "evidence": "annahme",
+      "sourceId": "niannaidh2015",
+      "note": "Küchenmesser 15 cm. Durchstichkraft aus der Geometrie (ca. 15 N); wirksame Masse von Hand und Arm und Stichgeschwindigkeit Annahme."
+    },
+    {
+      "id": "schraubendreher",
+      "label": "Schraubendreher",
+      "kind": "spitz",
+      "mode": "gefuehrt",
+      "shape": "capsule",
+      "size_m": [
+        0.006,
+        0.006,
+        0.1
+      ],
+      "mass_kg": 2.0,
+      "contactArea_cm2": 0.3,
+      "stiffness_N_m": 0,
+      "tipRadius_um": 500,
+      "tipAngle_deg": 60,
+      "cuttingAngle_deg": 90,
+      "bladeLength_m": 0.1,
+      "defaultSpeed_m_s": 6,
+      "minSpeed_m_s": 1,
+      "maxSpeed_m_s": 12,
+      "color": [
+        0.75,
+        0.75,
+        0.78
+      ],
+      "evidence": "annahme",
+      "sourceId": "niannaidh2015",
+      "note": "Stumpfe Spitze: Durchstichkraft ca. 48 N (Regression am Rand ihres Gültigkeitsbereichs)."
+    },
+    {
+      "id": "glasscherbe",
+      "label": "Glasscherbe",
+      "kind": "spitz",
+      "mode": "gefuehrt",
+      "shape": "box",
+      "size_m": [
+        0.04,
+        0.004,
+        0.1
+      ],
+      "mass_kg": 1.5,
+      "contactArea_cm2": 0.2,
+      "stiffness_N_m": 0,
+      "tipRadius_um": 100,
+      "tipAngle_deg": 25,
+      "cuttingAngle_deg": 15,
+      "bladeLength_m": 0.08,
+      "defaultSpeed_m_s": 4,
+      "minSpeed_m_s": 1,
+      "maxSpeed_m_s": 10,
+      "color": [
+        0.7,
+        0.85,
+        0.85
+      ],
+      "evidence": "annahme",
+      "sourceId": "niannaidh2015",
+      "note": "Sehr scharf: Durchstich schon bei wenigen Newton (Untergrenze 5 N)."
+    },
+    {
+      "id": "bewehrungsstab",
+      "label": "Bewehrungsstab (Pfahl)",
+      "kind": "spitz",
+      "mode": "statisch",
+      "shape": "capsule",
+      "size_m": [
+        0.016,
+        1.0,
+        0.016
+      ],
+      "mass_kg": 0,
+      "contactArea_cm2": 2,
+      "stiffness_N_m": 0,
+      "tipRadius_um": 500,
+      "tipAngle_deg": 90,
+      "cuttingAngle_deg": 90,
+      "bladeLength_m": 0.9,
+      "defaultSpeed_m_s": 0,
+      "minSpeed_m_s": 0,
+      "maxSpeed_m_s": 0,
+      "color": [
+        0.45,
+        0.35,
+        0.3
+      ],
+      "evidence": "annahme",
+      "sourceId": "niannaidh2015",
+      "note": "Senkrecht stehender Stab (16 mm, abgeschnitten): Pfählung, wenn der Körper darauf fällt. Durchstichkraft ca. 69 N."
+    },
+    {
+      "id": "wand",
+      "label": "Wand",
+      "kind": "stumpf",
+      "mode": "statisch",
+      "shape": "box",
+      "size_m": [
+        3.0,
+        2.5,
+        0.25
+      ],
+      "mass_kg": 0,
+      "contactArea_cm2": 500,
+      "stiffness_N_m": 0,
+      "tipRadius_um": 0,
+      "tipAngle_deg": 0,
+      "cuttingAngle_deg": 0,
+      "bladeLength_m": 0,
+      "defaultSpeed_m_s": 0,
+      "minSpeed_m_s": 0,
+      "maxSpeed_m_s": 0,
+      "color": [
+        0.72,
+        0.7,
+        0.66
+      ],
+      "evidence": "annahme",
+      "sourceId": "",
+      "note": "Flach: Kontaktfläche begrenzt die Körperregion."
+    },
+    {
+      "id": "tischkante",
+      "label": "Tischkante",
+      "kind": "stumpf",
+      "mode": "statisch",
+      "shape": "box",
+      "size_m": [
+        1.2,
+        0.04,
+        0.8
+      ],
+      "mass_kg": 0,
+      "contactArea_cm2": 10,
+      "stiffness_N_m": 0,
+      "tipRadius_um": 0,
+      "tipAngle_deg": 0,
+      "cuttingAngle_deg": 0,
+      "bladeLength_m": 0,
+      "defaultSpeed_m_s": 0,
+      "minSpeed_m_s": 0,
+      "maxSpeed_m_s": 0,
+      "color": [
+        0.55,
+        0.42,
+        0.3
+      ],
+      "evidence": "annahme",
+      "sourceId": "",
+      "note": "Platte in 75 cm Höhe; Kante als schmale Kontaktfläche (Annahme)."
+    },
+    {
+      "id": "bordstein",
+      "label": "Bordstein",
+      "kind": "stumpf",
+      "mode": "statisch",
+      "shape": "box",
+      "size_m": [
+        2.0,
+        0.15,
+        0.15
+      ],
+      "mass_kg": 0,
+      "contactArea_cm2": 15,
+      "stiffness_N_m": 0,
+      "tipRadius_um": 0,
+      "tipAngle_deg": 0,
+      "cuttingAngle_deg": 0,
+      "bladeLength_m": 0,
+      "defaultSpeed_m_s": 0,
+      "minSpeed_m_s": 0,
+      "maxSpeed_m_s": 0,
+      "color": [
+        0.6,
+        0.6,
+        0.6
+      ],
+      "evidence": "annahme",
+      "sourceId": "",
+      "note": "Kante als Kontakt (Annahme)."
+    }
+  ],
+  "sources": [
+    {
+      "id": "walilko2005",
+      "citation": "Walilko TJ, Viano DC, Bir CA. Biomechanics of the head for Olympic boxer punches to the face. Br J Sports Med. 2005;39(10):710-719.",
+      "url": "https://doi.org/10.1136/bjsm.2004.014126",
+      "note": "Faustgeschwindigkeit 9,1 m/s, wirksame Masse 2,9 kg, Spitzenkraft 3,4 kN"
+    },
+    {
+      "id": "niannaidh2015",
+      "citation": "Ní Annaidh A, Cassidy M, Curtis M, Destrade M, Gilchrist MD. Toward a predictive assessment of stab-penetration forces. Am J Forensic Med Pathol. 2015;36(3):162-166.",
+      "url": "https://doi.org/10.1097/PAF.0000000000000075",
+      "note": "Durchstichkraft aus Spitzenradius, Spitzen- und Schneidwinkel"
+    }
+  ]
+}

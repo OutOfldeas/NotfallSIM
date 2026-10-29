@@ -78,6 +78,12 @@ namespace NotfallSIM.Engines
             { "Abdomen", new KeyValuePair<double, string>(0.62, "trunk") },
             { "Liver", new KeyValuePair<double, string>(0.66, "trunk") },
             { "Spleen", new KeyValuePair<double, string>(0.66, "trunk") },
+            { "RightLeg", new KeyValuePair<double, string>((0.285 + 0.039) / 2, "legR") },   // Unterschenkel (geschlossene Fraktur)
+            { "LeftLeg", new KeyValuePair<double, string>((0.285 + 0.039) / 2, "legL") },
+            { "RightThighArtery", new KeyValuePair<double, string>((0.530 + 0.285) / 2, "legR") },
+            { "LeftThighArtery", new KeyValuePair<double, string>((0.530 + 0.285) / 2, "legL") },
+            { "RightChest", new KeyValuePair<double, string>(0.72, "trunk") },           // Pleurahöhle (Hämatothorax)
+            { "LeftChest", new KeyValuePair<double, string>(0.72, "trunk") },
         };
 
         /// <summary>Lagerungen: Oberkörper (Kopf hoch, Grad), Beine rechts/links, Arme rechts/links (Grad gegen die Liegefläche),
@@ -128,7 +134,7 @@ namespace NotfallSIM.Engines
             switch (compartment)
             {
                 case "Spleen": case "Liver": case "Abdomen": return "Peritoneum";
-                case "Extremity": case "LeftArm": case "RightArm": return "";
+                case "Extremity": case "LeftArm": case "RightArm": case "RightThighArtery": case "LeftThighArtery": return "";
                 default: return compartment;
             }
         }

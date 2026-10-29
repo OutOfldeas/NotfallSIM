@@ -484,6 +484,52 @@ Annahmen: Kontaktwinkel 90° (keine Messung für Blut auf Matratzenkunststoff ge
 ganze intraperitoneale Blut an (Obergrenze); Galeaschwellung beim EDH 15 mL. Tropfen sind nur Darstellung, die Blutmenge
 kommt aus der Physiologie (Verlust je Verletzung).
 
+## Gewalt-Sandbox: stumpfe und spitze Gewalt (`impact_model.json`, `objects.json`)
+
+Starre Kontakte der Physik-Engine geben Kräfte, die von der Schrittweite abhängen, nicht vom Gewebe (daher z. B. absurde
+HIC-Werte). Die Gewalt-Sandbox ersetzt sie für Kontakte mit dem Körper durch ein nachgiebiges Kontaktgesetz.
+
+**Kontakt.** Je Kontaktpunkt darf der Löser höchstens den Impuls F·dt aufbringen, F = k(δ)·δ + c·δ̇ (δ Eindrücktiefe).
+k ist stückweise linear in δ (zwei Knickpunkte), c folgt aus der Restitution e (ζ = −ln e / √(π² + ln² e)) und der
+wirksamen Masse. Die Steifigkeit des Gegenstands liegt in Reihe (Faust 100 kN/m).
+
+| Region | Steifigkeit | Quelle |
+|---|---|---|
+| Kopf (temporoparietal) | 1800 N/mm bei 5 cm², 4200 N/mm bei 52 cm² (log. interpoliert) | Allsop 1991 [95] |
+| Thorax | 26,2 N/mm bis 41 mm, darüber steiler (Melvin: ~120 N/mm ab 76 mm) | Melvin, zit. nach [96]; Kroell 1974 [97] |
+| Abdomen | 27 kN/m (6,3 m/s), 63 kN/m (9,2 m/s) | Hardy 2001 [58] |
+| Becken, Oberschenkel, Unterschenkel, Arm | Größenordnung, **Annahme** | — |
+
+Die zweite Thoraxsteifigkeit ist auf 60 kN/m gesenkt (statt ~120 N/mm): Mit Melvins Wert ergibt das Pendel von Kroell
+(23,4 kg, 6,7 m/s) nur etwa 25 % Kompression statt der gemessenen ca. 40 %; mit 60 kN/m sind es 32 % bei 4,7 kN.
+Geprüft (Tests): Faustschlag 2,9 kg mit 9,1 m/s gegen den Kopf → 3,1 kN (Walilko 2005 [98]: 3,4 ± 0,8 kN);
+starrer Stab 48 kg mit 6,3 m/s gegen den Bauch → ca. 34 % Kompression (Hardy 2001).
+
+**Frakturen.**
+- Schädel: 50 % bei 5,0 kN (5 cm²) bzw. 12,5 kN (52 cm²), dazwischen logarithmisch, Streuung 20 % (Allsop 1991 [95]).
+  Ein Faustschlag bricht den Schädel nicht, ein Hammerschlag (2 kg, 10 m/s, ≈ 19 kN auf 5 cm²) fast immer.
+- Oberschenkel und Unterschenkel: Biegemoment M = F·L/4 (Dreipunktbiegung, Annahme) gegen 447 Nm (Femurmitte)
+  bzw. 312 Nm (Unterschenkel), Streuung 20 % (Kerrigan 2004 [99]).
+- Rippen: Thoraxkompression C → AIS = −3,78 + 19,56·C (Kroell 1974 [97]); AIS 2 → 0 %, AIS 4 → 100 %
+  Rippenserienfraktur der Anprallseite (lineare Zuordnung, **Annahme**).
+
+**Spitze Gewalt.** Die Haut wird durchstochen, wenn die Kontaktkraft der Spitze die Durchstichkraft übersteigt:
+F = −15,45 + 0,016·Spitzenradius (µm) + 0,69·Spitzenwinkel (°) + 0,16·Schneidwinkel (°) N (Ní Annaidh 2015 [100],
+quasistatisch, R² 0,97), mit Kleidung (Jeans) etwa +50 %. Danach führt ein Gelenk die Klinge im Stichkanal; der
+Widerstand je Schicht ist eine **Annahme** (Weichteil 25 N, Organ 15 N, Knochen 1500 N — die Haut leistet den
+Großteil). Ob eine Rippe getroffen wird, wird gewürfelt (Thorax 50 %, Annahme: etwa die Hälfte der Brustwand ist Rippe);
+dann stoppt die Klinge meist. Erreicht der Kanal die Körperwand (Thorax 3 cm, Abdomen 2,5 cm), folgt die innere
+Verletzung der Seite (Hämatopneumothorax, Leber, Oberschenkelarterie, Unterarmgefäße). Kommt die Klinge zur Ruhe,
+steckt sie und bleibt nach dem Loslassen im Körper.
+
+**Gegenstände** (`objects.json`): Masse, Form, Kontaktfläche und Geschwindigkeit. Geführte Schläge und Stiche
+nutzen die wirksame Masse von Arm und Gegenstand (Faust 2,9 kg nach Walilko [98]; Messer, Hammer: 2 kg, Annahme);
+Wurfgeschwindigkeiten sind Größenordnungen.
+
+**Grenzen.** Kontaktfläche je Gegenstand konstant (nicht aus der Geometrie); Becken und Extremitätensteifigkeiten
+geschätzt; Stichwiderstände geschätzt; keine Schnittverletzungen durch Ziehen der Klinge; kein HIC (variable Schrittweite).
+Qualitativ, nicht forensisch.
+
 ## Offene Punkte zum Prüfen
 
 - Lagerung in Unity prüfen: Klickflächen nach Umlagerung, Rinnsale neu verlegt, Lache auf der richtigen Fläche; Luftwiderstand der Partikel (limitVelocityOverLifetime mit Geschwindigkeitsfaktor). Außerhalb von Unity geprüft: Drehrichtungen und Auflage auf Rücken-/Beinteil und Keil. Bekannt: Unterkante des Rückenteils taucht am Gelenk etwas ins Sitzteil; bei senkrechtem Arm dehnt sich die Haut an der Achsel (lineares Skinning mit zwei Knochen); Arm ohne Auflage.
@@ -523,6 +569,8 @@ kommt aus der Physiologie (Verlust je Verletzung).
 - [ ] HIC-Kurve: Zuordnung der Parameter (7,45231/0,73998) zu HIC15 vs. HIC36 im NHTSA-Original prüfen
 - [ ] Sandbox gegen NHTSA-Crashtestdaten kalibrieren (Kalibrierlauf in Unity ausführen, weitere Referenzen ergänzen)
 - [ ] Thoraxmodell: Parameter von Lobdell 1973 bzw. Kroell 1974 prüfen
+- [ ] Gewalt-Sandbox in Unity: Vorzeichen der Kontaktnormale, Faustschlag 3–4 kN, Ziegel auf den Kopf, Messer stoppt an Rippe
+- [ ] Stichwiderstände (Weichteil, Organ, Knochen) mit Messungen belegen; Steifigkeit von Becken und Extremitäten
 - [ ] Vorzeichen von Halskraft/-moment und Femurkraft aus Joint.currentForce/currentTorque in Unity prüfen
 - [ ] Halsverletzung (HWS) mit Physiologie in die Datenbank aufnehmen, dann Nij zuordnen
 - [ ] Fehlende typische Verletzungen ergänzen: Wirbelsäule, Kalkaneus (Sturz), Aortenverletzung (Dezeleration), Rippenserie rechts
@@ -650,3 +698,9 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 92. Webster S, Todd S, Redhead J, Wright C. Ionised calcium levels in major trauma patients who received blood in the Emergency Department. *Emerg Med J*. 2016;33(8):569-572. [DOI](https://doi.org/10.1136/emermed-2015-205096)
 93. Vale AGG, Govêia CS, Guimarães GMN, et al. Comparison of arterial hypotension incidence during general anesthesia induction – target-controlled infusion vs. bolus injection of propofol: a randomized clinical trial. *Braz J Anesthesiol*. 2024;74(4):844503. [DOI](https://doi.org/10.1016/j.bjane.2024.844503)
 94. Lack WD, Karunakar MA, Angerame MR, et al. Type III open tibia fractures: immediate antibiotic prophylaxis minimizes infection. *J Orthop Trauma*. 2015;29(1):1-6. [PubMed](https://pubmed.ncbi.nlm.nih.gov/25526095/)
+95. Allsop DL, Perl TR, Warner CY. Force/deflection and fracture characteristics of the temporo-parietal region of the human head. SAE Technical Paper 912907; 1991. [DOI](https://doi.org/10.4271/912907)
+96. Thorax Injury Biomechanics. In: Yoganandan N, Nahum AM, Melvin JW (Hrsg.). Accidental Injury: Biomechanics and Prevention. Springer. [Link](https://musculoskeletalkey.com/thorax-injury-biomechanics/)
+97. Kroell CK, Schneider DC, Nahum AM. Impact tolerance and response of the human thorax II. SAE Technical Paper 741187; 1974. [DOI](https://doi.org/10.4271/741187)
+98. Walilko TJ, Viano DC, Bir CA. Biomechanics of the head for Olympic boxer punches to the face. *Br J Sports Med*. 2005;39(10):710-719. [DOI](https://doi.org/10.1136/bjsm.2004.014126)
+99. Kerrigan JR, Drinkwater DC, Kam CY, et al. Tolerance of the human leg and thigh in dynamic latero-medial bending. *Int J Crashworthiness*. 2004;9(6):607-623. [DOI](https://doi.org/10.1533/ijcr.2004.0315)
+100. Ní Annaidh A, Cassidy M, Curtis M, Destrade M, Gilchrist MD. Toward a predictive assessment of stab-penetration forces. *Am J Forensic Med Pathol*. 2015;36(3):162-166. [DOI](https://doi.org/10.1097/PAF.0000000000000075)
