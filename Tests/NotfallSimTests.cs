@@ -77,6 +77,10 @@ static class Tests
         Run("Haut: Daten mit Quellen, Blässe/Schweiß nach Schockklasse, Zyanose aus Desoxy-Hb (Anämie maskiert)", SkinData);
         Run("Crash-Zeichen: Prellung/Platzwunde/Schürfung nach Schwellen, Ort an der Haut, Gurtmarken", CrashMarksData);
         Run("Verletzungszeichen: Ort an der Haut, Region, Befund, Schwellungsvolumen, Amputation, Blutlache", InjuryVisualsData);
+        Run("Temperatur: kaltes EK kühlt, Wärmer verhindert das, Auskühlung entkleidet und in Narkose, Wärmeerhalt", TemperaturePhysics);
+        Run("Gerinnung: Verdünnung durch Kristalloid, FFP und Fibrinogen, Hyperfibrinolyse ohne TXA, Kälte/Azidose/Calcium", CoagulationPhysics);
+        Run("Medikamente: Propofol im Schock, Fentanyl-Atemdepression nur spontan atmend, Ketamin, Calcium", DrugEffects);
+        Run("Maßnahmen: Kontraindikationen gültig, Gerinnungslabor, Medikamente bekannt", NewInterventionData);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -143,6 +147,8 @@ static class Tests
         foreach (var st in StateTags.All) possible.Add(st);
         foreach (var m in Imaging.modalities) { possible.Add("imaging:" + m.id); possible.Add("result:Imaging:" + m.id); }
         possible.Add("warning:unstable-transport");
+        foreach (var iv in Interventions.interventions)
+            if (iv.contraindicatedBy != null && iv.contraindicatedBy.Length > 0) possible.Add("warning:contraindicated:" + iv.id);
         var lists = Scenarios.Select(x => new { id = x.id, crit = x.assessment ?? new AssessmentCriterion[0] })
             .Concat(Injuries.injuries.Select(x => new { id = "injury/" + x.id, crit = x.criteria ?? new AssessmentCriterion[0] }))
             .Concat(new[] { new { id = "mechanisms/base", crit = Mechanisms.baseCriteria } });
@@ -669,7 +675,13 @@ static class Tests
             at(30, "o2");
             if (has.Contains("becken_instabil")) { at(60, "beckengurt"); at(600, "angio_op"); }
             if (has.Contains("femur_schaft_rechts")) at(90, "femur_schiene");
-            if (bleed) { at(90, "txa"); for (int k = 0; k < 5; k++) at(90 + 360 * k, "ek"); }
+            at(40, "waerme"); at(45, "infusionswaermer");
+            if (bleed)
+            {
+                at(90, "txa");
+                for (int k = 0; k < 5; k++) { at(90 + 360 * k, "ek"); at(100 + 360 * k, "ffp"); }
+                at(800, "calcium"); at(1500, "calcium");
+            }
             if (has.Contains("milzruptur") || has.Contains("leberlazeration") || has.Contains("stichverletzung_abdomen_links")) at(300, "laparotomie");
             var tp = s.injuries.FirstOrDefault(i => i.injuryId == "spannungspneu_links");
             if (tp != null) at(tp.onsetTime_s + 90, "drainage_li");
@@ -1307,6 +1319,130 @@ static class Tests
             return x.InjuryBloodLoss_mL("l");
         };
         Check(liverFirstMinute(true) < liverFirstMinute(false), "Bauchraum nicht geteilt");
+    }
+
+    static MockPhysiologyEngine Trias(double loss_mL = 0, double temp = 0)
+    {
+        var e = new MockPhysiologyEngine(1);
+        e.Initialize(new PatientProfile { weight_kg = 75, age = 40, sex = "male", initialBloodLoss_mL = loss_mL, initialTemperature_C = temp });
+        return e;
+    }
+    static void Give(MockPhysiologyEngine e, InterventionType t, string compound, double vol = 0, double rate = 0) =>
+        e.ApplyIntervention(new InterventionEvent { Type = t, Compound = compound, Volume_mL = vol, Rate_mL_min = rate });
+
+    static void TemperaturePhysics()
+    {
+        var e = Trias(); double t0 = e.Current.Temperature_C;
+        Check(Math.Abs(t0 - 36.5) < 1e-9, $"Ausgangstemperatur {t0}");
+        Advance(e, 3600);
+        Check(Math.Abs(e.Current.Temperature_C - 36.0) < 0.01, $"entkleidet 1 h: {e.Current.Temperature_C:F2} °C (−0,5 °C/h)");
+        var n = Trias(); Give(n, InterventionType.Intubation, null); Advance(n, 3600);
+        Check(Math.Abs(n.Current.Temperature_C - 35.5) < 0.01, $"in Narkose 1 h: {n.Current.Temperature_C:F2} °C");
+        // 1 EK (300 mL, 4 °C) bei 75 kg: ΔT = 0,3·1,06·3,6·(36,5−4) / (75·2,98) ≈ 0,17 °C (plus 6 min Auskühlung 0,05 °C)
+        var cold = Trias(); Give(cold, InterventionType.FluidInfusion, "Blood", 300, 50); Advance(cold, 360);
+        double dCold = 36.5 - cold.Current.Temperature_C;
+        Check(dCold > 0.19 && dCold < 0.24, $"kaltes EK: −{dCold:F3} °C");
+        var warm = Trias(); Give(warm, InterventionType.Supportive, "FluidWarmer"); Give(warm, InterventionType.FluidInfusion, "Blood", 300, 50); Advance(warm, 360);
+        Check(warm.Current.Temperature_C > 36.45, $"gewärmtes EK: {warm.Current.Temperature_C:F3} °C");
+        var w = Trias(temp: 34.5); Give(w, InterventionType.Supportive, "Warming"); Advance(w, 3600);
+        Check(Math.Abs(w.Current.Temperature_C - 35.0) < 0.01, $"Wärmeerhalt 1 h: {w.Current.Temperature_C:F2} °C");
+        var full = Trias(temp: 36.9); Give(full, InterventionType.Supportive, "Warming"); Advance(full, 3600);
+        Check(full.Current.Temperature_C <= 37 + 1e-9, "Wärmeerhalt nicht über 37 °C");
+    }
+
+    static void CoagulationPhysics()
+    {
+        var e = Trias();
+        Check(e.Current.FactorActivity == 1 && Math.Abs(e.Current.Fibrinogen_g_L - 2.5) < 1e-9 && e.Current.Coagulation > 0.97, "normale Gerinnung");
+        // 3 L Kristalloid (30 % bleiben intravasal) verdünnen das Plasma (~3,1 L) um ca. 22 %
+        var d = Trias(); Give(d, InterventionType.FluidInfusion, "BalancedCrystalloid", 3000, 300); Advance(d, 600);
+        Check(d.Current.FactorActivity > 0.7 && d.Current.FactorActivity < 0.85, $"Verdünnung: Faktoren {d.Current.FactorActivity:P0}");
+        // Massivtransfusion nur mit EK: Faktoren fallen deutlich, Plasma hält sie
+        Func<string, VitalSigns> mt = plasma =>
+        {
+            var x = Trias(1500);
+            x.ApplyInjury(new InjuryEvent { InjuryId = "x", Effect = InjuryEffectType.Hemorrhage, Compartment = "Liver", Severity = 1, BaseRate_mL_min = 60, MaxTotalLoss_mL = 8000, Lesion = "parenchymal" });
+            Give(x, InterventionType.Medication, "TXA");
+            Give(x, InterventionType.FluidInfusion, "Blood", 3000, 100);
+            if (plasma != null) Give(x, InterventionType.FluidInfusion, plasma, 2000, 70);
+            Advance(x, 1800);
+            return x.Current;
+        };
+        var ekOnly = mt(null); var withFfp = mt("Plasma");
+        Check(ekOnly.FactorActivity < 0.6, $"nur EK: Faktoren {ekOnly.FactorActivity:P0}");
+        Check(withFfp.FactorActivity > ekOnly.FactorActivity + 0.15, $"EK + FFP: Faktoren {withFfp.FactorActivity:P0} statt {ekOnly.FactorActivity:P0}");
+        // Fibrinogen 2 g hebt um ca. 0,6 g/L (Plasma ~3,1 L)
+        var f = Trias(); Give(f, InterventionType.Medication, "Fibrinogen");
+        Check(f.Current.Fibrinogen_g_L > 3.0 && f.Current.Fibrinogen_g_L < 3.3, $"Fibrinogen nach 2 g: {f.Current.Fibrinogen_g_L:F2} g/L");
+        // Hyperfibrinolyse im Schock ohne TXA, mit TXA nicht
+        Func<bool, double> lysis = txa => { var x = Trias(1400); if (txa) Give(x, InterventionType.Medication, "TXA"); Advance(x, 1200); return x.Current.Fibrinogen_g_L; };
+        double noTxa = lysis(false), withTxa = lysis(true);
+        Check(noTxa < 2.0 && Math.Abs(withTxa - 2.5) < 1e-6, $"Fibrinogen nach 20 min Schock: ohne TXA {noTxa:F2}, mit TXA {withTxa:F2} g/L");
+        // Einzelfaktoren der wirksamen Gerinnung
+        double c0 = MockPhysiologyEngine.Coagulation(1, 1, 37, 7.4, 1.2);
+        Check(Math.Abs(c0 - 1) < 1e-9, "normal 1");
+        Check(Math.Abs(MockPhysiologyEngine.Coagulation(1, 1, 33, 7.4, 1.2) - 0.85) < 1e-9, "33 °C: 0,85");
+        Check(Math.Abs(MockPhysiologyEngine.Coagulation(1, 1, 37, 7.0, 1.2) - 0.4) < 1e-9, "pH 7,0: 0,4 (FVIIa/TF −60 %, Meng 2003)");
+        Check(MockPhysiologyEngine.Coagulation(1, 1, 37, 7.4, 0.8) < 0.8, "iCa 0,8 bremst");
+        Check(MockPhysiologyEngine.Coagulation(0.2, 1, 37, 7.4, 1.2) == 0 && MockPhysiologyEngine.Coagulation(1, 0.8 / 2.5, 37, 7.4, 1.2) == 0, "Faktoren 20 % bzw. Fibrinogen 0,8 g/L: keine Gerinnung");
+        // Schlechte Gerinnung verstärkt eine diffuse Blutung bis ×2
+        Func<double, double> bleed = temp =>
+        {
+            var x = Trias(0, temp);
+            x.ApplyInjury(new InjuryEvent { InjuryId = "x", Effect = InjuryEffectType.Hemorrhage, Compartment = "Liver", Severity = 1, BaseRate_mL_min = 30, MaxTotalLoss_mL = 5000, Lesion = "parenchymal" });
+            Advance(x, 120); return x.InjuryBloodLoss_mL("x");
+        };
+        double warmB = bleed(37), coldB = bleed(31);
+        Check(coldB > 1.2 * warmB, $"Leberblutung 2 min: 37 °C {warmB:F0} mL, 31 °C {coldB:F0} mL");
+    }
+
+    static void DrugEffects()
+    {
+        Func<double, string, bool, VitalSigns> after = (loss, drug, intubate) =>
+        {
+            var x = Trias(loss);
+            if (intubate) Give(x, InterventionType.Intubation, null);
+            if (drug != null) Give(x, InterventionType.Medication, drug);
+            Advance(x, 120); return x.Current;
+        };
+        var n0 = after(0, null, false); var nP = after(0, "Propofol", false);
+        var s0 = after(1500, null, false); var sP = after(1500, "Propofol", false);
+        double dropN = 1 - nP.MeanArterialPressure_mmHg / n0.MeanArterialPressure_mmHg, dropS = 1 - sP.MeanArterialPressure_mmHg / s0.MeanArterialPressure_mmHg;
+        Check(dropN > 0.15 && dropN < 0.25, $"Propofol normovoläm: MAD −{dropN:P0} (Vale 2024: 16–23 %)");
+        Check(dropS > dropN + 0.1, $"Propofol im Schock: MAD −{dropS:P0}");
+        var f = after(0, "Fentanyl", false); var fi = after(0, "Fentanyl", true);
+        Check(f.RespirationRate_bpm < 0.9 * n0.RespirationRate_bpm && f.SpO2_percent < n0.SpO2_percent, $"Fentanyl spontan: AF {f.RespirationRate_bpm:F0} statt {n0.RespirationRate_bpm:F0}, SpO2 {f.SpO2_percent:F0}");
+        Check(fi.RespirationRate_bpm == 14, "Fentanyl beatmet: keine Atemdepression");
+        Check(f.HeartRate_bpm < n0.HeartRate_bpm, "Fentanyl senkt die HF");
+        var k = after(0, "Ketamin", false); var kS = after(2000, "Ketamin", false); var kS0 = after(2000, null, false);
+        Check(k.SystolicBP_mmHg > n0.SystolicBP_mmHg * 1.05 && k.HeartRate_bpm > n0.HeartRate_bpm + 5, $"Ketamin: RR {k.SystolicBP_mmHg:F0}, HF {k.HeartRate_bpm:F0}");
+        Check(Math.Abs(kS.SystolicBP_mmHg - kS0.SystolicBP_mmHg) < 0.5, "Ketamin im tiefen Schock: kein RR-Anstieg");
+        Check(k.RespirationRate_bpm == n0.RespirationRate_bpm, "Ketamin: keine Atemdepression");
+        // Wirkung klingt ab
+        var late = Trias(); Give(late, InterventionType.Medication, "Propofol"); Advance(late, 20 * 60);
+        Check(Math.Abs(late.Current.MeanArterialPressure_mmHg - Trias().Current.MeanArterialPressure_mmHg) < 0.5, "Propofol nach 20 min abgeklungen");
+        // Calcium: Massivtransfusion senkt iCa und RR, CaCl2 hebt beides
+        var ca = Trias(); Give(ca, InterventionType.FluidInfusion, "Blood", 2400, 400); Advance(ca, 400);
+        double ica = ca.Current.IonizedCalcium, sbp = ca.Current.SystolicBP_mmHg;
+        Give(ca, InterventionType.Medication, "Calcium"); Give(ca, InterventionType.Medication, "Calcium");
+        Check(ica < 0.8 && Math.Abs(ca.Current.IonizedCalcium - ica - 0.4) < 1e-9, $"iCa nach 8 EK {ica:F2}, nach 2 g CaCl2 {ca.Current.IonizedCalcium:F2}");
+        Check(ca.Current.SystolicBP_mmHg > sbp + 6, $"RR durch Calcium {sbp:F0} → {ca.Current.SystolicBP_mmHg:F0}");
+    }
+
+    static void NewInterventionData()
+    {
+        var injuries = new HashSet<string>(Injuries.injuries.Select(i => i.id));
+        foreach (var iv in Interventions.interventions)
+        {
+            foreach (var c in iv.contraindicatedBy ?? new string[0]) Check(injuries.Contains(c), $"{iv.id}: Kontraindikation {c} unbekannt");
+            if (iv.contraindicatedBy != null && iv.contraindicatedBy.Length > 0) Check(!string.IsNullOrEmpty(iv.contraindicationNote), $"{iv.id}: Begründung fehlt");
+            if (iv.type == "Medication")
+                Check(new[] { "TXA", "Fibrinogen", "Calcium", "Antibiotic" }.Contains(iv.compound) || MockPhysiologyEngine.Drugs.ContainsKey(iv.compound), $"{iv.id}: Medikament {iv.compound} ohne Wirkung");
+        }
+        var v = Trias(800).Current;
+        string r = BloodGas.CoagReport(v);
+        Check(r.Contains("Quick 100 %") && r.Contains("INR 1,0") && r.Contains("Fibrinogen 2,5"), r);
+        Check(Math.Abs(BloodGas.Inr(0.5) - 1.5) < 1e-9, "INR bei 50 %");
     }
 
     static void PositioningPhysics()

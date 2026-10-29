@@ -25,7 +25,8 @@ static class Parity
                 Console.WriteLine(string.Join(";", name, (step / 10).ToString(CultureInfo.InvariantCulture),
                     N(v.HeartRate_bpm), N(v.SystolicBP_mmHg), N(v.DiastolicBP_mmHg), N(v.RespirationRate_bpm),
                     N(v.SpO2_percent), N(v.EtCO2_mmHg), N(v.BloodVolume_mL), N(v.GCS), N(v.BaseExcess), v.CardiacArrest ? "1" : "0",
-                    N(v.Hb), N(v.pH), N(v.PaCO2), N(v.PaO2), N(v.Potassium), N(v.IonizedCalcium), N(v.Glucose)));
+                    N(v.Hb), N(v.pH), N(v.PaCO2), N(v.PaO2), N(v.Potassium), N(v.IonizedCalcium), N(v.Glucose),
+                    N(v.Temperature_C), N(v.FactorActivity), N(v.Fibrinogen_g_L), N(v.Coagulation)));
             }
             e.Advance(0.1);
         }
@@ -195,5 +196,27 @@ static class Parity
             if (s == 6000) e.ApplyIntervention(Iv(InterventionType.Positioning, "arm_links_hoch"));
             if (s == 8000) e.ApplyIntervention(Iv(InterventionType.Positioning, "flach"));
         }, 1200);
+        // Letale Trias: Verdünnung, kalte Infusion, Plasma, TXA, Fibrinogen, Calcium, Wärme, Medikamente
+        Run("trias", new PatientProfile { weight_kg = 70, age = 40, sex = "male", initialBloodLoss_mL = 1200, initialTemperature_C = 35.5 }, (e, s) =>
+        {
+            if (s == 0)
+            {
+                var l = Bleed("Liver", 0.7, 90, 2500); l.Lesion = "parenchymal"; e.ApplyInjury(l);
+                var a = Bleed("Extremity", 0.6, 60, 0); a.Lesion = "partial"; e.ApplyInjury(a);
+            }
+            if (s == 300) e.ApplyIntervention(Iv(InterventionType.FluidInfusion, "", "BalancedCrystalloid", 2000, 200));
+            if (s == 600) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "Fentanyl"));
+            if (s == 1500) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "Ketamin"));
+            if (s == 2400) e.ApplyIntervention(Iv(InterventionType.FluidInfusion, "", "Blood", 1000, 100));
+            if (s == 3000) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "Propofol"));
+            if (s == 3010) e.ApplyIntervention(Iv(InterventionType.Intubation));
+            if (s == 4000) e.ApplyIntervention(Iv(InterventionType.Supportive, compound: "FluidWarmer"));
+            if (s == 4200) e.ApplyIntervention(Iv(InterventionType.FluidInfusion, "", "Plasma", 1000, 50));
+            if (s == 5000) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "TXA"));
+            if (s == 5200) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "Fibrinogen"));
+            if (s == 5400) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "Calcium"));
+            if (s == 6000) e.ApplyIntervention(Iv(InterventionType.Supportive, compound: "Warming"));
+            if (s == 7000) e.ApplyIntervention(Iv(InterventionType.HemorrhageControl, "Extremity,Liver", mult: 0.1));
+        }, 1800);
     }
 }

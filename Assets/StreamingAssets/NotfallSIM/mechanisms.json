@@ -44,7 +44,7 @@
       "description": "BGA abgenommen",
       "type": "deadline",
       "tags": [
-        "intervention:BloodGas"
+        "intervention:BloodGas::"
       ],
       "limit": 600,
       "relativeTo": "",
@@ -64,6 +64,19 @@
       "onlyAfterReference": false,
       "critical": false,
       "rationale": "Instabile Patienten nicht in einen CT-Raum außerhalb des Schockraums (ATLS; S3: CT < 50 m, GoR B)."
+    },
+    {
+      "id": "waerme",
+      "description": "Wärmeerhalt begonnen",
+      "type": "deadline",
+      "tags": [
+        "intervention:Supportive:Warming"
+      ],
+      "limit": 900,
+      "relativeTo": "",
+      "onlyAfterReference": false,
+      "critical": false,
+      "rationale": "Hypothermie ist Teil der letalen Trias; Wärmeerhalt von Beginn an (S3 Polytrauma, Rossaint 2023). 15 min didaktisch."
     }
   ],
   "exclusiveGroups": [

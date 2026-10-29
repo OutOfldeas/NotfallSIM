@@ -53,9 +53,21 @@ namespace NotfallSIM.Rooms
             if (grid == null || ivc == null) return;
             var existing = grid.GetComponentsInChildren<ActionButton>(true);
             if (existing == null || existing.Length == 0) return;
+            var defs = InjuryDatabase.LoadInterventions().interventions;
+            var byId = defs.ToDictionary(d => d.id);
+            // Buttons entfernter Maßnahmen (z. B. „Analgesie“ → Fentanyl/Ketamin) ausblenden, Beschriftungen aktualisieren
+            foreach (var b in existing)
+            {
+                if (!b.IsIntervention) continue;
+                if (byId.TryGetValue(b.Id, out var d)) b.Relabel(d.label);
+                else b.gameObject.SetActive(false);
+            }
             var have = new System.Collections.Generic.HashSet<string>(existing.Select(b => b.Id));
             var template = existing[0].gameObject;
-            foreach (var def in InjuryDatabase.LoadInterventions().interventions)
+            // Mehr Maßnahmen als in der ursprünglichen Szene: drei Spalten, damit das Panel auf den Bildschirm passt
+            var layout = grid.GetComponent<UnityEngine.UI.GridLayoutGroup>();
+            if (layout != null && defs.Length > 26) { layout.constraintCount = 3; layout.cellSize = new Vector2(100, 40); layout.spacing = new Vector2(5, 5); }
+            foreach (var def in defs)
             {
                 if (have.Contains(def.id)) continue;
                 var go = Object.Instantiate(template, grid.transform);
@@ -72,6 +84,8 @@ namespace NotfallSIM.Rooms
                 var text = go.GetComponentInChildren<TMPro.TMP_Text>();
                 if (text != null) text.text = def.label;
             }
+            if (layout != null && layout.constraintCount == 3)
+                foreach (var t in grid.GetComponentsInChildren<TMP_Text>(true)) { t.enableAutoSizing = true; t.fontSizeMin = 10; t.fontSizeMax = 14; }
         }
 
         /// <summary>Innenraum zwischen den Wänden, Boden und Decke.</summary>

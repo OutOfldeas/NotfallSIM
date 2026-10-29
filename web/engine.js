@@ -76,6 +76,15 @@
       ["Glukose", dec(v.glucose, 0), "mg/dL", out(v.glucose, 70, 140)],
     ];
   }
+  const inr = (f) => 1 + (1 / Math.max(0.05, f) - 1) / 2;
+  function coagValues(v) {
+    return [["Quick", dec(100 * v.factors, 0), "%", v.factors < 0.7], ["INR", dec(inr(v.factors), 1), "", inr(v.factors) > 1.2],
+      ["Fibrinogen", dec(v.fib, 1), "g/L", v.fib < 1.5]];
+  }
+  function coagReport(v) {
+    return `Quick ${dec(100 * v.factors, 0)} % · INR ${dec(inr(v.factors), 1)} · Fibrinogen ${dec(v.fib, 1)} g/L ` +
+      "(Labor misst bei 37 °C — Hypothermie und Azidose bremsen die Gerinnung zusätzlich)";
+  }
   function bloodGasReport(v) {
     return `pH ${dec(v.ph, 2)} · pCO2 ${dec(v.paco2, 0)} mmHg · pO2 ${dec(v.pao2, 0)} mmHg · SaO2 ${dec(v.spo2, 0)} % · ` +
       `HCO3 ${dec(v.hco3, 1)} mmol/L · BE ${v.be >= 0 ? "+" : ""}${dec(v.be, 1)} mmol/L · Laktat ${dec(v.lactate, 1)} mmol/L · ` +
@@ -85,7 +94,14 @@
   // ---------------------------------------------------------------- Mock-Engine (Engines/MockPhysiologyEngine.cs)
   const C = {
     ArrestThreshold: 0.60,
-    Retention: { BalancedCrystalloid: 0.3, Saline: 0.3, Blood: 1.0 },
+    Retention: { BalancedCrystalloid: 0.3, Saline: 0.3, Blood: 1.0, Plasma: 1.0 },
+    // Letale Trias (MockPhysiologyEngine.cs)
+    BodyHeatCapacity: 2.98,
+    FluidThermal: { BalancedCrystalloid: [20, 4.18, 1.0], Saline: [20, 4.18, 1.0], Blood: [4, 3.6, 1.06], Plasma: [4, 3.9, 1.03] },
+    FluidWarmerTemp: 38, ExposureCooling: 0.5, AnesthesiaCoolingFactor: 2, ActiveWarming: 0.5,
+    FibNormal: 2.5, FibConcentrate_g: 2, LysisPerMinAt40: 0.02,
+    CoagDiffuseGain: 1.0, CoagArterialGain: 0.3, CoagClotMin: 0.5, CoagClotLost: 0.3, CalciumPerGram: 0.2,
+    Drugs: { Fentanyl: [-0.10, -0.33, -8, 0.3, 20, 40], Ketamin: [0.10, -0.29, 12, 0, 10, 20], Propofol: [-0.20, -0.67, -5, 0.6, 5, 15] },
     TpMaxHrAdd: 30, TpMaxRrAdd: 12, TpMaxSpO2Drop: 25, TpMaxEtCo2Drop: 6,
     TpHypotensionOnset: 0.6, TpMaxSbpDrop: 50, TpLevelAfterNeedle: 0.15, TpRateAfterNeedle: 0.2,
     TbiPoints: [0.0, 0.3, 0.5, 0.7, 0.85, 1.0], TbiGcs: [15, 14, 11, 8, 5, 3], ShockGcs: [15, 15, 15, 14, 12, 9],
@@ -126,6 +142,16 @@
   }
   const canClot = (l) => l === "transection" || l === "parenchymal" || l === "venous";
 
+  const clamp01 = (x) => Math.max(0, Math.min(1, x));
+  function drugLevel(d, t) { return t < 0 ? 0 : t <= d[4] ? 1 : t >= d[5] ? 0 : 1 - (t - d[4]) / (d[5] - d[4]); }
+  function coagulation(factors, fibRel, temp, ph, ica) {
+    const cf = clamp01((factors - 0.2) / 0.3);
+    const cfib = clamp01((fibRel * C.FibNormal - 0.8) / 0.7);
+    const t = Math.max(0.3, Math.min(1, 1 - 0.075 * Math.max(0, 35 - temp)));
+    const p = Math.max(0.2, Math.min(1, 1 - (7.35 - ph) / 0.35 * 0.6));
+    const ca = Math.max(0.5, Math.min(1, 0.5 + 0.5 * (ica - 0.6) / 0.4));
+    return Math.min(cf, cfib) * t * p * ca;
+  }
   function bloodVolume(p) { return p.weight_kg * (String(p.sex).toLowerCase() === "female" ? 65 : 70); }
 
   class MockEngine {
@@ -142,6 +168,10 @@
       this.bleeds = {}; this.tension = {}; this.brain = {}; this.infusions = [];
       this.oxygen = this.arrest = this.intubated = this.vasopressor = false;
       this.position = Positions.flach; this.positionId = "flach";
+      this.drugs = []; this.warming = this.fluidWarmer = this.txa = false;
+      this.weight = patient.weight_kg > 0 ? patient.weight_kg : 75;
+      this.temp = patient.initialTemperature_C > 0 ? patient.initialTemperature_C : 36.5;
+      this.factors = 1; this.fib = 1; this.calciumGiven = 0;
       this.height = patient.height_cm > 100 ? patient.height_cm / 100 : 1.8;
       this.hrBaseOffset = 0; this.hrResponse = 1; this.sbpOffset = 0;
       if (this.mode === "Registry") {
@@ -195,7 +225,19 @@
           for (const t of String(iv.target || "").split(",")) { const b = this.bleeds[t.trim()]; if (b) b.multiplier = Math.min(b.multiplier, iv.rateMultiplier); }
           break;
         }
-        case "FluidInfusion": this.infusions.push({ compound: iv.compound, remaining: iv.volume_mL, rate: iv.rate_mL_min }); break;
+        case "FluidInfusion": this.infusions.push({ compound: iv.compound, remaining: iv.volume_mL, rate: iv.rate_mL_min, warmed: this.fluidWarmer }); break;
+        case "Medication": {
+          if (iv.compound === "TXA") this.txa = true;
+          else if (iv.compound === "Fibrinogen") this.fib += C.FibConcentrate_g / (Math.max(500, this.volume - this.redCells) / 1000 * C.FibNormal);
+          else if (iv.compound === "Calcium") this.calciumGiven += 1;
+          else if (C.Drugs[iv.compound]) this.drugs.push([iv.compound, this.time]);
+          this.updateVitals();
+          break;
+        }
+        case "Supportive":
+          if (iv.compound === "Warming") this.warming = true;
+          if (iv.compound === "FluidWarmer") this.fluidWarmer = true;
+          break;
         case "Oxygen": this.oxygen = true; break;
         case "NeedleDecompression": {
           const t = this.tension[iv.target];
@@ -230,13 +272,16 @@
         const pref = (b) => b.inj.lesion === "venous" ? C.VenousPressure : this.baselineMap;
         const sh = (c) => { const st = Sites[c]; return st ? siteHeight(st[0], st[1], this.position, this.height) : 0; };
         for (const b of Object.values(this.bleeds)) {
+          const coag = cur.coag;
           if (canClot(b.inj.lesion)) {
-            if (map < C.RebleedMap) { b.clotTimer += dt; if (b.clotTimer >= C.ClotFormation_s) b.clotted = true; }
-            else { b.clotTimer = 0; b.clotted = false; }
+            if (map < C.RebleedMap && coag >= C.CoagClotMin) { b.clotTimer += dt; if (b.clotTimer >= C.ClotFormation_s) b.clotted = true; }
+            else if (map >= C.RebleedMap || coag < C.CoagClotLost) { b.clotTimer = 0; b.clotted = false; }
           }
+          const arterial = b.inj.lesion === "partial" || b.inj.lesion === "transection";
+          const coagGain = 1 + (arterial ? C.CoagArterialGain : C.CoagDiffuseGain) * (1 - coag);
           const p = (b.inj.lesion === "venous" ? C.VenousPressure * map / this.baselineMap : map) - C.HydroPerM * sh(b.inj.compartment);
           const drive = Math.max(0, p - back(b, spaceVol[spaceOf(b.inj.compartment)])) / Math.max(0.5, pref(b) - back(b, 0));
-          const rate = b.inj.baseRate_mL_min * b.inj.severity * b.multiplier * Math.sqrt(drive) * (b.clotted ? C.ClotFlowFactor : 1);
+          const rate = b.inj.baseRate_mL_min * b.inj.severity * b.multiplier * Math.sqrt(drive) * (b.clotted ? C.ClotFlowFactor : 1) * coagGain;
           const l = rate * minutes; b.lost += l;
           if (this.volume > 0) this.redCells -= l * this.redCells / this.volume;
           this.volume -= l;
@@ -256,14 +301,43 @@
       for (const inf of this.infusions) {
         const given = Math.min(inf.rate * minutes, inf.remaining);
         inf.remaining -= given;
+        if (given <= 0) continue;
         const ret = C.Retention[inf.compound] != null ? C.Retention[inf.compound] : 0.3;
+        const plasma = Math.max(500, this.volume - this.redCells);
+        const plasmaIn = inf.compound === "Blood" ? given * (1 - 0.6) : given * ret;
+        const conc = inf.compound === "Plasma" ? 1 : 0;
+        this.factors = (this.factors * plasma + conc * plasmaIn) / (plasma + plasmaIn);
+        this.fib = (this.fib * plasma + conc * plasmaIn) / (plasma + plasmaIn);
+        const th = C.FluidThermal[inf.compound];
+        if (th) {
+          const tIn = inf.warmed ? C.FluidWarmerTemp : th[0];
+          this.temp += given / 1000 * th[2] * th[1] * (tIn - this.temp) / (this.weight * C.BodyHeatCapacity);
+        }
         this.volume += given * ret;
         if (inf.compound === "Blood") { this.redCells += given * 0.6; this.transfused += given; }
+        if (inf.compound === "Plasma") this.transfused += given;
       }
+      const lossNow = Math.max(0, 1 - this.volume / this.baselineVolume);
+      if (!this.txa && !this.arrest && lossNow > 0.15) this.fib = Math.max(0, this.fib - C.LysisPerMinAt40 * (lossNow / 0.4) * minutes);
+      if (this.warming) this.temp = Math.min(37, this.temp + C.ActiveWarming * dt / 3600);
+      else this.temp -= C.ExposureCooling * (this.intubated ? C.AnesthesiaCoolingFactor : 1) * dt / 3600;
       this.infusions = this.infusions.filter((i) => i.remaining > 0);
       this.redCells = Math.max(0, Math.min(this.redCells, this.volume));
       this.volume = Math.max(0, Math.min(this.volume, this.baselineVolume * 1.1));
       this.updateVitals();
+    }
+
+    ica() { return Math.min(1.3, BloodGas.calcium(this.transfused) + C.CalciumPerGram * this.calciumGiven); }
+    drugEffects(f) {
+      const r = { sbp: 1, hr: 0, resp: 0 };
+      for (const [k, t0] of this.drugs) {
+        const d = C.Drugs[k], w = drugLevel(d, (this.time - t0) / 60);
+        if (w <= 0) continue;
+        let pct = d[0] + d[1] * f;
+        if (k === "Ketamin") pct = Math.max(0, pct);
+        r.sbp *= 1 + pct * w; r.hr += d[2] * w; r.resp = Math.max(r.resp, d[3] * w);
+      }
+      return r;
     }
 
     updateVitals() {
@@ -273,7 +347,8 @@
       if (f >= C.ArrestThreshold || tp >= 1 || tbi >= 1) this.arrest = true;
       const hb = this.volume > 0 ? this.redCells / this.volume * 100 / 3 : 0;
       if (this.arrest) {
-        this.current = { hb, ph: 6.90, paco2: 70, pao2: 30, hco3: 4, potassium: 6.5, calcium: BloodGas.calcium(this.transfused), glucose: BloodGas.glucose(f),
+        this.current = { hb, ph: 6.90, paco2: 70, pao2: 30, hco3: 4, potassium: 6.5, calcium: this.ica(), glucose: BloodGas.glucose(f),
+          temp: this.temp, factors: this.factors, fib: this.fib * C.FibNormal, coag: 0,
           time: this.time, hr: 0, sbp: 0, dbp: 0, map: 0, rr: 0, spo2: 0, etco2: 5, bv: this.volume, loss: f,
           arrest: true, gcs: 3, be: -20, lactate: 12, anisocoria: tbi >= C.TbiAnisocoriaLevel, intubated: this.intubated };
         return;
@@ -281,26 +356,31 @@
       const m = this.mode;
       const fh = Math.max(0, 1 - (this.volume + this.position[5]) / this.baselineVolume);
       const gcs = Math.min(interp(tbi, C.TbiPoints, C.TbiGcs), loss(f, C.ShockGcs));
-      const airway = !this.intubated && gcs <= 8 ? Math.min(1, (8 - gcs) / 5 + 0.2) : 0;
+      let airway = !this.intubated && gcs <= 8 ? Math.min(1, (8 - gcs) / 5 + 0.2) : 0;
       const cushing = tbi > C.TbiCushingLevel ? (tbi - C.TbiCushingLevel) / (1 - C.TbiCushingLevel) : 0;
       const sbpDrop = tp > C.TpHypotensionOnset ? (tp - C.TpHypotensionOnset) / (1 - C.TpHypotensionOnset) * C.TpMaxSbpDrop : 0;
       const hr0 = Shock.hr(m, 0);
       const hr = hr0 + this.hrBaseOffset + (Shock.hr(m, fh) - hr0) * this.hrResponse;
-      const sbp = Shock.sbp(m, fh) + this.sbpOffset - sbpDrop + 50 * cushing + (this.vasopressor ? C.VasopressorSbpRise : 0);
-      const dbp = Shock.dbp(m, fh) + this.sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + (this.vasopressor ? C.VasopressorDbpRise : 0);
+      const dr = this.drugEffects(f), ica = this.ica();
+      const hypoCa = Math.max(0, Math.min(1, (1.0 - ica) / 0.4));
+      const sbp = (Shock.sbp(m, fh) + this.sbpOffset - sbpDrop + 50 * cushing + (this.vasopressor ? C.VasopressorSbpRise : 0)) * dr.sbp - 15 * hypoCa;
+      const dbp = (Shock.dbp(m, fh) + this.sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + (this.vasopressor ? C.VasopressorDbpRise : 0)) * dr.sbp - 8 * hypoCa;
+      const respDep = this.intubated ? 0 : dr.resp, rrFactor = 1 - 0.5 * respDep;
+      airway = Math.max(airway, respDep);
       let spo2 = loss(f, SpO2Air) - C.TpMaxSpO2Drop * tp - C.AirwayMaxSpO2Drop * airway + (this.oxygen ? 3 : 0) + (this.intubated ? 3 : 0);
       spo2 = Math.max(50, Math.min(100, spo2));
       const be = Shock.be(f), hco3 = BloodGas.hco3(be), paco2 = BloodGas.paco2(hco3, this.intubated, airway, tp), ph = BloodGas.ph(hco3, paco2);
       this.current = {
         time: this.time,
-        hr: hr + C.TpMaxHrAdd * tp - 35 * cushing,
+        hr: hr + dr.hr + C.TpMaxHrAdd * tp - 35 * cushing,
         sbp, dbp, map: dbp + (sbp - dbp) / 3,
-        rr: this.intubated ? 14 : Shock.rr(m, f) + C.TpMaxRrAdd * tp - 6 * airway - 6 * cushing,
+        rr: this.intubated ? 14 : (Shock.rr(m, f) + C.TpMaxRrAdd * tp - 6 * airway - 6 * cushing) * rrFactor,
         spo2,
         etco2: loss(f, EtCo2) - C.TpMaxEtCo2Drop * tp + C.AirwayMaxEtCo2Rise * airway,
         be, lactate: Shock.lactate(f), hb, hco3, paco2, ph,
         pao2: BloodGas.pao2(spo2, this.oxygen, this.intubated), potassium: BloodGas.potassium(ph),
-        calcium: BloodGas.calcium(this.transfused), glucose: BloodGas.glucose(f),
+        calcium: ica, glucose: BloodGas.glucose(f),
+        temp: this.temp, factors: this.factors, fib: this.fib * C.FibNormal, coag: coagulation(this.factors, this.fib, this.temp, ph, ica),
         gcs: roundHalfEven(gcs), anisocoria: tbi >= C.TbiAnisocoriaLevel, intubated: this.intubated,
         bv: this.volume, loss: f, arrest: false,
       };
@@ -431,9 +511,12 @@
       const label = def.logLabel || def.label;
       const v = this.engine.current;
       if (iv.type === "BloodGas") {
-        const result = `BGA-Ergebnis (abgenommen ${clock(v.time)}): ` + bloodGasReport(v);
-        this.delayed.push({ due: v.time + def.effectDelay_s, iv, label, result, bga: { sampled: v.time, values: bloodGasValues(v) } });
+        const coag = iv.compound === "Coag";
+        const result = coag ? `Gerinnung (abgenommen ${clock(v.time)}): ` + coagReport(v) : `BGA-Ergebnis (abgenommen ${clock(v.time)}): ` + bloodGasReport(v);
+        this.delayed.push({ due: v.time + def.effectDelay_s, iv, label, result,
+          bga: { sampled: v.time, values: coag ? coagValues(v) : bloodGasValues(v), title: coag ? "Gerinnung" : "BGA" } });
         this.log(`Maßnahme: ${label}`, tag);
+        this.warnContraindicated(def);
         return true;
       }
       if (def.effectDelay_s > 0) {
@@ -443,7 +526,15 @@
       }
       this.engine.applyIntervention(iv);
       this.log(`Maßnahme: ${label}`, tag);
+      this.warnContraindicated(def);
       return true;
+    }
+
+    /** Wie InterventionController.WarnContraindicated: Warnung, wenn eine aktive Verletzung die Maßnahme verbietet. */
+    warnContraindicated(def) {
+      const t = this.engine.current.time;
+      if ((def.contraindicatedBy || []).some((id) => this.scenario.injuries.some((si) => si.injuryId === id && si.onsetTime_s <= t)))
+        this.log(`Warnung: ${def.label} kontraindiziert — ${def.contraindicationNote}`, "warning:contraindicated:" + def.id);
     }
 
     /** Wie SimulationManager.RequestImaging. Gibt false zurück, wenn nicht möglich. */

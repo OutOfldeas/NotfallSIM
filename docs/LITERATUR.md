@@ -21,7 +21,10 @@ Jede Änderung an `injuries.json` oder an den Modelltabellen sollte hier nachvol
 | EK | Hämatokrit 0,6 | Größenordnung plausibel | gegen Querschnitts-Leitlinie Hämotherapie prüfen |
 | HCO₃⁻, pCO₂, pH | HCO₃⁻ ≈ 24 + BE; Winters-Formel; Henderson-Hasselbalch | Lehrbuchphysiologie | Standardformeln |
 | Kalium | +0,6 mmol/L je 0,1 pH unter 7,40 | Faustregel | Lehrbuch |
-| Ionisiertes Calcium | −0,06 mmol/L je 300 mL Blutprodukt (Citrat) | geschätzt | didaktisch |
+| Ionisiertes Calcium | −0,06 mmol/L je 300 mL EK oder FFP (Citrat); CaCl₂ 1 g +0,2 | Richtung gut (Webster 2016), Größe geschätzt | s. Letale Trias |
+| Körpertemperatur | Wärmebilanz mit 2,98 kJ/(kg·K); Auskühlung 0,5 °C/h (Narkose ×2), Wärmeerhalt +0,5 °C/h | Physik gut, Raten geschätzt | Xu 2022; Sessler 2008 |
+| Gerinnung | Faktoren/Fibrinogen nach Verdünnung, × Temperatur, pH, Calcium | Mechanismen belegt, Kopplung geschätzt | s. Letale Trias |
+| Fentanyl, Ketamin, Propofol | RR, HF, Atemdepression über die Zeit; im Schock stärker | Richtung gut, Größe teils belegt | s. Letale Trias |
 | Glukose | 110 → 200 mg/dL mit der Schockschwere | geschätzt | didaktisch |
 | Noradrenalin | RRsys +20, RRdia +12 mmHg; mehr Druck = mehr Blutfluss aus Läsionen | Richtung gut, Größe geschätzt | Rossaint 2023 (Indikation), Wirkung didaktisch |
 | Akutes Subduralhämatom | GCS ca. 12 bei Ankunft, GCS ≤ 8 nach ca. 12 min | geschätzt | didaktisch |
@@ -128,6 +131,10 @@ Die Kriterien stehen im Feld `assessment` der Szenario-Dateien. Belegt ist meist
 | Polytrauma | Bildgebung Kopf | 15 min | nein | didaktisch |
 | Polytrauma | Neurochirurgie nach CT | 5 min ab CT-Befund | ja | didaktisch |
 | Polytrauma | Kein CT-Transport im Schock | 0 | nein | ATLS; S3, GoR B |
+| Zufallsfälle (alle) | Wärmeerhalt begonnen | 15 min | nein | letale Trias; Rossaint 2023; Zeitziel didaktisch |
+| Zufallsfälle (alle) | BGA abgenommen (Gerinnungslabor zählt nicht) | 10 min | nein | Mutschler 2013 |
+| Offene Unterschenkelfraktur, Amputation | Antibiose | 60 min | nein | Lack 2015 (> 66 min Risikofaktor) |
+| Instabiles Becken | Kein transurethraler Blasenkatheter | 0 | nein | Harnröhrenverletzung möglich (ATLS) |
 
 Änderungen in v0.4: Beim Thoraxtrauma zählen die Ziele jetzt ab Beginn des Spannungspneus statt ab Szenariostart. Kristalloid ist jetzt eine balancierte Vollelektrolytlösung (S3, GoR A: keine isotone NaCl-Lösung). Tranexamsäure ist als Maßnahme und Ziel dazugekommen.
 
@@ -340,6 +347,49 @@ Folge im Spiel: Großzügige Volumengabe vor der Blutstillung kann ein Gerinnsel
 intraabdominelle Blutung tamponiert sich nicht von selbst (der Bauchraum fasst mehr als das Blutvolumen). Venöse und
 parenchymatöse Blutungen sickern (kein Strahl), arterielle spritzen. Pulse rechnet Blutungen mit eigenem Modell; Läsionsart
 und Gerinnsel gelten nur für die Mock-Engine.
+
+## Letale Trias und Medikamente (Mock-Engine und Browser-Prototyp)
+
+**Temperatur.** Jede Infusion bringt ihre Temperatur mit: ΔT = m·c·(T_Infusion − T) / (m_Körper · c_Körper). Für den Körper
+gilt 2,98 kJ/(kg·K) — die neuere Bestimmung von Xu et al. (2022); der übliche Wert 3,47 beruhte auf Annahmen. Kristalloid
+ungewärmt 20 °C, EK und FFP 4 °C, mit Infusionswärmer 38 °C. Ein kaltes EK (300 mL) senkt einen 75-kg-Patienten so um
+ca. 0,17 °C. Der entkleidete Patient kühlt um 0,5 °C/h aus (Annahme); in Narkose doppelt so schnell, weil die Vasodilatation
+Wärme vom Kern in die Peripherie umverteilt (Sessler 2008: 1–1,5 °C in der ersten Stunde). Aktiver Wärmeerhalt: +0,5 °C/h
+bis 37 °C (Annahme).
+
+**Gerinnung.** Faktorenaktivität und Fibrinogen werden im Plasmavolumen (Blutvolumen − Erythrozytenvolumen) gemischt:
+Kristalloid und EK bringen keine Gerinnungsfaktoren, FFP normale Spiegel, Fibrinogenkonzentrat 2 g. Im Schock (Blutverlust
+> 15 %) baut eine Hyperfibrinolyse Fibrinogen ab (akute traumatische Koagulopathie, Brohi 2003), Tranexamsäure stoppt das
+(CRASH-2: Gabe ≤ 1 h RR Blutungstod 0,68; 1–3 h 0,79; > 3 h 1,44 — die zeitliche Abnahme ist noch nicht modelliert).
+Die wirksame Gerinnung C ist das Minimum aus Faktoren (< 20 % keine, ≥ 50 % volle) und Fibrinogen (0,8 → 1,5 g/L),
+multipliziert mit
+
+- Temperatur: unter 35 °C −7,5 % je °C (Annahme). Bei 33 °C sind die Gerinnungsenzyme kaum gebremst, Thrombozytenadhäsion
+  und -aggregation aber signifikant (Wolberg 2004); darunter leiden beide.
+- pH: bei pH 7,0 −60 % (Meng 2003: FVIIa/TF-Aktivität −60 %, FVIIa allein −90 %).
+- ionisiertes Calcium: Cofaktor, unter 1,0 mmol/L bis auf 50 % bei 0,6 (Annahme).
+
+C wirkt auf die Blutung (diffus/parenchymatös bis ×2, arteriell bis ×1,3) und auf die Gerinnselbildung (nur bei C ≥ 0,5;
+unter 0,3 lösen sich Gerinnsel). Die Zahlen dieser Kopplung sind geschätzt. Das Gerinnungslabor (Quick, INR, Fibrinogen)
+misst wie im echten Labor bei 37 °C im Citratplasma — Hypothermie, Azidose und Calciummangel sieht man dort nicht.
+INR ≈ 1 + (1/Aktivität − 1)/2 ist eine Näherung.
+
+**Calcium.** Citrat aus EK und FFP senkt das ionisierte Calcium (Webster 2016: 55 % bei Ankunft, 89 % nach Blutprodukten
+hypokalzämisch, Mittel 1,11 → 0,98 mmol/L). Unter 1,0 mmol/L sinkt im Modell der Blutdruck (bis −15 mmHg bei 0,6; Annahme).
+CaCl₂ 1 g hebt um ca. 0,2 mmol/L (6,8 mmol in ca. 15 L Extrazellulärraum).
+
+**Medikamente** (Wirkung voll bis t₁, linear abklingend bis t₂):
+
+| Wirkstoff | RR | HF | Atemdepression (spontan atmend) | t₁ / t₂ | Grundlage |
+|---|---|---|---|---|---|
+| Fentanyl 0,1 mg | −10 % − 33 % × Verlustanteil | −8 | 0,3 | 20 / 40 min | Sympathikolyse; Größe geschätzt |
+| Ketamin 1 mg/kg | +10 % − 29 % × Verlustanteil (≥ 0) | +12 | — | 10 / 20 min | sympathomimetisch; im tiefen Schock kein Anstieg (erschöpfte Katecholamine) |
+| Propofol 1,5 mg/kg | −20 % − 67 % × Verlustanteil | −5 | 0,6 | 5 / 15 min | normovoläm −16 bis −23 % MAD (Vale 2024, Pilotdaten); im Schock stärker (Annahme) |
+
+Atemdepression wirkt wie ein ungeschützter Atemweg (SpO₂ ↓, pCO₂ ↑) und senkt die Atemfrequenz; beatmet entfällt sie.
+Antibiose hat im Simulationszeitraum keine Wirkung, wird aber bewertet (offene Fraktur: ≤ 60 min, Lack 2015: > 66 min
+unabhängiger Risikofaktor für tiefe Infektion). Der transurethrale Blasenkatheter ist bei instabilem Becken kontraindiziert
+(Harnröhrenverletzung) und erzeugt eine Warnung.
 
 ## Haut (`skin.json`, Shader `NotfallSIM/Skin`)
 
@@ -582,3 +632,12 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 83. Monnet X, Teboul JL. Passive leg raising: five rules, not a drop of fluid! *Crit Care*. 2015;19:18. [DOI](https://doi.org/10.1186/s13054-014-0708-5)
 84. Winter DA. *Biomechanics and Motor Control of Human Movement*. 4th ed. Wiley; 2009. Kap. 4. [DOI](https://doi.org/10.1002/9780470549148)
 85. Alexy T, Detterich J, Connes P, et al. Physical properties of blood and their relationship to clinical conditions. *Front Physiol*. 2022;13:906768. [DOI](https://doi.org/10.3389/fphys.2022.906768)
+86. Xu X, Rioux TP, Castellani MP. The specific heat of the human body is lower than previously believed: The journal *Temperature* toolbox. *Temperature*. 2022;10(2):235-239. [DOI](https://doi.org/10.1080/23328940.2022.2088034)
+87. Sessler DI. Temperature monitoring and perioperative thermoregulation. *Anesthesiology*. 2008;109(2):318-338. [PubMed](https://pubmed.ncbi.nlm.nih.gov/18648241/)
+88. Wolberg AS, Meng ZH, Monroe DM, Hoffman M. A systematic evaluation of the effect of temperature on coagulation enzyme activity and platelet function. *J Trauma*. 2004;56(6):1221-1228. [DOI](https://doi.org/10.1097/01.ta.0000064328.97941.fc)
+89. Meng ZH, Wolberg AS, Monroe DM, Hoffman M. The effect of temperature and pH on the activity of factor VIIa: implications for the efficacy of high-dose factor VIIa in hypothermic and acidotic patients. *J Trauma*. 2003;55(5):886-891. [PubMed](https://pubmed.ncbi.nlm.nih.gov/14608161/)
+90. Brohi K, Singh J, Heron M, Coats T. Acute traumatic coagulopathy. *J Trauma*. 2003;54(6):1127-1130.
+91. CRASH-2 collaborators. The importance of early treatment with tranexamic acid in bleeding trauma patients: an exploratory analysis of the CRASH-2 randomised controlled trial. *Lancet*. 2011;377(9771):1096-1101. [DOI](https://doi.org/10.1016/S0140-6736(11)60278-X)
+92. Webster S, Todd S, Redhead J, Wright C. Ionised calcium levels in major trauma patients who received blood in the Emergency Department. *Emerg Med J*. 2016;33(8):569-572. [DOI](https://doi.org/10.1136/emermed-2015-205096)
+93. Vale AGG, Govêia CS, Guimarães GMN, et al. Comparison of arterial hypotension incidence during general anesthesia induction – target-controlled infusion vs. bolus injection of propofol: a randomized clinical trial. *Braz J Anesthesiol*. 2024;74(4):844503. [DOI](https://doi.org/10.1016/j.bjane.2024.844503)
+94. Lack WD, Karunakar MA, Angerame MR, et al. Type III open tibia fractures: immediate antibiotic prophylaxis minimizes infection. *J Orthop Trauma*. 2015;29(1):1-6. [PubMed](https://pubmed.ncbi.nlm.nih.gov/25526095/)

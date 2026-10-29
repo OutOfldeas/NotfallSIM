@@ -133,6 +133,19 @@
           "onlyAfterReference": false,
           "critical": false,
           "rationale": "S3 (GoR B): Volumentherapie bei unkontrollierter Blutung reduzieren (permissive Hypotension). 1000 mL entspricht dem initialen ATLS-Bolus; Obergrenze didaktisch."
+        },
+        {
+          "id": "kein_dk",
+          "description": "Kein transurethraler Blasenkatheter",
+          "type": "maxCount",
+          "tags": [
+            "warning:contraindicated:blasenkatheter"
+          ],
+          "limit": 0,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Instabiler Beckenring: Harnröhrenverletzung möglich, transurethraler Katheter erst nach Ausschluss (ATLS)."
         }
       ],
       "dynamicFindings": [
@@ -1261,6 +1274,19 @@
           "onlyAfterReference": false,
           "critical": true,
           "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        },
+        {
+          "id": "antibiose",
+          "description": "Antibiose gegeben",
+          "type": "deadline",
+          "tags": [
+            "intervention:Medication:Antibiotic"
+          ],
+          "limit": 3600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Offene Fraktur bzw. Amputation: Antibiotika so früh wie möglich, spätestens nach ca. 1 h (Lack 2015: > 66 min unabhängiger Infektionsrisikofaktor)."
         }
       ],
       "dynamicFindings": [
@@ -1374,6 +1400,19 @@
           "onlyAfterReference": false,
           "critical": false,
           "rationale": "So früh wie möglich, spätestens 3 h nach Trauma (Rossaint 2023, Grade 1A). 10 min didaktisch."
+        },
+        {
+          "id": "antibiose",
+          "description": "Antibiose gegeben",
+          "type": "deadline",
+          "tags": [
+            "intervention:Medication:Antibiotic"
+          ],
+          "limit": 3600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Offene Fraktur bzw. Amputation: Antibiotika so früh wie möglich, spätestens nach ca. 1 h (Lack 2015: > 66 min unabhängiger Infektionsrisikofaktor)."
         }
       ],
       "dynamicFindings": [

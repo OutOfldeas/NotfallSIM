@@ -12,6 +12,7 @@ namespace NotfallSIM.Core
         public double height_cm = 180;
         public bool betaBlocker;    // Dauermedikation: dämpft die Tachykardie
         public double initialBloodLoss_mL; // Blutverlust vor Ankunft im Schockraum (präklinische Phase)
+        [System.Runtime.Serialization.OptionalField] public double initialTemperature_C; // Kerntemperatur bei Ankunft (0 = 36,5 °C)
 
         public bool IsMale => !string.Equals(sex, "female", StringComparison.OrdinalIgnoreCase);
 
@@ -60,7 +61,7 @@ namespace NotfallSIM.Core
         Osmotherapy,         // hypertone Kochsalzlösung / Mannitol, überbrückend
         NeurosurgicalDecompression, // Kraniotomie; wirkt mit Verzögerung (CT, Transport, OP)
         BloodGas,            // BGA: Ergebnis nach Verzögerung, ohne physiologischen Effekt
-        Supportive,          // Wärmeerhalt, Analgesie u. Ä.; im Mock ohne physiologischen Effekt
+        Supportive,          // Wärmeerhalt, Infusionswärmer, Blasenkatheter u. Ä. (Compound bestimmt die Wirkung)
         Vasopressor,         // Noradrenalin: hebt den Blutdruck, erhöht damit aber auch den Blutfluss aus Läsionen
         Positioning          // Lagerung (Ziel = Lagerungs-ID): Höhe der Blutungsorte über dem Herzen, Autotransfusion
     }

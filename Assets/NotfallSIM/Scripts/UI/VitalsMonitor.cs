@@ -51,7 +51,7 @@ namespace NotfallSIM.UI
                 Set(spo2, $"{v.SpO2_percent:F0}", v.SpO2_percent < spo2Low);
                 Set(etco2, $"{v.EtCO2_mmHg:F0}", v.EtCO2_mmHg < 25);
                 // Debug-Anzeige — im fertigen Spiel ausblenden, der Spieler soll es ja herausfinden.
-                Set(status, $"Blutverlust {v.BloodLossFraction:P0}" + (v.Intubated ? " · beatmet" : ""), false);
+                Set(status, $"Temp {v.Temperature_C:F1} °C · Blutverlust {v.BloodLossFraction:P0}" + (v.Intubated ? " · beatmet" : ""), v.Temperature_C < 35);
             }
             int t = (int)v.SimTime_s;
             if (simTime) simTime.text = $"{t / 60:00}:{t % 60:00}";
