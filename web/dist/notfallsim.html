@@ -54,6 +54,15 @@ button { font: inherit; color: inherit; }
 .vital.alarm .val { color: #fff; background: var(--mon-alarm); border-radius: 3px; padding-inline: 3px; animation: blink 1s steps(2, start) infinite; }
 @keyframes blink { 50% { background: transparent; color: var(--mon-alarm); } }
 @media (prefers-reduced-motion: reduce) { .vital.alarm .val { animation: none; } }
+.mon-right { display: flex; align-items: baseline; gap: 10px; }
+.mon-btn { white-space: nowrap; background: transparent; border: 1px solid var(--mon-line); color: var(--mon-label); border-radius: 4px; padding: 1px 8px; font-family: var(--font-mono); font-size: 11px; cursor: pointer; }
+.mon-btn[aria-pressed="true"] { color: #e8f0ee; border-color: var(--mon-label); }
+.waves { display: grid; gap: 2px; }
+.wave { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 6px; height: 40px; overflow: hidden; }
+.wave span { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; opacity: .9; }
+.wave canvas { width: 100%; height: 40px; display: block; }
+.w-ecg { color: var(--mon-hr); } .w-pleth { color: var(--mon-spo2); } .w-co2 { color: var(--mon-co2); }
+@media (max-width: 560px) { .wave { height: 28px; grid-template-columns: 30px minmax(0, 1fr); } .wave canvas { height: 28px; } .w-co2 { display: none; } }
 .mon-arrest { font-family: var(--font-display); font-size: 28px; color: var(--mon-alarm); letter-spacing: .04em; text-align: center; }
 
 /* ---------- Seite ---------- */
@@ -167,7 +176,12 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
   <div class="mon-inner">
     <div class="mon-head">
       <span id="monScenario"><strong>NotfallSIM</strong> · Szenario wählen</span>
-      <span class="mon-clock" id="monClock">00:00</span>
+      <span class="mon-right"><button type="button" class="mon-btn" id="toneBtn" aria-pressed="false" title="QRS-Ton (Tonhöhe sinkt mit der Sättigung)">Ton aus</button><span class="mon-clock" id="monClock">00:00</span></span>
+    </div>
+    <div class="waves" id="waves" aria-hidden="true">
+      <div class="wave w-ecg"><span>II</span><canvas id="wEcg"></canvas></div>
+      <div class="wave w-pleth"><span>Pleth</span><canvas id="wPleth"></canvas></div>
+      <div class="wave w-co2"><span>CO₂</span><canvas id="wCo2"></canvas></div>
     </div>
     <div class="vitals" id="vitals">
       <div class="vital v-hr" id="vHr"><div class="lab"><span>HF</span><span>/min</span></div><div class="val">--</div></div>
@@ -1067,7 +1081,66 @@ $("endBtn").onclick = () => { if (!sim) return; sim.end(); renderMonitor(); show
 function setVital(id, text, alarm) {
   const el = $(id); el.querySelector(".val").textContent = text; el.classList.toggle("alarm", !!alarm);
 }
+// ---------- Kurven (wie MonitorWaveforms.cs in Unity) ----------
+// EKG (Ableitung II), Pulsoxymetrie und Kapnografie als Sweep mit Lücke vor dem Cursor, 25 mm/s (≈ 100 px/s).
+// Kurvenformen schematisch; Frequenz, Perfusion (aus dem systolischen Druck) und etCO₂ aus der Physiologie.
+const W8 = { ch: [], cursor: 0, beat: 0, resp: 0, last: 0, tone: false, audio: null };
+const G = (x, mu, s) => Math.exp(-(x - mu) * (x - mu) / (2 * s * s));
+const ecgWave = (p) => 0.12 * G(p, 0.10, 0.025) - 0.10 * G(p, 0.205, 0.008) + 1.0 * G(p, 0.225, 0.010) - 0.25 * G(p, 0.245, 0.010) + 0.28 * G(p, 0.45, 0.040);
+const plethWave = (p) => { const x = (p - 0.28 + 1) % 1; return Math.min(1, Math.max(0, 0.95 * G(x, 0.14, 0.07) + 0.35 * G(x, 0.38, 0.07))); };
+const capnoWave = (p) => p < 0.08 ? p / 0.08 : p < 0.5 ? 0.9 + 0.1 * (p - 0.08) / 0.42 : p < 0.56 ? 1 - (p - 0.5) / 0.06 : 0;
+function waveSetup() {
+  W8.ch = ["wEcg", "wPleth", "wCo2"].map((id) => {
+    const c = $(id), r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    c.width = Math.max(1, Math.round(r.width * dpr)); c.height = Math.max(1, Math.round(r.height * dpr));
+    const ctx = c.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineWidth = 1.6; ctx.lineJoin = "round"; ctx.strokeStyle = getComputedStyle(c).color;
+    return { c, ctx, w: r.width, h: r.height, lastY: null };
+  });
+  W8.cursor = 0;
+}
+function beep(spo2) {
+  try {
+    W8.audio = W8.audio || new (window.AudioContext || window.webkitAudioContext)();
+    const a = W8.audio, o = a.createOscillator(), g = a.createGain();
+    o.frequency.value = 880 * (0.55 + 0.45 * Math.min(1, Math.max(0, (spo2 - 75) / 25)));
+    g.gain.setValueAtTime(0, a.currentTime); g.gain.linearRampToValueAtTime(0.12, a.currentTime + 0.005); g.gain.linearRampToValueAtTime(0, a.currentTime + 0.07);
+    o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + 0.08);
+  } catch (e) {}
+}
+function waveLoop(now) {
+  const dt = W8.last ? Math.min(0.1, (now - W8.last) / 1000) : 0; W8.last = now;
+  if (sim && !paused && !sim.ended && W8.ch.length && dt > 0) {
+    const v = sim.vitals, arrest = v.arrest;
+    const hr = arrest ? 0 : v.hr, rr = arrest ? 0 : v.rr, perf = arrest ? 0 : Math.min(1, Math.max(0, (v.sbp - 40) / 80)), co2 = Math.min(1, Math.max(0, v.etco2 / 50));
+    const steps = Math.max(1, Math.round(dt * 100)), sdt = dt / steps;
+    for (let k = 0; k < steps; k++) {
+      const prev = W8.beat;
+      W8.beat = (W8.beat + sdt * hr / 60) % 1; W8.resp = (W8.resp + sdt * rr / 60) % 1;
+      if (!arrest && W8.beat < prev && W8.tone) beep(v.spo2);
+      const noise = (Math.random() - 0.5) * 0.03;
+      const vals = [arrest ? noise : ecgWave(W8.beat) + noise, plethWave(W8.beat) * perf, capnoWave(W8.resp) * co2];
+      const base = [0.3, 0.12, 0.08], amp = [0.55, 0.75, 0.8];
+      W8.ch.forEach((ch, i) => {
+        const x = W8.cursor % ch.w, y = ch.h * (1 - (base[i] + amp[i] * vals[i]));
+        ch.ctx.clearRect(x, 0, 10, ch.h);
+        if (ch.lastY != null && x > 0) { ch.ctx.beginPath(); ch.ctx.moveTo(x - 1, ch.lastY); ch.ctx.lineTo(x, y); ch.ctx.stroke(); }
+        ch.lastY = y;
+      });
+      W8.cursor = (W8.cursor + 1) % Math.max(1, Math.floor(W8.ch[0].w));
+    }
+  }
+  requestAnimationFrame(waveLoop);
+}
+$("toneBtn").onclick = () => {
+  W8.tone = !W8.tone; $("toneBtn").setAttribute("aria-pressed", W8.tone); $("toneBtn").textContent = W8.tone ? "Ton an" : "Ton aus";
+  if (W8.tone) beep(98);   // Browser erlauben Ton erst nach einer Berührung
+};
+window.addEventListener("resize", () => { waveSetup(); });
+waveSetup(); requestAnimationFrame(waveLoop);
+
 function resetMonitor() {
+  W8.ch.forEach((ch) => { ch.ctx.clearRect(0, 0, ch.w, ch.h); ch.lastY = null; }); W8.cursor = 0;
   ["vHr", "vSpo2", "vRr", "vCo2"].forEach((id) => setVital(id, "--", false));
   setVital("vBp", "--/--", false); $("vMap").textContent = "MAD --"; $("monClock").textContent = "00:00";
   $("monArrest").hidden = true; $("vitals").hidden = false;
