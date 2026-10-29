@@ -157,6 +157,12 @@ Höhe und Gurt einstellen, „Crash starten“. Der Crash wird zuerst mit 0,1-ms
 verteilt auf Frames, mit Fortschrittsanzeige — und dann flüssig abgespielt, in Echtzeit oder Zeitlupe. Während der
 Wiedergabe: Leertaste Pause, `,` / `.` spulen (mit Umschalt in größeren Schritten), R oder „Crash wiederholen“ spielt ihn
 erneut ab (auch mit anderer Zeitlupe), ohne neu zu rechnen.
+Vor dem Aufprall fahren die Fahrzeuge 3 s auf den Aufprallort zu (PKW frontal gegen eine Betonbarriere, PKW seitlich
+wird an der Kreuzung vom Unfallgegner getroffen, Motorrad gegen PKW-Seite, PKW auf stehenden Fußgänger); beim Sturz
+fällt der Körper frei aus der eingestellten Höhe (1–30 m, Fallzeit √(2h/g), mit Luftwiderstand). Der Vorlauf läuft
+in Echtzeit, die Zeitlupe setzt kurz vor dem Aufprall ein. Gerechnet wird der Vorlauf mit 1-ms-Schritt ohne Messung;
+Insasse und Fußgänger werden bis zum Aufprall in ihrer Haltung gehalten, damit der Ausgangszustand der Messung
+gleich bleibt.
 Danach zeigt die Sandbox die Messwerte wie beim Crashtest-Dummy (HIC15, Brustbeschleunigung, Kontaktkräfte),
 das Verletzungsrisiko je Region, färbt den Körper danach ein und übergibt den Fall auf Knopfdruck verdeckt an
 den Schockraum (Schockraum-Szene muss erzeugt sein).

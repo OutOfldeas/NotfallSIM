@@ -38,7 +38,7 @@ namespace NotfallSIM.Crash
                 { "pkw_seite",   ("PKW seitlich (Fahrerseite)", 50, 10, 100, 10, "km/h") },
                 { "motorrad",    ("Motorrad gegen PKW", 50, 10, 120, 10, "km/h") },
                 { "fussgaenger", ("Fußgänger", 40, 10, 90, 10, "km/h") },
-                { "sturz_hoehe", ("Sturz aus der Höhe", 6, 1, 20, 1, "m") },
+                { "sturz_hoehe", ("Sturz aus der Höhe", 6, 1, 30, 1, "m") },
             };
 
         public void Configure(CrashRig crashRig, TMP_Text settings, TMP_Text results, GameObject toTraumaRoom, Camera camera)
@@ -52,6 +52,9 @@ namespace NotfallSIM.Crash
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
             resultText.text = "Mechanismus wählen und „Crash starten“ drücken.";
             _replayButton = MakeReplayButton();
+            _minusText = FindButtonText("– langsamer");
+            _plusText = FindButtonText("+ schneller");
+            RelabelSpeedButtons();
         }
 
         /// <summary>„Wiederholen“-Knopf neben „In den Schockraum“ (auch in älteren Szenen, daher zur Laufzeit).</summary>
@@ -82,15 +85,42 @@ namespace NotfallSIM.Crash
             _p.MechanismId = id;
             _p.Speed_kmh = Mechanisms[id].speed;
             ApplyCameraPreset();
+            RelabelSpeedButtons();
             Preview();
         }
 
+        // Fallhöhen in sinnvollen Stufen (ein Stockwerk ≈ 3 m)
+        static readonly float[] Heights = { 1, 1.5f, 2, 3, 4, 5, 6, 8, 10, 12, 15, 18, 21, 25, 30 };
+
+        /// <summary>Geschwindigkeit bzw. beim Sturz die Fallhöhe ändern.</summary>
         public void ChangeSpeed(float direction)
         {
             if (Busy) return;
             var m = Mechanisms[_p.MechanismId];
-            _p.Speed_kmh = Mathf.Clamp(_p.Speed_kmh + Mathf.Sign(direction) * m.step, m.min, m.max);
+            if (_p.MechanismId == "sturz_hoehe")
+            {
+                int i = 0;
+                for (int k = 0; k < Heights.Length; k++) if (Mathf.Abs(Heights[k] - _p.Speed_kmh) < Mathf.Abs(Heights[i] - _p.Speed_kmh)) i = k;
+                _p.Speed_kmh = Heights[Mathf.Clamp(i + (direction > 0 ? 1 : -1), 0, Heights.Length - 1)];
+            }
+            else _p.Speed_kmh = Mathf.Clamp(_p.Speed_kmh + Mathf.Sign(direction) * m.step, m.min, m.max);
             Preview();
+        }
+
+        /// <summary>Beschriftung der −/+-Knöpfe je Mechanismus (Höhe statt Geschwindigkeit).</summary>
+        void RelabelSpeedButtons()
+        {
+            bool fall = _p.MechanismId == "sturz_hoehe";
+            SetButtonText(_minusText, "– langsamer", fall ? "– niedriger" : "– langsamer");
+            SetButtonText(_plusText, "+ schneller", fall ? "+ höher" : "+ schneller");
+        }
+
+        TMP_Text _minusText, _plusText;
+        static void SetButtonText(TMP_Text t, string name, string text) { if (t != null) t.text = text; }
+        static TMP_Text FindButtonText(string name)
+        {
+            var go = GameObject.Find(name);
+            return go != null ? go.GetComponentInChildren<TMP_Text>() : null;
         }
 
         public void ToggleBelt() { if (Busy) return; _p.Belted = !_p.Belted; Preview(); }
@@ -219,7 +249,10 @@ namespace NotfallSIM.Crash
         {
             var m = Mechanisms[_p.MechanismId];
             bool car = _p.MechanismId.StartsWith("pkw");
-            return $"<b>{m.label}</b>\n{(_p.MechanismId == "sturz_hoehe" ? "Höhe" : "Geschwindigkeit")}: {_p.Speed_kmh:0} {m.unit}" +
+            bool fall = _p.MechanismId == "sturz_hoehe";
+            float h = _p.Speed_kmh;
+            string fallInfo = fall ? $" <size=80%>(Fallzeit {Mathf.Sqrt(2 * h / 9.81f):0.0} s · Aufprall {Mathf.Sqrt(2 * 9.81f * h) * 3.6f:0} km/h)</size>" : "";
+            return $"<b>{m.label}</b>\n{(fall ? "Höhe" : "Geschwindigkeit")}: {_p.Speed_kmh:0.#} {m.unit}{fallInfo}" +
                                 (car ? $"\nGurt: {(_p.Belted ? "angelegt" : "nicht angelegt")}" : "") +
                                 (_p.MechanismId == "pkw_frontal" ? $"\nAirbag: {(_p.Airbag ? "ja" : "nein")}" : "") +
                                 $"\nInsasse: {MuscleTone.Label(_p.Occupant)}" +
@@ -389,7 +422,9 @@ namespace NotfallSIM.Crash
             float stepS = shift ? 0.05f : 0.005f;
             if (back) { rig.PlaybackPaused = true; rig.Seek(-stepS); }
             if (fwd) { rig.PlaybackPaused = true; rig.Seek(stepS); }
-            settingsText.text = SettingsText() + $"\n<b>Wiedergabe {rig.PlaybackTime * 1000:0} / {rig.RecordedDuration * 1000:0} ms</b>" +
+            float rel = rig.PlaybackTime - rig.CrashStart;
+            string phase = rel < 0 ? (_p.MechanismId == "sturz_hoehe" ? "freier Fall" : "Anfahrt") : "Aufprall";
+            settingsText.text = SettingsText() + $"\n<b>Wiedergabe {phase}: t = {rel * 1000:+0;-0;0} ms</b>" +
                                 (rig.PlaybackPaused ? " (Pause)" : "") +
                                 "\n<size=80%>Leertaste Pause · , / . spulen (Umschalt: schneller) · R wiederholen</size>";
         }
