@@ -246,6 +246,10 @@ namespace NotfallSIM.Anatomy
             var sh = Resources.Load<Shader>("Skin") ?? Shader.Find("NotfallSIM/Skin");
             var p = SkinData;
             if (sh == null || !sh.isSupported || p == null) return Lit(fallbackTone, 0.38f);
+#if UNITY_EDITOR
+            // Shader mit Kompilierfehler würde pink erscheinen: dann lieber URP/Lit in Hautfarbe (Fehler steht in der Konsole)
+            if (UnityEditor.ShaderUtil.ShaderHasError(sh)) { Debug.LogWarning("[Haut] Shader NotfallSIM/Skin hat Fehler — Ersatz URP/Lit."); return Lit(fallbackTone, 0.38f); }
+#endif
             var m = new Material(sh);
             m.SetColor("_BaseColor", C(p.toneColor, fallbackTone));
             m.SetColor("_PaleColor", C(p.paleColor, fallbackTone));
