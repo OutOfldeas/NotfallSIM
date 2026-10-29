@@ -1524,6 +1524,7 @@ static class Tests
                 float dz = skin.Positions[3 * b0 + 2] - skin.Positions[3 * a0 + 2];
                 Check(dz < 0, m.id + ": Rinnsal läuft bergauf");
             }
+            Check(riv.EdgeSlope.Length == riv.Path.Length - 1 && riv.EdgeSlope.All(x => x > 0) && Math.Abs(riv.EdgeEnd.Last() - 1) < 1e-5, m.id + ": Gefälle entlang des Pfads");
             BloodFlow.BuildStrip(riv, skin.Positions, nrm, 0.01f);
             for (int t = 0; t < riv.Triangles.Length; t += 3)
             {
@@ -1534,7 +1535,31 @@ static class Tests
                 Check(nx * riv.Nrm[3 * i0] + ny2 * riv.Nrm[3 * i0 + 1] + nz * riv.Nrm[3 * i0 + 2] >= 0, m.id + ": Rinnsal falsch ausgerichtet");
             }
         }
+        // Bein 45° hoch (Unity: Euler(−45,0,0) am Oberschenkel): Schwerkraft im Beinsystem (0, sin45, −cos45) — Blut läuft zum Knie
+        {
+            var us = f.marks.First(x => x.id == "us_offene_fraktur");
+            var pu = SkinMarks.Select(data, us, scale, tc, nrm, adj);
+            int legR = data.SegmentIndex("Oberschenkel rechts"), shinR = data.SegmentIndex("Unterschenkel rechts");
+            float sq = (float)Math.Sqrt(0.5);
+            Func<int, float[]> raised = v => { int sg = SkinMarks.DominantSegment(skin.Bones, skin.Weight0, v); return sg == legR || sg == shinR ? new[] { 0, sq, -sq } : new float[] { 0, 0, -1 }; };
+            int start = skin.Indices[3 * pu.HitTriangle];
+            var rv = BloodFlow.Trace(skin.Positions, nrm, adj, start, raised, (float)(f.rivulets.maxLength_m / scale), 1, null);
+            int end = rv.Path.Last();
+            Check(skin.Positions[3 * end + 1] - skin.Positions[3 * start + 1] > 0.03f, "hochgelagertes Bein: Blut läuft nicht Richtung Knie");
+        }
         Check(BloodFlow.Width_mm(f.rivulets, 0) == f.rivulets.widthMin_mm && BloodFlow.Width_mm(f.rivulets, 1e6) == f.rivulets.widthMax_mm, "Rinnsalbreite");
+        // Rieselfilm: schneller bei mehr Gefälle und mehr Fluss, steht auf ebener Haut; Viskosität im gemessenen Bereich
+        var rp = f.rivulets; double e0 = SkinMarks.PoolThickness_m(f.bloodPool), hh;
+        Check(src.Contains(rp.viscositySourceId), "Quelle Viskosität");
+        double q = 25e-6 / 60;   // 25 mL/min
+        double uSteep = BloodFlow.FilmSpeed_m_s(rp, q, 0.01, 1.0, 1060, e0, out hh), uFlat = BloodFlow.FilmSpeed_m_s(rp, q, 0.01, 0.1, 1060, e0, out _);
+        double uLow = BloodFlow.FilmSpeed_m_s(rp, q / 10, 0.01, 1.0, 1060, e0, out _);
+        Check(uSteep > uFlat && uSteep > uLow && BloodFlow.FilmSpeed_m_s(rp, q, 0.01, 0, 1060, e0, out _) == 0, $"Rieselfilm {uSteep:F3}/{uFlat:F3}/{uLow:F3} m/s");
+        Check(uSteep > 0.01 && uSteep < 0.5 && hh > 0 && hh <= e0, $"Rieselfilm senkrecht {uSteep * 100:F1} cm/s, {hh * 1000:F2} mm");
+        Check(Math.Abs(BloodFlow.Viscosity_Pa_s(rp, rp.shearLow_per_s) * 1000 - rp.muLow_mPas) < 1e-6 && Math.Abs(BloodFlow.Viscosity_Pa_s(rp, rp.shearHigh_per_s) * 1000 - rp.muHigh_mPas) < 1e-6, "Viskosität an den Messpunkten");
+        // Strahl: Luftwiderstand einer Kugel in plausibler Größe (bei 5 m/s weniger als die Schwerkraft)
+        double kd = SkinMarks.DropDrag_per_m(f.spurt);
+        Check(kd > 0 && kd * 25 < 9.81, $"Luftwiderstand k = {kd:F3}/m");
 
         // Blutlache und Strahl
         double thick = SkinMarks.PoolThickness_m(bp);

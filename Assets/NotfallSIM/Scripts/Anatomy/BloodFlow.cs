@@ -7,7 +7,8 @@ namespace NotfallSIM.Anatomy
     [Serializable]
     public class RivuletParams
     {
-        public double frontSpeed_m_s;        // Geschwindigkeit der Front über die Haut
+        public double muLow_mPas, shearLow_per_s, muHigh_mPas, shearHigh_per_s; // scherverdünnend (Potenzgesetz zwischen zwei Messpunkten)
+        public string viscositySourceId;
         public double volumePerRivulet_mL;   // je so viel Verlust ein weiteres Rinnsal
         public double widthMin_mm, widthMax_mm, widthAtRate_mL_min;
         public double maxLength_m;
@@ -20,6 +21,16 @@ namespace NotfallSIM.Anatomy
         public int[] Path;                // Hautvertices von der Quelle abwärts
         public bool Drips;                // endet an einer nach unten zeigenden Stelle: tropft ab
         public float Length;              // Modelleinheiten
+        public float[] EdgeSlope;         // Gefälle (Sinus) je Pfadkante
+        public float[] EdgeEnd;           // Bogenlänge am Ende jeder Kante, 0..1
+
+        /// <summary>Gefälle an der Stelle along (0..1) des Pfads.</summary>
+        public float SlopeAt(float along)
+        {
+            if (EdgeSlope == null || EdgeSlope.Length == 0) return 0;
+            for (int i = 0; i < EdgeEnd.Length; i++) if (along <= EdgeEnd[i]) return EdgeSlope[i];
+            return EdgeSlope[EdgeSlope.Length - 1];
+        }
         public float[] Pos, Nrm;          // Band: 2 Vertices je Pfadpunkt (links/rechts)
         public float[] Across, Along;     // quer 0 links … 1 rechts; Bogenlänge 0..1
         public int[] Src;                 // Hautvertex je Bandvertex (Gewichte, Blendshapes)
@@ -42,6 +53,7 @@ namespace NotfallSIM.Anatomy
         {
             var rng = new Random(seed);
             var path = new List<int> { start };
+            var slopes = new List<float>(); var ends = new List<float>();
             var visited = new HashSet<int> { start };
             float length = 0;
             bool drips = false;
@@ -64,10 +76,47 @@ namespace NotfallSIM.Anatomy
                     if (score > bestScore) { bestScore = score; best = w; }
                 }
                 if (best < 0) break;                                           // Mulde: Blut sammelt sich
+                {
+                    float dx = pos[3 * best] - pos[3 * v], dy = pos[3 * best + 1] - pos[3 * v + 1], dz = pos[3 * best + 2] - pos[3 * v + 2];
+                    float len = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+                    slopes.Add((dx * g[0] + dy * g[1] + dz * g[2]) / len);
+                }
                 length += Dist(pos, v, best);
+                ends.Add(length);
                 visited.Add(best); path.Add(best); v = best;
             }
-            return new Rivulet { Path = path.ToArray(), Drips = drips, Length = length };
+            return new Rivulet { Path = path.ToArray(), Drips = drips, Length = length, EdgeSlope = slopes.ToArray(),
+                                 EdgeEnd = ends.Select(x => length > 0 ? x / length : 1).ToArray() };
+        }
+
+        /// <summary>Viskosität (Pa·s) bei der Scherrate: Potenzgesetz durch zwei Messpunkte (scherverdünnendes Blut), außerhalb begrenzt.</summary>
+        public static double Viscosity_Pa_s(RivuletParams p, double shear_per_s)
+        {
+            double n = Math.Log(p.muHigh_mPas / p.muLow_mPas) / Math.Log(p.shearHigh_per_s / p.shearLow_per_s);
+            double mu = p.muLow_mPas * Math.Pow(Math.Max(1e-9, shear_per_s) / p.shearLow_per_s, n);
+            return Math.Max(p.muHigh_mPas, Math.Min(p.muLow_mPas, mu)) / 1000;
+        }
+
+        /// <summary>
+        /// Mittlere Geschwindigkeit eines Blutfilms auf geneigter Haut (laminarer Rieselfilm nach Nußelt):
+        /// h = (3 μ q / (ρ g sinθ))^(1/3), u = q / h, q = Q / Breite; Wandscherrate ρ g sinθ h / μ, μ daraus iterativ.
+        /// Die Filmdicke ist durch die Dicke einer ruhenden Lache begrenzt (dort bleibt das Blut stehen).
+        /// </summary>
+        public static double FilmSpeed_m_s(RivuletParams p, double flow_m3_s, double width_m, double sinSlope, double density, double maxThickness_m, out double thickness_m)
+        {
+            thickness_m = 0;
+            if (flow_m3_s <= 0 || width_m <= 0) return 0;
+            double q = flow_m3_s / width_m, s = Math.Max(0, sinSlope);
+            if (s < 1e-4) { thickness_m = maxThickness_m; return 0; }
+            double mu = p.muHigh_mPas / 1000, h = 0;
+            for (int i = 0; i < 30; i++)
+            {
+                h = Math.Pow(3 * mu * q / (density * 9.81 * s), 1.0 / 3);
+                mu = Viscosity_Pa_s(p, density * 9.81 * s * h / mu);
+            }
+            h = Math.Min(h, maxThickness_m);
+            thickness_m = h;
+            return h > 0 ? q / h : 0;
         }
 
         /// <summary>Breite eines Rinnsals (mm) aus dem Blutfluss: wächst mit der dritten Wurzel des Flusses.</summary>

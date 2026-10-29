@@ -383,10 +383,23 @@ und wird danach in etwa 15 min matt und dunkler (Annahme); die Bräunung durch O
 Wunden ohne laufende Blutung sind bei Ankunft etwa 20 min alt (Annahme).
 
 Blut als Flüssigkeit: Rinnsale laufen vom Wundort im steilsten Abstieg über das Hautnetz; die Schwerkraft wird je
-Körpersegment aus der Lagerung bestimmt (Arme leicht nach hinten gedreht). Sie enden, wo die Haut nach unten zeigt (Abtropfen
-auf die Trage), oder wo das Gefälle unter etwa 5° fällt (Blut bleibt stehen). Je 40 mL Verlust erscheint ein weiteres
-Rinnsal, die Front läuft mit 2 cm/s, solange es blutet; Breite 3–12 mm mit der dritten Wurzel des Flusses. Diese Werte sind
-Darstellungsannahmen; die Blutmenge selbst kommt aus der Physiologie. Rinnsale trocknen wie das übrige Blut.
+Körpersegment aus der aktuellen Lagerung bestimmt und nach jeder Umlagerung neu angewandt (hochgelagertes Bein: Blut läuft
+Richtung Knie). Sie enden, wo die Haut nach unten zeigt (Abtropfen), oder wo das Gefälle unter etwa 5° fällt. Die Front
+läuft mit der mittleren Geschwindigkeit eines laminaren Rieselfilms (Nußelt): h = (3μq/(ρg·sinθ))^(1/3), u = q/h, mit dem
+äußeren Blutfluss aus der Physiologie (q = Fluss je Rinnsal / Breite) und dem örtlichen Gefälle, in Simulationszeit. Blut
+ist scherverdünnend: Potenzgesetz zwischen 65 mPa·s bei 0,1/s und 5 mPa·s bei 1000/s [85]. Ergebnis z. B. 25 mL/min:
+senkrecht ≈ 12 cm/s, bei 6° ≈ 5 cm/s, Film 0,4–1,1 mm dick. Benetzung trockener Haut und Gerinnung an der Front bremsen in
+Wirklichkeit zusätzlich (nicht modelliert). Je 40 mL Verlust erscheint ein weiteres Rinnsal, Breite 3–12 mm
+(Darstellungsannahmen). Rinnsale trocknen wie das übrige Blut.
+
+Blutlache: Sie entsteht dort, wo die Rinnsale abtropfen (senkrecht auf Trage oder Boden projiziert), ohne abtropfende
+Rinnsale unter der Wunde. Ihr Volumen ist der Verlust abzüglich des Bluts, das gerade als Film auf der Haut liegt. Blutstrahl:
+Austrittsgeschwindigkeit aus dem systolischen Druck an der Wunde (systolisch − 78 mmHg je Meter über dem Herzen), Tropfen mit
+Luftwiderstand einer Kugel (a = k·v², k = 3·ρ_Luft·c_W/(8·ρ_Blut·r) ≈ 0,13/m bei r = 1,5 mm) und Schwerkraft.
+
+Lagerung sichtbar: Der Patient nimmt die Lagerung mit denselben Winkeln ein, mit denen die Physiologie rechnet (Oberkörper
+um die Lendenwirbelsäule, Beine um die Hüfte, Arm um die Schulter). Die Trage hat noch keine verstellbare Rückenlehne oder
+Beinstütze; der angehobene Körperteil liegt frei.
 
 Hämatome über die Zeit: Hämoglobin diffundiert im Gewebe mit etwa 4,2·10⁻¹³ m²/s [80]; das sind in einer Stunde unter
 0,1 mm, im Szenario also vernachlässigbar. Ein Hämatom wächst hier nur durch weiteres Blut: Fläche = Volumen im
@@ -409,6 +422,8 @@ ganze intraperitoneale Blut an (Obergrenze); Galeaschwellung beim EDH 15 mL. Tro
 kommt aus der Physiologie (Verlust je Verletzung).
 
 ## Offene Punkte zum Prüfen
+
+- Lagerung in Unity prüfen: Richtung der Gelenkdrehungen (Oberkörper hoch, Beine/Arm nach oben), Klickflächen nach Umlagerung, Rinnsale neu verlegt; Luftwiderstand der Partikel (limitVelocityOverLifetime mit Geschwindigkeitsfaktor) prüfen. Trage ohne verstellbare Teile.
 
 - Crash-Zeichen in Unity prüfen: Kontaktorte (Lenkrad, Armaturenbrett, Boden), Gurtkraft aus der Gelenkkraft (currentForce), Übergabe in den Schockraum. Das Ragdoll in der Sandbox selbst zeigt die Zeichen noch nicht (nur als Liste); der Primitiv-Ragdoll ohne Anatomiemodell erzeugt keine.
 
@@ -562,3 +577,4 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 82. Sharkey EJ, Cassidy M, Brady J, Gilchrist MD, Nic Daeid N. Investigation of the force associated with the formation of lacerations and skull fractures. *Int J Legal Med*. 2012;126(6):835-844. [DOI](https://doi.org/10.1007/s00414-011-0608-z)
 83. Monnet X, Teboul JL. Passive leg raising: five rules, not a drop of fluid! *Crit Care*. 2015;19:18. [DOI](https://doi.org/10.1186/s13054-014-0708-5)
 84. Winter DA. *Biomechanics and Motor Control of Human Movement*. 4th ed. Wiley; 2009. Kap. 4. [DOI](https://doi.org/10.1002/9780470549148)
+85. Alexy T, Detterich J, Connes P, et al. Physical properties of blood and their relationship to clinical conditions. *Front Physiol*. 2022;13:906768. [DOI](https://doi.org/10.3389/fphys.2022.906768)
