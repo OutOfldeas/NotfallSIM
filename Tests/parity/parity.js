@@ -94,6 +94,19 @@ run("trias", { weight_kg: 70, age: 40, sex: "male", initialBloodLoss_mL: 1200, i
   if (s === 6000) e.applyIntervention(iv("Supportive", { compound: "Warming" }));
   if (s === 7000) e.applyIntervention(iv("HemorrhageControl", { target: "Extremity,Liver", rateMultiplier: 0.1 }));
 }, 1800);
+run("dosis", { weight_kg: 80, age: 50, sex: "female", initialBloodLoss_mL: 1000 }, (e, s) => {
+  if (s === 0) e.applyInjury({ ...bleed("Spleen", 0.5, 40, 2000), lesion: "parenchymal" });
+  const med = (c, d) => e.applyIntervention(iv("Medication", { compound: c, doseFactor: d }));
+  if (s === 300) med("Fentanyl", 3);
+  if (s === 1200) med("Propofol", 0.5);
+  if (s === 1500) med("Ketamin", 0.25);
+  if (s === 2000) e.applyIntervention(iv("Vasopressor", { doseFactor: 3 }));
+  if (s === 3000) med("Fibrinogen", 2);
+  if (s === 3200) med("TXA", 0.5);
+  if (s === 3400) med("Calcium", 1.5);
+  if (s === 5000) e.applyIntervention(iv("Vasopressor", { doseFactor: 0.5 }));
+  if (s === 8000) e.applyIntervention(iv("Vasopressor", { doseFactor: 0 }));
+}, 1500);
 
 // Zufallsszenarien (Datei als drittes Argument)
 if (process.argv[3]) {

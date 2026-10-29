@@ -34,8 +34,8 @@ static class Parity
 
     static string N(double x) => x.ToString("0.###", CultureInfo.InvariantCulture);
     static InjuryEvent Bleed(string c, double s, double r, double m) => new InjuryEvent { Effect = InjuryEffectType.Hemorrhage, Compartment = c, Severity = s, BaseRate_mL_min = r, MaxTotalLoss_mL = m };
-    static InterventionEvent Iv(InterventionType t, string target = null, string compound = null, double vol = 0, double rate = 0, double mult = 1) =>
-        new InterventionEvent { Type = t, TargetCompartment = target, Compound = compound, Volume_mL = vol, Rate_mL_min = rate, RateMultiplier = mult };
+    static InterventionEvent Iv(InterventionType t, string target = null, string compound = null, double vol = 0, double rate = 0, double mult = 1, double dose = 1) =>
+        new InterventionEvent { Type = t, TargetCompartment = target, Compound = compound, Volume_mL = vol, Rate_mL_min = rate, RateMultiplier = mult, DoseFactor = dose };
 
     static T Load<T>(string path)
     {
@@ -218,5 +218,19 @@ static class Parity
             if (s == 6000) e.ApplyIntervention(Iv(InterventionType.Supportive, compound: "Warming"));
             if (s == 7000) e.ApplyIntervention(Iv(InterventionType.HemorrhageControl, "Extremity,Liver", mult: 0.1));
         }, 1800);
+        // Dosierung: Bolus über und unter der Standarddosis, Perfusor verstellen und stoppen
+        Run("dosis", new PatientProfile { weight_kg = 80, age = 50, sex = "female", initialBloodLoss_mL = 1000 }, (e, s) =>
+        {
+            if (s == 0) { var l = Bleed("Spleen", 0.5, 40, 2000); l.Lesion = "parenchymal"; e.ApplyInjury(l); }
+            if (s == 300) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "Fentanyl", dose: 3));
+            if (s == 1200) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "Propofol", dose: 0.5));
+            if (s == 1500) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "Ketamin", dose: 0.25));
+            if (s == 2000) e.ApplyIntervention(Iv(InterventionType.Vasopressor, dose: 3));
+            if (s == 3000) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "Fibrinogen", dose: 2));
+            if (s == 3200) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "TXA", dose: 0.5));
+            if (s == 3400) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "Calcium", dose: 1.5));
+            if (s == 5000) e.ApplyIntervention(Iv(InterventionType.Vasopressor, dose: 0.5));
+            if (s == 8000) e.ApplyIntervention(Iv(InterventionType.Vasopressor, dose: 0));
+        }, 1500);
     }
 }

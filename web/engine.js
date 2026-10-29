@@ -85,6 +85,15 @@
     return `Quick ${dec(100 * v.factors, 0)} % · INR ${dec(inr(v.factors), 1)} · Fibrinogen ${dec(v.fib, 1)} g/L ` +
       "(Labor misst bei 37 °C — Hypothermie und Azidose bremsen die Gerinnung zusätzlich)";
   }
+  // Wie DoseSpec in Data/DataModels.cs
+  const doseUsual = (d, x) => (x === 0 && d.min === 0) || (x >= d.usualMin - 1e-9 && x <= d.usualMax + 1e-9);
+  const doseClamp = (d, x) => Math.max(d.min, Math.min(d.max, Math.round(x / d.step) * d.step));
+  function formatDose(d, x, weight) {
+    const n = (v) => (Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : String(Number(v.toFixed(3)))).replace(".", ",");
+    let s = `${n(x)} ${d.unit}`;
+    if (d.perKg && weight > 0) s += ` (${n(Math.round(x * weight))} ${d.absoluteUnit})`;
+    return s;
+  }
   function bloodGasReport(v) {
     return `pH ${dec(v.ph, 2)} · pCO2 ${dec(v.paco2, 0)} mmHg · pO2 ${dec(v.pao2, 0)} mmHg · SaO2 ${dec(v.spo2, 0)} % · ` +
       `HCO3 ${dec(v.hco3, 1)} mmol/L · BE ${v.be >= 0 ? "+" : ""}${dec(v.be, 1)} mmol/L · Laktat ${dec(v.lactate, 1)} mmol/L · ` +
@@ -143,7 +152,13 @@
   const canClot = (l) => l === "transection" || l === "parenchymal" || l === "venous";
 
   const clamp01 = (x) => Math.max(0, Math.min(1, x));
-  function drugLevel(d, t) { return t < 0 ? 0 : t <= d[4] ? 1 : t >= d[5] ? 0 : 1 - (t - d[4]) / (d[5] - d[4]); }
+  const dose = (iv) => (iv.doseFactor != null ? iv.doseFactor : 1);
+  const pressorEffect = (f) => (f <= 0 ? 0 : 2 * f / (1 + f));
+  const durationFactor = (f) => Math.max(0.5, 1 + Math.log(Math.max(1e-6, f)));
+  function drugLevel(d, t, f = 1) {
+    const g = durationFactor(f), t1 = d[4] * g, t2 = d[5] * g;
+    return t < 0 ? 0 : t <= t1 ? 1 : t >= t2 ? 0 : 1 - (t - t1) / (t2 - t1);
+  }
   function coagulation(factors, fibRel, temp, ph, ica) {
     const cf = clamp01((factors - 0.2) / 0.3);
     const cfib = clamp01((fibRel * C.FibNormal - 0.8) / 0.7);
@@ -166,7 +181,7 @@
       this.baselineVolume = this.volume = bloodVolume(patient);
       this.time = 0;
       this.bleeds = {}; this.tension = {}; this.brain = {}; this.infusions = [];
-      this.oxygen = this.arrest = this.intubated = this.vasopressor = false;
+      this.oxygen = this.arrest = this.intubated = false; this.pressor = 0;
       this.position = Positions.flach; this.positionId = "flach";
       this.drugs = []; this.warming = this.fluidWarmer = this.txa = false;
       this.weight = patient.weight_kg > 0 ? patient.weight_kg : 75;
@@ -227,10 +242,11 @@
         }
         case "FluidInfusion": this.infusions.push({ compound: iv.compound, remaining: iv.volume_mL, rate: iv.rate_mL_min, warmed: this.fluidWarmer }); break;
         case "Medication": {
-          if (iv.compound === "TXA") this.txa = true;
-          else if (iv.compound === "Fibrinogen") this.fib += C.FibConcentrate_g / (Math.max(500, this.volume - this.redCells) / 1000 * C.FibNormal);
-          else if (iv.compound === "Calcium") this.calciumGiven += 1;
-          else if (C.Drugs[iv.compound]) this.drugs.push([iv.compound, this.time]);
+          const f = dose(iv);
+          if (iv.compound === "TXA") { if (f >= 0.5) this.txa = true; }
+          else if (iv.compound === "Fibrinogen") this.fib += C.FibConcentrate_g * f / (Math.max(500, this.volume - this.redCells) / 1000 * C.FibNormal);
+          else if (iv.compound === "Calcium") this.calciumGiven += f;
+          else if (C.Drugs[iv.compound] && f > 0) this.drugs.push([iv.compound, this.time, f]);
           this.updateVitals();
           break;
         }
@@ -248,7 +264,7 @@
           break;
         }
         case "Intubation": this.intubated = true; break;
-        case "Vasopressor": this.vasopressor = true; break;
+        case "Vasopressor": this.pressor = Math.max(0, dose(iv)); break;
         case "Osmotherapy": for (const b of Object.values(this.brain)) b.level = Math.max(0, b.level - C.TbiOsmotherapyReduction); break;
         case "NeurosurgicalDecompression": for (const b of Object.values(this.brain)) { b.level = Math.min(b.level, C.TbiLevelAfterSurgery); b.stopped = true; } break;
         case "ChestDrain": { const t = this.tension[iv.target]; if (t) { t.level = 0; t.drained = true; } break; }
@@ -330,12 +346,12 @@
     ica() { return Math.min(1.3, BloodGas.calcium(this.transfused) + C.CalciumPerGram * this.calciumGiven); }
     drugEffects(f) {
       const r = { sbp: 1, hr: 0, resp: 0 };
-      for (const [k, t0] of this.drugs) {
-        const d = C.Drugs[k], w = drugLevel(d, (this.time - t0) / 60);
+      for (const [k, t0, df] of this.drugs) {
+        const d = C.Drugs[k], w = drugLevel(d, (this.time - t0) / 60, df);
         if (w <= 0) continue;
-        let pct = d[0] + d[1] * f;
+        let pct = (d[0] + d[1] * f) * df;
         if (k === "Ketamin") pct = Math.max(0, pct);
-        r.sbp *= 1 + pct * w; r.hr += d[2] * w; r.resp = Math.max(r.resp, d[3] * w);
+        r.sbp *= Math.max(0.3, 1 + pct * w); r.hr += d[2] * df * w; r.resp = Math.max(r.resp, Math.min(1, d[3] * df * w));
       }
       return r;
     }
@@ -363,8 +379,8 @@
       const hr = hr0 + this.hrBaseOffset + (Shock.hr(m, fh) - hr0) * this.hrResponse;
       const dr = this.drugEffects(f), ica = this.ica();
       const hypoCa = Math.max(0, Math.min(1, (1.0 - ica) / 0.4));
-      const sbp = (Shock.sbp(m, fh) + this.sbpOffset - sbpDrop + 50 * cushing + (this.vasopressor ? C.VasopressorSbpRise : 0)) * dr.sbp - 15 * hypoCa;
-      const dbp = (Shock.dbp(m, fh) + this.sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + (this.vasopressor ? C.VasopressorDbpRise : 0)) * dr.sbp - 8 * hypoCa;
+      const sbp = (Shock.sbp(m, fh) + this.sbpOffset - sbpDrop + 50 * cushing + C.VasopressorSbpRise * pressorEffect(this.pressor)) * dr.sbp - 15 * hypoCa;
+      const dbp = (Shock.dbp(m, fh) + this.sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + C.VasopressorDbpRise * pressorEffect(this.pressor)) * dr.sbp - 8 * hypoCa;
       const respDep = this.intubated ? 0 : dr.resp, rrFactor = 1 - 0.5 * respDep;
       airway = Math.max(airway, respDep);
       let spo2 = loss(f, SpO2Air) - C.TpMaxSpO2Drop * tp - C.AirwayMaxSpO2Drop * airway + (this.oxygen ? 3 : 0) + (this.intubated ? 3 : 0);
@@ -500,15 +516,21 @@
     }
 
     /** Wie InterventionController.Apply: Definition aus interventions.json. Gibt false zurück, wenn nicht (mehr) möglich. */
-    apply(id) {
+    apply(id, doseValue) {
       const def = this.interventions[id];
       if (!def || this.ended || this.engine.current.arrest || this.isAway) return false;
       if (def.once && this.used.has(id)) return false;
       this.used.add(id);
+      const dosed = def.dose && doseValue != null;
       const iv = { id: def.id, type: def.type, target: def.target || null, compound: def.compound || null, volume_mL: def.volume_mL,
-        rate_mL_min: def.rate_mL_min, rateMultiplier: def.rateMultiplier, successProbability: def.successProbability };
+        rate_mL_min: def.rate_mL_min, rateMultiplier: def.rateMultiplier, successProbability: def.successProbability,
+        doseFactor: dosed && def.dose.reference > 0 ? doseValue / def.dose.reference : 1 };
       const tag = `intervention:${iv.type}:${iv.target || iv.compound || ""}:${iv.id}`;
-      const label = def.logLabel || def.label;
+      const weight = this.scenario.patient.weight_kg;
+      const label = (def.logLabel || def.label) + (dosed ? " " + formatDose(def.dose, doseValue, weight) : "");
+      if (dosed && !doseUsual(def.dose, doseValue))
+        this.pendingWarning = [`Warnung: Dosis ${formatDose(def.dose, doseValue, weight)} außerhalb des üblichen Bereichs ` +
+          `(${formatDose(def.dose, def.dose.usualMin, 0)} bis ${formatDose(def.dose, def.dose.usualMax, 0)})`, "warning:dose:" + def.id];
       const v = this.engine.current;
       if (iv.type === "BloodGas") {
         const coag = iv.compound === "Coag";
@@ -522,6 +544,7 @@
       if (def.effectDelay_s > 0) {
         this.delayed.push({ due: v.time + def.effectDelay_s, iv, label, result: null });
         this.log(`Angeordnet: ${label} (wirksam in ca. ${Math.round(def.effectDelay_s / 60)} min)`, tag);
+        this.warnContraindicated(def);
         return true;
       }
       this.engine.applyIntervention(iv);
@@ -532,6 +555,7 @@
 
     /** Wie InterventionController.WarnContraindicated: Warnung, wenn eine aktive Verletzung die Maßnahme verbietet. */
     warnContraindicated(def) {
+      if (this.pendingWarning) { this.log(...this.pendingWarning); this.pendingWarning = null; }
       const t = this.engine.current.time;
       if ((def.contraindicatedBy || []).some((id) => this.scenario.injuries.some((si) => si.injuryId === id && si.onsetTime_s <= t)))
         this.log(`Warnung: ${def.label} kontraindiziert — ${def.contraindicationNote}`, "warning:contraindicated:" + def.id);
@@ -774,7 +798,7 @@
     };
   }
 
-  const api = { examFindings, evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
+  const api = { formatDose, doseUsual, doseClamp, examFindings, evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.NotfallEngine = api;
 })(typeof window !== "undefined" ? window : globalThis);

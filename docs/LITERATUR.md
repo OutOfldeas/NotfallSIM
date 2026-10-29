@@ -386,6 +386,15 @@ CaCl₂ 1 g hebt um ca. 0,2 mmol/L (6,8 mmol in ca. 15 L Extrazellulärraum).
 | Ketamin 1 mg/kg | +10 % − 29 % × Verlustanteil (≥ 0) | +12 | — | 10 / 20 min | sympathomimetisch; im tiefen Schock kein Anstieg (erschöpfte Katecholamine) |
 | Propofol 1,5 mg/kg | −20 % − 67 % × Verlustanteil | −5 | 0,6 | 5 / 15 min | normovoläm −16 bis −23 % MAD (Vale 2024, Pilotdaten); im Schock stärker (Annahme) |
 
+**Dosierung.** Die Zahlen der Tabelle gelten für die Standarddosis (Fentanyl 100 µg, Ketamin 1 mg/kg, Propofol 1,5 mg/kg).
+Im Dosisdialog gewählte Dosen skalieren sie mit f = Dosis/Standard: Blutdruck- und HF-Wirkung linear (Blutdruckfaktor
+mindestens 0,3), Atemdepression linear bis zur Apnoe (1,0), Wirkdauer × (1 + ln f), mindestens × 0,5 — beim Bolus verlängert
+eine höhere Dosis vor allem die Zeit bis zur Umverteilung unter die Wirkschwelle. Fibrinogen und CaCl₂ wirken proportional
+zur Menge, Tranexamsäure ab 0,5 g. Noradrenalin läuft als Perfusor (Referenz 0,1 µg/kg/min); die Wirkung sättigt
+(RRsys +20 mmHg × 2f/(1+f), höchstens +40), 0 stoppt ihn. Alle diese Dosis-Wirkungs-Formen sind Annahmen. Außerhalb des
+üblichen Bereichs (in `interventions.json` je Maßnahme) erscheint eine Warnung im Protokoll; der Einstellbereich lässt
+bewusst auch Fehldosierungen zu.
+
 Atemdepression wirkt wie ein ungeschützter Atemweg (SpO₂ ↓, pCO₂ ↑) und senkt die Atemfrequenz; beatmet entfällt sie.
 Antibiose hat im Simulationszeitraum keine Wirkung, wird aber bewertet (offene Fraktur: ≤ 60 min, Lack 2015: > 66 min
 unabhängiger Risikofaktor für tiefe Infektion). Der transurethrale Blasenkatheter ist bei instabilem Becken kontraindiziert

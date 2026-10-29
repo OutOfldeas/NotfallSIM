@@ -81,6 +81,7 @@ static class Tests
         Run("Gerinnung: Verdünnung durch Kristalloid, FFP und Fibrinogen, Hyperfibrinolyse ohne TXA, Kälte/Azidose/Calcium", CoagulationPhysics);
         Run("Medikamente: Propofol im Schock, Fentanyl-Atemdepression nur spontan atmend, Ketamin, Calcium", DrugEffects);
         Run("Maßnahmen: Kontraindikationen gültig, Gerinnungslabor, Medikamente bekannt", NewInterventionData);
+        Run("Dosierung: Angaben gültig, Wirkung skaliert, Überdosis, Perfusor verstellen und stoppen", Dosing);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -1427,6 +1428,56 @@ static class Tests
         Give(ca, InterventionType.Medication, "Calcium"); Give(ca, InterventionType.Medication, "Calcium");
         Check(ica < 0.8 && Math.Abs(ca.Current.IonizedCalcium - ica - 0.4) < 1e-9, $"iCa nach 8 EK {ica:F2}, nach 2 g CaCl2 {ca.Current.IonizedCalcium:F2}");
         Check(ca.Current.SystolicBP_mmHg > sbp + 6, $"RR durch Calcium {sbp:F0} → {ca.Current.SystolicBP_mmHg:F0}");
+    }
+
+    static void Dosing()
+    {
+        var defs = Interventions.interventions.ToDictionary(i => i.id);
+        foreach (var iv in Interventions.interventions.Where(i => i.dose != null))
+        {
+            var d = iv.dose;
+            Check(d.min <= d.usualMin && d.usualMin <= d.reference && d.reference <= d.usualMax && d.usualMax <= d.max && d.step > 0,
+                  $"{iv.id}: Bereich {d.min}/{d.usualMin}/{d.reference}/{d.usualMax}/{d.max}");
+            Check(Math.Abs(d.Clamp(d.reference) - d.reference) < 1e-9, $"{iv.id}: Referenz nicht im Raster");
+            Check(!d.perKg || !string.IsNullOrEmpty(d.absoluteUnit), $"{iv.id}: Einheit der Gesamtdosis fehlt");
+            Check(Math.Abs(iv.ToEvent(d.reference).DoseFactor - 1) < 1e-12, $"{iv.id}: Referenz ergibt Faktor 1");
+        }
+        var pro = defs["propofol"].dose;
+        Check(pro.Format(1.5, 75) == "1,5 mg/kg (113 mg)", pro.Format(1.5, 75));
+        Check(pro.Clamp(9) == 3 && pro.Clamp(1.6) == 1.5 && !pro.Usual(3) && pro.Usual(2), "Raster und üblicher Bereich");
+        Check(defs["noradrenalin"].dose.Usual(0), "Perfusor aus ist keine Fehldosierung");
+
+        Func<double, string, double, VitalSigns> bolus = (loss, drug, f) =>
+        {
+            var x = Trias(loss);
+            x.ApplyIntervention(new InterventionEvent { Type = InterventionType.Medication, Compound = drug, DoseFactor = f });
+            Advance(x, 120); return x.Current;
+        };
+        double map0 = Trias(1500).Current.MeanArterialPressure_mmHg;
+        Func<double, double> propDrop = f => 1 - bolus(1500, "Propofol", f).MeanArterialPressure_mmHg / map0;
+        double low = propDrop(1 / 3.0), std = propDrop(1), high = propDrop(5 / 3.0);
+        Check(low < std && std < high, $"Propofol im Schock: 0,5 mg/kg −{low:P0}, 1,5 −{std:P0}, 2,5 −{high:P0}");
+        Check(low < 0.2, $"reduzierte Dosis im Schock verträglicher: −{low:P0}");
+        // Fentanyl 300 µg beim spontan atmenden Patienten: Apnoe-nahe Atemdepression
+        double rr0 = Trias().Current.RespirationRate_bpm;
+        var f3 = bolus(0, "Fentanyl", 3); var f1 = bolus(0, "Fentanyl", 1);
+        Check(f3.RespirationRate_bpm < f1.RespirationRate_bpm && f3.SpO2_percent < 90, $"Fentanyl 300 µg: AF {f3.RespirationRate_bpm:F0} (100 µg: {f1.RespirationRate_bpm:F0}, ohne {rr0:F0}), SpO2 {f3.SpO2_percent:F0}");
+        // Wirkdauer wächst mit der Dosis
+        Check(MockPhysiologyEngine.DrugLevel(MockPhysiologyEngine.Drugs["Fentanyl"], 35, 3) > MockPhysiologyEngine.DrugLevel(MockPhysiologyEngine.Drugs["Fentanyl"], 35, 1),
+              "höhere Dosis wirkt länger");
+        // Fibrinogen 4 g hebt doppelt so viel wie 2 g; TXA 0,5 g wirkt, 0 nicht
+        double fib2 = bolus(0, "Fibrinogen", 1).Fibrinogen_g_L - 2.5, fib4 = bolus(0, "Fibrinogen", 2).Fibrinogen_g_L - 2.5;
+        Check(Math.Abs(fib4 - 2 * fib2) < 1e-6, $"Fibrinogen 2 g +{fib2:F2}, 4 g +{fib4:F2} g/L");
+        // Noradrenalin: Rate verstellen, sättigend, stoppen
+        Func<double[], double> na = rates =>
+        {
+            var x = Trias(1500);
+            foreach (var r in rates) x.ApplyIntervention(new InterventionEvent { Type = InterventionType.Vasopressor, DoseFactor = r });
+            Advance(x, 10); return x.Current.SystolicBP_mmHg;
+        };
+        double sbp0 = na(new double[0]), sbp1 = na(new[] { 1.0 }), sbp3 = na(new[] { 3.0 }), sbp10 = na(new[] { 10.0 }), stop = na(new[] { 3.0, 0 });
+        Check(Math.Abs(sbp1 - sbp0 - 20) < 0.5 && sbp3 > sbp1 && sbp10 - sbp0 < 40, $"Noradrenalin RRsys ohne {sbp0:F0}, 0,1 {sbp1:F0}, 0,3 {sbp3:F0}, 1,0 {sbp10:F0}");
+        Check(Math.Abs(stop - sbp0) < 0.5, "Perfusor aus: Wirkung weg");
     }
 
     static void NewInterventionData()

@@ -237,28 +237,40 @@ namespace NotfallSIM.Engines
             { "Ketamin",  new[] {  0.10, -0.29, 12, 0.0, 10, 20 } },  // sympathomimetisch; im tiefen Schock (≥ 35 %) kein Anstieg
             { "Propofol", new[] { -0.20, -0.67, -5, 0.6,  5, 15 } },  // Induktion: MAD −16 bis −23 % (normovoläm), im Schock stärker
         };
+        readonly List<double[]> _drugDoses = new List<double[]>();   // je Gabe: Zeit, Dosisfaktor (parallel zu _drugs)
         readonly List<KeyValuePair<string, double>> _drugs = new List<KeyValuePair<string, double>>();
         double _weight_kg = 75, _temp = 36.5, _factors = 1, _fib = 1, _calciumGiven_g;
         bool _warming, _fluidWarmer, _txa;
 
-        /// <summary>Wirkstärke 0..1 eines Medikaments t Minuten nach der Gabe.</summary>
-        public static double DrugLevel(double[] d, double t_min) =>
-            t_min < 0 ? 0 : t_min <= d[4] ? 1 : t_min >= d[5] ? 0 : 1 - (t_min - d[4]) / (d[5] - d[4]);
+        /// <summary>Noradrenalin: sättigende Dosis-Wirkung (Emax), 1 bei Referenzrate, höchstens 2.</summary>
+        public static double PressorEffect(double f) => f <= 0 ? 0 : 2 * f / (1 + f);
+
+        /// <summary>Wirkdauer wächst mit dem Logarithmus der Dosis (Bolus: Umverteilung), mindestens halb so lang.</summary>
+        public static double DurationFactor(double f) => Math.Max(0.5, 1 + Math.Log(Math.Max(1e-6, f)));
+
+        /// <summary>Wirkstärke 0..1 eines Medikaments t Minuten nach der Gabe (Dosisfaktor f verlängert die Wirkung).</summary>
+        public static double DrugLevel(double[] d, double t_min, double f = 1)
+        {
+            double g = DurationFactor(f), t1 = d[4] * g, t2 = d[5] * g;
+            return t_min < 0 ? 0 : t_min <= t1 ? 1 : t_min >= t2 ? 0 : 1 - (t_min - t1) / (t2 - t1);
+        }
 
         /// <summary>Summe der Medikamentenwirkungen: SBP-Faktor, HF-Änderung, Atemdepression 0..1.</summary>
         void DrugEffects(double lossFraction, out double sbpFactor, out double hrAdd, out double resp)
         {
             sbpFactor = 1; hrAdd = 0; resp = 0;
-            foreach (var kv in _drugs)
+            for (int i = 0; i < _drugs.Count; i++)
             {
+                var kv = _drugs[i];
                 var d = Drugs[kv.Key];
-                double w = DrugLevel(d, (_time - kv.Value) / 60);
+                double f = _drugDoses[i][1];
+                double w = DrugLevel(d, (_time - kv.Value) / 60, f);
                 if (w <= 0) continue;
-                double pct = d[0] + d[1] * lossFraction;
+                double pct = (d[0] + d[1] * lossFraction) * f;
                 if (kv.Key == "Ketamin") pct = Math.Max(0, pct);       // erschöpfte Katecholamine: kein Anstieg mehr
-                sbpFactor *= 1 + pct * w;
-                hrAdd += d[2] * w;
-                resp = Math.Max(resp, d[3] * w);
+                sbpFactor *= Math.Max(0.3, 1 + pct * w);
+                hrAdd += d[2] * f * w;
+                resp = Math.Max(resp, Math.Min(1, d[3] * f * w));
             }
         }
 
@@ -289,7 +301,8 @@ namespace NotfallSIM.Engines
         // Kristalloide verdünnen, EKs bringen Erythrozyten. Transkapilläre Rückfüllung ist nicht modelliert.
         const double EkHematocrit = 0.6;
         double _redCellVolume, _transfused_mL;
-        bool _oxygen, _arrest, _intubated, _vasopressor;
+        bool _oxygen, _arrest, _intubated;
+        double _pressor;   // Noradrenalin-Laufrate relativ zur Referenz (0,1 µg/kg/min); 0 = aus
 
         /// <param name="seed">Fester Seed macht Zufallsereignisse (z. B. Versagen der Punktion) reproduzierbar.</param>
         public MockPhysiologyEngine(int? seed = null, PhysiologyMode mode = PhysiologyMode.Textbook)
@@ -323,9 +336,9 @@ namespace NotfallSIM.Engines
             _tension.Clear();
             _brain.Clear();
             _infusions.Clear();
-            _oxygen = _arrest = _intubated = _vasopressor = false;
+            _oxygen = _arrest = _intubated = false; _pressor = 0;
             _position = Positions["flach"]; PositionId = "flach";
-            _drugs.Clear(); _warming = _fluidWarmer = _txa = false;
+            _drugs.Clear(); _drugDoses.Clear(); _warming = _fluidWarmer = _txa = false;
             _weight_kg = patient.weight_kg > 0 ? patient.weight_kg : 75;
             _temp = patient.initialTemperature_C > 0 ? patient.initialTemperature_C : 36.5;
             _factors = 1; _fib = 1; _calciumGiven_g = 0;
@@ -391,13 +404,17 @@ namespace NotfallSIM.Engines
                 case InterventionType.Medication:
                     switch (iv.Compound)
                     {
-                        case "TXA": _txa = true; break;
+                        case "TXA": if (iv.DoseFactor >= 0.5) _txa = true; break;   // ≥ 0,5 g hemmt die Fibrinolyse
                         case "Fibrinogen":
-                            _fib += FibrinogenConcentrate_g / (Math.Max(500, _volume - _redCellVolume) / 1000 * FibrinogenNormal_g_L);
+                            _fib += FibrinogenConcentrate_g * iv.DoseFactor / (Math.Max(500, _volume - _redCellVolume) / 1000 * FibrinogenNormal_g_L);
                             break;
-                        case "Calcium": _calciumGiven_g += 1; break;
+                        case "Calcium": _calciumGiven_g += iv.DoseFactor; break;
                         default:
-                            if (iv.Compound != null && Drugs.ContainsKey(iv.Compound)) _drugs.Add(new KeyValuePair<string, double>(iv.Compound, _time));
+                            if (iv.Compound != null && Drugs.ContainsKey(iv.Compound) && iv.DoseFactor > 0)
+                            {
+                                _drugs.Add(new KeyValuePair<string, double>(iv.Compound, _time));
+                                _drugDoses.Add(new[] { _time, iv.DoseFactor });
+                            }
                             break;
                     }
                     UpdateVitals();
@@ -422,7 +439,7 @@ namespace NotfallSIM.Engines
                     _intubated = true;
                     break;
                 case InterventionType.Vasopressor:
-                    _vasopressor = true;
+                    _pressor = Math.Max(0, iv.DoseFactor);
                     break;
                 case InterventionType.Positioning:
                     if (Positions.TryGetValue(iv.TargetCompartment ?? "", out var pos)) { _position = pos; PositionId = iv.TargetCompartment; UpdateVitals(); }
@@ -578,8 +595,8 @@ namespace NotfallSIM.Engines
             double hr = hr0 + _hrBaseOffset + (ShockTables.Hr(Mode, fh) - hr0) * _hrResponse;
             DrugEffects(f, out double drugSbp, out double drugHr, out double drugResp);
             double hypoCa = Math.Max(0, Math.Min(1, (1.0 - IonizedCa) / 0.4));       // ionisiertes Ca < 1,0: schwächere Kontraktion (Annahme)
-            double sbp = (ShockTables.Sbp(Mode, fh) + _sbpOffset - sbpDrop + 50 * cushing + (_vasopressor ? VasopressorSbpRise : 0)) * drugSbp - 15 * hypoCa;
-            double dbp = (ShockTables.Dbp(Mode, fh) + _sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + (_vasopressor ? VasopressorDbpRise : 0)) * drugSbp - 8 * hypoCa;
+            double sbp = (ShockTables.Sbp(Mode, fh) + _sbpOffset - sbpDrop + 50 * cushing + VasopressorSbpRise * PressorEffect(_pressor)) * drugSbp - 15 * hypoCa;
+            double dbp = (ShockTables.Dbp(Mode, fh) + _sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + VasopressorDbpRise * PressorEffect(_pressor)) * drugSbp - 8 * hypoCa;
             hr += drugHr;
             // Atemdepression durch Opioid/Hypnotikum wirkt wie ein ungeschützter Atemweg (nur spontan atmend)
             double respDep = _intubated ? 0 : drugResp;
