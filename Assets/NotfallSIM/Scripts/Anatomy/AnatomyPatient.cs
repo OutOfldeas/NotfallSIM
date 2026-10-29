@@ -37,6 +37,7 @@ namespace NotfallSIM.Anatomy
         Camera _cam;
         InjuryVisuals _visuals;
         Transform _regionsRoot;
+        NotfallSIM.Rooms.Stretcher _stretcher;
         string _positionId = "flach";
         int _eventsSeen;
 
@@ -74,6 +75,10 @@ namespace NotfallSIM.Anatomy
             _rig = AnatomyBuilder.Build(transform, height, true, _skin, _shorts, LayerMaterial);
             Pose();
             foreach (var p in _rig.Parts) p.Renderer.enabled = false;
+            // Verstellbare Trage: Gelenke an denselben Punkten wie der Körper (Becken–LWS, Hüften)
+            _stretcher = NotfallSIM.Rooms.Stretcher.Find();
+            if (_stretcher != null)
+                _stretcher.Build(_rig.Bone("Abdomen").position, (_rig.Bone("Oberschenkel rechts").position + _rig.Bone("Oberschenkel links").position) / 2);
             // Verletzungszeichen vor den Klickflächen: eine Amputation verändert die Haut
             _visuals = gameObject.AddComponent<InjuryVisuals>();
             _visuals.Init(sim, _rig, mattressTop, () => _xrayOn);
@@ -119,7 +124,8 @@ namespace NotfallSIM.Anatomy
 
         /// <summary>Lagerung sichtbar machen — mit denselben Winkeln, mit denen die Physiologie die Höhe der Blutungsorte rechnet
         /// (MockPhysiologyEngine.Positions). Oberkörper um die Lendenwirbelsäule, Beine um die Hüfte, Arme um die Schulter.
-        /// Ohne Rückenlehne/Beinstütze an der Trage: der angehobene Teil liegt frei.</summary>
+        /// Die Trage stellt Rücken- und Beinteil mit denselben Winkeln (Stretcher); ein einzelnes Bein liegt auf einem Keil.
+        /// Ein hochgehaltener Arm hat keine Auflage (wird gehalten bzw. am Infusionsständer hochgelagert).</summary>
         void ApplyPosition(string id)
         {
             if (!NotfallSIM.Engines.MockPhysiologyEngine.Positions.TryGetValue(id ?? "", out var a)) return;
@@ -130,6 +136,9 @@ namespace NotfallSIM.Anatomy
             _rig.Bone("Oberschenkel links").localRotation = Quaternion.Euler(-(float)a[2], 0, 0);
             _rig.Bone("Oberarm rechts").localRotation = a[3] > 0 ? Quaternion.Euler(-(float)a[3], 0, -4) : Quaternion.Euler(14, 0, -4);
             _rig.Bone("Oberarm links").localRotation = a[4] > 0 ? Quaternion.Euler(-(float)a[4], 0, 4) : Quaternion.Euler(14, 0, 4);
+            if (_stretcher != null)
+                _stretcher.Apply((float)a[0], (float)a[1], (float)a[2], _rig.Bone("Oberschenkel rechts").position, _rig.Bone("Oberschenkel links").position);
+            Physics.SyncTransforms();
         }
 
         /// <summary>Neue Lagerung aus dem Protokoll übernehmen: Pose, Klickflächen, Kollider gewichteter Teile, Blut neu verlegen.</summary>
