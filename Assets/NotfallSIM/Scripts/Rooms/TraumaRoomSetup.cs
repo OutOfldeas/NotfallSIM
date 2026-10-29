@@ -157,7 +157,7 @@ namespace NotfallSIM.Rooms
 
         static void SetupLight()
         {
-            foreach (var l in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
+            foreach (var l in Object.FindObjectsByType<Light>())
             {
                 if (l.type != LightType.Directional) continue;
                 l.intensity = 0.35f;

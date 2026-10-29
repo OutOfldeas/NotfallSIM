@@ -114,6 +114,9 @@ namespace NotfallSIM.Anatomy
             if (PendingCrashMarks != null)
             {
                 _onset[""] = 0;
+                // Stichwunden aus der Gewalt-Sandbox liegen am echten Einstich: die feste Wunde der Verletzung entfällt dort
+                var stabbed = new HashSet<string>(PendingCrashMarks.Where(cm => cm.Mark.kind == "stichwunde").SelectMany(cm => cm.Mark.segments ?? new string[0]));
+                if (stabbed.Count > 0) marks.RemoveAll(m => m.kind == "stichwunde" && m.injuryId != "" && (m.segments ?? new string[0]).Any(stabbed.Contains));
                 foreach (var cm in PendingCrashMarks)
                 {
                     marks.Add(cm.Mark);

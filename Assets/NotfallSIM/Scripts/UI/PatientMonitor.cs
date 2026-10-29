@@ -46,7 +46,7 @@ namespace NotfallSIM.UI
             var panel = ViewSettings.FindPanel("Monitor");
             if (panel == null)
             {
-                var canvas = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None).FirstOrDefault(c => c.isRootCanvas && c.renderMode == RenderMode.ScreenSpaceOverlay);
+                var canvas = Object.FindObjectsByType<Canvas>().FirstOrDefault(c => c.isRootCanvas && c.renderMode == RenderMode.ScreenSpaceOverlay);
                 if (canvas == null) return null;
                 panel = RuntimeUi.Panel(canvas.transform, "Monitor", new Color(0.05f, 0.07f, 0.09f, 0.9f));
                 panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(1, 1);

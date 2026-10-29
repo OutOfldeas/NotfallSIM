@@ -41,7 +41,7 @@ namespace NotfallSIM.Interaction
 
         public void Examine()
         {
-            if (sim == null || sim.Scenario == null || sim.Ended || sim.IsAway) return;
+            if (sim == null || sim.Scenario == null || sim.Engine == null || sim.Database == null || sim.Ended || sim.IsAway) return;   // Engine/Database fehlen nach Neukompilieren im Play-Modus
             double t = sim.Vitals.SimTime_s;
 
             // Verletzungsbefunde oder Normalbefund (Data/Examination.cs, gleich im Browser-Prototyp).
