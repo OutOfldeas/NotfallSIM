@@ -60,8 +60,8 @@ namespace NotfallSIM.UI
             h.spacing = 8; h.childControlWidth = true; h.childControlHeight = true; h.childForceExpandWidth = true;
             row.AddComponent<LayoutElement>().preferredHeight = 52;
             var step = new Color(0.20f, 0.23f, 0.27f);
-            RuntimeUi.Button(row.transform, "− −", step, () => Step(-4), 52, 22);
-            RuntimeUi.Button(row.transform, "−", step, () => Step(-1), 52, 22);
+            RuntimeUi.Button(row.transform, "- -", step, () => Step(-4), 52, 22);
+            RuntimeUi.Button(row.transform, "-", step, () => Step(-1), 52, 22);
             RuntimeUi.Button(row.transform, "+", step, () => Step(1), 52, 22);
             RuntimeUi.Button(row.transform, "+ +", step, () => Step(4), 52, 22);
 

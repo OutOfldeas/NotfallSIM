@@ -37,7 +37,7 @@ Assets/
     Engines/       MockPhysiologyEngine, PulsePhysiologyAdapter
     Data/          JSON-Datenklassen, InjuryDatabase
     Simulation/    SimulationManager, InterventionController, SessionRecorder
-    UI/            VitalsMonitor, MonitorWaveforms, FindingsPanel, DebriefPanel, MainMenu, PauseMenu, OrbitCamera
+    UI/            PatientMonitor, ViewSettings, AudioPrefs, VitalsMonitor, MonitorWaveforms, FindingsPanel, DebriefPanel, MainMenu, PauseMenu, OrbitCamera
     Interaction/   BodyRegion
     Anatomy/       body.bin lesen, Patient aufbauen (Haut, Skelett, Muskeln, Röntgenblick)
     Crash/         Unfall-Sandbox: Ragdoll, Fahrzeuge, Sensoren, Verletzungskriterien
@@ -87,6 +87,10 @@ tools/anatomy/                   Aufbereitung der Anatomie (Python), erzeugt bod
    WASD/Pfeiltasten durch den Raum gehen, Q/E (Bild↓/Bild↑) tiefer/höher, Umschalt schneller, F zurück zum Patienten.
    Die Kamera bleibt innerhalb der Wände.
    *Menü (Esc)* pausiert und führt zurück ins Hauptmenü oder startet denselben Fall neu.
+   *Ansicht & Ton (V)* darunter: Lautstärke gesamt, Monitor-Ton und Alarme, Stumm (M); jedes Interface
+   (Monitor, Maßnahmen, Verdachtsdiagnosen, Befunde, Protokoll, Röntgenblick, Hinweis) ein-/ausblenden und in der
+   Größe ändern, dazu eine Gesamtgröße. Das „ד oben rechts an jedem Panel blendet es aus, H blendet alle aus und
+   wieder ein. Die Einstellungen bleiben gespeichert.
    „Szenario beenden“ zeigt das Debriefing und speichert die Verläufe als CSV
    (Ordner: `Application.persistentDataPath/Sessions`, wird im Debriefing angezeigt).
 6. **Szenario wechseln:** im Inspector des Objekts `Simulation` das Feld *Scenario Id* setzen
@@ -110,8 +114,13 @@ tools/anatomy/                   Aufbereitung der Anatomie (Python), erzeugt bod
 Der Patient ist ein anatomisches Modell (Haut, ca. 210 Knochen, Organe mit Zwerchfell, Großhirnrinde, große Gefäße und schematische Nerven),
 zur Laufzeit aus `anatomy/body.bin` aufgebaut und auf die Größe aus dem Szenario skaliert. Er atmet mit der
 Atemfrequenz aus der Physiologie (beim Spannungspneu links hebt sich die linke Thoraxseite kaum), wird mit dem
-Blutverlust blass und bei niedriger Sättigung zyanotisch. Der Monitor zeigt EKG, Pulskurve und Kapnografie;
-der QRS-Ton wird mit sinkender Sättigung tiefer.
+Blutverlust blass und bei niedriger Sättigung zyanotisch. Der Monitor zeigt wie ein Schockraummonitor EKG (II) mit HF,
+Pleth mit SpO₂, Pulsfrequenz und Perfusionsindex, NIBP im Messzyklus (Messdauer ca. 25 s, Intervall 1/2,5/5 min oder
+manuell, Taste „NIBP messen“, Zeit seit der letzten Messung), Kapnografie mit etCO₂ und AF, Temperatur, Alarmgrenzen
+und eine Alarmzeile mit Prioritäten (rot hoch, gelb mittel, türkis niedrig) samt Alarmtönen nach IEC 60601-1-8
+(vereinfacht); „Alarmton 2 min aus“ unterdrückt nur den Ton. Unter ca. 50 mmHg systolisch findet das Pulsoxymeter
+kein Signal mehr, die NIBP-Messung schlägt unter 40 mmHg fehl. Der QRS-Ton wird mit sinkender Sättigung tiefer.
+Der Monitor an der Deckenversorgung zeigt dieselben Werte.
 
 Untersuchen per Klick trifft genau die sichtbare Haut: Jedes Hautdreieck gehört zur Region seines Körpersegments
 (vorher Kapseln und Quader, die sich überlappten — rund ein Viertel der Klicks landete in der falschen Region).
