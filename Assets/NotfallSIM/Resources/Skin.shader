@@ -86,9 +86,10 @@ Shader "NotfallSIM/Skin"
                             lerp(lerp(hash3(i + float3(0,0,1)), hash3(i + float3(1,0,1)), f.x), lerp(hash3(i + float3(0,1,1)), hash3(i + float3(1,1,1)), f.x), f.y), f.z);
             }
 
-            float D_GGX(float nh, float a) { float a2 = a * a; float d = nh * nh * (a2 - 1) + 1; return a2 / (PI * d * d + 1e-6); }
+            // eigener Name: D_GGX gibt es schon in der Core-Bibliothek (BSDF.hlsl) — doppelt definiert = Shaderfehler (pink)
+            float SkinGGX(float nh, float a) { float a2 = a * a; float d = nh * nh * (a2 - 1) + 1; return a2 / (PI * d * d + 1e-6); }
 
-            half3 Shade(Light l, float3 n, float3 v, half3 albedo, float rough1, float rough2)
+            half3 ShadeSkin(Light l, float3 n, float3 v, half3 albedo, float rough1, float rough2)
             {
                 float nl = dot(n, l.direction);
                 // Streuung: je Kanal „umgewickeltes“ Licht, Rot dringt am tiefsten ein
@@ -100,7 +101,7 @@ Shader "NotfallSIM/Skin"
                 float3 h = normalize(l.direction + v);
                 float nh = saturate(dot(n, h)), lh = saturate(dot(l.direction, h)), nlp = saturate(nl);
                 float F = _F0 + (1 - _F0) * pow(1 - lh, 5);
-                float D = 0.85 * D_GGX(nh, rough1 * rough1) + 0.15 * D_GGX(nh, rough2 * rough2);
+                float D = 0.85 * SkinGGX(nh, rough1 * rough1) + 0.15 * SkinGGX(nh, rough2 * rough2);
                 float vis = 0.25 / max(lh * lh * (rough1 + 0.5), 0.05);
                 half3 spec = (F * D * vis * nlp) * l.color * atten;
                 return diffuse + spec;
@@ -139,7 +140,7 @@ Shader "NotfallSIM/Skin"
                 float3 v = normalize(GetWorldSpaceViewDir(i.positionWS));
                 float4 shadowCoord = TransformWorldToShadowCoord(i.positionWS);
                 half3 col = albedo * SampleSH(n);
-                col += Shade(GetMainLight(shadowCoord), n, v, albedo, rough1, rough2);
+                col += ShadeSkin(GetMainLight(shadowCoord), n, v, albedo, rough1, rough2);
                 #if defined(_ADDITIONAL_LIGHTS)
                 // Zusatzlichter (OP-Leuchte usw.); LIGHT_LOOP_BEGIN deckt Forward und Forward+/Cluster ab
                 InputData inputData = (InputData)0;
@@ -149,7 +150,7 @@ Shader "NotfallSIM/Skin"
                 uint pixelLightCount = GetAdditionalLightsCount();
                 LIGHT_LOOP_BEGIN(pixelLightCount)
                     Light al = GetAdditionalLight(lightIndex, i.positionWS, half4(1, 1, 1, 1));
-                    col += Shade(al, n, v, albedo, rough1, rough2);
+                    col += ShadeSkin(al, n, v, albedo, rough1, rough2);
                 LIGHT_LOOP_END
                 #endif
                 col = MixFog(col, i.fog);
