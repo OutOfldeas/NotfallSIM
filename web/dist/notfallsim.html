@@ -64,6 +64,21 @@ button { font: inherit; color: inherit; }
 .wave canvas { width: 100%; height: 40px; display: block; }
 .w-ecg { color: var(--mon-hr); } .w-pleth { color: var(--mon-spo2); } .w-co2 { color: var(--mon-co2); }
 @media (max-width: 560px) { .wave { height: 28px; grid-template-columns: 30px minmax(0, 1fr); } .wave canvas { height: 28px; } .w-co2 { display: none; } }
+.mon-alarm { display: flex; align-items: center; gap: 8px; border-radius: 4px; padding: 3px 8px; font-family: var(--font-mono); font-size: 13px; font-weight: 600; min-height: 26px; }
+.mon-alarm[hidden] { display: none; }
+.mon-alarm.p3 { background: #d4211a; color: #fff; animation: alarmBlink 1s steps(2, start) infinite; }
+.mon-alarm.p2 { background: #f2c11a; color: #111; }
+.mon-alarm.p1 { background: #33bfcc; color: #06110f; }
+.mon-alarm span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mon-alarm small { font-weight: 400; opacity: .85; }
+.mon-alarm button { font: inherit; font-size: 11px; font-weight: 500; border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 3px; padding: 0 6px; cursor: pointer; white-space: nowrap; }
+@keyframes alarmBlink { 50% { background: #7a1410; } }
+@media (prefers-reduced-motion: reduce) { .mon-alarm.p3 { animation: none; } }
+.vital .lim { opacity: .55; font-size: 10px; }
+.nibp-btns { display: flex; gap: 4px; margin-top: 3px; }
+@media (max-width: 560px) { .nibp-btns .mon-btn { padding: 1px 4px; font-size: 10px; } }
+.mon-vol { width: 80px; accent-color: var(--mon-label); vertical-align: middle; }
+@media (max-width: 560px) { .mon-vol { width: 56px; } }
 .mon-arrest { font-family: var(--font-display); font-size: 28px; color: var(--mon-alarm); letter-spacing: .04em; text-align: center; }
 
 /* ---------- Seite ---------- */
@@ -186,20 +201,23 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
   <div class="mon-inner">
     <div class="mon-head">
       <span id="monScenario"><strong>NotfallSIM</strong> · Szenario wählen</span>
-      <span class="mon-right"><button type="button" class="mon-btn" id="toneBtn" aria-pressed="false" title="QRS-Ton (Tonhöhe sinkt mit der Sättigung)">Ton aus</button><span class="mon-clock" id="monClock">00:00</span></span>
+      <span class="mon-right"><input type="range" class="mon-vol" id="volRange" min="0" max="100" value="60" aria-label="Lautstärke (QRS-Ton und Alarme)" title="Lautstärke"><button type="button" class="mon-btn" id="toneBtn" aria-pressed="false" title="QRS-Ton und Alarmtöne (Tonhöhe des QRS sinkt mit der Sättigung)">Ton aus</button><span class="mon-clock" id="monClock">00:00</span></span>
     </div>
+    <div class="mon-alarm" id="monAlarm" hidden><span id="monAlarmText"></span><button type="button" id="silenceBtn">Alarmton 2 min aus</button></div>
     <div class="waves" id="waves" aria-hidden="true">
       <div class="wave w-ecg"><span>II</span><canvas id="wEcg"></canvas></div>
       <div class="wave w-pleth"><span>Pleth</span><canvas id="wPleth"></canvas></div>
       <div class="wave w-co2"><span>CO₂</span><canvas id="wCo2"></canvas></div>
     </div>
     <div class="vitals" id="vitals">
-      <div class="vital v-hr" id="vHr"><div class="lab"><span>HF</span><span>/min</span></div><div class="val">--</div></div>
-      <div class="vital v-bp bp" id="vBp"><div class="lab"><span>RR</span><span>mmHg</span></div><div class="val">--/--</div><div class="sub" id="vMap">MAD --</div></div>
-      <div class="vital v-spo2" id="vSpo2"><div class="lab"><span>SpO₂</span><span>%</span></div><div class="val">--</div></div>
-      <div class="vital v-rr" id="vRr"><div class="lab"><span>AF</span><span>/min</span></div><div class="val">--</div></div>
-      <div class="vital v-co2" id="vCo2"><div class="lab"><span>etCO₂</span><span>mmHg</span></div><div class="val">--</div></div>
-      <div class="vital v-temp" id="vTemp"><div class="lab"><span>Temp</span><span>°C</span></div><div class="val">--</div></div>
+      <div class="vital v-hr" id="vHr"><div class="lab"><span>HF</span><span>/min</span></div><div class="val">--</div><div class="sub lim">50–120</div></div>
+      <div class="vital v-bp bp" id="vBp"><div class="lab"><span>NIBP</span><span>mmHg</span></div><div class="val">--/--</div><div class="sub" id="vMap">MAD --</div>
+        <div class="sub lim" id="vNibpInfo">noch keine Messung</div>
+        <div class="nibp-btns"><button type="button" class="mon-btn" id="nibpBtn">Messen</button><button type="button" class="mon-btn" id="nibpInt" title="Messintervall">2,5 min</button></div></div>
+      <div class="vital v-spo2" id="vSpo2"><div class="lab"><span>SpO₂</span><span>%</span></div><div class="val">--</div><div class="sub" id="vPr">PR -- · PI --</div></div>
+      <div class="vital v-rr" id="vRr"><div class="lab"><span>AF</span><span>/min</span></div><div class="val">--</div><div class="sub lim" id="vRrSub">8–30</div></div>
+      <div class="vital v-co2" id="vCo2"><div class="lab"><span>etCO₂</span><span>mmHg</span></div><div class="val">--</div><div class="sub lim">25–50</div></div>
+      <div class="vital v-temp" id="vTemp"><div class="lab"><span>Temp</span><span>°C</span></div><div class="val">--</div><div class="sub lim">&gt; 35,0</div></div>
     </div>
     <div class="mon-arrest" id="monArrest" hidden>ASYSTOLIE / PEA – KEIN PULS</div>
   </div>
@@ -414,6 +432,74 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
     return `Quick ${dec(100 * v.factors, 0)} % · INR ${dec(inr(v.factors), 1)} · Fibrinogen ${dec(v.fib, 1)} g/L ` +
       "(Labor misst bei 37 °C — Hypothermie und Azidose bremsen die Gerinnung zusätzlich)";
   }
+  // ---------------------------------------------------------------- Patientenmonitor (Core/PatientMonitorLogic.cs)
+  const NIBP_MEASURE_S = 25, NIBP_INTERVALS = [60, 150, 300, 0];
+  class NibpCycle {
+    constructor() { this.interval = 150; this.measuring = false; this.failed = false; this.sys = this.dia = this.map = 0; this.measuredAt = -1; this.start = 0; this.next = 0; }
+    get hasReading() { return this.measuredAt >= 0; }
+    update(v) {
+      const t = v.time;
+      if (!this.measuring && this.interval > 0 && t >= this.next) this.startNow(t);
+      if (this.measuring && t >= this.start + NIBP_MEASURE_S) {
+        this.measuring = false; this.measuredAt = t;
+        this.failed = v.arrest || v.sbp < 40;
+        if (!this.failed) { this.sys = v.sbp; this.dia = v.dbp; this.map = v.map; }
+        this.next = this.interval > 0 ? this.start + Math.max(this.interval, NIBP_MEASURE_S) : Infinity;
+      }
+    }
+    startNow(t) { if (this.measuring) return; this.measuring = true; this.start = t; }
+    cycleInterval(t) {
+      const i = NIBP_INTERVALS.indexOf(this.interval);
+      this.interval = NIBP_INTERVALS[(i + 1) % NIBP_INTERVALS.length];
+      this.next = this.interval > 0 ? Math.max(t, (this.hasReading ? this.measuredAt - NIBP_MEASURE_S : t) + this.interval) : Infinity;
+    }
+    static label(s) { return s <= 0 ? "manuell" : `${String(Math.round(s / 6) / 10).replace(".", ",")} min`; }
+  }
+  const ALARM_LIMITS = { hrLow: 50, hrHigh: 120, hrExtremeLow: 40, hrExtremeHigh: 150, sysLow: 90, sysHigh: 160, sysExtremeLow: 70, mapLow: 65,
+    spo2Low: 90, spo2ExtremeLow: 85, rrLow: 8, rrHigh: 30, apnea: 4, etco2Low: 25, etco2High: 50, tempLow: 35, tempHigh: 38.5 };
+  const spo2Valid = (v) => !v.arrest && v.sbp >= 50;
+  function perfusionIndex(v) {
+    if (!spo2Valid(v)) return 0;
+    const amp = Math.max(0, Math.min(1, (v.sbp - 40) / 80)), vaso = Math.max(0.15, 1 - 2 * v.loss);
+    return Math.round(4 * amp * vaso * 10) / 10;
+  }
+  /** Alarme mit Priorität 3 (hoch), 2 (mittel), 1 (niedrig), höchste zuerst. */
+  function monitorAlarms(v, nibp, L = ALARM_LIMITS) {
+    const a = [], add = (parameter, text, priority) => a.push({ parameter, text, priority });
+    if (v.arrest) { add("HF", "ASYSTOLIE", 3); return a; }
+    const hr = Math.round(v.hr);
+    if (hr < L.hrExtremeLow) add("HF", `BRADYKARDIE ${hr}`, 3);
+    else if (hr > L.hrExtremeHigh) add("HF", `TACHYKARDIE ${hr}`, 3);
+    else if (hr < L.hrLow) add("HF", `HF ${hr} < ${L.hrLow}`, 2);
+    else if (hr > L.hrHigh) add("HF", `HF ${hr} > ${L.hrHigh}`, 2);
+    if (!spo2Valid(v)) add("SpO2", "SpO2 kein Pulssignal", 2);
+    else {
+      const s = Math.round(v.spo2);
+      if (s < L.spo2ExtremeLow) add("SpO2", `DESATURATION ${s}`, 3);
+      else if (s < L.spo2Low) add("SpO2", `SpO2 ${s} < ${L.spo2Low}`, 2);
+    }
+    const rr = Math.round(v.rr);
+    if (!v.intubated && rr < L.apnea) add("AF", "APNOE", 3);
+    else if (rr < L.rrLow) add("AF", `AF ${rr} < ${L.rrLow}`, 2);
+    else if (rr > L.rrHigh) add("AF", `AF ${rr} > ${L.rrHigh}`, 2);
+    const co2 = Math.round(v.etco2);
+    if (co2 < L.etco2Low) add("etCO2", `etCO2 ${co2} < ${L.etco2Low}`, 2);
+    else if (co2 > L.etco2High) add("etCO2", `etCO2 ${co2} > ${L.etco2High}`, 2);
+    if (nibp && nibp.hasReading) {
+      if (nibp.failed) add("NIBP", "NIBP Messung fehlgeschlagen", 2);
+      else {
+        const sys = Math.round(nibp.sys);
+        if (sys < L.sysExtremeLow) add("NIBP", `NIBP SYS ${sys}`, 3);
+        else if (sys < L.sysLow) add("NIBP", `NIBP sys ${sys} < ${L.sysLow}`, 2);
+        else if (sys > L.sysHigh) add("NIBP", `NIBP sys ${sys} > ${L.sysHigh}`, 2);
+        else if (nibp.map < L.mapLow) add("NIBP", `NIBP MAD ${Math.round(nibp.map)} < ${L.mapLow}`, 2);
+      }
+    }
+    if (v.temp > 0 && v.temp < L.tempLow) add("Temp", `Temp ${de1(v.temp)} < ${L.tempLow}`, 1);
+    else if (v.temp > L.tempHigh) add("Temp", `Temp ${de1(v.temp)} > ${de1(L.tempHigh)}`, 1);
+    return a.sort((x, y) => y.priority - x.priority);
+  }
+
   // Wie DoseSpec in Data/DataModels.cs
   const doseUsual = (d, x) => (x === 0 && d.min === 0) || (x >= d.usualMin - 1e-9 && x <= d.usualMax + 1e-9);
   const doseClamp = (d, x) => Math.max(d.min, Math.min(d.max, Math.round(x / d.step) * d.step));
@@ -1127,7 +1213,7 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
     };
   }
 
-  const api = { formatDose, doseUsual, doseClamp, examFindings, evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
+  const api = { NibpCycle, monitorAlarms, perfusionIndex, spo2Valid, ALARM_LIMITS, formatDose, doseUsual, doseClamp, examFindings, evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.NotfallEngine = api;
 })(typeof window !== "undefined" ? window : globalThis);
@@ -1183,7 +1269,7 @@ function start() {
   sim = new E.Simulation(DATA, generated ? generated.scenario : selected, mode, undefined, ctInRoom);
   speed = 1; paused = false; logCount = 0; imgCount = 0;
   $("imagingResults").innerHTML = "";
-  renderGoals(); closeDose();
+  renderGoals(); closeDose(); MON.nibp = null; MON.alarms = []; MON.silencedUntil = 0;
   $("log").innerHTML = ""; $("labResult").hidden = true;
   $("findings").innerHTML = `<p class="muted" style="margin:6px 0 0">Tippe eine Körperregion an, um sie zu untersuchen. Rechts und links sind aus Sicht des Patienten.</p>`;
   document.querySelectorAll(".region").forEach((r) => r.classList.remove("examined"));
@@ -1220,7 +1306,8 @@ function setVital(id, text, alarm) {
 // ---------- Kurven (wie MonitorWaveforms.cs in Unity) ----------
 // EKG (Ableitung II), Pulsoxymetrie und Kapnografie als Sweep mit Lücke vor dem Cursor, 25 mm/s (≈ 100 px/s).
 // Kurvenformen schematisch; Frequenz, Perfusion (aus dem systolischen Druck) und etCO₂ aus der Physiologie.
-const W8 = { ch: [], cursor: 0, beat: 0, resp: 0, last: 0, tone: false, audio: null };
+const W8 = { ch: [], cursor: 0, beat: 0, resp: 0, last: 0, tone: false, audio: null, volume: 0.6 };
+try { const sv = localStorage.getItem("notfallsim.volume"); if (sv != null) W8.volume = Number(sv) / 100; } catch (e) {}
 const G = (x, mu, s) => Math.exp(-(x - mu) * (x - mu) / (2 * s * s));
 const ecgWave = (p) => 0.12 * G(p, 0.10, 0.025) - 0.10 * G(p, 0.205, 0.008) + 1.0 * G(p, 0.225, 0.010) - 0.25 * G(p, 0.245, 0.010) + 0.28 * G(p, 0.45, 0.040);
 const plethWave = (p) => { const x = (p - 0.28 + 1) % 1; return Math.min(1, Math.max(0, 0.95 * G(x, 0.14, 0.07) + 0.35 * G(x, 0.38, 0.07))); };
@@ -1240,7 +1327,7 @@ function beep(spo2) {
     W8.audio = W8.audio || new (window.AudioContext || window.webkitAudioContext)();
     const a = W8.audio, o = a.createOscillator(), g = a.createGain();
     o.frequency.value = 880 * (0.55 + 0.45 * Math.min(1, Math.max(0, (spo2 - 75) / 25)));
-    g.gain.setValueAtTime(0, a.currentTime); g.gain.linearRampToValueAtTime(0.12, a.currentTime + 0.005); g.gain.linearRampToValueAtTime(0, a.currentTime + 0.07);
+    g.gain.setValueAtTime(0, a.currentTime); g.gain.linearRampToValueAtTime(0.2 * W8.volume, a.currentTime + 0.005); g.gain.linearRampToValueAtTime(0, a.currentTime + 0.07);
     o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + 0.08);
   } catch (e) {}
 }
@@ -1268,6 +1355,11 @@ function waveLoop(now) {
   }
   requestAnimationFrame(waveLoop);
 }
+$("volRange").value = Math.round(W8.volume * 100);
+$("volRange").addEventListener("input", (e) => {
+  W8.volume = Number(e.target.value) / 100;
+  try { localStorage.setItem("notfallsim.volume", e.target.value); } catch (err) {}
+});
 $("toneBtn").onclick = () => {
   W8.tone = !W8.tone; $("toneBtn").setAttribute("aria-pressed", W8.tone); $("toneBtn").textContent = W8.tone ? "Ton an" : "Ton aus";
   if (W8.tone) beep(98);   // Browser erlauben Ton erst nach einer Berührung
@@ -1275,7 +1367,38 @@ $("toneBtn").onclick = () => {
 window.addEventListener("resize", () => { waveSetup(); });
 waveSetup(); requestAnimationFrame(waveLoop);
 
+// ---------- Alarme (wie PatientMonitor.cs): Töne nach IEC 60601-1-8 vereinfacht, hoch 3+2 Pulse, mittel 3, niedrig 2 ----------
+const MON = { nibp: null, alarms: [], silencedUntil: 0, nextTone: 0, lastPrio: 0 };
+function alarmTone(prio) {
+  if (!W8.tone || W8.volume <= 0) return;
+  try {
+    W8.audio = W8.audio || new (window.AudioContext || window.webkitAudioContext)();
+    const a = W8.audio, f = prio === 3 ? 960 : prio === 2 ? 700 : 520;
+    const starts = prio === 3 ? [0, 0.18, 0.36, 0.9, 1.08] : prio === 2 ? [0, 0.25, 0.5] : [0, 0.3];
+    for (const st of starts) {
+      const o = a.createOscillator(), g = a.createGain(), t0 = a.currentTime + st;
+      o.type = "triangle"; o.frequency.value = f;
+      g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.18 * W8.volume, t0 + 0.01); g.gain.linearRampToValueAtTime(0, t0 + 0.13);
+      o.connect(g); g.connect(a.destination); o.start(t0); o.stop(t0 + 0.14);
+    }
+  } catch (e) {}
+}
+function alarmSound() {
+  const now = performance.now() / 1000, top = MON.alarms[0];
+  if (!top || paused || now < MON.silencedUntil) { MON.lastPrio = 0; return; }
+  if (top.priority > MON.lastPrio) MON.nextTone = 0;
+  MON.lastPrio = top.priority;
+  if (now < MON.nextTone) return;
+  alarmTone(top.priority);
+  MON.nextTone = now + (top.priority === 3 ? 6 : top.priority === 2 ? 12 : 30);
+}
+$("silenceBtn").onclick = () => { const now = performance.now() / 1000; MON.silencedUntil = MON.silencedUntil > now ? 0 : now + 120; renderMonitor(); };
+$("nibpBtn").onclick = () => { if (sim && MON.nibp) { MON.nibp.startNow(sim.vitals.time); renderMonitor(); } };
+$("nibpInt").onclick = () => { if (sim && MON.nibp) { MON.nibp.cycleInterval(sim.vitals.time); renderMonitor(); } };
+const ago = (s) => { const x = Math.max(0, Math.floor(s)); return x < 60 ? `${x} s` : `${Math.floor(x / 60)}:${String(x % 60).padStart(2, "0")} min`; };
+
 function resetMonitor() {
+  MON.nibp = null; MON.alarms = []; $("monAlarm").hidden = true;
   W8.ch.forEach((ch) => { ch.ctx.clearRect(0, 0, ch.w, ch.h); ch.lastY = null; }); W8.cursor = 0;
   ["vHr", "vSpo2", "vRr", "vCo2", "vTemp"].forEach((id) => setVital(id, "--", false));
   setVital("vBp", "--/--", false); $("vMap").textContent = "MAD --"; $("monClock").textContent = "00:00";
@@ -1284,21 +1407,43 @@ function resetMonitor() {
 }
 function renderMonitor() {
   const v = sim.vitals;
+  if (!MON.nibp) MON.nibp = new E.NibpCycle();
+  const n = MON.nibp;
+  n.update(v);
+  MON.alarms = E.monitorAlarms(v, n);
+  const inAlarm = (p) => MON.alarms.some((a) => a.parameter === p);
   $("monClock").textContent = E.clock(v.time);
   $("monArrest").hidden = !v.arrest;
+  // Alarmzeile
+  const top = MON.alarms[0], silenced = performance.now() / 1000 < MON.silencedUntil;
+  $("monAlarm").hidden = !top;
+  if (top) {
+    $("monAlarm").className = "mon-alarm p" + top.priority;
+    const rest = MON.alarms.slice(1, 3).map((a) => a.text).join(", ");
+    $("monAlarmText").innerHTML = esc(["", "* ", "** ", "*** "][top.priority] + top.text) + (rest ? ` <small>(+${MON.alarms.length - 1}: ${esc(rest)})</small>` : "");
+    $("silenceBtn").textContent = silenced ? `Alarmton aus ${Math.ceil(MON.silencedUntil - performance.now() / 1000)} s` : "Alarmton 2 min aus";
+  }
+  alarmSound();
+  // NIBP: letzter Messwert mit Zeitpunkt, nicht kontinuierlich
+  const nibpOk = n.hasReading && !n.failed;
+  setVital("vBp", nibpOk ? `${R(n.sys)}/${R(n.dia)}` : "---/---", inAlarm("NIBP"));
+  $("vMap").textContent = nibpOk ? `MAD ${R(n.map)}` : n.failed ? "Messung fehlgeschlagen" : "MAD --";
+  $("vNibpInfo").textContent = (n.measuring ? "misst … · " : "") + (n.hasReading ? `vor ${ago(v.time - n.measuredAt)}` : "noch keine Messung");
+  $("nibpInt").textContent = E.NibpCycle.label(n.interval);
+  setVital("vTemp", v.temp.toFixed(1).replace(".", ","), inAlarm("Temp"));
   if (v.arrest) {
     ["vHr", "vSpo2", "vRr"].forEach((id) => setVital(id, "---", true));
-    setVital("vBp", "---", true); $("vMap").textContent = "MAD ---"; setVital("vCo2", R(v.etco2), true);
-    setVital("vTemp", v.temp.toFixed(1).replace(".", ","), v.temp < 35);
+    $("vPr").textContent = "PR -- · PI --";
+    setVital("vCo2", R(v.etco2), true);
     return;
   }
-  setVital("vHr", R(v.hr), v.hr > 120 || v.hr < 50);
-  setVital("vBp", `${R(v.sbp)}/${R(v.dbp)}`, v.sbp < 90);
-  $("vMap").textContent = `MAD ${R(v.map)}`;
-  setVital("vSpo2", R(v.spo2), v.spo2 < 90);
-  setVital("vRr", R(v.rr), v.rr > 30 || v.rr < 8);
-  setVital("vCo2", R(v.etco2), v.etco2 < 25 || v.etco2 > 50);
-  setVital("vTemp", v.temp.toFixed(1).replace(".", ","), v.temp < 35);
+  setVital("vHr", R(v.hr), inAlarm("HF"));
+  const spOk = E.spo2Valid(v);
+  setVital("vSpo2", spOk ? R(v.spo2) : "--", inAlarm("SpO2"));
+  $("vPr").textContent = spOk ? `PR ${R(v.hr)} · PI ${E.perfusionIndex(v).toFixed(1).replace(".", ",")}` : "kein Pulssignal";
+  setVital("vRr", R(v.rr), inAlarm("AF"));
+  $("vRrSub").textContent = v.intubated ? "beatmet" : "8–30";
+  setVital("vCo2", R(v.etco2), inAlarm("etCO2"));
 }
 
 // ---------- Maßnahmen ----------

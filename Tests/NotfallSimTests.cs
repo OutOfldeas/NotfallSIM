@@ -82,6 +82,7 @@ static class Tests
         Run("Medikamente: Propofol im Schock, Fentanyl-Atemdepression nur spontan atmend, Ketamin, Calcium", DrugEffects);
         Run("Maßnahmen: Kontraindikationen gültig, Gerinnungslabor, Medikamente bekannt", NewInterventionData);
         Run("Dosierung: Angaben gültig, Wirkung skaliert, Überdosis, Perfusor verstellen und stoppen", Dosing);
+        Run("Patientenmonitor: NIBP-Zyklus, Fehlmessung, Alarme mit Prioritäten, Pulsoxymetrie ohne Signal", PatientMonitorChecks);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -1478,6 +1479,46 @@ static class Tests
         double sbp0 = na(new double[0]), sbp1 = na(new[] { 1.0 }), sbp3 = na(new[] { 3.0 }), sbp10 = na(new[] { 10.0 }), stop = na(new[] { 3.0, 0 });
         Check(Math.Abs(sbp1 - sbp0 - 20) < 0.5 && sbp3 > sbp1 && sbp10 - sbp0 < 40, $"Noradrenalin RRsys ohne {sbp0:F0}, 0,1 {sbp1:F0}, 0,3 {sbp3:F0}, 1,0 {sbp10:F0}");
         Check(Math.Abs(stop - sbp0) < 0.5, "Perfusor aus: Wirkung weg");
+    }
+
+    static void PatientMonitorChecks()
+    {
+        var v = new VitalSigns { SimTime_s = 0, HeartRate_bpm = 80, SystolicBP_mmHg = 120, DiastolicBP_mmHg = 80, MeanArterialPressure_mmHg = 93,
+                                 RespirationRate_bpm = 14, SpO2_percent = 98, EtCO2_mmHg = 38, Temperature_C = 36.5 };
+        var n = new NibpCycle { Interval_s = 150 };
+        n.Update(v);
+        Check(n.Measuring && !n.HasReading, "Messung startet sofort");
+        v.SimTime_s = NibpCycle.Measure_s; v.SystolicBP_mmHg = 110; n.Update(v);
+        Check(!n.Measuring && n.HasReading && n.Sys == 110 && n.MeasuredAt_s == NibpCycle.Measure_s, "Wert am Ende der Messung");
+        v.SimTime_s = 100; v.SystolicBP_mmHg = 70; n.Update(v);
+        Check(!n.Measuring && n.Sys == 110, "zwischen den Messungen bleibt der alte Wert stehen");
+        v.SimTime_s = 150; n.Update(v); Check(n.Measuring, "nächste Messung nach dem Intervall (ab Beginn der letzten)");
+        v.SimTime_s = 175; n.Update(v); Check(n.Sys == 70, "neuer Wert");
+        n.StartNow(180); v.SimTime_s = 205; v.SystolicBP_mmHg = 35; n.Update(v);
+        Check(n.HasReading && n.Failed, "unter 40 mmHg schlägt die Messung fehl");
+        n.CycleInterval(210); Check(n.Interval_s == 300, "Intervall 2,5 → 5 min");
+        n.CycleInterval(210); Check(n.Interval_s == 0, "dann manuell");
+        v.SimTime_s = 10000; n.Update(v); Check(!n.Measuring, "manuell: keine automatische Messung");
+
+        var L = new AlarmLimits();
+        var ok = new VitalSigns { HeartRate_bpm = 80, SystolicBP_mmHg = 120, RespirationRate_bpm = 14, SpO2_percent = 98, EtCO2_mmHg = 38, Temperature_C = 36.5 };
+        Check(PatientMonitorLogic.Evaluate(ok, null, L).Count == 0, "Normalwerte: kein Alarm");
+        var shock = ok; shock.HeartRate_bpm = 135; shock.SpO2_percent = 82; shock.Temperature_C = 34.2; shock.SystolicBP_mmHg = 75; shock.BloodLossFraction = 0.35;
+        var a = PatientMonitorLogic.Evaluate(shock, null, L);
+        Check(a[0].Priority == AlarmPriority.High && a[0].Parameter == "SpO2", "Desaturation zuerst (hoch): " + string.Join(" | ", a));
+        Check(a.Any(x => x.Parameter == "HF" && x.Priority == AlarmPriority.Medium) && a.Any(x => x.Parameter == "Temp" && x.Priority == AlarmPriority.Low), "HF mittel, Temp niedrig");
+        var arrest = ok; arrest.CardiacArrest = true;
+        var ar = PatientMonitorLogic.Evaluate(arrest, null, L);
+        Check(ar.Count == 1 && ar[0].Text == "ASYSTOLIE" && ar[0].Priority == AlarmPriority.High, "Stillstand");
+        var weak = ok; weak.SystolicBP_mmHg = 45;
+        Check(!PatientMonitorLogic.SpO2Valid(weak) && PatientMonitorLogic.Evaluate(weak, null, L).Any(x => x.Text.Contains("kein Pulssignal")), "kein Pulssignal bei sys 45");
+        var apnea = ok; apnea.RespirationRate_bpm = 2;
+        Check(PatientMonitorLogic.Evaluate(apnea, null, L)[0].Text == "APNOE", "Apnoe spontan atmend");
+        apnea.Intubated = true;
+        Check(PatientMonitorLogic.Evaluate(apnea, null, L).All(x => x.Text != "APNOE"), "beatmet: keine Apnoe-Meldung");
+        var nb = new NibpCycle(); var low = ok; low.SystolicBP_mmHg = 65; nb.Update(low); low.SimTime_s = 30; nb.Update(low);
+        Check(PatientMonitorLogic.Evaluate(ok, nb, L).Any(x => x.Parameter == "NIBP" && x.Priority == AlarmPriority.High), "NIBP-Alarm aus der letzten Messung, nicht aus dem aktuellen Wert");
+        Check(PatientMonitorLogic.PerfusionIndex(ok) > 2 && PatientMonitorLogic.PerfusionIndex(shock) < 1.5, $"PI normal {PatientMonitorLogic.PerfusionIndex(ok)}, Schock {PatientMonitorLogic.PerfusionIndex(shock)}");
     }
 
     static void NewInterventionData()

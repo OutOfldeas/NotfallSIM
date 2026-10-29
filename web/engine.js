@@ -85,6 +85,74 @@
     return `Quick ${dec(100 * v.factors, 0)} % · INR ${dec(inr(v.factors), 1)} · Fibrinogen ${dec(v.fib, 1)} g/L ` +
       "(Labor misst bei 37 °C — Hypothermie und Azidose bremsen die Gerinnung zusätzlich)";
   }
+  // ---------------------------------------------------------------- Patientenmonitor (Core/PatientMonitorLogic.cs)
+  const NIBP_MEASURE_S = 25, NIBP_INTERVALS = [60, 150, 300, 0];
+  class NibpCycle {
+    constructor() { this.interval = 150; this.measuring = false; this.failed = false; this.sys = this.dia = this.map = 0; this.measuredAt = -1; this.start = 0; this.next = 0; }
+    get hasReading() { return this.measuredAt >= 0; }
+    update(v) {
+      const t = v.time;
+      if (!this.measuring && this.interval > 0 && t >= this.next) this.startNow(t);
+      if (this.measuring && t >= this.start + NIBP_MEASURE_S) {
+        this.measuring = false; this.measuredAt = t;
+        this.failed = v.arrest || v.sbp < 40;
+        if (!this.failed) { this.sys = v.sbp; this.dia = v.dbp; this.map = v.map; }
+        this.next = this.interval > 0 ? this.start + Math.max(this.interval, NIBP_MEASURE_S) : Infinity;
+      }
+    }
+    startNow(t) { if (this.measuring) return; this.measuring = true; this.start = t; }
+    cycleInterval(t) {
+      const i = NIBP_INTERVALS.indexOf(this.interval);
+      this.interval = NIBP_INTERVALS[(i + 1) % NIBP_INTERVALS.length];
+      this.next = this.interval > 0 ? Math.max(t, (this.hasReading ? this.measuredAt - NIBP_MEASURE_S : t) + this.interval) : Infinity;
+    }
+    static label(s) { return s <= 0 ? "manuell" : `${String(Math.round(s / 6) / 10).replace(".", ",")} min`; }
+  }
+  const ALARM_LIMITS = { hrLow: 50, hrHigh: 120, hrExtremeLow: 40, hrExtremeHigh: 150, sysLow: 90, sysHigh: 160, sysExtremeLow: 70, mapLow: 65,
+    spo2Low: 90, spo2ExtremeLow: 85, rrLow: 8, rrHigh: 30, apnea: 4, etco2Low: 25, etco2High: 50, tempLow: 35, tempHigh: 38.5 };
+  const spo2Valid = (v) => !v.arrest && v.sbp >= 50;
+  function perfusionIndex(v) {
+    if (!spo2Valid(v)) return 0;
+    const amp = Math.max(0, Math.min(1, (v.sbp - 40) / 80)), vaso = Math.max(0.15, 1 - 2 * v.loss);
+    return Math.round(4 * amp * vaso * 10) / 10;
+  }
+  /** Alarme mit Priorität 3 (hoch), 2 (mittel), 1 (niedrig), höchste zuerst. */
+  function monitorAlarms(v, nibp, L = ALARM_LIMITS) {
+    const a = [], add = (parameter, text, priority) => a.push({ parameter, text, priority });
+    if (v.arrest) { add("HF", "ASYSTOLIE", 3); return a; }
+    const hr = Math.round(v.hr);
+    if (hr < L.hrExtremeLow) add("HF", `BRADYKARDIE ${hr}`, 3);
+    else if (hr > L.hrExtremeHigh) add("HF", `TACHYKARDIE ${hr}`, 3);
+    else if (hr < L.hrLow) add("HF", `HF ${hr} < ${L.hrLow}`, 2);
+    else if (hr > L.hrHigh) add("HF", `HF ${hr} > ${L.hrHigh}`, 2);
+    if (!spo2Valid(v)) add("SpO2", "SpO2 kein Pulssignal", 2);
+    else {
+      const s = Math.round(v.spo2);
+      if (s < L.spo2ExtremeLow) add("SpO2", `DESATURATION ${s}`, 3);
+      else if (s < L.spo2Low) add("SpO2", `SpO2 ${s} < ${L.spo2Low}`, 2);
+    }
+    const rr = Math.round(v.rr);
+    if (!v.intubated && rr < L.apnea) add("AF", "APNOE", 3);
+    else if (rr < L.rrLow) add("AF", `AF ${rr} < ${L.rrLow}`, 2);
+    else if (rr > L.rrHigh) add("AF", `AF ${rr} > ${L.rrHigh}`, 2);
+    const co2 = Math.round(v.etco2);
+    if (co2 < L.etco2Low) add("etCO2", `etCO2 ${co2} < ${L.etco2Low}`, 2);
+    else if (co2 > L.etco2High) add("etCO2", `etCO2 ${co2} > ${L.etco2High}`, 2);
+    if (nibp && nibp.hasReading) {
+      if (nibp.failed) add("NIBP", "NIBP Messung fehlgeschlagen", 2);
+      else {
+        const sys = Math.round(nibp.sys);
+        if (sys < L.sysExtremeLow) add("NIBP", `NIBP SYS ${sys}`, 3);
+        else if (sys < L.sysLow) add("NIBP", `NIBP sys ${sys} < ${L.sysLow}`, 2);
+        else if (sys > L.sysHigh) add("NIBP", `NIBP sys ${sys} > ${L.sysHigh}`, 2);
+        else if (nibp.map < L.mapLow) add("NIBP", `NIBP MAD ${Math.round(nibp.map)} < ${L.mapLow}`, 2);
+      }
+    }
+    if (v.temp > 0 && v.temp < L.tempLow) add("Temp", `Temp ${de1(v.temp)} < ${L.tempLow}`, 1);
+    else if (v.temp > L.tempHigh) add("Temp", `Temp ${de1(v.temp)} > ${de1(L.tempHigh)}`, 1);
+    return a.sort((x, y) => y.priority - x.priority);
+  }
+
   // Wie DoseSpec in Data/DataModels.cs
   const doseUsual = (d, x) => (x === 0 && d.min === 0) || (x >= d.usualMin - 1e-9 && x <= d.usualMax + 1e-9);
   const doseClamp = (d, x) => Math.max(d.min, Math.min(d.max, Math.round(x / d.step) * d.step));
@@ -798,7 +866,7 @@
     };
   }
 
-  const api = { formatDose, doseUsual, doseClamp, examFindings, evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
+  const api = { NibpCycle, monitorAlarms, perfusionIndex, spo2Valid, ALARM_LIMITS, formatDose, doseUsual, doseClamp, examFindings, evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.NotfallEngine = api;
 })(typeof window !== "undefined" ? window : globalThis);

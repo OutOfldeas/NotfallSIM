@@ -31,6 +31,15 @@ namespace NotfallSIM.UI
 
         public bool Sound { get => sound; set => sound = value; }
 
+        /// <summary>Kurven in neue Bildflächen zeichnen (der Monitor baut sein Layout zur Laufzeit neu auf).</summary>
+        public void Retarget(RawImage ecg, RawImage pleth, RawImage capno)
+        {
+            ecgImage = ecg; plethImage = pleth; capnoImage = capno;
+            if (_tex == null) return;
+            var images = new[] { ecg, pleth, capno };
+            for (int i = 0; i < 3; i++) if (images[i]) images[i].texture = _tex[i];
+        }
+
         public void SetMirror(RawImage ecg, RawImage pleth, RawImage capno)
         {
             mirror = new[] { ecg, pleth, capno };
@@ -101,6 +110,7 @@ namespace NotfallSIM.UI
                 if (!arrest && _beatPhase < prevBeat && sound && _audio)
                 {
                     _audio.pitch = Mathf.Lerp(0.55f, 1f, Mathf.Clamp01(((float)v.SpO2_percent - 75f) / 25f));
+                    _audio.volume = 0.25f * AudioPrefs.MonitorVolume;
                     _audio.PlayOneShot(_beep);
                 }
 
