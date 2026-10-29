@@ -73,6 +73,7 @@ static class Tests
         Run("Crash: harter Aufprall verletzt, leichter nicht, Seite bestimmt Milz/Leber", CrashScenario);
         Run("Muskeltonus: Daten mit Quellen, Aktivierung je Zustand, Kniemoment plausibel", MuscleToneData);
         Run("Blutungsphysik: Bauchdruck nach Malbrain, Gerinnsel unter 64 mmHg, Nachblutung nach Volumen, Tamponade", BleedingPhysics);
+        Run("Lagerung und Hydrostatik: Höhe über dem Herzen, Druck −78 mmHg/m, venöse Blutung steht hochgelagert, Autotransfusion", PositioningPhysics);
         Run("Haut: Daten mit Quellen, Blässe/Schweiß nach Schockklasse, Zyanose aus Desoxy-Hb (Anämie maskiert)", SkinData);
         Run("Crash-Zeichen: Prellung/Platzwunde/Schürfung nach Schwellen, Ort an der Haut, Gurtmarken", CrashMarksData);
         Run("Verletzungszeichen: Ort an der Haut, Region, Befund, Schwellungsvolumen, Amputation, Blutlache", InjuryVisualsData);
@@ -1306,6 +1307,48 @@ static class Tests
             return x.InjuryBloodLoss_mL("l");
         };
         Check(liverFirstMinute(true) < liverFirstMinute(false), "Bauchraum nicht geteilt");
+    }
+
+    static void PositioningPhysics()
+    {
+        var flat = MockPhysiologyEngine.Positions["flach"];
+        Check(Math.Abs(MockPhysiologyEngine.HydrostaticMmHgPerM - 78.0) < 0.1, "ρg in mmHg/m");
+        Check(MockPhysiologyEngine.SiteHeight(0.66, "trunk", flat, 1.8) == 0 && MockPhysiologyEngine.SiteHeight(0.162, "legR", flat, 1.8) == 0, "flach nicht auf Herzhöhe");
+        double arm = MockPhysiologyEngine.SiteHeight((0.630 + 0.485) / 2, "armL", MockPhysiologyEngine.Positions["arm_links_hoch"], 1.8);
+        Check(arm > 0.4 && arm < 0.5, $"Unterarm senkrecht {arm:F2} m über dem Herzen");
+        double leg = MockPhysiologyEngine.SiteHeight((0.285 + 0.039) / 2, "legR", MockPhysiologyEngine.Positions["beine_hoch"], 1.8);
+        Check(leg > 0.4 && leg < 0.5, $"Unterschenkel bei 45° {leg:F2} m");
+        double liver = MockPhysiologyEngine.SiteHeight(0.66, "trunk", MockPhysiologyEngine.Positions["oberkoerper_30"], 1.8);
+        Check(liver < 0 && liver > -0.1, $"Leber bei Oberkörper 30° {liver:F3} m (unter dem Herzen)");
+
+        Func<string, string, string, double, double, double> rate = (compartment, lesion, position, baseRate, seconds) =>
+        {
+            var e = new MockPhysiologyEngine(1); e.Initialize(new PatientProfile { weight_kg = 80, height_cm = 180 });
+            if (position != null) e.ApplyIntervention(new InterventionEvent { Type = InterventionType.Positioning, TargetCompartment = position });
+            e.ApplyInjury(new InjuryEvent { InjuryId = "x", Effect = InjuryEffectType.Hemorrhage, Compartment = compartment, Severity = 1, BaseRate_mL_min = baseRate, Lesion = lesion });
+            Advance(e, seconds);
+            return e.InjuryBloodLoss_mL("x") / (seconds / 60);
+        };
+        // Venös am Oberschenkel: 15 cm über dem Herzen übersteigen den venösen Druck (7 mmHg) — Blutung steht
+        double vFlat = rate("RightThigh", "venous", null, 20, 60), vUp = rate("RightThigh", "venous", "bein_rechts_hoch", 20, 60);
+        Check(vFlat > 15 && vUp < 0.5, $"venös flach {vFlat:F1}, hoch {vUp:F1} mL/min");
+        // Arteriell am Unterschenkel: Hochlagern senkt, stoppt aber nicht
+        double aFlat = rate("Extremity", "partial", null, 120, 60), aUp = rate("Extremity", "partial", "bein_rechts_hoch", 120, 60);
+        Check(aUp < 0.85 * aFlat && aUp > 0.5 * aFlat, $"arteriell flach {aFlat:F0}, hoch {aUp:F0} mL/min");
+        // Arm hoch: Schnittverletzung deutlich weniger
+        double armFlat = rate("LeftArm", "partial", null, 40, 60), armUp = rate("LeftArm", "partial", "arm_links_hoch", 40, 60);
+        Check(armUp < 0.85 * armFlat, $"Arm flach {armFlat:F0}, hoch {armUp:F0} mL/min");
+        // Beine hoch: Autotransfusion hebt den Blutdruck des hypovolämen Patienten, ohne das Blutvolumen zu ändern
+        Func<string, VitalSigns> hypo = position =>
+        {
+            var e = new MockPhysiologyEngine(1); e.Initialize(new PatientProfile { weight_kg = 80, height_cm = 180, initialBloodLoss_mL = 1600 });
+            if (position != null) e.ApplyIntervention(new InterventionEvent { Type = InterventionType.Positioning, TargetCompartment = position });
+            return e.Current;
+        };
+        var vf = hypo(null); var vp = hypo("beine_hoch");
+        Check(vp.SystolicBP_mmHg > vf.SystolicBP_mmHg && vp.BloodVolume_mL == vf.BloodVolume_mL && vp.BloodLossFraction == vf.BloodLossFraction, "Autotransfusion");
+        foreach (var iv in Interventions.interventions.Where(x => x.type == "Positioning"))
+            Check(MockPhysiologyEngine.Positions.ContainsKey(iv.target) && !iv.once, iv.id + ": unbekannte Lagerung oder einmalig");
     }
 
     static void SkinData()

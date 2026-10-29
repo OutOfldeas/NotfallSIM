@@ -180,5 +180,20 @@ static class Parity
             if (s == 6000) e.ApplyIntervention(Iv(InterventionType.HemorrhageControl, "Abdomen", mult: 0));
             if (s == 9000) e.ApplyIntervention(Iv(InterventionType.FluidInfusion, "", "Blood", 1500, 150));
         }, 1800);
+        // Lagerung: Hydrostatik an Bein, Arm und Rumpf, Autotransfusion
+        Run("lagerung", new PatientProfile { weight_kg = 80, age = 35, sex = "male", height_cm = 175, initialBloodLoss_mL = 800 }, (e, s) =>
+        {
+            if (s == 0)
+            {
+                var a = Bleed("Extremity", 0.8, 120, 0); a.Lesion = "partial"; e.ApplyInjury(a);
+                var t = Bleed("RightThigh", 0.7, 20, 1000); t.Lesion = "venous"; e.ApplyInjury(t);
+                var l = Bleed("LeftArm", 0.8, 40, 0); l.Lesion = "partial"; e.ApplyInjury(l);
+                var v = Bleed("Liver", 0.6, 90, 2500); v.Lesion = "parenchymal"; e.ApplyInjury(v);
+            }
+            if (s == 1500) e.ApplyIntervention(Iv(InterventionType.Positioning, "beine_hoch"));
+            if (s == 4000) e.ApplyIntervention(Iv(InterventionType.Positioning, "oberkoerper_30"));
+            if (s == 6000) e.ApplyIntervention(Iv(InterventionType.Positioning, "arm_links_hoch"));
+            if (s == 8000) e.ApplyIntervention(Iv(InterventionType.Positioning, "flach"));
+        }, 1200);
     }
 }

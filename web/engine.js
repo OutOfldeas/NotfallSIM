@@ -95,7 +95,30 @@
     VasopressorSbpRise: 20, VasopressorDbpRise: 12,
     // Blutungsphysik wie MockPhysiologyEngine.cs (Malbrain 2016, Sondeen 2003; Bildungszeit/Restfluss Annahmen)
     IapBaseline: 7, AbdominalCompliance: 400, RebleedMap: 64, ClotFormation_s: 300, ClotFlowFactor: 0.1,
+    // Hydrostatik und Lagerung wie MockPhysiologyEngine.cs
+    HydroPerM: 1060 * 9.81 / 133.322, VenousPressure: 7, HipLevel: 0.530, ShoulderLevel: 0.818, HeartLevel: 0.72,
   };
+  const Sites = {
+    Extremity: [(0.285 + 0.039) / 2, "legR"], RightThigh: [(0.530 + 0.285) / 2, "legR"], LeftThigh: [(0.530 + 0.285) / 2, "legL"],
+    LeftArm: [(0.630 + 0.485) / 2, "armL"], RightArm: [(0.630 + 0.485) / 2, "armR"],
+    Pelvis: [0.53, "trunk"], Abdomen: [0.62, "trunk"], Liver: [0.66, "trunk"], Spleen: [0.66, "trunk"],
+  };
+  const Positions = {
+    flach: [0, 0, 0, 0, 0, 0], beine_hoch: [0, 45, 45, 0, 0, 150], bein_rechts_hoch: [0, 45, 0, 0, 0, 75],
+    oberkoerper_30: [30, 0, 0, 0, 0, 0], arm_links_hoch: [0, 0, 0, 0, 90, 0],
+  };
+  function siteHeight(level, limb, pos, H) {
+    const rad = Math.PI / 180, trunk = pos[0] * rad;
+    const heart = (C.HeartLevel - C.HipLevel) * H * Math.sin(trunk);
+    let h;
+    if (limb === "legR") h = (C.HipLevel - level) * H * Math.sin(pos[1] * rad);
+    else if (limb === "legL") h = (C.HipLevel - level) * H * Math.sin(pos[2] * rad);
+    else if (limb === "armR" || limb === "armL") {
+      const arm = (limb === "armR" ? pos[3] : pos[4]) * rad;
+      h = (C.ShoulderLevel - C.HipLevel) * H * Math.sin(trunk) + (C.ShoulderLevel - level) * H * Math.sin(arm - trunk);
+    } else h = (level - C.HipLevel) * H * Math.sin(trunk);
+    return h - heart;
+  }
   function spaceOf(c) {
     if (c === "Spleen" || c === "Liver" || c === "Abdomen") return "Peritoneum";
     if (c === "Extremity" || c === "LeftArm" || c === "RightArm") return "";
@@ -118,6 +141,8 @@
       this.time = 0;
       this.bleeds = {}; this.tension = {}; this.brain = {}; this.infusions = [];
       this.oxygen = this.arrest = this.intubated = this.vasopressor = false;
+      this.position = Positions.flach; this.positionId = "flach";
+      this.height = patient.height_cm > 100 ? patient.height_cm / 100 : 1.8;
       this.hrBaseOffset = 0; this.hrResponse = 1; this.sbpOffset = 0;
       if (this.mode === "Registry") {
         this.hrBaseOffset = this.uniform(-12, 12);
@@ -161,6 +186,11 @@
 
     applyIntervention(iv) {
       switch (iv.type) {
+        case "Positioning": {
+          const pos = Positions[iv.target || ""];
+          if (pos) { this.position = pos; this.positionId = iv.target; this.updateVitals(); }
+          break;
+        }
         case "HemorrhageControl": {
           for (const t of String(iv.target || "").split(",")) { const b = this.bleeds[t.trim()]; if (b) b.multiplier = Math.min(b.multiplier, iv.rateMultiplier); }
           break;
@@ -195,14 +225,17 @@
           const sp = spaceOf(b.inj.compartment);
           if (sp === "") return 0;
           if (sp === "Peritoneum") return C.IapBaseline * Math.exp(v / (C.IapBaseline * C.AbdominalCompliance));
-          return b.inj.maxTotalLoss_mL > 0 ? v / b.inj.maxTotalLoss_mL * this.baselineMap : 0;
+          return b.inj.maxTotalLoss_mL > 0 ? v / b.inj.maxTotalLoss_mL * pref(b) : 0;
         };
+        const pref = (b) => b.inj.lesion === "venous" ? C.VenousPressure : this.baselineMap;
+        const sh = (c) => { const st = Sites[c]; return st ? siteHeight(st[0], st[1], this.position, this.height) : 0; };
         for (const b of Object.values(this.bleeds)) {
           if (canClot(b.inj.lesion)) {
             if (map < C.RebleedMap) { b.clotTimer += dt; if (b.clotTimer >= C.ClotFormation_s) b.clotted = true; }
             else { b.clotTimer = 0; b.clotted = false; }
           }
-          const drive = Math.max(0, map - back(b, spaceVol[spaceOf(b.inj.compartment)])) / Math.max(1, this.baselineMap - back(b, 0));
+          const p = (b.inj.lesion === "venous" ? C.VenousPressure * map / this.baselineMap : map) - C.HydroPerM * sh(b.inj.compartment);
+          const drive = Math.max(0, p - back(b, spaceVol[spaceOf(b.inj.compartment)])) / Math.max(0.5, pref(b) - back(b, 0));
           const rate = b.inj.baseRate_mL_min * b.inj.severity * b.multiplier * Math.sqrt(drive) * (b.clotted ? C.ClotFlowFactor : 1);
           const l = rate * minutes; b.lost += l;
           if (this.volume > 0) this.redCells -= l * this.redCells / this.volume;
@@ -246,14 +279,15 @@
         return;
       }
       const m = this.mode;
+      const fh = Math.max(0, 1 - (this.volume + this.position[5]) / this.baselineVolume);
       const gcs = Math.min(interp(tbi, C.TbiPoints, C.TbiGcs), loss(f, C.ShockGcs));
       const airway = !this.intubated && gcs <= 8 ? Math.min(1, (8 - gcs) / 5 + 0.2) : 0;
       const cushing = tbi > C.TbiCushingLevel ? (tbi - C.TbiCushingLevel) / (1 - C.TbiCushingLevel) : 0;
       const sbpDrop = tp > C.TpHypotensionOnset ? (tp - C.TpHypotensionOnset) / (1 - C.TpHypotensionOnset) * C.TpMaxSbpDrop : 0;
       const hr0 = Shock.hr(m, 0);
-      const hr = hr0 + this.hrBaseOffset + (Shock.hr(m, f) - hr0) * this.hrResponse;
-      const sbp = Shock.sbp(m, f) + this.sbpOffset - sbpDrop + 50 * cushing + (this.vasopressor ? C.VasopressorSbpRise : 0);
-      const dbp = Shock.dbp(m, f) + this.sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + (this.vasopressor ? C.VasopressorDbpRise : 0);
+      const hr = hr0 + this.hrBaseOffset + (Shock.hr(m, fh) - hr0) * this.hrResponse;
+      const sbp = Shock.sbp(m, fh) + this.sbpOffset - sbpDrop + 50 * cushing + (this.vasopressor ? C.VasopressorSbpRise : 0);
+      const dbp = Shock.dbp(m, fh) + this.sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + (this.vasopressor ? C.VasopressorDbpRise : 0);
       let spo2 = loss(f, SpO2Air) - C.TpMaxSpO2Drop * tp - C.AirwayMaxSpO2Drop * airway + (this.oxygen ? 3 : 0) + (this.intubated ? 3 : 0);
       spo2 = Math.max(50, Math.min(100, spo2));
       const be = Shock.be(f), hco3 = BloodGas.hco3(be), paco2 = BloodGas.paco2(hco3, this.intubated, airway, tp), ph = BloodGas.ph(hco3, paco2);

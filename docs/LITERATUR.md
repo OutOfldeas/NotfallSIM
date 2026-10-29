@@ -326,6 +326,16 @@ Statt fester Raten mit linearer Obergrenze:
 | Läsionsart | seitlicher Einriss (zieht sich nicht zurück, kein Gerinnsel), Durchtrennung (Retraktion, Gerinnsel), Parenchym, venös | – | [ATLS] |
 | Gerinnsel und Nachblutung | Gerinnsel, wenn der MAD 5 min unter 64 mmHg bleibt (Restfluss 10 %); löst sich, sobald der MAD 64 mmHg erreicht | 64 ± 2 mmHg | [74]; Bildungszeit und Restfluss Annahmen |
 
+| Hydrostatik | Druck am Blutungsort = Druck auf Herzhöhe − ρ·g·Δh = 78 mmHg je Meter über dem Herzen; Δh aus der Lagerung und Segmentlängen als Anteil der Körpergröße | ρ 1060 kg/m³ | [71], [84]; Herzhöhe 0,72·H Annahme |
+| Venöse Läsionen | treibender Druck = venöser Druck (mittlerer Füllungsdruck 7 mmHg, fällt mit dem MAD), nicht der MAD | 7 mmHg | Guyton & Hall |
+| Lagerung | flach, Beine 45° hoch, rechtes Bein hoch, Oberkörper 30°, linker Arm senkrecht | – | – |
+| Autotransfusion | Beine 45° aus flacher Lage: 150 mL zentral (halbes Volumen des Passive Leg Raising aus halbsitzender Lage, ≈ 300 mL); wirkt auf HF und RR, nicht auf Hb oder Laktat | 150 mL | [83]; Hälfte Annahme |
+
+Folge der Hydrostatik: Ein hochgelagertes Bein mit venöser Blutung (Oberschenkel, 15 cm über dem Herzen) blutet kaum noch;
+eine arterielle Blutung am Unterschenkel (45 cm über dem Herzen) nur um etwa ein Viertel weniger; ein senkrecht gehaltener
+Arm senkt den Druck an der Schnittwunde um ≈ 35 mmHg. Bei Oberkörperhochlage liegen Leber und Milz etwas unter dem Herzen
+(+4 mmHg). Nicht modelliert: Wirkung der Oberkörperhochlage auf den Hirndruck, Blutverschiebung in die Beine bei Kopf-hoch.
+
 Folge im Spiel: Großzügige Volumengabe vor der Blutstillung kann ein Gerinnsel lösen (permissive Hypotension). Die
 intraabdominelle Blutung tamponiert sich nicht von selbst (der Bauchraum fasst mehr als das Blutvolumen). Venöse und
 parenchymatöse Blutungen sickern (kein Strahl), arterielle spritzen. Pulse rechnet Blutungen mit eigenem Modell; Läsionsart
@@ -550,3 +560,5 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 80. Stam B, van Gemert MJC, van Leeuwen TG, Aalders MCG. How the blood pool properties at onset affect the temporal behavior of simulated bruises. *Med Biol Eng Comput*. 2012;50(2):165-171. [DOI](https://doi.org/10.1007/s11517-012-0860-5)
 81. Desmoulin GT, Anderson GS. Contusion mechanics: a minimum tolerance test (Abstract). Injury Biomechanics Research Center, Ohio State University; 2007. [PDF](https://ibrc.osu.edu/wp-content/uploads/2014/01/Desmoulin_Abstract_2007.pdf)
 82. Sharkey EJ, Cassidy M, Brady J, Gilchrist MD, Nic Daeid N. Investigation of the force associated with the formation of lacerations and skull fractures. *Int J Legal Med*. 2012;126(6):835-844. [DOI](https://doi.org/10.1007/s00414-011-0608-z)
+83. Monnet X, Teboul JL. Passive leg raising: five rules, not a drop of fluid! *Crit Care*. 2015;19:18. [DOI](https://doi.org/10.1186/s13054-014-0708-5)
+84. Winter DA. *Biomechanics and Motor Control of Human Movement*. 4th ed. Wiley; 2009. Kap. 4. [DOI](https://doi.org/10.1002/9780470549148)

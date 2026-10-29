@@ -406,6 +406,131 @@
       ],
       "evidenceStatus": "draft",
       "reviewNotes": "Wirkt nach 15 min (OP-Saal bereit, Schnitt); stillt Milz-, Leber- und Mesenterialblutung (Stichverletzung). Zeit didaktisch."
+    },
+    {
+      "id": "lagerung_flach",
+      "label": "Flach lagern",
+      "logLabel": "Patient flach gelagert",
+      "type": "Positioning",
+      "target": "flach",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": false,
+      "effectDelay_s": 0,
+      "sources": [
+        {
+          "citation": "Winter DA. Biomechanics and Motor Control of Human Movement. 4th ed. Wiley; 2009. Kap. 4 (Segmentlängen als Anteil der Körpergröße).",
+          "url": "https://doi.org/10.1002/9780470549148",
+          "note": "Höhe der Blutungsorte über dem Herzen aus der Lagerung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Rückenlage flach (Ausgangslage)."
+    },
+    {
+      "id": "lagerung_beine_hoch",
+      "label": "Beine hoch (Schocklage)",
+      "logLabel": "Beine 45° hochgelagert",
+      "type": "Positioning",
+      "target": "beine_hoch",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": false,
+      "effectDelay_s": 0,
+      "sources": [
+        {
+          "citation": "Monnet X, Teboul JL. Passive leg raising: five rules, not a drop of fluid! Crit Care. 2015;19:18.",
+          "url": "https://doi.org/10.1186/s13054-014-0708-5",
+          "note": "Beine 45° hoch (aus halbsitzender Lage) verschiebt etwa 300 mL Blut aus Beinen und Splanchnikusgebiet nach zentral; Wirkung reversibel."
+        },
+        {
+          "citation": "Winter DA. Biomechanics and Motor Control of Human Movement. 4th ed. Wiley; 2009. Kap. 4 (Segmentlängen als Anteil der Körpergröße).",
+          "url": "https://doi.org/10.1002/9780470549148",
+          "note": "Höhe der Blutungsorte über dem Herzen aus der Lagerung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Autotransfusion aus den Beinen (aus flacher Lage etwa die Hälfte der 300 mL, Annahme); Blutungsorte an den Beinen liegen höher als das Herz: weniger Druck, venöse Blutung fast still. Bei Becken- und Femurfraktur in der Praxis meist nicht möglich."
+    },
+    {
+      "id": "lagerung_bein_re_hoch",
+      "label": "Bein re. hoch",
+      "logLabel": "Rechtes Bein hochgelagert",
+      "type": "Positioning",
+      "target": "bein_rechts_hoch",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": false,
+      "effectDelay_s": 0,
+      "sources": [
+        {
+          "citation": "Winter DA. Biomechanics and Motor Control of Human Movement. 4th ed. Wiley; 2009. Kap. 4 (Segmentlängen als Anteil der Körpergröße).",
+          "url": "https://doi.org/10.1002/9780470549148",
+          "note": "Höhe der Blutungsorte über dem Herzen aus der Lagerung"
+        },
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Externe Blutung: Druck, Hochlagern unterstützend, Tourniquet bei lebensbedrohlicher Blutung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Hochlagern der verletzten Extremität senkt den Druck am Blutungsort um ρ·g·Δh."
+    },
+    {
+      "id": "lagerung_oberkoerper_30",
+      "label": "Oberkörper 30° hoch",
+      "logLabel": "Oberkörper 30° hochgelagert",
+      "type": "Positioning",
+      "target": "oberkoerper_30",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": false,
+      "effectDelay_s": 0,
+      "sources": [
+        {
+          "citation": "Winter DA. Biomechanics and Motor Control of Human Movement. 4th ed. Wiley; 2009. Kap. 4 (Segmentlängen als Anteil der Körpergröße).",
+          "url": "https://doi.org/10.1002/9780470549148",
+          "note": "Höhe der Blutungsorte über dem Herzen aus der Lagerung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Blutungsorte am Rumpf liegen unter dem Herzen: etwas mehr Druck. Wirkung auf den Hirndruck nicht modelliert; Volumenverschiebung in die Beine nicht modelliert."
+    },
+    {
+      "id": "lagerung_arm_li_hoch",
+      "label": "Arm li. hoch",
+      "logLabel": "Linken Arm hochgelagert",
+      "type": "Positioning",
+      "target": "arm_links_hoch",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": false,
+      "effectDelay_s": 0,
+      "sources": [
+        {
+          "citation": "Winter DA. Biomechanics and Motor Control of Human Movement. 4th ed. Wiley; 2009. Kap. 4 (Segmentlängen als Anteil der Körpergröße).",
+          "url": "https://doi.org/10.1002/9780470549148",
+          "note": "Höhe der Blutungsorte über dem Herzen aus der Lagerung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Linker Arm senkrecht: Unterarm etwa 0,4 m über dem Herzen, ≈ 30 mmHg weniger Druck am Blutungsort."
     }
   ]
 }

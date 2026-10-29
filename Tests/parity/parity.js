@@ -61,6 +61,18 @@ run("gerinnsel_nachblutung", man80, (e, s) => {
   if (s === 6000) e.applyIntervention(iv("HemorrhageControl", { target: "Abdomen", rateMultiplier: 0 }));
   if (s === 9000) e.applyIntervention(iv("FluidInfusion", { target: "", compound: "Blood", volume_mL: 1500, rate_mL_min: 150 }));
 }, 1800);
+run("lagerung", { weight_kg: 80, age: 35, sex: "male", height_cm: 175, initialBloodLoss_mL: 800 }, (e, s) => {
+  if (s === 0) {
+    e.applyInjury({ ...bleed("Extremity", 0.8, 120, 0), lesion: "partial" });
+    e.applyInjury({ ...bleed("RightThigh", 0.7, 20, 1000), lesion: "venous" });
+    e.applyInjury({ ...bleed("LeftArm", 0.8, 40, 0), lesion: "partial" });
+    e.applyInjury({ ...bleed("Liver", 0.6, 90, 2500), lesion: "parenchymal" });
+  }
+  if (s === 1500) e.applyIntervention(iv("Positioning", { target: "beine_hoch" }));
+  if (s === 4000) e.applyIntervention(iv("Positioning", { target: "oberkoerper_30" }));
+  if (s === 6000) e.applyIntervention(iv("Positioning", { target: "arm_links_hoch" }));
+  if (s === 8000) e.applyIntervention(iv("Positioning", { target: "flach" }));
+}, 1200);
 
 // Zufallsszenarien (Datei als drittes Argument)
 if (process.argv[3]) {
