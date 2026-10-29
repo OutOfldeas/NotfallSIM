@@ -220,25 +220,61 @@ namespace NotfallSIM.Anatomy
 
         static bool OnMattress(Vector3 w) => Mathf.Abs(w.x) < MattressHalfWidth && Mathf.Abs(w.z) < MattressHalfLength;
 
-        /// <summary>Die Lache entsteht dort, wo das Blut abtropft: Enden der Rinnsale, senkrecht auf Trage oder Boden projiziert.
+        /// <summary>
+        /// Wo ein Tropfen landet: senkrecht nach unten auf die erste Fläche, die nicht zum Patienten gehört. Auf einer geneigten
+        /// Fläche (hochgestelltes Rücken- oder Beinteil, Keil) läuft das Blut bergab weiter, bis es eben liegt oder über die
+        /// Kante auf den Boden fällt.
+        /// </summary>
+        Vector3 Land(Vector3 from, out bool onStretcher)
+        {
+            var stretcher = NotfallSIM.Rooms.Stretcher.Find();
+            onStretcher = false;
+            Vector3 p = from;
+            for (int step = 0; step < 80; step++)
+            {
+                if (!FirstHit(p, out var hit)) return new Vector3(p.x, 0.002f, p.z);           // nichts darunter: Boden
+                bool ownsHit = stretcher != null ? stretcher.Owns(hit.collider) : OnMattress(hit.point);
+                if (!ownsHit) { onStretcher = false; return hit.point + Vector3.up * 0.002f; }
+                if (hit.normal.y >= 0.97f) { onStretcher = true; return hit.point + Vector3.up * 0.002f; }
+                var down = Vector3.ProjectOnPlane(Vector3.down, hit.normal).normalized;    // bergab entlang der Fläche
+                p = hit.point + down * 0.02f + Vector3.up * 0.05f;
+            }
+            onStretcher = true;
+            return p;
+        }
+
+        bool FirstHit(Vector3 from, out RaycastHit best)
+        {
+            best = default(RaycastHit);
+            float bestD = float.MaxValue; bool found = false;
+            foreach (var h in Physics.RaycastAll(from + Vector3.up * 0.01f, Vector3.down, 4f, ~(1 << 2), QueryTriggerInteraction.Ignore))
+            {
+                if (h.collider.transform.IsChildOf(transform) || h.collider.GetComponentInParent<AnatomyPatient>() != null) continue; // Patient selbst
+                if (h.distance < bestD) { bestD = h.distance; best = h; found = true; }
+            }
+            return found;
+        }
+
+        /// <summary>Die Lache entsteht dort, wo das Blut abtropft: Enden der Rinnsale, auf die Fläche darunter (Trage, Keil, Boden).
         /// Ohne abtropfende Rinnsale (z. B. Stumpf, Strahl) unter der Wunde.</summary>
         void UpdatePoolPlacement(Bleeding b)
         {
+            Physics.SyncTransforms();
             var drips = b.Owner != null ? b.Owner.Streams.Where(s => s.Riv != null && s.Riv.Drips).Select(s => SkinWorld(s.Riv.Path[s.Riv.Path.Length - 1])).ToList()
                                         : new List<Vector3>();
-            var mat = drips.Where(OnMattress).ToList();
-            var floor = drips.Where(w => !OnMattress(w)).ToList();
-            var under = b.Emitter.position;
-            Vector3 m = mat.Count > 0 ? mat.Aggregate(Vector3.zero, (a, x) => a + x) / mat.Count : under;
-            b.PoolCenter = new Vector3(Mathf.Clamp(m.x, -MattressHalfWidth + 0.03f, MattressHalfWidth - 0.03f), _mattressTop + 0.002f,
-                                       Mathf.Clamp(m.z, -MattressHalfLength + 0.03f, MattressHalfLength - 0.03f));
-            b.MattressShare = drips.Count > 0 ? mat.Count / (float)drips.Count : (OnMattress(under) ? 1 : 0);
-            if (floor.Count > 0)
+            if (drips.Count == 0) drips.Add(b.Emitter.position);
+            var mat = new List<Vector3>(); var floor = new List<Vector3>();
+            foreach (var d in drips) { var l = Land(d, out bool on); (on ? mat : floor).Add(l); }
+            if (mat.Count > 0)
             {
-                var f = floor.Aggregate(Vector3.zero, (a, x) => a + x) / floor.Count;
-                b.FloorCenter = new Vector3(f.x, 0.002f, f.z);
+                var m = mat.Aggregate(Vector3.zero, (a, x) => a + x) / mat.Count;
+                b.PoolCenter = new Vector3(Mathf.Clamp(m.x, -MattressHalfWidth + 0.03f, MattressHalfWidth - 0.03f), m.y,
+                                           Mathf.Clamp(m.z, -MattressHalfLength + 0.03f, MattressHalfLength - 0.03f));
             }
-            else b.FloorCenter = new Vector3(Mathf.Sign(b.PoolCenter.x == 0 ? 1 : b.PoolCenter.x) * (MattressHalfWidth + 0.12f), 0.002f, b.PoolCenter.z);
+            else b.PoolCenter = new Vector3(Mathf.Clamp(b.Emitter.position.x, -MattressHalfWidth + 0.03f, MattressHalfWidth - 0.03f), _mattressTop + 0.002f, b.Emitter.position.z);
+            b.MattressShare = mat.Count / (float)drips.Count;
+            b.FloorCenter = floor.Count > 0 ? floor.Aggregate(Vector3.zero, (a, x) => a + x) / floor.Count
+                                            : new Vector3(Mathf.Sign(b.PoolCenter.x == 0 ? 1 : b.PoolCenter.x) * (MattressHalfWidth + 0.12f), 0.002f, b.PoolCenter.z);
             b.Pool.position = b.PoolCenter;
             b.FloorPool.position = b.FloorCenter;
         }

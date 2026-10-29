@@ -398,8 +398,12 @@ Austrittsgeschwindigkeit aus dem systolischen Druck an der Wunde (systolisch −
 Luftwiderstand einer Kugel (a = k·v², k = 3·ρ_Luft·c_W/(8·ρ_Blut·r) ≈ 0,13/m bei r = 1,5 mm) und Schwerkraft.
 
 Lagerung sichtbar: Der Patient nimmt die Lagerung mit denselben Winkeln ein, mit denen die Physiologie rechnet (Oberkörper
-um die Lendenwirbelsäule, Beine um die Hüfte, Arm um die Schulter). Die Trage hat noch keine verstellbare Rückenlehne oder
-Beinstütze; der angehobene Körperteil liegt frei.
+um die Lendenwirbelsäule, Beine um die Hüfte, Arm um die Schulter). Die Trage ist zur Laufzeit in Rücken-, Sitz- und Beinteil
+geteilt; Rücken- und Beinteil drehen um dieselben Gelenkpunkte wie der Körper, damit er aufliegt. Ein einzelnes
+hochgelagertes Bein liegt auf einem Lagerungskeil, dessen Oberseite genau der Rückseite des gedrehten Beins folgt
+(Höhe = d·(1 − cos a) + s·sin a, d = Höhe des Hüftgelenks über der Liegefläche). Die Blutlache landet per Strahl nach unten
+auf der Fläche unter der Abtropfstelle; auf geneigten Teilen läuft das Blut bergab weiter, bis es eben liegt oder über die
+Kante auf den Boden fällt.
 
 Hämatome über die Zeit: Hämoglobin diffundiert im Gewebe mit etwa 4,2·10⁻¹³ m²/s [80]; das sind in einer Stunde unter
 0,1 mm, im Szenario also vernachlässigbar. Ein Hämatom wächst hier nur durch weiteres Blut: Fläche = Volumen im
@@ -423,7 +427,7 @@ kommt aus der Physiologie (Verlust je Verletzung).
 
 ## Offene Punkte zum Prüfen
 
-- Lagerung in Unity prüfen: Richtung der Gelenkdrehungen (Oberkörper hoch, Beine/Arm nach oben), Klickflächen nach Umlagerung, Rinnsale neu verlegt; Luftwiderstand der Partikel (limitVelocityOverLifetime mit Geschwindigkeitsfaktor) prüfen. Trage ohne verstellbare Teile.
+- Lagerung in Unity prüfen: Klickflächen nach Umlagerung, Rinnsale neu verlegt, Lache auf der richtigen Fläche; Luftwiderstand der Partikel (limitVelocityOverLifetime mit Geschwindigkeitsfaktor). Außerhalb von Unity geprüft: Drehrichtungen und Auflage auf Rücken-/Beinteil und Keil. Bekannt: Unterkante des Rückenteils taucht am Gelenk etwas ins Sitzteil; bei senkrechtem Arm dehnt sich die Haut an der Achsel (lineares Skinning mit zwei Knochen); Arm ohne Auflage.
 
 - Crash-Zeichen in Unity prüfen: Kontaktorte (Lenkrad, Armaturenbrett, Boden), Gurtkraft aus der Gelenkkraft (currentForce), Übergabe in den Schockraum. Das Ragdoll in der Sandbox selbst zeigt die Zeichen noch nicht (nur als Liste); der Primitiv-Ragdoll ohne Anatomiemodell erzeugt keine.
 
