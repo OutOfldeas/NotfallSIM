@@ -166,9 +166,18 @@ namespace NotfallSIM.Data
         public double effectDelay_s; // Zeit von Anordnung bis Wirkung (0 = sofort)
         [System.Runtime.Serialization.OptionalField] public string[] contraindicatedBy;   // Verletzungs-IDs, bei denen die Maßnahme schadet
         [System.Runtime.Serialization.OptionalField] public string contraindicationNote;  // Begründung für die Warnung
+        [System.Runtime.Serialization.OptionalField] public DoseSpec dose;                // null = feste Dosis
         public SourceRef[] sources;
         public string evidenceStatus;
         public string reviewNotes;
+
+        /// <summary>Übersetzt in ein Engine-Ereignis mit gewählter Dosis (Einheit wie <see cref="DoseSpec.unit"/>).</summary>
+        public InterventionEvent ToEvent(double doseValue)
+        {
+            var ev = ToEvent();
+            if (ev != null && dose != null && dose.reference > 0) ev.DoseFactor = doseValue / dose.reference;
+            return ev;
+        }
 
         /// <summary>Übersetzt in ein Engine-Ereignis; null bei unbekanntem Typ.</summary>
         public InterventionEvent ToEvent()
@@ -185,6 +194,32 @@ namespace NotfallSIM.Data
                 RateMultiplier = rateMultiplier,
                 SuccessProbability = successProbability
             };
+        }
+    }
+
+    /// <summary>Einstellbare Dosis einer Maßnahme. Die Wirkungsangaben der Engine gelten für <see cref="reference"/>;
+    /// andere Dosen skalieren sie (DoseFactor = Dosis / Referenz).</summary>
+    [Serializable]
+    public class DoseSpec
+    {
+        public string unit;          // z. B. "µg", "mg/kg", "g", "µg/kg/min"
+        public bool perKg;           // Dosis je kg Körpergewicht (Gesamtdosis wird mit angezeigt)
+        public double reference;     // Standarddosis; zugleich Vorgabe im Dosisdialog
+        public double min, max, step;
+        public double usualMin, usualMax;  // üblicher Bereich; außerhalb gibt es eine Warnung im Protokoll
+        public string absoluteUnit;  // Einheit der Gesamtdosis bei perKg, z. B. "mg"
+
+        public bool Usual(double value) => (value == 0 && min == 0) || (value >= usualMin - 1e-9 && value <= usualMax + 1e-9);   // 0 = Perfusor aus
+        public double Clamp(double value) => Math.Max(min, Math.Min(max, Math.Round(value / step, MidpointRounding.AwayFromZero) * step));
+
+        /// <summary>Anzeige, z. B. "1,5 mg/kg (113 mg)".</summary>
+        public string Format(double value, double weight_kg)
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            Func<double, string> n = x => (Math.Abs(x - Math.Round(x)) < 1e-9 ? x.ToString("0", inv) : x.ToString("0.0##", inv)).Replace('.', ',');
+            string s = $"{n(value)} {unit}";
+            if (perKg && weight_kg > 0) s += $" ({n(Math.Round(value * weight_kg, MidpointRounding.AwayFromZero))} {absoluteUnit})";
+            return s;
         }
     }
 

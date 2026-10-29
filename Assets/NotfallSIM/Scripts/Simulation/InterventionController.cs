@@ -26,7 +26,7 @@ namespace NotfallSIM.Simulation
         public bool IsUsed(string id) => _used.Contains(id);
         public InterventionDefinition Get(string id) => _byId.TryGetValue(id, out var d) ? d : null;
 
-        /// <summary>Für Buttons: OnClick mit String-Parameter, z. B. "beckengurt".</summary>
+        /// <summary>Für Buttons: OnClick mit String-Parameter, z. B. "beckengurt". Bei einstellbarer Dosis öffnet sich der Dosisdialog.</summary>
         public void Apply(string interventionId)
         {
             if (!_byId.TryGetValue(interventionId, out var def))
@@ -36,15 +36,35 @@ namespace NotfallSIM.Simulation
             }
             if (def.once && _used.Contains(def.id)) return;
             if (sim.Ended || sim.IsAway || sim.Vitals.CardiacArrest) { sim.Note($"Nicht möglich: {def.label}"); return; }
+            if (def.dose != null) { NotfallSIM.UI.DoseDialog.Show(def, Weight, d => ApplyDose(interventionId, d)); return; }
+            Execute(def, def.ToEvent(), null);
+        }
 
-            var ev = def.ToEvent();
+        /// <summary>Maßnahme mit gewählter Dosis (Einheit wie in "dose.unit").</summary>
+        public void ApplyDose(string interventionId, double doseValue)
+        {
+            if (!_byId.TryGetValue(interventionId, out var def) || def.dose == null) { Apply(interventionId); return; }
+            if (def.once && _used.Contains(def.id)) return;
+            if (sim.Ended || sim.IsAway || sim.Vitals.CardiacArrest) { sim.Note($"Nicht möglich: {def.label}"); return; }
+            Execute(def, def.ToEvent(doseValue), doseValue);
+        }
+
+        double Weight => sim.Scenario != null && sim.Scenario.patient != null ? sim.Scenario.patient.weight_kg : 0;
+
+        void Execute(InterventionDefinition def, NotfallSIM.Core.InterventionEvent ev, double? doseValue)
+        {
             if (ev == null)
             {
                 Debug.LogWarning($"[Maßnahmen] Unbekannter Typ '{def.type}' bei '{def.id}'");
                 return;
             }
             _used.Add(def.id);
-            sim.ApplyIntervention(ev, string.IsNullOrEmpty(def.logLabel) ? def.label : def.logLabel, def.effectDelay_s);
+            string label = string.IsNullOrEmpty(def.logLabel) ? def.label : def.logLabel;
+            if (doseValue.HasValue) label += " " + def.dose.Format(doseValue.Value, Weight);
+            sim.ApplyIntervention(ev, label, def.effectDelay_s);
+            if (doseValue.HasValue && !def.dose.Usual(doseValue.Value))
+                sim.Note($"Warnung: Dosis {def.dose.Format(doseValue.Value, Weight)} außerhalb des üblichen Bereichs " +
+                         $"({def.dose.Format(def.dose.usualMin, 0)} bis {def.dose.Format(def.dose.usualMax, 0)})", "warning:dose:" + def.id);
             WarnContraindicated(def);
         }
 

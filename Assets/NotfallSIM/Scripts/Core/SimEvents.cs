@@ -76,5 +76,6 @@ namespace NotfallSIM.Core
         public string Compound;           // FluidInfusion: "BalancedCrystalloid", "Blood"; Medication: z. B. "TXA"
         public double Volume_mL;
         public double Rate_mL_min;
+        public double DoseFactor = 1;     // gewählte Dosis / Referenzdosis (Medikamente, Noradrenalin); 1 = Standarddosis
     }
 }

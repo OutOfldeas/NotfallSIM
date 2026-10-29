@@ -124,6 +124,15 @@ svg.body { width: 100%; height: auto; display: block; }
 .act.done { border-color: var(--ok); }
 .act.done small { color: var(--ok); }
 .act:disabled { opacity: .5; cursor: not-allowed; }
+.dose { border: 1px solid var(--accent); border-radius: 8px; padding: 12px; margin-bottom: 10px; background: var(--surface-2); display: grid; gap: 8px; }
+.dose-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.dose-val { font-family: var(--font-mono); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dose-val.off { color: var(--warn); }
+.dose input[type=range] { width: 100%; accent-color: var(--accent); }
+.dose-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dose-row .btn { min-width: 44px; }
+.dose small { color: var(--muted); }
+.dose small.off { color: var(--warn); }
 .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
 
 /* Bildgebung */
@@ -276,6 +285,16 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
       </section>
       <section class="panel" aria-labelledby="actTitle">
         <h2 id="actTitle">Maßnahmen</h2>
+        <div class="dose" id="doseBox" hidden>
+          <div class="dose-head"><strong id="doseName"></strong><span class="dose-val" id="doseVal"></span></div>
+          <div class="dose-row">
+            <button type="button" class="btn" id="doseMinus" aria-label="Dosis verringern">−</button>
+            <input type="range" id="doseRange" aria-label="Dosis" style="flex:1;min-width:120px">
+            <button type="button" class="btn" id="dosePlus" aria-label="Dosis erhöhen">+</button>
+          </div>
+          <small id="doseHint"></small>
+          <div class="dose-row"><button type="button" class="btn primary" id="doseGive">Geben</button><button type="button" class="btn" id="doseCancel">Abbrechen</button></div>
+        </div>
         <div class="actions" id="actions"></div>
       </section>
       <section class="panel" aria-labelledby="imgTitle">
@@ -360,7 +379,7 @@ function start() {
   sim = new E.Simulation(DATA, generated ? generated.scenario : selected, mode, undefined, ctInRoom);
   speed = 1; paused = false; logCount = 0; imgCount = 0;
   $("imagingResults").innerHTML = "";
-  renderGoals();
+  renderGoals(); closeDose();
   $("log").innerHTML = ""; $("labResult").hidden = true;
   $("findings").innerHTML = `<p class="muted" style="margin:6px 0 0">Tippe eine Körperregion an, um sie zu untersuchen. Rechts und links sind aus Sicht des Patienten.</p>`;
   document.querySelectorAll(".region").forEach((r) => r.classList.remove("examined"));
@@ -484,7 +503,7 @@ function renderActions() {
   $("actions").innerHTML = DATA.interventions.interventions.map((d) => {
     const used = sim.used.has(d.id), blocked = (d.once && used) || sim.ended || sim.vitals.arrest || sim.isAway;
     const running = pendingIds.has(d.id) && used;
-    let note = d.effectDelay_s > 0 ? `wirkt nach ${R(d.effectDelay_s / 60)} min` : (d.once ? "einmalig" : "wiederholbar");
+    let note = d.effectDelay_s > 0 ? `wirkt nach ${R(d.effectDelay_s / 60)} min` : d.dose ? `Dosis wählen · ${E.formatDose(d.dose, d.dose.reference, 0)}` : (d.once ? "einmalig" : "wiederholbar");
     if (running) note = d.type === "BloodGas" ? "Analyse läuft …" : "angeordnet …";
     else if (used && d.once) note = "erledigt";
     return `<button type="button" class="act${used && d.once ? " done" : ""}" data-id="${d.id}" ${blocked ? "disabled" : ""}><span>${esc(d.label)}</span><small>${note}</small></button>`;
@@ -492,7 +511,37 @@ function renderActions() {
 }
 $("actions").addEventListener("click", (e) => {
   const b = e.target.closest(".act"); if (!b || !sim) return;
+  const def = sim.interventions[b.dataset.id];
+  if (def && def.dose) { openDose(def); return; }
   if (sim.apply(b.dataset.id)) { renderActions(); renderLog(); renderMonitor(); }
+});
+
+// ---------- Dosis (Simulation läuft weiter, wie beim Aufziehen am Patienten) ----------
+let doseDef = null, doseValue = 0;
+function openDose(def) {
+  doseDef = def; doseValue = def.dose.reference;
+  const r = $("doseRange"); r.min = def.dose.min; r.max = def.dose.max; r.step = def.dose.step; r.value = doseValue;
+  $("doseName").textContent = def.label;
+  $("doseBox").hidden = false; renderDose();
+  $("doseBox").scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+function renderDose() {
+  const d = doseDef.dose, w = sim.scenario.patient.weight_kg, usual = E.doseUsual(d, doseValue);
+  $("doseVal").textContent = E.formatDose(d, doseValue, w);
+  $("doseVal").classList.toggle("off", !usual);
+  $("doseRange").value = doseValue;
+  const lo = E.formatDose(d, d.usualMin, 0).replace(" " + d.unit, "");
+  $("doseHint").textContent = `Üblich ${lo}–${E.formatDose(d, d.usualMax, 0)}` + (d.perKg ? ` · Patient ${w} kg` : "") + (usual ? "" : " · außerhalb des üblichen Bereichs");
+  $("doseHint").classList.toggle("off", !usual);
+}
+function closeDose() { doseDef = null; $("doseBox").hidden = true; }
+$("doseRange").addEventListener("input", (e) => { doseValue = E.doseClamp(doseDef.dose, Number(e.target.value)); renderDose(); });
+$("doseMinus").addEventListener("click", () => { doseValue = E.doseClamp(doseDef.dose, doseValue - doseDef.dose.step); renderDose(); });
+$("dosePlus").addEventListener("click", () => { doseValue = E.doseClamp(doseDef.dose, doseValue + doseDef.dose.step); renderDose(); });
+$("doseCancel").addEventListener("click", closeDose);
+$("doseGive").addEventListener("click", () => {
+  const id = doseDef.id; closeDose();
+  if (sim.apply(id, doseValue)) { renderActions(); renderLog(); renderMonitor(); }
 });
 
 // ---------- Verdachtsdiagnosen ----------
