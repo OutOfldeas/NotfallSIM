@@ -20,6 +20,21 @@ namespace NotfallSIM.Crash
     }
 
     /// <summary>
+    /// Vorlauf vor dem Aufprall: Fahrzeuge fahren einige Sekunden (Insasse bzw. stehender Fußgänger wird bis zum
+    /// Aufprall mitgeführt bzw. gehalten), beim Sturz fällt der Körper frei aus der eingestellten Höhe (mit Luftwiderstand).
+    /// Gerechnet mit grobem Schritt (1 ms) ohne Messung; der Aufprall danach wie bisher mit 0,1 ms.
+    /// </summary>
+    public class CrashApproach
+    {
+        public float Duration_s;                                   // Fahrzeuge: Dauer des Vorlaufs
+        public readonly List<(Rigidbody rb, Vector3 v)> Carry = new List<(Rigidbody, Vector3)>();  // kinematisch bewegt
+        public bool HoldRagdoll;                                   // Ragdoll kinematisch mitführen, am Ende freigeben
+        public Vector3 RagdollVelocity;                            // Geschwindigkeit des Ragdolls im Vorlauf und bei Freigabe
+        public bool Fall;                                          // freier Fall bis FallReleaseY (Becken)
+        public float FallReleaseY, TerminalVelocity_m_s = 55;
+    }
+
+    /// <summary>
     /// Baut eine Unfallsituation (Fahrzeug bzw. Untergrund + Ragdoll), lässt sie mit feinem Zeitschritt
     /// laufen und liefert die Messwerte für <see cref="InjuryRisk"/>.
     ///
@@ -27,7 +42,8 @@ namespace NotfallSIM.Crash
     /// - PKW frontal/seitlich als Schlittentest: das Fahrzeug folgt einem vorgegebenen Crashpuls (Halbsinus),
     ///   statt sich selbst zu verformen. So arbeiten auch reale Schlittenversuche.
     /// - Fußgänger: Fahrzeugfront mit konstanter Geschwindigkeit, danach Bremsung.
-    /// - Sturz: Aufprallgeschwindigkeit √(2gh) wird direkt vorgegeben (spart die Fallzeit).
+    /// - Sturz: freier Fall aus der Höhe mit Luftwiderstand (Endgeschwindigkeit 55 bzw. 75 m/s, Füße voran).
+    /// - Vorlauf: Fahrzeuge fahren 3 s; Insasse und Fußgänger werden dabei kinematisch gehalten (keine Haltungsänderung).
     /// - Motorrad: Maschine stoppt am Hindernis, Fahrer fliegt weiter. Helm dämpft die Kopfbeschleunigung pauschal.
     /// </summary>
     public class CrashRig : MonoBehaviour
@@ -83,25 +99,64 @@ namespace NotfallSIM.Crash
             return root;
         }
 
+        [Tooltip("Vorlauf der Fahrzeuge vor dem Aufprall (s).")]
+        [SerializeField] float approachTime_s = 3f;
+        [Tooltip("Physikschritt im Vorlauf (s) — grob, ohne Messung.")]
+        [SerializeField] float approachStep_s = 0.001f;
+
+        /// <summary>Nur sichtbares Teil (ohne Kollider), z. B. Fahrzeugfront, Barriere, Unfallgegner.</summary>
+        GameObject Visual(Transform parent, string name, Vector3 localPos, Vector3 size, Color color)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            go.GetComponent<Collider>().enabled = false;
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPos;
+            go.transform.localScale = size;
+            go.GetComponent<Renderer>().material = CrashPhysics.Mat(color);
+            if (parent == null) _spawned.Add(go);
+            return go;
+        }
+
+        /// <summary>Körper (und ihre Kinder) vor dem Start verschieben.</summary>
+        static void Shift(IEnumerable<Rigidbody> bodies, Vector3 offset)
+        {
+            foreach (var rb in bodies) rb.transform.position += offset;
+        }
+
+        /// <summary>Fahrzeug samt Insasse fährt im Vorlauf mit v auf den Aufprallort zu; die Szene startet um v·t zurück.</summary>
+        void Drive(CrashApproach a, Vector3 v, bool withRagdoll)
+        {
+            var bodies = _spawned.Where(g => g != null).Select(g => g.GetComponent<Rigidbody>()).Where(rb => rb != null && rb.isKinematic).ToList();
+            foreach (var rb in bodies) a.Carry.Add((rb, v));
+            a.RagdollVelocity = v;
+            Shift(bodies, -v * approachTime_s);
+            if (withRagdoll) Ragdoll.Root.transform.position += -v * approachTime_s;
+        }
+
         void Ground()
         {
             var g = GameObject.CreatePrimitive(PrimitiveType.Cube);
             g.name = "Boden";
             g.transform.position = new Vector3(0, -0.25f, 0);
-            g.transform.localScale = new Vector3(200, 0.5f, 200);
+            g.transform.localScale = new Vector3(1000, 0.5f, 1000);   // Anfahrt bis 100 m
             g.AddComponent<CrashSurface>().kind = "ground";
             g.GetComponent<Renderer>().material = CrashPhysics.Mat(new Color(0.32f, 0.34f, 0.36f));
             _spawned.Add(g);
         }
 
         /// <summary>Baut die Szene für die gewählten Parameter und gibt die Dauer der Simulation zurück.</summary>
-        public float Build(CrashParams p, out Action<float, float> drive)
+        public float Build(CrashParams p, out Action<float, float> drive) => Build(p, out drive, out _);
+
+        /// <summary>Wie oben, dazu der Vorlauf (Anfahrt bzw. freier Fall). Die Szene steht danach am Anfang des Vorlaufs.</summary>
+        public float Build(CrashParams p, out Action<float, float> drive, out CrashApproach approach)
         {
             Clear();
             Ground();
             float H = p.Height_m;
             float v = p.Speed_kmh / 3.6f;
             drive = null;
+            approach = new CrashApproach { Duration_s = approachTime_s, HoldRagdoll = true };
             var rng = new System.Random(p.Seed);
 
             switch (p.MechanismId)
@@ -137,8 +192,11 @@ namespace NotfallSIM.Crash
                     {
                         // Halbsinus-Verzögerung, Δv = v, Dauer 100 ms (typischer Frontalcrashpuls)
                         const float T = 0.1f;
-                        Ragdoll.SetVelocity(new Vector3(0, 0, v));
                         Action<float> airbag = p.Airbag ? Airbag(car, wheel, t0 + 0.015f) : null;
+                        // Sichtbare Fahrzeugfront und Betonbarriere (ohne Kollider: der Puls ersetzt die Verformung)
+                        Visual(t, "Fahrzeugfront", new Vector3(0, 0.35f, 1.65f), new Vector3(1.6f, 0.6f, 0.9f), new Color(0.2f, 0.32f, 0.55f));
+                        Visual(null, "Barriere", new Vector3(0, 0.75f, 2.1f + v * t0 + 1f), new Vector3(3.5f, 1.5f, 2f), new Color(0.55f, 0.55f, 0.52f));
+                        Drive(approach, new Vector3(0, 0, v), true);
                         drive = (time, dt) =>
                         {
                             float u = Mathf.Clamp01((time - t0) / T);
@@ -151,14 +209,24 @@ namespace NotfallSIM.Crash
                     else
                     {
                         // Seitenaufprall links: getroffenes Fahrzeug wird nach rechts (+x) beschleunigt,
-                        // Δv ≈ halbe Aufprallgeschwindigkeit (gleich schwere Fahrzeuge, plastischer Stoß), Dauer 60 ms
+                        // Δv ≈ halbe Aufprallgeschwindigkeit (gleich schwere Fahrzeuge, plastischer Stoß), Dauer 60 ms.
+                        // Das stoßende Fahrzeug (nur sichtbar) kommt von links und trifft bei t0 die Fahrertür.
                         const float T = 0.06f;
                         float dv = v / 2;
+                        const float doorX = -0.45f, bulletLen = 4.4f;
+                        var bullet = Vehicle("Unfallgegner", new Vector3(doorX - v * t0 - bulletLen / 2, 0, 0.1f));
+                        Visual(bullet.transform, "Karosserie", new Vector3(0, 0.7f, 0), new Vector3(bulletLen, 1.3f, 1.8f), new Color(0.25f, 0.45f, 0.3f));
+                        var rbBullet = bullet.GetComponent<Rigidbody>();
+                        approach.Carry.Add((rbBullet, new Vector3(v, 0, 0)));
+                        approach.RagdollVelocity = Vector3.zero;   // Fahrzeug steht (Kreuzung)
+                        Shift(new[] { rbBullet }, new Vector3(-v * approachTime_s, 0, 0));
                         drive = (time, dt) =>
                         {
                             float u = Mathf.Clamp01((time - t0) / T);
                             float vel = dv * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
                             rbCar.MovePosition(rbCar.position + new Vector3(vel * dt, 0, 0));
+                            float vb = time < t0 ? v : v - (v - dv) * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
+                            rbBullet.MovePosition(rbBullet.position + new Vector3(vb * dt, 0, 0));
                         };
                         return 0.5f;
                     }
@@ -179,8 +247,8 @@ namespace NotfallSIM.Crash
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, seatY, 0), Quaternion.identity, RagdollPose.Straddling, H, p.Mass_kg, p.Male, invertKneeFlexion, headScale: 1.25f);
                     Vector3 mr = Ragdoll.HandTipRight, ml = Ragdoll.HandTipLeft;
                     Part(t, "Lenker", new Vector3(0, (mr.y + ml.y) / 2 - 0.03f, Mathf.Max(mr.z, ml.z) + 0.03f), new Vector3(Mathf.Abs(mr.x - ml.x) + 0.15f, 0.04f, 0.04f), new Color(0.6f, 0.6f, 0.6f));
-                    Ragdoll.SetVelocity(new Vector3(0, 0, v));
                     var rbBike = bike.GetComponent<Rigidbody>();
+                    Drive(approach, new Vector3(0, 0, v), true);
                     float tHit = gap / Mathf.Max(0.1f, v);
                     const float T = 0.04f;
                     drive = (time, dt) =>
@@ -207,6 +275,10 @@ namespace NotfallSIM.Crash
                     Part(t, "Dach", new Vector3(2.6f, 1.35f, 0), new Vector3(1.2f, 0.05f, 1.5f), c);
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, hipY, 0), Quaternion.identity, RagdollPose.Standing, H, p.Mass_kg, p.Male, invertKneeFlexion);
                     var rbCar = car.GetComponent<Rigidbody>();
+                    // Fahrzeug fährt einige Sekunden auf den stehenden Fußgänger zu (der bis kurz vorher gehalten wird)
+                    approach.Carry.Add((rbCar, new Vector3(-v, 0, 0)));
+                    approach.RagdollVelocity = Vector3.zero;
+                    Shift(new[] { rbCar }, new Vector3(v * approachTime_s, 0, 0));
                     const float brakeAt = 0.25f, decel = 8f;
                     drive = (time, dt) =>
                     {
@@ -216,18 +288,23 @@ namespace NotfallSIM.Crash
                     return 2.0f;
                 }
 
-                default: // sturz_hoehe — Speed_kmh bedeutet hier Höhe in m
+                default: // sturz_hoehe — Speed_kmh bedeutet hier Höhe in m (tiefster Körperpunkt über dem Boden)
                 {
                     float h = Mathf.Max(1, p.Speed_kmh);
-                    float vImpact = Mathf.Sqrt(2 * 9.81f * h);
                     int orientation = rng.Next(3); // 0 Füße voran, 1 Seite, 2 Rücken
                     Quaternion rot = orientation == 0 ? Quaternion.Euler(0, 0, 8)
                                    : orientation == 1 ? Quaternion.Euler(0, 0, 80)
                                    : Quaternion.Euler(-75, 0, 0);
                     var df = RagdollBuilder.Dims(H);
                     float lowest = orientation == 0 ? df.KneeToSole + df.HipToKnee + 0.02f : 0.15f * H; // Hüfthöhe über dem tiefsten Punkt
-                    Ragdoll = RagdollBuilder.Build(new Vector3(0, lowest + 0.25f, 0), rot, RagdollPose.Standing, H, p.Mass_kg, p.Male, invertKneeFlexion);
-                    Ragdoll.SetVelocity(new Vector3(0, -vImpact, 0));
+                    // Freier Fall aus der Höhe h; die Messung beginnt 25 cm über dem Boden (wie bisher der Start).
+                    Ragdoll = RagdollBuilder.Build(new Vector3(0, lowest + h, 0), rot, RagdollPose.Standing, H, p.Mass_kg, p.Male, invertKneeFlexion);
+                    approach.HoldRagdoll = false;
+                    approach.Fall = true;
+                    approach.FallReleaseY = lowest + 0.25f;
+                    // Endgeschwindigkeit: Bauch-/Seitenlage ca. 55 m/s, Füße voran schlanker ca. 75 m/s
+                    approach.TerminalVelocity_m_s = orientation == 0 ? 75 : 55;
+                    approach.Duration_s = Mathf.Sqrt(2 * h / 9.81f) + 1;   // Obergrenze
                     return 1.5f;
                 }
             }
@@ -313,7 +390,7 @@ namespace NotfallSIM.Crash
         public IEnumerator Run(CrashParams p, float slowMotion, Action<List<CrashMeasurement>> done, Action<float> progress = null, bool playback = true)
         {
             Running = true;
-            float duration = Build(p, out Action<float, float> drive);
+            float duration = Build(p, out Action<float, float> drive, out var approach);
             float dt = crashStep_s;
             int steps = Mathf.CeilToInt(duration / dt);
 
@@ -323,19 +400,61 @@ namespace NotfallSIM.Crash
             CrashSensor.ClearLookup();
             BeginRecording();
             SetVisible(false);   // Zwischenstände der Berechnung nicht zeigen
+            Physics.SyncTransforms();
+            var tone = LoadMuscleTone();
+            var muscles = tone != null ? new MuscleToneDriver(Ragdoll, tone, p.Occupant, p.Male) : null;
+            var watch = new System.Diagnostics.Stopwatch();
+
+            // ---- Phase 1: Vorlauf (Anfahrt bzw. freier Fall), grober Schritt, keine Messung
+            CrashStart = 0;
+            RecordFrame(0);
+            if (approach != null)
+            {
+                var ragdollBodies = Ragdoll.Root.GetComponentsInChildren<Rigidbody>();
+                var carry = new List<(Rigidbody rb, Vector3 start, Vector3 v)>();
+                foreach (var c in approach.Carry) carry.Add((c.rb, c.rb.position, c.v));
+                if (approach.HoldRagdoll)
+                    foreach (var rb in ragdollBodies) { rb.isKinematic = true; carry.Add((rb, rb.position, approach.RagdollVelocity)); }
+                float da = approachStep_s, ta = 0, lastFrame = 0, vt = approach.TerminalVelocity_m_s;
+                int aSteps = Mathf.RoundToInt(approach.Duration_s / da), k = 0;
+                bool arrived = aSteps <= 0;
+                while (!arrived)
+                {
+                    watch.Restart();
+                    do
+                    {
+                        k++; ta = k * da;
+                        foreach (var c in carry) c.rb.MovePosition(c.start + c.v * ta);   // ohne Rundungsdrift
+                        if (approach.Fall)
+                            foreach (var rb in ragdollBodies)
+                            {
+                                // Luftwiderstand: a = −g·(|v|/v_end)² in Bewegungsrichtung (je Masse gleich, also kein Drehmoment)
+                                var vel = CrashPhysics.Velocity(rb);
+                                float sp = vel.magnitude;
+                                if (sp > 0.01f) rb.AddForce(-vel / sp * 9.81f * (sp / vt) * (sp / vt), ForceMode.Acceleration);
+                            }
+                        Physics.Simulate(da);
+                        if (ta - lastFrame >= recordInterval_s - 1e-6f) { RecordFrame(ta); lastFrame = ta; }
+                        arrived = k >= aSteps || (approach.Fall && Ragdoll.Pelvis.position.y <= approach.FallReleaseY);
+                    } while (!arrived && watch.Elapsed.TotalMilliseconds < computeBudget_ms);
+                    progress?.Invoke(0.1f * Mathf.Clamp01((float)k / Mathf.Max(1, aSteps)));
+                    yield return null;
+                }
+                if (approach.HoldRagdoll)
+                    foreach (var rb in ragdollBodies) { rb.isKinematic = false; CrashPhysics.SetVelocity(rb, approach.RagdollVelocity); }
+                CrashStart = ta;
+                if (_frameTimes[_frameTimes.Count - 1] < ta) RecordFrame(ta);
+            }
 
             foreach (var s in Ragdoll.Sensors) s.StartRecording(dt, steps + 1);
             ShoulderBeltImpulse_Ns = LapBeltImpulse_Ns = 0;
             var gauges = gameObject.AddComponent<CrashGauges>();
             gauges.Begin(Ragdoll);
-            var tone = LoadMuscleTone();
-            var muscles = tone != null ? new MuscleToneDriver(Ragdoll, tone, p.Occupant, p.Male) : null;
             BeltJoints.TryGetValue("Sternum", out var beltShoulder);
             BeltJoints.TryGetValue("Becken", out var beltLap);
 
-            var watch = new System.Diagnostics.Stopwatch();
+            // ---- Phase 2: Aufprall mit 0,1 ms und Messung (Zeit t ab Ende des Vorlaufs, wie früher ab Start)
             int step = 0, everyFrame = Mathf.Max(1, Mathf.RoundToInt(recordInterval_s / dt));
-            RecordFrame(0);
             while (step < steps)
             {
                 watch.Restart();
@@ -353,9 +472,9 @@ namespace NotfallSIM.Crash
                     gauges.Step();
                     Physics.Simulate(dt);
                     step++;
-                    if (step % everyFrame == 0 || step == steps) RecordFrame(step * dt);
+                    if (step % everyFrame == 0 || step == steps) RecordFrame(CrashStart + step * dt);
                 } while (step < steps && watch.Elapsed.TotalMilliseconds < computeBudget_ms);
-                progress?.Invoke((float)step / steps);
+                progress?.Invoke(0.1f + 0.9f * step / steps);
                 yield return null;
             }
             foreach (var s in Ragdoll.Sensors) s.StopRecording();
@@ -389,6 +508,9 @@ namespace NotfallSIM.Crash
         readonly List<(Renderer r, bool on)> _renderers = new List<(Renderer, bool)>();
         SimulationMode _savedMode; bool _modeSaved;
         float _simTime;
+
+        /// <summary>Beginn der Aufprallphase in der Aufzeichnung (s): davor Anfahrt bzw. freier Fall.</summary>
+        public float CrashStart { get; private set; }
 
         /// <summary>Ist ein berechneter Crash zum (erneuten) Abspielen vorhanden?</summary>
         public bool HasRecording => _frameTimes.Count > 1 && Ragdoll != null;
@@ -456,7 +578,8 @@ namespace NotfallSIM.Crash
             float t = 0;
             while (t < RecordedDuration)
             {
-                if (!PlaybackPaused) t += Time.deltaTime * PlaybackSpeed;
+                // Vorlauf in Echtzeit, Zeitlupe erst kurz vor dem Aufprall
+                if (!PlaybackPaused) t += Time.deltaTime * (t < CrashStart - 0.15f ? 1f : PlaybackSpeed);
                 else t = PlaybackTime;    // Seek während der Pause übernehmen
                 ShowPose(t);
                 yield return null;
