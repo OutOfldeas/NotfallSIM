@@ -21,6 +21,8 @@ namespace NotfallSIM.Crash
         public List<CrashMeasurement> Measurements;
         public AbdomenLoad Abdomen;
         public double ReleaseAt = double.PositiveInfinity;
+        /// <summary>Ab hier angespannt (Insassen, wenn der Fahrer reagiert — sie spüren Bremsen bzw. Lenken); ∞ = nie.</summary>
+        public double BraceAt = double.PositiveInfinity;
         public bool Released;
         public readonly List<HeldBody> Held = new List<HeldBody>();
         /// <summary>Mechanismus für Text und Rettungszeit (mechanisms.json): pkw_frontal, pkw_seite, fussgaenger.</summary>
@@ -140,8 +142,8 @@ namespace NotfallSIM.Crash
                 else
                 {
                     var b = _traffic.Bodies[h.Vehicle];
-                    double man = b.Def.maneuver != null ? Math.Min(b.Def.maneuver.brake ? b.BrakeStart : double.PositiveInfinity, b.Def.maneuver.steer != 0 ? b.SteerStart : double.PositiveInfinity) : double.PositiveInfinity;
-                    h.ReleaseAt = Math.Min(man, first >= 0 ? Math.Max(0, first - 0.1) : double.PositiveInfinity);
+                    h.ReleaseAt = Math.Min(b.ReactAt, first >= 0 ? Math.Max(0, first - 0.1) : double.PositiveInfinity);
+                    h.BraceAt = b.ReactAt;
                 }
             }
             int patient = Mathf.Clamp(p.Patient, 0, Math.Max(0, Humans.Count - 1));
@@ -492,6 +494,8 @@ namespace NotfallSIM.Crash
                     MoveTraffic(t + dt);
                     foreach (var h in Humans)
                     {
+                        // Wer die Gefahr bemerkt (Fahrer reagiert), spannt sich an — außer bewusstlos
+                        if (h.Muscles != null && t >= h.BraceAt && p.Occupant == OccupantState.Entspannt) h.Muscles.SetState(OccupantState.Angespannt);
                         if (h.Released) h.Muscles?.Apply(fine ? t - CrashStart : 0);
                         if (!fine) continue;
                         foreach (var s in h.Rd.Sensors) s.Step(dt);

@@ -23,7 +23,12 @@ namespace NotfallSIM.Crash
         GameObject _scPanel;
         readonly Dictionary<string, TMP_Text> _scLabels = new Dictionary<string, TMP_Text>();
 
-        static readonly double[] BrakeLeads = { 0, 0.5, 1.0, 1.5 };
+        static readonly double[] HazardLeads = { 1.0, 1.5, 2.0, 2.5, 3.0 };
+        static readonly (string id, string label)[] Reactions = { ("erwartet", "aufmerksam (0,75 s)"), ("unerwartet", "normal (1,25 s)"), ("ueberrascht", "überrascht (1,5 s)") };
+        static readonly (int dir, string mode, string label)[] Steers =
+        {
+            (0, "", "nein"), (-1, "abwenden", "links"), (1, "abwenden", "rechts"), (-1, "spurwechsel", "Spurwechsel links"), (1, "spurwechsel", "Spurwechsel rechts")
+        };
         static readonly (string label, double mu)[] Roads = { ("trocken", 0.8), ("nass", 0.5), ("Schnee", 0.2) };
         static readonly string[] Faces = { "front", "left", "right", "rear" };
         static readonly string[][] SeatSets =
@@ -82,6 +87,7 @@ namespace NotfallSIM.Crash
                      B("type:Typ", () => CycleType()));
             Row(src, B("Winkel −15°", () => Turn(-15)), B("Winkel +15°", () => Turn(15)));
             Row(src, B("face:Treffpunkt", () => CycleFace()), B("Versatz −0,5 m", () => Offset(-0.5)), B("Versatz +0,5 m", () => Offset(0.5)));
+            Row(src, B("hazard:Gefahr", () => CycleHazard()), B("reaction:Reaktion", () => CycleReaction()));
             Row(src, B("brake:Bremsen", () => CycleBrake()), B("steer:Ausweichen", () => CycleSteer()));
             Row(src, B("seats:Insassen", () => CycleSeats()), B("road:Fahrbahn", () => CycleRoad()));
             Row(src, B("patient:Patient", () => CyclePatient()));
@@ -165,20 +171,50 @@ namespace NotfallSIM.Crash
             if (types == null || types.Length == 0) return;
             Edit(v => { int i = Array.FindIndex(types, t => t.id == v.type); v.type = types[(i + 1) % types.Length].id; });
         }
-        void CycleBrake() => Edit(v =>
+        /// <summary>Manöver auf „Gefahr erkennbar + Reaktionszeit“ umstellen (Vorgaben: 2 s vorher, normale Reaktion).</summary>
+        static TrafficManeuver Man(TrafficVehicle v)
         {
             if (v.maneuver == null) v.maneuver = new TrafficManeuver();
-            double cur = v.maneuver.brake ? v.maneuver.brakeLead_s : 0;
-            int i = Array.FindIndex(BrakeLeads, x => Math.Abs(x - cur) < 0.01);
-            double next = BrakeLeads[(i + 1) % BrakeLeads.Length];
-            v.maneuver.brake = next > 0; v.maneuver.brakeLead_s = next;
-        });
+            var m = v.maneuver;
+            if (m.hazardLead_s <= 0) { m.hazardLead_s = 2.0; if (string.IsNullOrEmpty(m.reaction)) m.reaction = "unerwartet"; }
+            return m;
+        }
+        void CycleBrake() => Edit(v => { var m = Man(v); m.brake = !m.brake; });
         void CycleSteer() => Edit(v =>
         {
-            if (v.maneuver == null) v.maneuver = new TrafficManeuver();
-            v.maneuver.steer = v.maneuver.steer == 0 ? -1 : v.maneuver.steer < 0 ? 1 : 0;
-            v.maneuver.steerLead_s = 1.0;
+            var m = Man(v);
+            int i = Array.FindIndex(Steers, x => x.dir == m.steer && (x.dir == 0 || x.mode == (m.steerMode == "spurwechsel" ? "spurwechsel" : "abwenden")));
+            var next = Steers[(i + 1) % Steers.Length];
+            m.steer = next.dir; m.steerMode = next.mode;
         });
+        void CycleHazard() => Edit(v =>
+        {
+            var m = Man(v);
+            int i = Array.FindIndex(HazardLeads, x => Math.Abs(x - m.hazardLead_s) < 0.01);
+            m.hazardLead_s = HazardLeads[(i + 1) % HazardLeads.Length];
+        });
+        void CycleReaction() => Edit(v =>
+        {
+            var m = Man(v);
+            int i = Array.FindIndex(Reactions, x => x.id == (m.reaction ?? "unerwartet"));
+            m.reaction = Reactions[(i + 1) % Reactions.Length].id;
+            m.reaction_s = 0;
+        });
+
+        /// <summary>Kurzbeschreibung des Manövers, z. B. „erkennt die Gefahr 2,0 s vorher, reagiert nach 1,25 s: bremst, Spurwechsel links (0,75 s vor dem Aufprall)“.</summary>
+        static string ManeuverText(TrafficManeuver m)
+        {
+            if (m == null || (!m.brake && m.steer == 0)) return "";
+            string what = string.Join(" + ", new[] { m.brake ? "bremst" : null, m.steer != 0 ? (m.steerMode == "spurwechsel" ? "Spurwechsel " : "weicht ") + (m.steer < 0 ? "links" : "rechts") + (m.steerMode == "spurwechsel" ? "" : " aus") : null }.Where(x => x != null));
+            if (m.hazardLead_s > 0)
+            {
+                double start = m.hazardLead_s - m.ReactionTime();
+                return $", sieht die Gefahr {m.hazardLead_s:0.0} s vorher, reagiert nach {m.ReactionTime():0.00} s: {what}" +
+                       (start > 0 ? $" ({start:0.00} s vor dem Aufprall)" : " (zu spät — erst nach dem geplanten Aufprall)");
+            }
+            return $", {what} ({Math.Max(m.brake ? m.brakeLead_s : 0, m.steer != 0 ? m.steerLead_s : 0):0.0} s vorher)";
+        }
+
         void CycleSeats() => Edit(v =>
         {
             var cur = (v.occupants ?? new TrafficOccupant[0]).Select(o => o.seat).ToArray();
@@ -221,8 +257,12 @@ namespace NotfallSIM.Crash
             set("type", $"Typ: {type?.label ?? v.type}");
             set("face", string.IsNullOrEmpty(v.target) ? "Treffpunkt: –" : $"Trifft {v.target.ToUpper()}: {FaceLabel(v.targetFace)}");
             var m = v.maneuver;
-            set("brake", m != null && m.brake ? $"Bremsen {m.brakeLead_s:0.0} s vorher" : "Bremsen: nein");
-            set("steer", m != null && m.steer != 0 ? $"Ausweichen {(m.steer < 0 ? "links" : "rechts")}" : "Ausweichen: nein");
+            set("brake", m != null && m.brake ? "Bremsen: ja" : "Bremsen: nein");
+            var st = m == null || m.steer == 0 ? "nein" : Steers.First(x => x.dir == m.steer && x.mode == (m.steerMode == "spurwechsel" ? "spurwechsel" : "abwenden")).label;
+            set("steer", $"Ausweichen: {st}");
+            set("hazard", m != null && m.hazardLead_s > 0 ? $"Gefahr {m.hazardLead_s:0.0} s vorher" : "Gefahr: feste Zeiten");
+            var re = Reactions.FirstOrDefault(x => x.id == (m?.reaction ?? "unerwartet"));
+            set("reaction", m != null && m.reaction_s > 0 ? $"Reaktion {m.reaction_s:0.00} s" : $"Reaktion: {re.label ?? "normal (1,25 s)"}");
             set("seats", $"Insassen: {(v.occupants ?? new TrafficOccupant[0]).Length}");
             var road = Roads.FirstOrDefault(r => Math.Abs(r.mu - _sc.friction) < 0.01);
             set("road", $"Fahrbahn: {road.label ?? $"µ {_sc.friction:0.0}"}");
@@ -243,7 +283,7 @@ namespace NotfallSIM.Crash
                 var v = _sc.vehicles[i];
                 var m = v.maneuver;
                 int belted = (v.occupants ?? new TrafficOccupant[0]).Count(o => o.belted), n = (v.occupants ?? new TrafficOccupant[0]).Length;
-                string man = (m != null && m.brake ? $", bremst {m.brakeLead_s:0.0} s vorher" : "") + (m != null && m.steer != 0 ? $", weicht {(m.steer < 0 ? "links" : "rechts")} aus" : "");
+                string man = ManeuverText(m);
                 string aim = string.IsNullOrEmpty(v.target) ? "" : $" → {v.target.ToUpper()} {FaceLabel(v.targetFace)}{(Math.Abs(v.targetOffset_m) > 0.01 ? $" {v.targetOffset_m:+0.0;-0.0} m" : "")}";
                 sb.AppendLine($"{(i == _vehSel ? "▶ " : "")}<b>{v.id.ToUpper()}</b> {v.speed_kmh:0} km/h, {v.heading_deg:0}°{aim}, {n} Insass{(n == 1 ? "e" : "en")} ({belted} angegurtet){man}");
             }

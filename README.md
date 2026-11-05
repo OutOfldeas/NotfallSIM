@@ -195,8 +195,9 @@ eigener Steifigkeit bis zum Anschlag nach (nur mit nachgiebigem Kontakt).
 **Szenario (mehrere Fahrzeuge/Personen).** Unter „Szenario“ stehen Vorlagen aus `traffic_scenarios.json` (Kreuzung 90°
 und schräg, Gegenverkehr versetzt, Ausweichen, Auffahrunfall, Baum seitlich, Wand, Fußgänger mit und ohne Bremsung,
 SUV gegen PKW, drei Fahrzeuge). Im Feld daneben lassen sich je Fahrzeug Geschwindigkeit (−/+), Winkel, getroffene Seite
-und Versatz, Typ (PKW/SUV), Sitzplätze, Gurt, Bremsen (0,5–1,5 s vor dem geplanten Aufprall) und Ausweichen einstellen,
-dazu die Fahrbahn (trocken/nass/Schnee). Jedes Fahrzeug startet so, dass es ungebremst zum geplanten Zeitpunkt trifft;
+und Versatz, Typ (PKW/SUV), Sitzplätze, Gurt, Bremsen und Ausweichen (abwenden oder Spurwechsel) einstellen, dazu wann
+die Gefahr erkennbar wird und wie schnell der Fahrer reagiert (aufmerksam 0,75 s, normal 1,25 s, überrascht 1,5 s nach
+Green 2000) und die Fahrbahn (trocken/nass/Schnee). Reagiert der Fahrer, spannen sich die Insassen an. Jedes Fahrzeug startet so, dass es ungebremst zum geplanten Zeitpunkt trifft;
 Manöver können den Unfall mildern oder verhindern. Die Fahrdynamik (Einspurmodell, ABS, Kammscher Kreis) und der Stoß
 (Kraft-Weg-Kennlinien je Seite, plastisch, Drehung) rechnet `TrafficSim` in der Draufsicht; die Linien am Boden zeigen
 die vorausberechneten Bahnen. Alle Insassen und Fußgänger sind Ragdolls und werden einzeln gemessen; „Patient“ wählt,

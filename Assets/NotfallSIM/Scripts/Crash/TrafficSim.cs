@@ -75,8 +75,10 @@ namespace NotfallSIM.Crash
     }
 
     /// <summary>
-    /// Fahrmanöver vor dem Aufprall. Zeitpunkte gelten relativ zum geplanten (ungebremsten) Aufprall: „1 s vorher bremsen“ heißt,
-    /// der Fahrer hat 1 s vor dem Zeitpunkt reagiert, an dem es ohne Bremsung gekracht hätte.
+    /// Fahrmanöver vor dem Aufprall. Zeitpunkte gelten relativ zum geplanten (ungebremsten) Aufprall.
+    /// Mit <see cref="hazardLead_s"/> &gt; 0: Die Gefahr wird so lange vorher erkennbar, der Fahrer handelt nach seiner
+    /// Reaktionszeit (Green 2000: erwartet 0,75 s, unerwartet 1,25 s, überraschend 1,5 s). Sonst gelten brakeLead_s/steerLead_s
+    /// direkt („1 s vorher bremsen“ = Bremsbeginn 1 s vor dem Zeitpunkt, an dem es ohne Bremsung gekracht hätte).
     /// </summary>
     [Serializable]
     public class TrafficManeuver
@@ -90,6 +92,16 @@ namespace NotfallSIM.Crash
         public double steerLead_s;
         /// <summary>Querbeschleunigung beim Ausweichen in g; 0 = 70 % der Haftung.</summary>
         [OptionalField] public double steerAccel_g;
+        /// <summary>„abwenden“ (Lenkung halten) oder „spurwechsel“ (hin und zurück, Sinus über 2 s: Versatz ≈ a·T²/2π).</summary>
+        [OptionalField] public string steerMode;
+        /// <summary>Gefahr erkennbar so viele Sekunden vor dem geplanten Aufprall (0 = feste Zeiten brakeLead_s/steerLead_s).</summary>
+        [OptionalField] public double hazardLead_s;
+        /// <summary>Reaktion: erwartet, unerwartet, ueberrascht (Green 2000); reaction_s &gt; 0 setzt sie direkt.</summary>
+        [OptionalField] public string reaction;
+        [OptionalField] public double reaction_s;
+
+        /// <summary>Wahrnehmungs-Reaktionszeit bis zum Bremsbeginn (s) nach Green 2000.</summary>
+        public double ReactionTime() => reaction_s > 0 ? reaction_s : reaction == "erwartet" ? 0.75 : reaction == "ueberrascht" ? 1.5 : 1.25;
     }
 
     [Serializable]
@@ -171,6 +183,8 @@ namespace NotfallSIM.Crash
         public static readonly string[] FaceNames = { "front", "rear", "left", "right" };
         public static int FaceIndex(string name) => name == "rear" ? Rear : name == "left" ? Left : name == "right" ? Right : Front;
         const double G = 9.81, VehicleFriction = 0.4, RollingResistance = 0.015;
+        /// <summary>Dauer eines Ausweich-Spurwechsels (s): Sinus der Querbeschleunigung über eine Periode (Annahme, typisch 2–3 s).</summary>
+        public const double LaneChangeTime = 2.0;
 
         public class FaceState
         {
@@ -193,6 +207,9 @@ namespace NotfallSIM.Crash
             public double Delta, BrakeForce;         // aktuell
             public double BrakeStart = double.PositiveInfinity, SteerStart = double.PositiveInfinity;
             public int SteerDir;
+            public bool LaneChange;
+            /// <summary>Zeitpunkt, zu dem der Fahrer reagiert (Bremsen/Lenken beginnt; Insassen spannen sich an); ∞ ohne Reaktion.</summary>
+            public double ReactAt = double.PositiveInfinity;
             public double BrakeDecel_g, SteerAccel_g;
             public double KinematicUntil = -1;       // Schleudern: bis dahin ohne Reifenkräfte (gleitet mit fester Geschwindigkeit)
             public readonly FaceState[] Faces = { new FaceState(), new FaceState(), new FaceState(), new FaceState() };
@@ -317,8 +334,15 @@ namespace NotfallSIM.Crash
                 if (sp < 0.1) { b.BrakeStart = 0; b.BrakeDecel_g = 0; }          // steht: Bremse getreten
                 if (man != null)
                 {
-                    if (man.brake) { b.BrakeStart = Math.Max(0, tAim - man.brakeLead_s); b.BrakeDecel_g = man.brakeDecel_g; }
-                    if (man.steer != 0) { b.SteerStart = Math.Max(0, tAim - man.steerLead_s); b.SteerDir = Math.Sign(man.steer); b.SteerAccel_g = man.steerAccel_g; }
+                    bool hazard = man.hazardLead_s > 0;
+                    double react = hazard ? Math.Max(0, tAim - man.hazardLead_s + man.ReactionTime()) : 0;
+                    if (man.brake) { b.BrakeStart = hazard ? react : Math.Max(0, tAim - man.brakeLead_s); b.BrakeDecel_g = man.brakeDecel_g; }
+                    if (man.steer != 0)
+                    {
+                        b.SteerStart = hazard ? react : Math.Max(0, tAim - man.steerLead_s);
+                        b.SteerDir = Math.Sign(man.steer); b.SteerAccel_g = man.steerAccel_g; b.LaneChange = man.steerMode == "spurwechsel";
+                    }
+                    if (man.brake || man.steer != 0) b.ReactAt = Math.Min(man.brake ? b.BrakeStart : double.PositiveInfinity, man.steer != 0 ? b.SteerStart : double.PositiveInfinity);
                 }
                 aimed[v.id] = (cx, cz, psi, b.Vx, b.Vz, v.aimTime_s);
                 dims[v.id] = (b.L, b.W);
@@ -441,7 +465,9 @@ namespace NotfallSIM.Crash
             double mu = Friction, N = b.M * G, Naxle = N / 2;
             // Bremse: Aufbau in 0,2 s, mit ABS höchstens µ·g
             double brake = 0;
-            bool steering = Time >= b.SteerStart && b.SteerDir != 0;
+            // Nach dem ersten Stoß lenkt niemand mehr gezielt (die Bremse bleibt getreten)
+            double tau = Time - b.SteerStart;
+            bool steering = tau >= 0 && b.SteerDir != 0 && b.FirstContact < 0 && (!b.LaneChange || tau < LaneChangeTime);
             double steerG = (b.SteerAccel_g > 0 ? b.SteerAccel_g : 0.7 * mu);
             if (Time >= b.BrakeStart)
             {
@@ -457,7 +483,9 @@ namespace NotfallSIM.Crash
             double delta = 0;
             if (steering && Math.Abs(vx) > 2)
             {
-                double ay = steerG * G * b.SteerDir * Math.Min(1, (Time - b.SteerStart) / 0.3);
+                // Abwenden: Querbeschleunigung in 0,3 s aufbauen und halten; Spurwechsel: eine Sinusperiode (hin und zurück)
+                double shape = b.LaneChange ? Math.Sin(2 * Math.PI * tau / LaneChangeTime) : Math.Min(1, tau / 0.3);
+                double ay = steerG * G * b.SteerDir * shape;
                 delta = Clamp(t.wheelbase_m * ay / (vx * vx), -0.5, 0.5);
             }
             b.Delta = delta;

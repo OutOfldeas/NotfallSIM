@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "note": "Vorlagen für frei gestellte Unfälle (TrafficSim). Jedes Fahrzeug fährt so los, dass es ungebremst nach approach_s Sekunden sein Ziel (Fahrzeug, Hindernis) an der angegebenen Seite trifft; Fahrmanöver (Bremsen, Ausweichen) beginnen die angegebene Zeit vor diesem geplanten Aufprall und können den Unfall abschwächen oder verhindern. Sitzplätze: fahrer, beifahrer, hinten_links, hinten_rechts. Winkel: 0° = nach +z, 90° = nach +x (rechts).",
   "scenarios": [
     { "id": "kreuzung_90", "label": "Kreuzung: Seitenaufprall Fahrerseite (90°)", "description": "Vorfahrtsverletzung: ein PKW fährt mit 50 km/h in die Fahrerseite eines querenden PKW (30 km/h).",
@@ -20,19 +20,26 @@
         { "id": "a", "label": "PKW A", "type": "pkw", "speed_kmh": 70, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true }, { "seat": "beifahrer", "belted": true } ] },
         { "id": "b", "label": "PKW B", "type": "pkw", "speed_kmh": 70, "heading_deg": 180, "target": "a", "targetFace": "front", "targetOffset_m": -1.0, "occupants": [ { "seat": "fahrer", "belted": true } ] }
       ] },
-    { "id": "gegenverkehr_ausweichen", "label": "Gegenverkehr: Ausweichen und Bremsen", "description": "Wie frontal, aber Fahrer A weicht 1 s vorher nach rechts aus und bremst voll.",
+    { "id": "gegenverkehr_ausweichen", "label": "Gegenverkehr: Ausweichen und Bremsen", "description": "Wie frontal: B gerät 2,5 s vorher auf die Gegenspur, Fahrer A ist überrascht (1,5 s), weicht nach rechts aus und bremst voll.",
       "friction": 0.8, "approach_s": 3,
       "vehicles": [
         { "id": "a", "label": "PKW A", "type": "pkw", "speed_kmh": 80, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true } ],
-          "maneuver": { "brake": true, "brakeLead_s": 1.0, "steer": 1, "steerLead_s": 1.0 } },
+          "maneuver": { "brake": true, "brakeLead_s": 0, "steer": 1, "steerLead_s": 0, "steerMode": "abwenden", "hazardLead_s": 2.5, "reaction": "ueberrascht" } },
         { "id": "b", "label": "PKW B", "type": "pkw", "speed_kmh": 80, "heading_deg": 180, "target": "a", "targetFace": "front", "targetOffset_m": 0, "occupants": [ { "seat": "fahrer", "belted": true } ] }
       ] },
-    { "id": "auffahrunfall", "label": "Auffahrunfall am Stauende", "description": "PKW B fährt mit 50 km/h auf den stehenden PKW A auf und bremst erst 0,5 s vorher.",
+    { "id": "auffahrunfall", "label": "Auffahrunfall am Stauende", "description": "PKW B fährt mit 50 km/h auf den stehenden PKW A auf; der Fahrer bemerkt das Stauende erst 1,5 s vorher (Reaktion 1,25 s).",
       "friction": 0.8, "approach_s": 3,
       "vehicles": [
         { "id": "a", "label": "PKW A (steht)", "type": "pkw", "speed_kmh": 0, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true }, { "seat": "hinten_rechts", "belted": true } ] },
         { "id": "b", "label": "PKW B", "type": "pkw", "speed_kmh": 50, "heading_deg": 0, "target": "a", "targetFace": "rear", "targetOffset_m": 0, "occupants": [ { "seat": "fahrer", "belted": true } ],
-          "maneuver": { "brake": true, "brakeLead_s": 0.5, "steer": 0, "steerLead_s": 0 } }
+          "maneuver": { "brake": true, "brakeLead_s": 0, "steer": 0, "steerLead_s": 0, "hazardLead_s": 1.5, "reaction": "unerwartet" } }
+      ] },
+    { "id": "auffahren_ausweichen", "label": "Stauende: Spurwechsel statt Auffahren", "description": "Mit 70 km/h auf ein stehendes Fahrzeug zu; der Fahrer sieht es 2,5 s vorher und wechselt nach 1,25 s die Spur. Mit „überrascht“ reicht es nicht mehr: Anprall an der Ecke (kleine Überdeckung).",
+      "friction": 0.8, "approach_s": 3,
+      "vehicles": [
+        { "id": "a", "label": "PKW A (steht)", "type": "pkw", "speed_kmh": 0, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true } ] },
+        { "id": "b", "label": "PKW B", "type": "pkw", "speed_kmh": 70, "heading_deg": 0, "target": "a", "targetFace": "rear", "targetOffset_m": 0, "occupants": [ { "seat": "fahrer", "belted": true }, { "seat": "beifahrer", "belted": true } ],
+          "maneuver": { "brake": false, "brakeLead_s": 0, "steer": -1, "steerLead_s": 0, "steerMode": "spurwechsel", "hazardLead_s": 2.5, "reaction": "unerwartet" } }
       ] },
     { "id": "baum_seitlich", "label": "Schleudern seitlich gegen einen Baum", "description": "PKW gerät ins Schleudern und prallt mit der Fahrerseite (40 km/h) gegen einen Baum.",
       "friction": 0.5, "approach_s": 3,
@@ -52,11 +59,11 @@
         { "id": "a", "label": "PKW", "type": "pkw", "speed_kmh": 40, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true } ] }
       ],
       "pedestrians": [ { "id": "f", "label": "Fußgänger", "target": "a", "targetFace": "front", "targetOffset_m": 0.2, "heading_deg": -90, "speed_kmh": 5 } ] },
-    { "id": "fussgaenger_bremsung", "label": "Fußgänger quert, Fahrer bremst", "description": "Wie oben mit 50 km/h; der Fahrer bremst 0,6 s vor dem Aufprall voll.",
+    { "id": "fussgaenger_bremsung", "label": "Fußgänger quert, Fahrer bremst", "description": "Wie oben mit 50 km/h; der Fußgänger ist 2 s vorher zu sehen, der Fahrer ist überrascht (1,5 s) und bremst voll.",
       "friction": 0.8, "approach_s": 3,
       "vehicles": [
         { "id": "a", "label": "PKW", "type": "pkw", "speed_kmh": 50, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true } ],
-          "maneuver": { "brake": true, "brakeLead_s": 0.6, "steer": 0, "steerLead_s": 0 } }
+          "maneuver": { "brake": true, "brakeLead_s": 0, "steer": 0, "steerLead_s": 0, "hazardLead_s": 2.0, "reaction": "ueberrascht" } }
       ],
       "pedestrians": [ { "id": "f", "label": "Fußgänger", "target": "a", "targetFace": "front", "targetOffset_m": 0.2, "heading_deg": -90, "speed_kmh": 5 } ] },
     { "id": "suv_seite", "label": "SUV in die Fahrerseite eines PKW", "description": "Ein SUV (2 t) trifft mit 50 km/h die Fahrerseite eines langsam querenden PKW.",
