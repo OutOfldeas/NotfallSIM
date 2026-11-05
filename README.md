@@ -261,6 +261,15 @@ Neue Maßnahme: Eintrag in `interventions.json`, danach Szene über das Menü ne
 (Lehrbuchmodus; Zufallsfolgen im Realitätsmodus unterscheiden sich). Quelle der Wahrheit bleibt der C#-Code:
 Änderungen an der Physiologie immer in beiden Implementierungen nachziehen, der Abgleich in CI fällt sonst rot aus.
 
+**MANV-Sichtung.** „Mehrere Verletzte sichten (mSTaRT)“ erzeugt eine Lage mit sieben Personen (fünf Zufallsfälle aus
+Unfallmechanismen, zwei Leichtverletzte, gemischt; `triage.json`). Jede Karte zeigt, was man an der Einsatzstelle
+sieht: gehfähig oder liegend, Atmung und Atemfrequenz, Radialispuls, Befolgen von Aufforderungen, sichtbare Befunde —
+aus der Mock-Physiologie beim Eintreffen. Nach der eigenen Zuordnung (rot/gelb/grün/schwarz) folgt die Auswertung gegen
+mSTaRT mit Unter- und Übertriage, Zeit je Person und Hinweisen auf später auffällige Verletzungen (Nachsichtung) und
+gehfähige Schwerverletzte. Jede Person lässt sich danach im Schockraum behandeln. `Data/Triage.cs` und `engine.js`
+rechnen dasselbe (Abgleich in `run_parity.sh`); in der Unfall-Sandbox steht die mSTaRT-Kategorie neben jeder Person
+des Szenarios.
+
 ## Pulse anbinden
 
 1. *Pulse Physiology Engine* aus dem Unity Asset Store (kostenlos) importieren.

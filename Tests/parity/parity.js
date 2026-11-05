@@ -173,6 +173,16 @@ if (process.argv[3]) {
       e.advance(0.1);
     }
   }
+  // MANV wie in Parity.cs
+  {
+    const { triageIncident } = require("../../web/engine.js");
+    const tf = JSON.parse(fs.readFileSync(root + "/triage.json", "utf8"));
+    for (let seed = 1; seed <= 25; seed++)
+      for (const c of triageIncident(data, tf, (seed * 104729) >>> 0))
+        lines.push(["triage", c.scenario.id, c.label, c.scenario.injuries.map((i) => `${i.injuryId}:${N(i.severity)}:${N(i.onsetTime_s)}`).join(","),
+          N(c.scenario.patient.initialBloodLoss_mL), c.walks ? 1 : 0, c.breathing ? 1 : 0, c.radialPulse ? 1 : 0, c.followsCommands ? 1 : 0, N(c.rr), N(c.hr), N(c.sbp), N(c.gcs), N(c.spo2),
+          c.category, c.reason, c.findings.join(" / "), c.maxAis, c.hasDelayed ? 1 : 0, c.scenario.assessment.map((x) => x.id).join(",")].join("|"));
+  }
   // Coach wie in Parity.cs
   {
     const { coachTip, coachStrategy, coachCautions } = require("../../web/engine.js");
@@ -206,7 +216,7 @@ if (process.argv[3]) {
     console.log(`Zufallsszenarien weichen ab (Zeile ${diff + 1}):\n  C#: ${gref[diff]}\n  JS: ${lines[diff]}`);
     process.exit(1);
   }
-  console.log(`${lines.filter((l) => !l.startsWith("exam|") && !l.startsWith("coach|")).length} Zufallsszenarien, ${lines.filter((l) => l.startsWith("exam|")).length} Befunde im Verlauf und ${lines.filter((l) => l.startsWith("coach|")).length} Coach-Verläufe identisch`);
+  console.log(`${lines.filter((l) => !l.startsWith("exam|") && !l.startsWith("coach|") && !l.startsWith("triage|")).length} Zufallsszenarien, ${lines.filter((l) => l.startsWith("exam|")).length} Befunde im Verlauf, ${lines.filter((l) => l.startsWith("coach|")).length} Coach-Verläufe und ${lines.filter((l) => l.startsWith("triage|")).length} Sichtungskarten identisch`);
 }
 
 const ref = fs.readFileSync(process.argv[2], "utf8").trim().split("\n").map((l) => l.split(";"));

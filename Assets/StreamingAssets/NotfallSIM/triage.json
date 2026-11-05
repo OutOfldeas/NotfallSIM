@@ -1,0 +1,36 @@
+{
+  "version": "1.0.0",
+  "note": "Vorsichtung nach mSTaRT (Erwachsene) für den Massenanfall von Verletzten. Die Befunde an der Einsatzstelle kommen aus der Mock-Physiologie beim Eintreffen (1 s nach Szenariobeginn; später einsetzende Verletzungen sind noch unauffällig — Nachsichtung!). Grenzwerte, ab denen ein Befund als 'tastbar', 'befolgt' oder 'gehfähig' gilt, sind Annahmen des Simulators.",
+  "rules": {
+    "rrRedAbove": 30,
+    "radialPulseMinSbp": 80,
+    "followsCommandsMinGcs": 13,
+    "walkMinGcs": 14,
+    "walkMinSbp": 90,
+    "walkMinSpo2": 90,
+    "nonAmbulatoryMinAis": 4,
+    "nonAmbulatoryRegions": [ "Becken", "Oberschenkel rechts", "Oberschenkel links", "Unterschenkel rechts", "Unterschenkel links" ],
+    "notes": "AF > 30/min → rot (mSTaRT). Radialispuls als tastbar ab systolisch 80 mmHg (Annahme; Neidel 2017 prüfen Grenzen von 60–130 mmHg). Aufforderungen befolgt ab GCS 13 (Annahme: motorisch meist 6). Gehfähig: wach (GCS ≥ 14), kein Schock (systolisch ≥ 90), SpO2 ≥ 90 %, keine Verletzung an Becken oder Beinen und keine bereits wirksame Verletzung ab AIS 4 (Schmerz, Schock — Annahme)."
+  },
+  "categories": [
+    { "id": "T1", "label": "Rot (T1)", "meaning": "akute vitale Bedrohung – Sofortbehandlung", "color": "#d33" },
+    { "id": "T2", "label": "Gelb (T2)", "meaning": "schwer verletzt – dringliche Behandlung", "color": "#e6b800" },
+    { "id": "T3", "label": "Grün (T3)", "meaning": "leicht verletzt – spätere Behandlung", "color": "#3a3" },
+    { "id": "T4", "label": "Schwarz", "meaning": "keine Atmung nach Freimachen der Atemwege", "color": "#222" }
+  ],
+  "incident": {
+    "label": "Verkehrsunfall mit mehreren Verletzten",
+    "mechanisms": [ "pkw_frontal", "pkw_seite", "fussgaenger", "motorrad", "pkw_frontal" ],
+    "minorCount": 2,
+    "minor": [
+      { "injuryId": "schnittverletzung_unterarm_links", "severityMin": 0.1, "severityMax": 0.3 },
+      { "injuryId": "schnittverletzung_unterarm_rechts", "severityMin": 0.1, "severityMax": 0.3 },
+      { "injuryId": "rippenserienfraktur_rechts", "severityMin": 0.3, "severityMax": 0.6 },
+      { "injuryId": "schaedelfraktur", "severityMin": 0.2, "severityMax": 0.4 }
+    ]
+  },
+  "sources": [
+    { "id": "kanz2006", "citation": "Kanz KG et al. mSTaRT-Algorithmus für Sichtung, Behandlung und Transport bei einem Massenanfall von Verletzten. Notfall Rettungsmed 2006;9:264–270.", "url": "https://link.springer.com/article/10.1007/s10049-006-0821-3", "note": "Vorsichtung: gehfähig → grün; keine Atmung nach Freimachen → schwarz; AF > 30 → rot; Radialispuls fehlt → rot; Aufforderungen nicht befolgt → rot; sonst gelb" },
+    { "id": "neidel2017", "citation": "Neidel T, Salvador N, Heller AR. Impact of systolic blood pressure limits on the diagnostic value of triage algorithms. Scand J Trauma Resusc Emerg Med 2017;25:118.", "url": "https://doi.org/10.1186/s13049-017-0461-2", "note": "Pulskriterium von mSTaRT als Blutdruckgrenze 60–130 mmHg geprüft; Gehfähigkeit als einziges Grün-Kriterium birgt Untertriage" }
+  ]
+}

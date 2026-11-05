@@ -33,6 +33,7 @@
 body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--mon-bg); }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -98,6 +99,22 @@ main { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-
 .mechs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .mech-opt { background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; cursor: pointer; color: inherit; font: inherit; font-size: 14px; }
 .mech-opt[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+/* ---------- MANV-Sichtung ---------- */
+.tri-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); margin-top: 12px; }
+.tri-card { background: var(--surface-2); border: 1px solid var(--line); border-left: 6px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; min-width: 0; }
+.tri-card[data-cat="T1"] { border-left-color: #d33; } .tri-card[data-cat="T2"] { border-left-color: #e6b800; }
+.tri-card[data-cat="T3"] { border-left-color: #3a3; } .tri-card[data-cat="T4"] { border-left-color: #222; }
+.tri-card ul { margin: 0; padding-left: 18px; }
+.tri-card .tri-find { font-size: 13px; color: var(--muted); }
+.tri-pick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.tri-pick button { border: 1px solid var(--line); border-radius: 6px; padding: 8px 4px; cursor: pointer; background: var(--surface); font-weight: 600; }
+.tri-pick button[data-c="T1"][aria-pressed="true"] { background: #d33; color: #fff; border-color: #d33; }
+.tri-pick button[data-c="T2"][aria-pressed="true"] { background: #e6b800; color: #111; border-color: #e6b800; }
+.tri-pick button[data-c="T3"][aria-pressed="true"] { background: #3a3; color: #fff; border-color: #3a3; }
+.tri-pick button[data-c="T4"][aria-pressed="true"] { background: #222; color: #fff; border-color: #222; }
+.tri-verdict { font-size: 14px; border-radius: 6px; padding: 6px 8px; }
+.tri-verdict.ok { background: var(--ok-bg); color: var(--ok); } .tri-verdict.warn { background: var(--warn-bg); color: var(--warn); } .tri-verdict.crit { background: var(--crit-bg); color: var(--crit); }
+.tri-timer { font-family: var(--font-mono); }
 .case-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
 .injury-list { margin: 6px 0 0; padding-left: 18px; }
 .seg { display: inline-grid; grid-auto-flow: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
@@ -248,6 +265,8 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
     <div class="scenarios" id="scenarioList" role="group" aria-label="Szenarien"></div>
     <div class="eyebrow" style="margin-top:14px">Zufallsfall aus Unfallmechanismus</div>
     <div class="mechs" id="mechList" role="group" aria-label="Unfallmechanismen"></div>
+    <div class="eyebrow" style="margin-top:14px">Massenanfall von Verletzten</div>
+    <div class="row"><button type="button" class="btn" id="manvBtn">Mehrere Verletzte sichten (mSTaRT)</button></div>
     <div class="brief" id="brief"></div>
     <div class="row" style="margin-top:14px">
       <span class="eyebrow">Physiologie</span>
@@ -276,6 +295,20 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
       <button type="button" class="btn primary" id="startBtn">Szenario starten</button>
     </div>
     <p class="notice" id="modeNote"></p>
+  </section>
+
+  <!-- MANV-Sichtung -->
+  <section class="panel" id="triage" hidden aria-labelledby="triTitle">
+    <div class="eyebrow" id="triMeta"></div>
+    <h2 id="triTitle">Vorsichtung</h2>
+    <p class="muted" id="triIntro"></p>
+    <div class="tri-grid" id="triCards"></div>
+    <div id="triSummary"></div>
+    <div class="row" style="margin-top:14px">
+      <button type="button" class="btn primary" id="triEval">Sichtung auswerten</button>
+      <button type="button" class="btn" id="triNew">Neue Lage</button>
+      <button type="button" class="btn" id="triBack">Zurück</button>
+    </div>
   </section>
 
   <!-- Laufendes Szenario -->
@@ -438,12 +471,91 @@ $("accessNo").onclick = () => { noAccess = true; renderSetup(); };
 $("bodySeg").addEventListener("click", (e) => { const b = e.target.closest("[data-bmi]"); if (b) { bodyBmi = Number(b.dataset.bmi); renderSetup(); } });
 $("ctTraumaRoom").onclick = () => { ctInRoom = true; renderSetup(); };
 $("startBtn").onclick = start;
-$("againBtn").onclick = () => { $("debrief").hidden = true; $("setup").hidden = false; sim = null; resetMonitor(); renderSetup(); window.scrollTo({ top: 0 }); };
+
+// ---------- MANV: Vorsichtung nach mSTaRT ----------
+const TRI = { cards: [], choice: {}, done: false, seed: 0, t0: 0, timer: null };
+const triCat = (id) => DATA.triage.categories.find((c) => c.id === id);
+function newIncident() {
+  TRI.seed = 1 + Math.floor(Math.random() * 99999);
+  TRI.cards = E.triageIncident(DATA, DATA.triage, TRI.seed);
+  TRI.choice = {}; TRI.done = false; TRI.t0 = Date.now();
+  clearInterval(TRI.timer); TRI.timer = setInterval(renderTriageMeta, 1000);
+  $("setup").hidden = true; $("triage").hidden = false;
+  renderTriage(); window.scrollTo({ top: 0 });
+}
+function renderTriageMeta() {
+  const s = Math.floor((Date.now() - TRI.t0) / 1000);
+  $("triMeta").innerHTML = `${esc(DATA.triage.incident.label)} · ${TRI.cards.length} Personen · Fall-Code <span class="case-code">manv-${TRI.seed}</span> · <span class="tri-timer">${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</span>`;
+}
+function renderTriage() {
+  renderTriageMeta();
+  $("triIntro").innerHTML = TRI.done
+    ? "Auswertung gegen mSTaRT. Jede Person lässt sich jetzt im Schockraum weiterbehandeln."
+    : "Ordne jede Person zu, wie bei der Vorsichtung: Kann sie gehen? Atmet sie, wie schnell? Ist der Radialispuls tastbar? Befolgt sie Aufforderungen? Ziel: unter einer Minute je Person.";
+  $("triCards").innerHTML = TRI.cards.map((c, i) => {
+    const p = c.scenario.patient, pick = TRI.choice[i];
+    const lines = [
+      c.walks ? "geht selbst an der Unfallstelle umher" : "liegt, kommt nicht hoch",
+      !c.breathing ? "keine Atmung, auch nach Freimachen der Atemwege" : `atmet, AF ${c.rr}/min`,
+      !c.breathing ? "" : c.radialPulse ? `Radialispuls tastbar, ca. ${c.hr}/min` : "Radialispuls nicht tastbar",
+      !c.breathing ? "" : c.followsCommands ? "befolgt Aufforderungen" : "befolgt keine Aufforderungen",
+    ].filter(Boolean);
+    let verdict = "";
+    if (TRI.done) {
+      const ref = triCat(c.category), v = pick ? E.triageCompare(pick, c.category) : "nicht gesichtet";
+      const cls = v === "richtig" ? "ok" : v === "Übertriage" ? "warn" : "crit";
+      verdict = `<div class="tri-verdict ${cls}"><b>${esc(v)}</b> · mSTaRT: ${esc(ref.label)} – ${esc(c.reason)}</div>` +
+        (c.hasDelayed ? `<div class="tri-verdict warn">Später auffällig: hier verschlechtert sich etwas erst nach der Sichtung – Nachsichtung!</div>` : "") +
+        (c.category === "T3" && c.maxAis >= 4 ? `<div class="tri-verdict warn">Gehfähig, aber schwer verletzt: typische Untertriage-Falle von mSTaRT.</div>` : "") +
+        `<div class="muted" style="font-size:13px">${esc(c.scenario.expectedCourse)}</div>` +
+        `<button type="button" class="btn" data-treat="${i}">Im Schockraum behandeln</button>`;
+    }
+    return `<div class="tri-card" data-cat="${TRI.done ? c.category : pick || ""}">
+      <b>${esc(c.label)}</b><span class="muted">${esc(p.age)} J., ${p.sex === "female" ? "weiblich" : "männlich"}</span>
+      <ul>${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>
+      ${c.findings.length ? `<div class="tri-find">${c.findings.map(esc).join(" · ")}</div>` : ""}
+      <div class="tri-pick" role="group" aria-label="Sichtungskategorie ${esc(c.label)}">${DATA.triage.categories.map((k) =>
+        `<button type="button" data-i="${i}" data-c="${k.id}" aria-pressed="${pick === k.id}" title="${esc(k.meaning)}" ${TRI.done ? "disabled" : ""}>${esc(k.label.split(" ")[0])}</button>`).join("")}</div>
+      ${verdict}</div>`;
+  }).join("");
+  $("triEval").hidden = TRI.done;
+  if (!TRI.done) { $("triSummary").innerHTML = ""; return; }
+  const res = TRI.cards.map((c, i) => TRI.choice[i] ? E.triageCompare(TRI.choice[i], c.category) : "nicht gesichtet");
+  const n = (v) => res.filter((x) => x === v).length;
+  const s = Math.floor((TRI.doneAt - TRI.t0) / 1000);
+  $("triSummary").innerHTML = `<h2 style="margin-top:16px">${n("richtig")} von ${TRI.cards.length} wie mSTaRT</h2>
+    <p>Untertriage: <b>${n("Untertriage")}</b> · Übertriage: <b>${n("Übertriage")}</b>${n("nicht gesichtet") ? ` · nicht gesichtet: <b>${n("nicht gesichtet")}</b>` : ""} · Zeit ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} min (${Math.round(s / TRI.cards.length)} s je Person)</p>
+    <p class="muted">Behandlungsreihenfolge nach mSTaRT: zuerst Rot, dann Gelb, dann Grün. Untertriage gefährdet den Patienten, Übertriage bindet Kräfte. Die Zuordnung ist eine Vorsichtung – die ärztliche Sichtung bestätigt oder korrigiert sie.</p>
+    <p class="muted" style="font-size:13px">mSTaRT nach Kanz et al., Notfall Rettungsmed 2006. Grenzen „tastbar“ (systolisch ≥ ${DATA.triage.rules.radialPulseMinSbp} mmHg), „befolgt“ (GCS ≥ ${DATA.triage.rules.followsCommandsMinGcs}) und „gehfähig“ sind Annahmen des Simulators.</p>`;
+}
+$("manvBtn").onclick = newIncident;
+$("triNew").onclick = newIncident;
+$("triBack").onclick = () => { clearInterval(TRI.timer); $("triage").hidden = true; $("setup").hidden = false; renderSetup(); };
+$("triEval").onclick = () => { TRI.done = true; TRI.doneAt = Date.now(); clearInterval(TRI.timer); renderTriage(); window.scrollTo({ top: 0 }); };
+$("triCards").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-c]");
+  if (b && !TRI.done) { const i = Number(b.dataset.i); TRI.choice[i] = TRI.choice[i] === b.dataset.c ? undefined : b.dataset.c; renderTriage(); return; }
+  const t = e.target.closest("[data-treat]");
+  if (t) {
+    const c = TRI.cards[Number(t.dataset.treat)];
+    generated = { mechanismId: "manv", seed: TRI.seed, scenario: JSON.parse(JSON.stringify(c.scenario)) };
+    $("triage").hidden = true;
+    start();
+  }
+});
+$("againBtn").onclick = () => {
+  $("debrief").hidden = true; sim = null; resetMonitor();
+  // aus der MANV-Lage: zurück zu den Sichtungskarten (weitere Person behandeln)
+  if (generated && generated.mechanismId === "manv") { generated = null; $("triage").hidden = false; renderTriage(); }
+  else { $("setup").hidden = false; renderSetup(); }
+  window.scrollTo({ top: 0 });
+};
 
 // ---------- Lauf ----------
 function start() {
   sim = new E.Simulation(DATA, withBody(generated ? generated.scenario : DATA.scenarios.find((x) => x.id === selected)), mode, undefined, ctInRoom);
   speed = 1; paused = false; logCount = 0; imgCount = 0;
+  $("againBtn").textContent = generated && generated.mechanismId === "manv" ? "Zurück zur Lage" : "Neues Szenario";
   $("imagingResults").innerHTML = "";
   renderGoals(); closeDose(); coachMode = null; $("coachBox").hidden = true; MON.nibp = null; MON.alarms = []; MON.silencedUntil = 0;
   $("log").innerHTML = ""; $("labResult").hidden = true;
