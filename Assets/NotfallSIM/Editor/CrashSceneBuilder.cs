@@ -29,6 +29,7 @@ namespace NotfallSIM.EditorTools
         [MenuItem("NotfallSIM/Unfall-Sandbox erstellen")]
         public static void Build()
         {
+            if (!EditModeGuard.Ready(Build, "Unfall-Sandbox erstellen")) return;
             if (Resources.Load<TMP_Settings>("TMP Settings") == null)
             {
                 EditorUtility.DisplayDialog("TextMeshPro fehlt", "Bitte zuerst Window › TextMeshPro › Import TMP Essential Resources ausführen.", "OK");
