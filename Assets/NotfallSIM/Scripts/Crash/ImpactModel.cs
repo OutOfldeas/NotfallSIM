@@ -121,6 +121,8 @@ namespace NotfallSIM.Crash
         public FrontalImpactModel frontal;
         public SideImpactModel side;
         public VehiclePart[] pedestrianFront;
+        /// <summary>Fahrzeugtypen für frei gestellte Unfälle (<see cref="TrafficSim"/>).</summary>
+        [System.Runtime.Serialization.OptionalField] public VehicleType[] vehicleTypes;
         public ImpactSource[] sources;
     }
 

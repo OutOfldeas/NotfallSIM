@@ -18,6 +18,10 @@ namespace NotfallSIM.Crash
         public int Seed = 1;
         public OccupantState Occupant = OccupantState.Entspannt;   // Muskeltonus (muscle_tone.json)
         public bool SoftContact = true;           // nachgiebiger Kontakt am Körper (SoftContact, impact_model.json) statt starrer Kollision
+        /// <summary>Frei gestellter Unfall (MechanismId "szenario"): Fahrzeuge, Insassen, Fußgänger, Hindernisse.</summary>
+        public TrafficScenario Traffic;
+        /// <summary>Welche Person des Szenarios Patient wird (Index in <see cref="CrashRig.Humans"/>).</summary>
+        public int Patient;
     }
 
     /// <summary>
@@ -100,6 +104,9 @@ namespace NotfallSIM.Crash
             foreach (var go in _spawned) if (go) { go.SetActive(false); Destroy(go); }
             _spawned.Clear();
             if (Ragdoll != null && Ragdoll.Root) { Ragdoll.Root.SetActive(false); Destroy(Ragdoll.Root); }
+            foreach (var h in Humans) if (h.Rd != null && h.Rd.Root) { h.Rd.Root.SetActive(false); Destroy(h.Rd.Root); }
+            Humans.Clear();
+            _trafficVehicles.Clear();
             Ragdoll = null;
         }
 
@@ -351,6 +358,9 @@ namespace NotfallSIM.Crash
                     return 2.0f;
                 }
 
+                case "szenario":
+                    return BuildTraffic(p, out approach);
+
                 default: // sturz_hoehe — Speed_kmh bedeutet hier Höhe in m (tiefster Körperpunkt über dem Boden)
                 {
                     float h = Mathf.Max(1, p.Speed_kmh);
@@ -422,11 +432,18 @@ namespace NotfallSIM.Crash
         void Belt(Rigidbody car, float H)
         {
             BeltJoints.Clear();
+            foreach (var kv in BeltFor(Ragdoll, car)) BeltJoints[kv.Key] = kv.Value;
+        }
+
+        /// <summary>Gurt für ein beliebiges Ragdoll (auch mehrere Insassen im Szenario).</summary>
+        static Dictionary<string, ConfigurableJoint> BeltFor(Ragdoll rd, Rigidbody car)
+        {
+            var joints = new Dictionary<string, ConfigurableJoint>();
             foreach (var name in new[] { "Sternum", "Becken" })
             {
-                var seg = Ragdoll.Segments[name];
+                var seg = rd.Segments[name];
                 var j = seg.gameObject.AddComponent<ConfigurableJoint>();
-                BeltJoints[name] = j;
+                joints[name] = j;
                 j.connectedBody = car;
                 j.autoConfigureConnectedAnchor = true;
                 j.anchor = Vector3.zero;
@@ -436,6 +453,7 @@ namespace NotfallSIM.Crash
                 // Gurtband: ca. 140 kN/m (Dehnung ~7 % bei 10 kN auf 1 m) — didaktische Größenordnung
                 j.linearLimitSpring = new SoftJointLimitSpring { spring = 140000, damper = 3000 };
             }
+            return joints;
         }
 
         // ------------------------------------------------------------------ Ablauf
@@ -452,6 +470,7 @@ namespace NotfallSIM.Crash
         /// <param name="playback">false = nur rechnen (Kalibrierung).</param>
         public IEnumerator Run(CrashParams p, float slowMotion, Action<List<CrashMeasurement>> done, Action<float> progress = null, bool playback = true)
         {
+            if (p.MechanismId == "szenario") { yield return RunTraffic(p, slowMotion, done, progress, playback); yield break; }
             Running = true;
             Action<float, float> drive; CrashApproach approach;   // vorab deklariert (mcs-Fehler bei out var in Iteratoren)
             float duration = Build(p, out drive, out approach);
@@ -551,7 +570,9 @@ namespace NotfallSIM.Crash
             foreach (var s in Ragdoll.Sensors) s.StopRecording();
             SoftContact.Enabled = false;
             gauges.Stop();
-            var measured = Measure(p, gauges);
+            AbdomenLoad abdomen;
+            var measured = Measure(p, gauges, Ragdoll, out abdomen);
+            LastAbdomenLoad = abdomen;
             Destroy(gauges);
             Running = false;
 
@@ -598,7 +619,8 @@ namespace NotfallSIM.Crash
         {
             _tracked.Clear(); _trackedBodies.Clear(); _savedInterp.Clear();
             _frameTimes.Clear(); _framePos.Clear(); _frameRot.Clear();
-            var bodies = new List<Rigidbody>(Ragdoll.Root.GetComponentsInChildren<Rigidbody>(true));
+            var bodies = new List<Rigidbody>();
+            foreach (var rd in AllRagdolls()) bodies.AddRange(rd.Root.GetComponentsInChildren<Rigidbody>(true));
             foreach (var go in _spawned) if (go) bodies.AddRange(go.GetComponentsInChildren<Rigidbody>(true));
             foreach (var rb in bodies.Distinct())
             {
@@ -671,7 +693,8 @@ namespace NotfallSIM.Crash
             {
                 _renderers.Clear();
                 // nur Bewegtes ausblenden (Ragdoll, Haut, Fahrzeuge, Airbag); Boden und Hindernisse bleiben sichtbar
-                var all = new List<Renderer>(Ragdoll.Root.GetComponentsInChildren<Renderer>(true));
+                var all = new List<Renderer>();
+                foreach (var rd in AllRagdolls()) all.AddRange(rd.Root.GetComponentsInChildren<Renderer>(true));
                 foreach (var tr in _tracked) if (tr) all.AddRange(tr.GetComponentsInChildren<Renderer>(true));
                 foreach (var r in all.Distinct()) { _renderers.Add((r, r.enabled)); r.enabled = false; }
             }
@@ -696,11 +719,12 @@ namespace NotfallSIM.Crash
         /// Nij (Kraft CFC 1000, Moment CFC 600), axiale Femurkraft und Kontaktkräfte (CFC 600).
         /// Rohwerte ohne Kalibrierung — die wendet die Sandbox an.
         /// </summary>
-        List<CrashMeasurement> Measure(CrashParams p, CrashGauges g)
+        List<CrashMeasurement> Measure(CrashParams p, CrashGauges g, Ragdoll rd, out AbdomenLoad abdomenLoad)
         {
+            abdomenLoad = null;
             var result = new List<CrashMeasurement>();
-            var byRegion = Ragdoll.Sensors.GroupBy(s => s.Region).ToDictionary(x => x.Key, x => x.ToList());
-            double dt = Ragdoll.Sensors[0].Dt_s;
+            var byRegion = rd.Sensors.GroupBy(s => s.Region).ToDictionary(x => x.Key, x => x.ToList());
+            double dt = rd.Sensors[0].Dt_s;
             Action<string, double> add = (id, v) => result.Add(new CrashMeasurement { metric = id, value = v });
 
             var head = byRegion["Kopf"][0];
@@ -708,7 +732,7 @@ namespace NotfallSIM.Crash
             if (p.MechanismId == "motorrad") for (int i = 0; i < headAcc.Count; i++) headAcc[i] *= helmetHeadFactor;
             add("HIC15", Biomechanics.Hic(headAcc, dt, 0.015));
 
-            var spine = Ragdoll.Segments["Thorax"].GetComponent<CrashSensor>();
+            var spine = rd.Segments["Thorax"].GetComponent<CrashSensor>();
             add("Thorax.a3ms", Biomechanics.Clip(Biomechanics.Cfc(spine.Accel_g, dt, 180), dt));
 
             var defl = Biomechanics.Cfc(g.ChestDeflection_m, dt, 600);
@@ -735,14 +759,21 @@ namespace NotfallSIM.Crash
                 var abd = byRegion["Abdomen"];
                 var force_N = new List<double>();
                 for (int i = 0; i < abd[0].Force_kN.Count; i++) force_N.Add(abd.Sum(s => i < s.Force_kN.Count ? s.Force_kN[i] : 0) * 1000);
-                LastAbdomenLoad = OrganMechanics.Evaluate(organs, tissues, Biomechanics.Cfc(force_N, dt, 600), dt, lateral, p.Height_m);
-                result.AddRange(OrganMechanics.Measurements(LastAbdomenLoad));
+                abdomenLoad = OrganMechanics.Evaluate(organs, tissues, Biomechanics.Cfc(force_N, dt, 600), dt, lateral, p.Height_m);
+                result.AddRange(OrganMechanics.Measurements(abdomenLoad));
             }
             return result;
         }
 
         /// <summary>Organbelastung des letzten Crashs (für die Ergebnisanzeige); null ohne organ_model.json/tissues.json.</summary>
         public AbdomenLoad LastAbdomenLoad { get; private set; }
+
+        /// <summary>Alle Ragdolls der Szene (Szenario: alle Personen, sonst das eine).</summary>
+        IEnumerable<Ragdoll> AllRagdolls()
+        {
+            if (Humans.Count > 0) { foreach (var h in Humans) if (h.Rd != null) yield return h.Rd; }
+            else if (Ragdoll != null) yield return Ragdoll;
+        }
 
         static MuscleToneFile _muscleTone;
         static MuscleToneFile LoadMuscleTone()

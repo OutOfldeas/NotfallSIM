@@ -684,6 +684,40 @@ ca. 270 — Stammen [124] rekonstruiert einen Scheibenaufprall mit HIC 257. Sto�
 Rückfedern, kein Einfluss des Insassen auf den Puls. Kalibrierfaktoren aus `calibration.json` nach dem ersten Test in
 Unity neu prüfen.
 
+## Frei gestellte Unfälle (`TrafficSim`, `traffic_scenarios.json`)
+
+**Fahrdynamik.** Jedes Fahrzeug ist ein Quader in der Draufsicht (Lage, Gierwinkel). Reifen: lineares Einspurmodell
+(Schräglaufsteifigkeit 80 kN/rad je Achse beim PKW, Schwerpunkt mittig), Kräfte je Achse am Kammschen Kreis µ·N
+begrenzt, Rollwiderstand 0,015 — übliche Lehrbuchwerte (**Annahme**). Bremse mit Aufbau in 0,2 s bis µ·g (ABS);
+beim gleichzeitigen Ausweichen nur so viel Bremskraft, wie neben der Querkraft bleibt. Ausweichen: Lenkwinkel aus der
+gewünschten Querbeschleunigung (70 % der Haftung), Aufbau 0,3 s. Fahrbahn µ 0,8/0,5/0,2 (trocken/nass/Schnee).
+Test: Bremsweg aus 50 km/h 13,1 m (v·0,1 s + v²/2µg = 13,7 m, Rollwiderstand verkürzt leicht).
+
+**Stoß.** Überdecken sich zwei Quader, liefert das Trennachsen-Verfahren Richtung und Tiefe; Richtung und getroffene
+Seiten bleiben, bis sich die Fahrzeuge trennen (sonst kippt die Achse bei tiefer Verformung). Die Tiefe teilt sich
+auf die beiden Seiten so auf, dass beide dieselbe Kraft tragen (Federn in Reihe). Kennlinien je Seite
+(`vehicle_model.json › vehicleTypes`), Kraft anteilig zur Kontaktbreite (mindestens 0,6 m mittragend), plastisch
+(Entlastung 30-fach steifer). Reibung zwischen den Karosserien µ = 0,4 (**Annahme**), Kraft am Mittelpunkt der
+Überdeckung, daher Drehung beim versetzten Stoß. Prüfung: Impuls im Stoß erhalten (< 2 %).
+- PKW-Front: Anstieg auf 300 kN bei 15 cm, Plateau bis 420 kN bei 55 cm, dann steil (Motorblock). So gewählt, dass
+  1650 kg gegen die starre Wand bei 56,7 km/h 0,62 m dynamisch knautschen — NHTSA-Test 8545 (Camry 2014.5) misst
+  554 mm bleibend [125]. In der Sandbox: 1500 kg, 56 km/h → 56 cm, Rückprall 8 km/h.
+- Seite: wie im Seitenaufprallmodell (1240 N/mm für 1,7 m Kontaktbreite, Reichert [123]). PKW gegen PKW 90° (50 gegen
+  30 km/h): Tür 24 cm, Δv 35 km/h. Zum Vergleich NHTSA 8560 (Barriere 62 km/h gegen Camry): 258 mm bleibend außen [126].
+- Heck, SUV: **Annahmen** (Heck weicher als die Front, SUV-Front steifer).
+- Innenraum: Front über 55 cm Knautschweg hinaus mit 0,6 je m (höchstens 30 cm), Seite = Verformung (höchstens 40 cm),
+  am Kontaktort voll, 1 m daneben nicht mehr (**Annahme**).
+- Airbags lösen aus, wenn die Front mehr als 3 cm verformt ist (+15 ms); Seitenairbags fehlen.
+
+**Personen.** Insassen werden bis zum Beginn des eigenen Manövers bzw. 0,1 s vor dem ersten Kontakt mitgeführt,
+danach sind sie frei (Bremsen verlagert sie vor dem Stoß nach vorn, Muskeltonus wie eingestellt). Fußgänger gehen
+geradeaus und werden 0,15 s vor ihrem Kontakt freigegeben; ihre Rückwirkung auf das Fahrzeug fehlt. Jede Person wird
+wie beim Einzelunfall gemessen (HIC, Thorax, Organe, Zeichen), Text und Rettungszeit nach der Hauptstoßrichtung.
+
+**Grenzen.** Kein Wanken, Nicken oder Überschlag; Quader bleiben Quader (keine sichtbare Formänderung außer Türen und
+Armaturenbrett); Schwerpunkt fest; schleudernde Fahrzeuge gleiten bis zum Aufprall mit fester Geschwindigkeit
+(Vorgeschichte nicht gerechnet). Test: `TrafficChecks`.
+
 ## Offene Punkte zum Prüfen
 
 - Lagerung in Unity prüfen: Klickflächen nach Umlagerung, Rinnsale neu verlegt, Lache auf der richtigen Fläche; Luftwiderstand der Partikel (limitVelocityOverLifetime mit Geschwindigkeitsfaktor). Außerhalb von Unity geprüft: Drehrichtungen und Auflage auf Rücken-/Beinteil und Keil. Bekannt: Unterkante des Rückenteils taucht am Gelenk etwas ins Sitzteil; bei senkrechtem Arm dehnt sich die Haut an der Achsel (lineares Skinning mit zwei Knochen); Arm ohne Auflage.
@@ -883,3 +917,5 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 122. Digges K, Eigen A. Measurements of vehicle compatibility in front-to-side crashes. IRCOBI 2001. [Link](https://www.ircobi.org/wordpress/downloads/irc0111/2001/Session1/1.4.pdf) (Frontsteifigkeit aus Lastzellen, Seite statisch 250–350 N/mm)
 123. Reichert R, Kan S, Arnold-Keifer S, Mueller B. IIHS side impact parametric study using LS-DYNA. 15th International LS-DYNA Users Conference, 2018. [Link](https://lsdyna.ansys.com/wp-content/uploads/2022/11/iihs-side-impact-parametric-study-using-ls-dyna-r.pdf) (B-Säule 9,5 m/s, Restabstand 13,2 cm)
 124. Stammen JA, Saul RA, Ko B. Pedestrian head impact testing and PCDS reconstructions. ESV 2001, Paper 326. [Link](https://www.nhtsa.gov/sites/nhtsa.dot.gov/files/pedestrianimpacts2001esv.pdf.pdf) (Scheibenaufprall HIC 257)
+125. NHTSA Vehicle Crash Test Database, Test 8545: 2014.5 Toyota Camry, NCAP-Frontaltest gegen starre Wand, 56,7 km/h. Calspan 2014. [Link](https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v08500/v08545R001.pdf) (bleibende Frontverformung 554 mm)
+126. NHTSA Vehicle Crash Test Database, Test 8560: 2014.5 Toyota Camry, NCAP-Seitenaufprall mit fahrender Barriere, 61,9 km/h. Calspan 2014. [Link](https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v08500/v08560R001.pdf) (Seitenverformung außen max. 258 mm)

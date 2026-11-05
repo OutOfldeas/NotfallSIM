@@ -87,6 +87,7 @@ static class Tests
         Run("Coach: Tipp nach xABCDE ohne Spoiler, spezifische Maßnahme erst nach Befund, Strategie vollständig", CoachChecks);
         Run("Aufprallmodell: Kontakt gegen Versuche (Faust, Thoraxpendel), Frakturschwellen, Durchstich, Stichkanal → Verletzung", ImpactModelChecks);
         Run("Fahrzeugmodelle: Seitenaufprall mit Türeindrückung, Frontpuls, nachgiebige Fußgängerfront (Kopftest)", VehicleModelChecks);
+        Run("Verkehrsunfall: Fahrdynamik, Bremsen, Ausweichen, Fahrzeug-Kollision mit Kennlinien (TrafficSim)", TrafficChecks);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -1580,6 +1581,112 @@ static class Tests
         double sbp0 = na(new double[0]), sbp1 = na(new[] { 1.0 }), sbp3 = na(new[] { 3.0 }), sbp10 = na(new[] { 10.0 }), stop = na(new[] { 3.0, 0 });
         Check(Math.Abs(sbp1 - sbp0 - 20) < 0.5 && sbp3 > sbp1 && sbp10 - sbp0 < 40, $"Noradrenalin RRsys ohne {sbp0:F0}, 0,1 {sbp1:F0}, 0,3 {sbp3:F0}, 1,0 {sbp10:F0}");
         Check(Math.Abs(stop - sbp0) < 0.5, "Perfusor aus: Wirkung weg");
+    }
+
+    static NotfallSIM.Crash.TrafficSim RunTraffic(NotfallSIM.Crash.TrafficScenario sc, NotfallSIM.Crash.VehicleType[] types, double until)
+    {
+        var sim = new NotfallSIM.Crash.TrafficSim(sc, types);
+        while (sim.Time < until) sim.Step(sim.Contacts.Count > 0 || sim.AnyClose(0.6) ? 1e-4 : 1e-3);
+        return sim;
+    }
+
+    static void TrafficChecks()
+    {
+        var vm = Load<NotfallSIM.Crash.VehicleModelFile>("vehicle_model.json");
+        var types = vm.vehicleTypes;
+        var file = Load<NotfallSIM.Crash.TrafficScenarioFile>("traffic_scenarios.json");
+        var srcIds = new HashSet<string>(vm.sources.Select(x => x.id));
+        foreach (var t in types)
+        {
+            Check(srcIds.Contains(t.sourceId), t.id + ": Quelle");
+            foreach (var c in new[] { t.front, t.side, t.rear })
+                for (int i = 1; i < c.force_N.Length; i++) Check(c.force_N[i] > c.force_N[i - 1] && c.deflection_m[i] > c.deflection_m[i - 1], t.id + ": Kennlinie steigt");
+        }
+        var seats = new HashSet<string> { "fahrer", "beifahrer", "hinten_links", "hinten_rechts" };
+        foreach (var sc in file.scenarios)
+        {
+            var ids = new HashSet<string>((sc.obstacles ?? new NotfallSIM.Crash.TrafficObstacle[0]).Select(o => o.id));
+            foreach (var v in sc.vehicles)
+            {
+                Check(types.Any(t => t.id == v.type), sc.id + ": Typ " + v.type);
+                Check(string.IsNullOrEmpty(v.target) || ids.Contains(v.target), sc.id + ": Ziel " + v.target + " muss vorher stehen");
+                Check(v.occupants != null && v.occupants.All(o => seats.Contains(o.seat)) && v.occupants.Select(o => o.seat).Distinct().Count() == v.occupants.Length, sc.id + ": Sitzplätze");
+                ids.Add(v.id);
+            }
+            foreach (var p in sc.pedestrians ?? new NotfallSIM.Crash.TrafficPedestrian[0]) Check(string.IsNullOrEmpty(p.target) || ids.Contains(p.target), sc.id + ": Fußgängerziel");
+        }
+        Func<string, NotfallSIM.Crash.TrafficScenario> get = id => file.scenarios.First(x => x.id == id);
+        foreach (var sc in file.scenarios)
+        {
+            var pr = NotfallSIM.Crash.TrafficSim.Predict(sc, types);
+            Check(pr.FirstContact > sc.approach_s - 0.5 && pr.FirstContact < sc.approach_s + 0.6, $"{sc.id}: Kontakt bei {pr.FirstContact:0.00} s (Vorlage soll treffen)");
+            Check(pr.Paths.All(x => x.Length >= 4), sc.id + ": Bahnen");
+        }
+
+        // Zeitplan: ungebremst trifft B zum geplanten Zeitpunkt
+        var k90 = RunTraffic(get("kreuzung_90"), types, 5);
+        Check(Math.Abs(k90.FirstContact - 3) < 0.1, $"Kreuzung: Aufprall bei {k90.FirstContact:0.00} s (geplant 3 s)");
+        var a = k90.Bodies[0];
+        Check(a.Faces[NotfallSIM.Crash.TrafficSim.Left].MaxCrush > 0.15 && a.Faces[NotfallSIM.Crash.TrafficSim.Left].MaxCrush < 0.35, $"Kreuzung: Fahrerseite {a.Faces[2].MaxCrush * 100:0} cm eingedrückt");
+        Check(a.MaxDeltaV * 3.6 > 25 && a.MaxDeltaV * 3.6 < 45, $"Kreuzung: Δv getroffen {a.MaxDeltaV * 3.6:0} km/h");
+        Check(a.PdofClock() >= 8 && a.PdofClock() <= 10, $"Kreuzung: Stoß von links ({a.PdofClock()} Uhr)");
+
+        // Impulserhaltung im Stoß (fast keine Reifenhaftung)
+        var frictionless = get("kreuzung_90");
+        var noGrip = new NotfallSIM.Crash.TrafficScenario { id = "x", friction = 1e-6, approach_s = 3, vehicles = frictionless.vehicles };
+        var sim = new NotfallSIM.Crash.TrafficSim(noGrip, types);
+        double px0 = 0, pz0 = 0; bool before = true;
+        while (sim.Time < 4)
+        {
+            if (before && sim.AnyClose(0.05)) { px0 = sim.Bodies.Take(2).Sum(b => b.M * b.Vx); pz0 = sim.Bodies.Take(2).Sum(b => b.M * b.Vz); before = false; }
+            sim.Step(1e-4);
+        }
+        double px1 = sim.Bodies.Take(2).Sum(b => b.M * b.Vx), pz1 = sim.Bodies.Take(2).Sum(b => b.M * b.Vz);
+        double dp = Math.Sqrt((px1 - px0) * (px1 - px0) + (pz1 - pz0) * (pz1 - pz0)) / Math.Sqrt(px0 * px0 + pz0 * pz0);
+        Check(dp < 0.02, $"Impuls im Stoß erhalten (Abweichung {dp:P1})");
+
+        // Bremsweg aus 50 km/h (µ 0,8): Aufbau 0,2 s + v²/(2µg)
+        var brake = new NotfallSIM.Crash.TrafficScenario
+        {
+            id = "b", friction = 0.8, approach_s = 3,
+            vehicles = new[] { new NotfallSIM.Crash.TrafficVehicle { id = "a", type = "pkw", speed_kmh = 50, occupants = new NotfallSIM.Crash.TrafficOccupant[0],
+                maneuver = new NotfallSIM.Crash.TrafficManeuver { brake = true, brakeLead_s = 2 } } }
+        };
+        var bs = new NotfallSIM.Crash.TrafficSim(brake, types);
+        while (bs.Time < 1 - 1e-9) bs.Step(1e-3);
+        double z0 = bs.Bodies[0].Z;
+        while (bs.Time < 5) bs.Step(1e-3);
+        double v50 = 50 / 3.6, expect = v50 * 0.1 + v50 * v50 / (2 * 0.8 * 9.81), dist = bs.Bodies[0].Z - z0;
+        Check(Math.Abs(dist - expect) / expect < 0.05, $"Bremsweg {dist:0.0} m (erwartet {expect:0.0} m)");
+
+        // Starre Wand bei 56 km/h: Knautschweg wie NCAP-Camry (0,55–0,65 m), wenig Rückprall
+        var wall = RunTraffic(get("wand_frontal"), types, 4.5).Bodies[0];
+        Check(wall.Faces[0].MaxCrush > 0.5 && wall.Faces[0].MaxCrush < 0.66, $"Wand 56 km/h: Front {wall.Faces[0].MaxCrush * 100:0} cm");
+        Check(wall.MaxDeltaV * 3.6 > 56 && wall.MaxDeltaV * 3.6 < 70, $"Wand: Δv {wall.MaxDeltaV * 3.6:0} km/h (mit Rückprall)");
+
+        // Versetzter Frontalaufprall: Fahrzeuge drehen sich, Front wird eingedrückt
+        var off = RunTraffic(get("gegenverkehr"), types, 5);
+        double yaw = Math.Abs(off.Bodies[0].Psi) * 180 / Math.PI;
+        Check(yaw > 10, $"Versetzt frontal: Drehung {yaw:0}°");
+        Check(off.Bodies[0].Faces[0].MaxCrush > 0.4, $"Versetzt frontal: Front {off.Bodies[0].Faces[0].MaxCrush * 100:0} cm");
+
+        // Ausweichen + Bremsen mildert den Frontalzusammenstoß
+        var evade = get("gegenverkehr_ausweichen");
+        var noEvadeSc = new NotfallSIM.Crash.TrafficScenario { id = "y", friction = evade.friction, approach_s = evade.approach_s,
+            vehicles = evade.vehicles.Select(x => new NotfallSIM.Crash.TrafficVehicle { id = x.id, type = x.type, speed_kmh = x.speed_kmh, heading_deg = x.heading_deg, target = x.target, targetFace = x.targetFace, targetOffset_m = x.targetOffset_m, occupants = x.occupants }).ToArray() };
+        double dvEvade = RunTraffic(evade, types, 5).Bodies[0].MaxDeltaV, dvStraight = RunTraffic(noEvadeSc, types, 5).Bodies[0].MaxDeltaV;
+        Check(dvEvade < 0.4 * dvStraight, $"Ausweichen: Δv {dvEvade * 3.6:0} statt {dvStraight * 3.6:0} km/h");
+
+        // Fußgänger: Bremsung verspätet den Aufprall und senkt die Geschwindigkeit
+        var pq = RunTraffic(get("fussgaenger_quert"), types, 4.5).Walkers[0];
+        var pb = RunTraffic(get("fussgaenger_bremsung"), types, 4.5).Walkers[0];
+        Check(pq.FirstContact > 2.9 && pq.FirstContact < 3.15, $"Fußgänger: Aufprall bei {pq.FirstContact:0.00} s");
+        Check(pb.FirstContact > pq.FirstContact && pb.ContactSpeed * 3.6 < 40, $"Fußgänger mit Bremsung: {pb.ContactSpeed * 3.6:0} km/h bei {pb.FirstContact:0.00} s");
+
+        // Pfahl/Baum: schmaler Kontakt drückt tiefer ein als die Wand mit gleicher Energie
+        var tree = RunTraffic(get("baum_seitlich"), types, 4.5).Bodies[0];
+        Check(tree.Faces[NotfallSIM.Crash.TrafficSim.Left].MaxCrush > 0.4, $"Baum seitlich: Seite {tree.Faces[2].MaxCrush * 100:0} cm");
+        Console.WriteLine($"        Kreuzung 90°: Tür {a.Faces[2].Intrusion * 100:0} cm, Δv {a.MaxDeltaV * 3.6:0} km/h; Wand: {wall.Faces[0].MaxCrush * 100:0} cm; versetzt: {yaw:0}°; Ausweichen Δv {dvEvade * 3.6:0}/{dvStraight * 3.6:0} km/h; Bremsweg {dist:0.0} m; Fußgänger gebremst {pb.ContactSpeed * 3.6:0} km/h; Baum {tree.Faces[2].MaxCrush * 100:0} cm");
     }
 
     static void VehicleModelChecks()

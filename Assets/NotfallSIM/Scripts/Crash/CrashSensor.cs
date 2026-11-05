@@ -108,7 +108,7 @@ namespace NotfallSIM.Crash
             float impulse = c.impulse.magnitude;
             if (impulse <= 0) return;
             _stepImpulse += impulse;
-            string kind = surface != null ? surface.kind : "vehicle";
+            string kind = surface != null ? surface.kind : otherSensor != null ? "insasse" : "vehicle";   // anderes Ragdoll: Mitinsasse bzw. Fußgänger
             if (!Contacts.TryGetValue(kind, out var sc)) Contacts[kind] = sc = new SurfaceContact();
             sc.Impulse_Ns += impulse;
             sc.StepImpulse += impulse;

@@ -1,0 +1,77 @@
+{
+  "version": "1.0.0",
+  "note": "Vorlagen für frei gestellte Unfälle (TrafficSim). Jedes Fahrzeug fährt so los, dass es ungebremst nach approach_s Sekunden sein Ziel (Fahrzeug, Hindernis) an der angegebenen Seite trifft; Fahrmanöver (Bremsen, Ausweichen) beginnen die angegebene Zeit vor diesem geplanten Aufprall und können den Unfall abschwächen oder verhindern. Sitzplätze: fahrer, beifahrer, hinten_links, hinten_rechts. Winkel: 0° = nach +z, 90° = nach +x (rechts).",
+  "scenarios": [
+    { "id": "kreuzung_90", "label": "Kreuzung: Seitenaufprall Fahrerseite (90°)", "description": "Vorfahrtsverletzung: ein PKW fährt mit 50 km/h in die Fahrerseite eines querenden PKW (30 km/h).",
+      "friction": 0.8, "approach_s": 3,
+      "vehicles": [
+        { "id": "a", "label": "PKW A (getroffen)", "type": "pkw", "speed_kmh": 30, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true }, { "seat": "beifahrer", "belted": true } ] },
+        { "id": "b", "label": "PKW B", "type": "pkw", "speed_kmh": 50, "heading_deg": 90, "target": "a", "targetFace": "left", "targetOffset_m": 0.3, "occupants": [ { "seat": "fahrer", "belted": true } ] }
+      ] },
+    { "id": "kreuzung_schraeg", "label": "Kreuzung: schräg von vorn links (60°)", "description": "Linksabbieger übersieht den Gegenverkehr: Anprall schräg vorn an der Fahrerseite.",
+      "friction": 0.8, "approach_s": 3,
+      "vehicles": [
+        { "id": "a", "label": "PKW A (getroffen)", "type": "pkw", "speed_kmh": 40, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true }, { "seat": "hinten_links", "belted": true } ] },
+        { "id": "b", "label": "PKW B", "type": "pkw", "speed_kmh": 50, "heading_deg": 120, "target": "a", "targetFace": "left", "targetOffset_m": 0.8, "occupants": [ { "seat": "fahrer", "belted": true } ] }
+      ] },
+    { "id": "gegenverkehr", "label": "Gegenverkehr: frontal versetzt (≈ 40 %)", "description": "Frontalzusammenstoß auf der Landstraße, Überdeckung auf der Fahrerseite.",
+      "friction": 0.8, "approach_s": 3,
+      "vehicles": [
+        { "id": "a", "label": "PKW A", "type": "pkw", "speed_kmh": 70, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true }, { "seat": "beifahrer", "belted": true } ] },
+        { "id": "b", "label": "PKW B", "type": "pkw", "speed_kmh": 70, "heading_deg": 180, "target": "a", "targetFace": "front", "targetOffset_m": -1.0, "occupants": [ { "seat": "fahrer", "belted": true } ] }
+      ] },
+    { "id": "gegenverkehr_ausweichen", "label": "Gegenverkehr: Ausweichen und Bremsen", "description": "Wie frontal, aber Fahrer A weicht 1 s vorher nach rechts aus und bremst voll.",
+      "friction": 0.8, "approach_s": 3,
+      "vehicles": [
+        { "id": "a", "label": "PKW A", "type": "pkw", "speed_kmh": 80, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true } ],
+          "maneuver": { "brake": true, "brakeLead_s": 1.0, "steer": 1, "steerLead_s": 1.0 } },
+        { "id": "b", "label": "PKW B", "type": "pkw", "speed_kmh": 80, "heading_deg": 180, "target": "a", "targetFace": "front", "targetOffset_m": 0, "occupants": [ { "seat": "fahrer", "belted": true } ] }
+      ] },
+    { "id": "auffahrunfall", "label": "Auffahrunfall am Stauende", "description": "PKW B fährt mit 50 km/h auf den stehenden PKW A auf und bremst erst 0,5 s vorher.",
+      "friction": 0.8, "approach_s": 3,
+      "vehicles": [
+        { "id": "a", "label": "PKW A (steht)", "type": "pkw", "speed_kmh": 0, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true }, { "seat": "hinten_rechts", "belted": true } ] },
+        { "id": "b", "label": "PKW B", "type": "pkw", "speed_kmh": 50, "heading_deg": 0, "target": "a", "targetFace": "rear", "targetOffset_m": 0, "occupants": [ { "seat": "fahrer", "belted": true } ],
+          "maneuver": { "brake": true, "brakeLead_s": 0.5, "steer": 0, "steerLead_s": 0 } }
+      ] },
+    { "id": "baum_seitlich", "label": "Schleudern seitlich gegen einen Baum", "description": "PKW gerät ins Schleudern und prallt mit der Fahrerseite (40 km/h) gegen einen Baum.",
+      "friction": 0.5, "approach_s": 3,
+      "vehicles": [
+        { "id": "a", "label": "PKW", "type": "pkw", "speed_kmh": 40, "heading_deg": 0, "drift_deg": -90, "target": "baum", "targetFace": "right", "targetOffset_m": -0.35, "occupants": [ { "seat": "fahrer", "belted": true }, { "seat": "beifahrer", "belted": true } ] }
+      ],
+      "obstacles": [ { "id": "baum", "label": "Baum", "x": 0, "z": 0, "heading_deg": 0, "length_m": 0.35, "width_m": 0.35, "height_m": 4, "stiffness_N_m": 50000000, "color": [0.35, 0.25, 0.15] } ] },
+    { "id": "wand_frontal", "label": "Frontal gegen eine Wand (56 km/h)", "description": "Wie der NCAP-Frontaltest: PKW mit 56 km/h gegen eine starre Wand.",
+      "friction": 0.8, "approach_s": 3,
+      "vehicles": [
+        { "id": "a", "label": "PKW", "type": "pkw", "speed_kmh": 56, "heading_deg": 0, "target": "wand", "targetFace": "rear", "targetOffset_m": 0, "occupants": [ { "seat": "fahrer", "belted": true }, { "seat": "beifahrer", "belted": true } ] }
+      ],
+      "obstacles": [ { "id": "wand", "label": "Wand", "x": 0, "z": 0, "heading_deg": 0, "length_m": 1.0, "width_m": 4.0, "height_m": 1.5, "stiffness_N_m": 100000000, "color": [0.55, 0.55, 0.52] } ] },
+    { "id": "fussgaenger_quert", "label": "Fußgänger quert von rechts", "description": "Ein Fußgänger tritt von rechts auf die Fahrbahn; PKW mit 40 km/h, ohne Bremsung.",
+      "friction": 0.8, "approach_s": 3,
+      "vehicles": [
+        { "id": "a", "label": "PKW", "type": "pkw", "speed_kmh": 40, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true } ] }
+      ],
+      "pedestrians": [ { "id": "f", "label": "Fußgänger", "target": "a", "targetFace": "front", "targetOffset_m": 0.2, "heading_deg": -90, "speed_kmh": 5 } ] },
+    { "id": "fussgaenger_bremsung", "label": "Fußgänger quert, Fahrer bremst", "description": "Wie oben mit 50 km/h; der Fahrer bremst 0,6 s vor dem Aufprall voll.",
+      "friction": 0.8, "approach_s": 3,
+      "vehicles": [
+        { "id": "a", "label": "PKW", "type": "pkw", "speed_kmh": 50, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true } ],
+          "maneuver": { "brake": true, "brakeLead_s": 0.6, "steer": 0, "steerLead_s": 0 } }
+      ],
+      "pedestrians": [ { "id": "f", "label": "Fußgänger", "target": "a", "targetFace": "front", "targetOffset_m": 0.2, "heading_deg": -90, "speed_kmh": 5 } ] },
+    { "id": "suv_seite", "label": "SUV in die Fahrerseite eines PKW", "description": "Ein SUV (2 t) trifft mit 50 km/h die Fahrerseite eines langsam querenden PKW.",
+      "friction": 0.8, "approach_s": 3,
+      "vehicles": [
+        { "id": "a", "label": "PKW (getroffen)", "type": "pkw", "speed_kmh": 20, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true }, { "seat": "hinten_links", "belted": true } ] },
+        { "id": "b", "label": "SUV", "type": "suv", "speed_kmh": 50, "heading_deg": 90, "target": "a", "targetFace": "left", "targetOffset_m": 0.2, "occupants": [ { "seat": "fahrer", "belted": true } ] }
+      ] },
+    { "id": "kreuzung_folge", "label": "Kreuzung mit Folgeauffahrt (3 Fahrzeuge)", "description": "PKW B trifft PKW A seitlich; PKW C folgt A dicht und bremst zu spät.",
+      "friction": 0.8, "approach_s": 3,
+      "vehicles": [
+        { "id": "a", "label": "PKW A", "type": "pkw", "speed_kmh": 40, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true } ] },
+        { "id": "b", "label": "PKW B", "type": "pkw", "speed_kmh": 50, "heading_deg": 90, "target": "a", "targetFace": "left", "targetOffset_m": 0.5, "occupants": [ { "seat": "fahrer", "belted": true } ] },
+        { "id": "c", "label": "PKW C", "type": "pkw", "speed_kmh": 60, "heading_deg": 0, "target": "a", "targetFace": "rear", "targetOffset_m": 0.3, "aimTime_s": 0.6, "occupants": [ { "seat": "fahrer", "belted": true }, { "seat": "beifahrer", "belted": false } ],
+          "maneuver": { "brake": true, "brakeLead_s": 0.3, "steer": 0, "steerLead_s": 0 } }
+      ] }
+  ]
+}

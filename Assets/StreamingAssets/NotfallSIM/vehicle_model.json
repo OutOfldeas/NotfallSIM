@@ -17,9 +17,27 @@
     { "part": "Motorhaube", "stiffness_N_m": 60000, "clearance_m": 0.08, "evidence": "kalibriert", "sourceId": "", "note": "So gewählt, dass ein Kopfaufprall wie im Euro-NCAP-Kopftest (4,5 kg, 40 km/h) HIC ca. 1250 und ca. 105 g ergibt (übliche Haubenmitte); 8 cm bis zum Motorblock (Annahme)." },
     { "part": "Windschutzscheibe", "stiffness_N_m": 14000, "clearance_m": 0.2, "evidence": "kalibriert", "sourceId": "stammen2001", "note": "Verbundglas gibt stark nach: so gewählt, dass derselbe Kopfaufprall HIC ca. 260 ergibt (Rekonstruktion Scheibenaufprall: HIC 257, Stammen 2001)." }
   ],
+  "vehicleTypes": [
+    { "id": "pkw", "label": "PKW (Mittelklasse)", "mass_kg": 1500, "length_m": 4.6, "width_m": 1.8, "wheelbase_m": 2.75, "yawInertia_kgm2": 2500, "corneringStiffness_N_rad": 80000,
+      "front": { "deflection_m": [0, 0.15, 0.55, 0.75], "force_N": [0, 300000, 420000, 1100000] },
+      "side": { "deflection_m": [0, 1.0], "force_N": [0, 1240000], "refWidth_m": 1.7 },
+      "rear": { "deflection_m": [0, 0.2, 0.6, 0.8], "force_N": [0, 200000, 300000, 900000] },
+      "unloadFactor": 30, "minContactWidth_m": 0.6, "intrusionStart_m": 0.55, "intrusionPerCrush": 0.6, "maxFrontIntrusion_m": 0.3, "maxSideIntrusion_m": 0.4, "doorLag_s": 0.003,
+      "color": [0.2, 0.32, 0.55], "sourceId": "nhtsa8545", "evidence": "kalibriert",
+      "note": "Front: Anstieg, Plateau (Längsträger falten), dann steif (Motorblock) — so gewählt, dass 1650 kg gegen die starre Wand bei 56,7 km/h 0,62 m dynamisch knautschen (NHTSA-Test 8545, Camry 2014: 554 mm bleibend). Seite linear wie im Seitenaufprallmodell (Reichert 2018), gilt für 1,7 m Kontaktbreite (Barriere), bei schmalerem Kontakt anteilig weniger. Heck: Annahme (weicher als die Front). Masse, Trägheit, Schräglaufsteifigkeit: typische Werte (Annahme)." },
+    { "id": "suv", "label": "SUV / Geländewagen", "mass_kg": 2000, "length_m": 4.8, "width_m": 1.95, "wheelbase_m": 2.9, "yawInertia_kgm2": 3600, "corneringStiffness_N_rad": 100000,
+      "front": { "deflection_m": [0, 0.15, 0.55, 0.75], "force_N": [0, 450000, 600000, 1500000] },
+      "side": { "deflection_m": [0, 1.0], "force_N": [0, 1500000], "refWidth_m": 1.7 },
+      "rear": { "deflection_m": [0, 0.2, 0.6, 0.8], "force_N": [0, 250000, 380000, 1100000] },
+      "unloadFactor": 30, "minContactWidth_m": 0.6, "intrusionStart_m": 0.6, "intrusionPerCrush": 0.6, "maxFrontIntrusion_m": 0.3, "maxSideIntrusion_m": 0.4, "doorLag_s": 0.003,
+      "color": [0.25, 0.45, 0.3], "sourceId": "digges2001", "evidence": "annahme",
+      "note": "Steifere, höhere Front als der PKW (Größenordnung der IIHS-Barriere, die einen SUV nachbildet); Zahlen sind Annahmen." }
+  ],
   "sources": [
     { "id": "digges2001", "citation": "Digges K, Eigen A. Measurements of vehicle compatibility in front-to-side crashes. IRCOBI 2001.", "url": "https://www.ircobi.org/wordpress/downloads/irc0111/2001/Session1/1.4.pdf", "note": "Front: 50 kN bei 94–116 mm Knautschweg (23 PKW); Seite statisch 250–350 N/mm; Türeindrückung 420 mm bei 53 km/h (Lumina gegen Accord)" },
     { "id": "reichert2018", "citation": "Reichert R, Kan S, Arnold-Keifer S, Mueller B. IIHS side impact parametric study using LS-DYNA. 15th International LS-DYNA Users Conference, 2018.", "url": "https://lsdyna.ansys.com/wp-content/uploads/2022/11/iihs-side-impact-parametric-study-using-ls-dyna-r.pdf", "note": "IIHS-Barriere 1500 kg, 50 km/h gegen Camry 1530 kg: B-Säule 9,5 m/s, Restabstand zur Sitzmitte 13,2 cm" },
-    { "id": "stammen2001", "citation": "Stammen JA, Saul RA, Ko B. Pedestrian head impact testing and PCDS reconstructions. ESV 2001, Paper 326.", "url": "https://www.nhtsa.gov/sites/nhtsa.dot.gov/files/pedestrianimpacts2001esv.pdf.pdf", "note": "Kopfaufprall Windschutzscheibe (Ford Taurus): HIC 257 (Simulation und Labor)" }
+    { "id": "stammen2001", "citation": "Stammen JA, Saul RA, Ko B. Pedestrian head impact testing and PCDS reconstructions. ESV 2001, Paper 326.", "url": "https://www.nhtsa.gov/sites/nhtsa.dot.gov/files/pedestrianimpacts2001esv.pdf.pdf", "note": "Kopfaufprall Windschutzscheibe (Ford Taurus): HIC 257 (Simulation und Labor)" },
+    { "id": "nhtsa8545", "citation": "NHTSA Vehicle Crash Test Database, Test 8545: 2014.5 Toyota Camry, NCAP frontal gegen starre Wand, 56,7 km/h (Calspan, 2014).", "url": "https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v08500/v08545R001.pdf", "note": "Bleibende Front-Verformung 554 mm (Mitte), Wand mit 36 Kraftmessdosen" },
+    { "id": "nhtsa8560", "citation": "NHTSA Vehicle Crash Test Database, Test 8560: 2014.5 Toyota Camry, NCAP Seitenaufprall mit fahrender Barriere, 61,9 km/h (Calspan, 2014).", "url": "https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v08500/v08560R001.pdf", "note": "Bleibende Seitenverformung außen höchstens 258 mm (Türmitte)" }
   ]
 }

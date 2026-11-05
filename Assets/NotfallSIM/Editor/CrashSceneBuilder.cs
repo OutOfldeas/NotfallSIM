@@ -69,8 +69,8 @@ namespace NotfallSIM.EditorTools
             Vertical(left.gameObject, 8, fit: true);
             Label("Titel", left.transform, "<b>UNFALL-SANDBOX</b>", 22, Dim);
             Label("Mechanismus", left.transform, "MECHANISMUS", 16, Dim);
-            string[] ids = { "pkw_frontal", "pkw_seite", "motorrad", "fussgaenger", "sturz_hoehe", "gewalt" };
-            string[] labels = { "PKW frontal", "PKW seitlich", "Motorrad", "Fußgänger", "Sturz aus der Höhe", "Stumpfe/spitze Gewalt" };
+            string[] ids = { "pkw_frontal", "pkw_seite", "motorrad", "fussgaenger", "sturz_hoehe", "gewalt", "szenario" };
+            string[] labels = { "PKW frontal", "PKW seitlich", "Motorrad", "Fußgänger", "Sturz aus der Höhe", "Stumpfe/spitze Gewalt", "Szenario (mehrere Fahrzeuge)" };
             for (int i = 0; i < ids.Length; i++)
             {
                 var b = MakeButton(left.transform, labels[i], MechColor, null, 18);
