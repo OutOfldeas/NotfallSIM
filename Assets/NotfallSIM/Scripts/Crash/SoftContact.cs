@@ -38,6 +38,7 @@ namespace NotfallSIM.Crash
             public string Shape;            // "sphere" | "box" | "capsule" — Kontaktfläche aus der Geometrie
             public Vector3 Size;            // Maße mit Längsachse z (m)
             public double CutLoad_N;        // Andruck, ab dem die Schneide beim Ziehen schneidet (0 = keine Schneide)
+            public double Clearance_m;      // Federweg bis zum starren Anschlag (Motorhaube → Motorblock), 0 = keiner
         }
 
         /// <summary>Gleitweg einer Schneide über ein Segment unter Andruck (für Schnittwunden).</summary>
@@ -111,7 +112,7 @@ namespace NotfallSIM.Crash
             {
                 Def = def, Collider = c, Body = body, SkinForce_N = skinForce_N,
                 Area_cm2 = def.contactArea_cm2, Stiffness_N_m = def.stiffness_N_m, Mass_kg = body != null ? body.mass : 0,
-                Shape = def.shape, Size = size, CutLoad_N = cutLoad_N
+                Shape = def.shape, Size = size, CutLoad_N = cutLoad_N, Clearance_m = def.clearance_m
             };
         }
 
@@ -208,7 +209,7 @@ namespace NotfallSIM.Crash
                     }
                     else if (obj != null && obj.Area_cm2 > 0) area = obj.Area_cm2;
                     area = System.Math.Min(area, region.maxArea_cm2);
-                    double f = ImpactModel.Force(Model, region, delta, closing, area, kObj, mObj, body.Fat_m, out double tissueDelta);
+                    double f = ImpactModel.Force(Model, region, delta, closing, area, kObj, mObj, body.Fat_m, obj != null ? obj.Clearance_m : 0, out double tissueDelta);
                     pair.SetMaxImpulse(i, (float)(f * dt / n));
                     maxDelta = Mathf.Max(maxDelta, (float)tissueDelta);   // Gewebe unter dem Fett (Thoraxkompression)
                     if (obj != null)

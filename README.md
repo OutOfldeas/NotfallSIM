@@ -187,6 +187,10 @@ fällt der Körper frei aus der eingestellten Höhe (1–30 m, Fallzeit √(2h/g
 in Echtzeit, die Zeitlupe setzt kurz vor dem Aufprall ein. Gerechnet wird der Vorlauf mit 1-ms-Schritt ohne Messung;
 Insasse und Fußgänger werden bis zum Aufprall in ihrer Haltung gehalten, damit der Ausgangszustand der Messung
 gleich bleibt.
+Die Fahrzeuge verformen sich nach `vehicle_model.json`: beim Seitenaufprall dringt die Fahrertür ein (Feder-Masse-Modell,
+bei 50 km/h ca. 29 cm mit ca. 10 m/s) und bleibt eingedrückt, beim Frontalaufprall drücken oberhalb von ca. 58 km/h
+Armaturenbrett und Lenkrad nach hinten; beim Fußgänger geben Stoßfänger, Haubenkante, Motorhaube und Scheibe mit
+eigener Steifigkeit bis zum Anschlag nach (nur mit nachgiebigem Kontakt).
 Danach zeigt die Sandbox die Messwerte wie beim Crashtest-Dummy (HIC15, Brustbeschleunigung, Kontaktkräfte),
 das Verletzungsrisiko je Region, färbt den Körper danach ein und übergibt den Fall auf Knopfdruck verdeckt an
 den Schockraum (Schockraum-Szene muss erzeugt sein).

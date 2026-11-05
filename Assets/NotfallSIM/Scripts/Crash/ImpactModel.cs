@@ -48,6 +48,82 @@ namespace NotfallSIM.Crash
 
     [Serializable] public class ImpactSource { public string id, citation, url, note; }
 
+    // ---------- vehicle_model.json ----------
+    /// <summary>Nachgiebiges Fahrzeugteil (Fußgängerfront): Steifigkeit in Reihe zum Körper, Federweg bis zum Anschlag.</summary>
+    [Serializable] public class VehiclePart { public string part; public double stiffness_N_m, clearance_m; public string evidence, sourceId, note; }
+    /// <summary>Seitenaufprall als Feder-Masse-Modell: stoßendes und getroffenes Fahrzeug, Front und Seite in Reihe.</summary>
+    [Serializable]
+    public class SideImpactModel
+    {
+        public double bulletMass_kg, struckMass_kg, frontStiffness_N_m, sideStiffness_N_m, unloadFactor, doorLag_s, maxIntrusion_m;
+        public string sourceId, note;
+    }
+    /// <summary>Frontalaufprall: Masse und Frontsteifigkeit (Halbsinus-Puls), Knautschlänge, ab der der Innenraum eindrückt.</summary>
+    [Serializable]
+    public class FrontalImpactModel
+    {
+        public double mass_kg, stiffness_N_m, crushZone_m, intrusionPerCrush, maxIntrusion_m;
+        public string sourceId, note;
+    }
+    /// <summary>Frontalaufprall gegen die Barriere: Pulsdauer und Eindringen des Innenraums (reines C#).</summary>
+    public static class FrontalImpact
+    {
+        /// <summary>Pulsdauer T = π·√(m/k) (s).</summary>
+        public static double Pulse_s(FrontalImpactModel m) => Math.PI * Math.Sqrt(m.mass_kg / m.stiffness_N_m);
+        /// <summary>Knautschweg am Ende des Halbsinus-Pulses: v·T/2 (m).</summary>
+        public static double Crush_m(FrontalImpactModel m, double v_m_s) => v_m_s * Pulse_s(m) / 2;
+        /// <summary>Eindringen von Fußraum/Armaturenbrett (m) bei einem Knautschweg: über die Knautschzone hinaus anteilig, gedeckelt.</summary>
+        public static double Intrusion_m(FrontalImpactModel m, double crush_m) =>
+            Math.Min(m.maxIntrusion_m, Math.Max(0, crush_m - m.crushZone_m) * m.intrusionPerCrush);
+    }
+
+    /// <summary>
+    /// Zustand des Seitenaufprall-Modells (reines C#, im Crash-Rig und im Test gleich): Kraft F = k·c beim Belasten
+    /// (k = Front und Seite in Reihe), Entlastung unloadFactor-fach steifer bis zur bleibenden Verformung.
+    /// Die Tür folgt dem Anteil der Seitenstruktur am größten Knautschweg (verzögert um doorLag_s, höchstens maxIntrusion_m).
+    /// </summary>
+    public class SideImpactState
+    {
+        readonly SideImpactModel _m;
+        readonly double _k, _share;
+        public double BulletVelocity, StruckVelocity, Crush, MaxCrush, Force, Door, DoorVelocity, MaxDoorVelocity;
+        double _fMax;
+        public SideImpactState(SideImpactModel m, double impactSpeed_m_s)
+        {
+            _m = m;
+            double kf = m.frontStiffness_N_m, ks = m.sideStiffness_N_m;
+            _k = kf * ks / (kf + ks); _share = kf / (kf + ks);
+            BulletVelocity = impactSpeed_m_s;
+        }
+        public void Step(double dt)
+        {
+            if (Crush >= MaxCrush) { Force = _k * Crush; MaxCrush = Crush; _fMax = Force; }
+            else
+            {
+                double kU = _k * Math.Max(1, _m.unloadFactor), cPerm = MaxCrush - _fMax / kU;
+                Force = Math.Max(0, kU * (Crush - cPerm));
+            }
+            BulletVelocity -= Force / _m.bulletMass_kg * dt;
+            StruckVelocity += Force / _m.struckMass_kg * dt;
+            Crush += (BulletVelocity - StruckVelocity) * dt;
+            double target = Math.Min(_m.maxIntrusion_m, _share * MaxCrush);
+            double prev = Door;
+            Door += (target - Door) * Math.Min(1, dt / Math.Max(1e-6, _m.doorLag_s));
+            DoorVelocity = (Door - prev) / dt + StruckVelocity;   // Tür gegenüber dem Boden (Insasse steht anfangs)
+            MaxDoorVelocity = Math.Max(MaxDoorVelocity, DoorVelocity);
+        }
+    }
+
+    [Serializable]
+    public class VehicleModelFile
+    {
+        public string version, note;
+        public FrontalImpactModel frontal;
+        public SideImpactModel side;
+        public VehiclePart[] pedestrianFront;
+        public ImpactSource[] sources;
+    }
+
     /// <summary>Unterhautfett einer Region: Dicke beim Bezugs-BMI (Mann), Zunahme je BMI-Punkt, Zuschlag für Frauen.</summary>
     [Serializable] public class FatRegion { public string region; public double ref_mm, perBmi_mm, female_mm; public string sourceId, note; }
     /// <summary>Fettgewebe: Dicke je Region, dehnratenabhängiger Elastizitätsmodul (Potenzgesetz durch zwei Messpunkte), Stichwiderstand.</summary>
@@ -86,6 +162,7 @@ namespace NotfallSIM.Crash
         public double supportHeight_m;    // statisch: Höhe der Oberseite über dem Boden, mit Beinen (Tisch); 0 = liegt auf
         public bool Sharp => kind == "spitz";
         public bool HasEdge => !string.IsNullOrEmpty(edge);
+        [System.Runtime.Serialization.OptionalField] public double clearance_m;   // Federweg bis zum starren Anschlag (0 = keiner)
     }
 
     [Serializable] public class SandboxObjectFile { public string version, note; public SandboxObject[] objects; public ImpactSource[] sources; }
@@ -285,11 +362,34 @@ namespace NotfallSIM.Crash
         /// Gegenstand. <paramref name="tissueDelta_m"/>: Anteil der Eindrückung, der auf das Gewebe darunter entfällt
         /// (für Thoraxkompression und Rippen). Ohne Fett wie <see cref="Force(RegionContact,double,double,double,double,double)"/>.
         /// </summary>
+        /// <summary>
+        /// Wie unten, dazu ein Gegenstand mit begrenztem Federweg (<paramref name="objectClearance_m"/>, z. B. Motorhaube bis
+        /// zum Motorblock): Ist der Federweg aufgebraucht, wirkt der Gegenstand starr, die Kraft steigt dann mit dem Gewebe.
+        /// </summary>
+        public static double Force(ImpactModelFile m, RegionContact r, double delta_m, double closing_m_s, double area_cm2,
+                                   double objectStiffness_N_m, double objectMass_kg, double fat_m, double objectClearance_m, out double tissueDelta_m)
+        {
+            double f = Force(m, r, delta_m, closing_m_s, area_cm2, objectStiffness_N_m, objectMass_kg, fat_m, out tissueDelta_m);
+            if (objectClearance_m <= 0 || objectStiffness_N_m <= 0) return f;
+            double objectDefl = Math.Max(0, delta_m) - tissueDelta_m;
+            // Anteil des Gegenstands an der Eindrückung: Gesamt minus Gewebe (ohne Fett-Anteil genau genug, Fett ist meist steif beim Stoß)
+            if (objectDefl <= objectClearance_m) return f;
+            double fStop = objectStiffness_N_m * objectClearance_m;
+            double fRigid = Force(m, r, delta_m - objectClearance_m, closing_m_s, area_cm2, 0, objectMass_kg, fat_m, out double td);
+            tissueDelta_m = td;
+            return Math.Max(fStop, fRigid);
+        }
+
         public static double Force(ImpactModelFile m, RegionContact r, double delta_m, double closing_m_s, double area_cm2,
                                    double objectStiffness_N_m, double objectMass_kg, double fat_m, out double tissueDelta_m)
         {
             tissueDelta_m = Math.Max(0, delta_m);
-            if (fat_m <= 0 || m?.fat == null) return Force(r, delta_m, closing_m_s, area_cm2, objectStiffness_N_m, objectMass_kg);
+            if (fat_m <= 0 || m?.fat == null)
+            {
+                double kb0 = Stiffness(r, Math.Max(0, delta_m), area_cm2);
+                if (objectStiffness_N_m > 0) tissueDelta_m = Math.Max(0, delta_m) * (1 / (1 / kb0 + 1 / objectStiffness_N_m)) / kb0;
+                return Force(r, delta_m, closing_m_s, area_cm2, objectStiffness_N_m, objectMass_kg);
+            }
             if (delta_m <= 0 && closing_m_s <= 0) return 0;
             double kFat = FatModulus_Pa(m, Math.Abs(closing_m_s) / fat_m) * area_cm2 * 1e-4 / fat_m;
             // Gewebesteifigkeit bei der Gewebe-Eindrückung (eine Fixpunkt-Iteration genügt: k ändert sich stückweise linear)

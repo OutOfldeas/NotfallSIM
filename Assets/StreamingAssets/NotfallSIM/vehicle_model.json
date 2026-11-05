@@ -1,0 +1,25 @@
+{
+  "version": "0.1.0",
+  "note": "Fahrzeugmodelle der Unfall-Sandbox: Frontalpuls aus Masse und Frontsteifigkeit, Seitenaufprall als Feder-Masse-Modell mit eindringender Tür, nachgiebige Fußgängerfront. Werte mit Quelle bzw. Kalibrierziel; Annahmen gekennzeichnet (evidence).",
+  "frontal": {
+    "mass_kg": 1500, "stiffness_N_m": 1480000, "crushZone_m": 0.8, "intrusionPerCrush": 0.5, "maxIntrusion_m": 0.25,
+    "sourceId": "digges2001",
+    "note": "Halbsinus-Verzögerung mit Δv = v über T = π·√(m/k) = 100 ms (Dauer eines linearen Federstoßes, unabhängig von v). Knautschweg v·T/2 (0,78 m bei 56 km/h), Spitzenverzögerung π·v/(2T) ≈ 25 g bei 56 km/h (gemessene Pulse oft spitzer, 30–40 g). Anfangssteifigkeit der Front laut Lastzellen ca. 500–730 N/mm (50 kN bei 94–116 mm, Digges 2001). Über 0,8 m Knautschweg drückt der Fußraum/das Armaturenbrett ein, je m weiterem Knautschweg 0,5 m, höchstens 25 cm, das Lenkrad mit 60 % davon (Annahme; tritt ab ca. 58 km/h auf)."
+  },
+  "side": {
+    "bulletMass_kg": 1500, "struckMass_kg": 1530, "frontStiffness_N_m": 3000000, "sideStiffness_N_m": 1240000, "unloadFactor": 30, "doorLag_s": 0.003, "maxIntrusion_m": 0.33,
+    "sourceId": "reichert2018",
+    "note": "Stoßendes Fahrzeug (IIHS-Barriere 1500 kg) und getroffenes (Camry 1530 kg, Reichert 2018), Front und Seitenstruktur als Federn in Reihe, plastisch (Entlastung 30-fach steifer, Stoßzahl ca. 0,2; Tür bleibt eingedrückt). Verhältnis Front/Seite 2,43 wie die statischen Steifigkeiten bei Digges 2001 (Front ca. 730 N/mm, Seite 250–350 N/mm); Betrag so gewählt, dass die Tür bei 50 km/h ca. 29 cm eindringt (Restabstand der B-Säule zur Sitzmitte 13 cm, Reichert 2018). Prüfung: Spitzengeschwindigkeit der Tür ≈ Anteil der Seite × v ≈ 9,9 m/s (gemessen an der B-Säule: 9,5 m/s). Trägheit der Tür als Verzögerung 3 ms (Annahme)."
+  },
+  "pedestrianFront": [
+    { "part": "Stoßfänger", "stiffness_N_m": 80000, "clearance_m": 0.07, "evidence": "annahme", "sourceId": "", "note": "Schaum vor dem Querträger: ca. 7 cm Weg, dann starr (Annahme)." },
+    { "part": "Haubenvorderkante", "stiffness_N_m": 150000, "clearance_m": 0.05, "evidence": "annahme", "sourceId": "", "note": "Schlossträger und Kante: steifer, kurzer Weg (Annahme)." },
+    { "part": "Motorhaube", "stiffness_N_m": 60000, "clearance_m": 0.08, "evidence": "kalibriert", "sourceId": "", "note": "So gewählt, dass ein Kopfaufprall wie im Euro-NCAP-Kopftest (4,5 kg, 40 km/h) HIC ca. 1250 und ca. 105 g ergibt (übliche Haubenmitte); 8 cm bis zum Motorblock (Annahme)." },
+    { "part": "Windschutzscheibe", "stiffness_N_m": 14000, "clearance_m": 0.2, "evidence": "kalibriert", "sourceId": "stammen2001", "note": "Verbundglas gibt stark nach: so gewählt, dass derselbe Kopfaufprall HIC ca. 260 ergibt (Rekonstruktion Scheibenaufprall: HIC 257, Stammen 2001)." }
+  ],
+  "sources": [
+    { "id": "digges2001", "citation": "Digges K, Eigen A. Measurements of vehicle compatibility in front-to-side crashes. IRCOBI 2001.", "url": "https://www.ircobi.org/wordpress/downloads/irc0111/2001/Session1/1.4.pdf", "note": "Front: 50 kN bei 94–116 mm Knautschweg (23 PKW); Seite statisch 250–350 N/mm; Türeindrückung 420 mm bei 53 km/h (Lumina gegen Accord)" },
+    { "id": "reichert2018", "citation": "Reichert R, Kan S, Arnold-Keifer S, Mueller B. IIHS side impact parametric study using LS-DYNA. 15th International LS-DYNA Users Conference, 2018.", "url": "https://lsdyna.ansys.com/wp-content/uploads/2022/11/iihs-side-impact-parametric-study-using-ls-dyna-r.pdf", "note": "IIHS-Barriere 1500 kg, 50 km/h gegen Camry 1530 kg: B-Säule 9,5 m/s, Restabstand zur Sitzmitte 13,2 cm" },
+    { "id": "stammen2001", "citation": "Stammen JA, Saul RA, Ko B. Pedestrian head impact testing and PCDS reconstructions. ESV 2001, Paper 326.", "url": "https://www.nhtsa.gov/sites/nhtsa.dot.gov/files/pedestrianimpacts2001esv.pdf.pdf", "note": "Kopfaufprall Windschutzscheibe (Ford Taurus): HIC 257 (Simulation und Labor)" }
+  ]
+}

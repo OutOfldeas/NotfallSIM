@@ -40,9 +40,10 @@ namespace NotfallSIM.Crash
     /// laufen und liefert die Messwerte für <see cref="InjuryRisk"/>.
     ///
     /// Vereinfachungen (didaktisch, siehe docs/LITERATUR.md):
-    /// - PKW frontal/seitlich als Schlittentest: das Fahrzeug folgt einem vorgegebenen Crashpuls (Halbsinus),
-    ///   statt sich selbst zu verformen. So arbeiten auch reale Schlittenversuche.
-    /// - Fußgänger: Fahrzeugfront mit konstanter Geschwindigkeit, danach Bremsung.
+    /// - PKW frontal als Schlittentest: das Fahrzeug folgt einem Halbsinus-Puls (Dauer aus Masse und Frontsteifigkeit);
+    ///   über die Knautschzone hinaus drücken Armaturenbrett und Lenkrad ein (vehicle_model.json › frontal).
+    /// - PKW seitlich: Feder-Masse-Modell (<see cref="SideImpactState"/>), die Fahrertür dringt ein und bleibt eingedrückt.
+    /// - Fußgänger: Fahrzeugfront mit konstanter Geschwindigkeit, danach Bremsung; Frontteile nachgiebig mit Federweg.
     /// - Sturz: freier Fall aus der Höhe mit Luftwiderstand (Endgeschwindigkeit 55 bzw. 75 m/s, Füße voran).
     /// - Vorlauf: Fahrzeuge fahren 3 s; Insasse und Fußgänger werden dabei kinematisch gehalten (keine Haltungsänderung).
     /// - Motorrad: Maschine stoppt am Hindernis, Fahrer fliegt weiter. Helm dämpft die Kopfbeschleunigung pauschal.
@@ -63,11 +64,38 @@ namespace NotfallSIM.Crash
         public Transform CameraTarget => Ragdoll?.Pelvis.transform;
 
         readonly List<GameObject> _spawned = new List<GameObject>();
+        /// <summary>Fahrzeugteile, die beim nachgiebigen Kontakt als Gegenstand mit eigener Steifigkeit angemeldet werden.</summary>
+        readonly List<GameObject> _softParts = new List<GameObject>();
+
+        /// <summary>Nachgiebige Fahrzeugteile anmelden (nach <see cref="RegisterSoftBody"/>, das die Anmeldungen leert). Anzahl.</summary>
+        int RegisterSoftVehicleParts()
+        {
+            var vm = LoadVehicleModel();
+            if (vm?.pedestrianFront == null) return 0;
+            int n = 0;
+            foreach (var go in _softParts)
+            {
+                if (go == null) continue;
+                var part = Array.Find(vm.pedestrianFront, x => x.part == go.name);
+                var col = go.GetComponent<Collider>();
+                if (part == null || col == null) continue;
+                var def = new SandboxObject
+                {
+                    id = "fahrzeug:" + part.part, label = part.part, kind = "stumpf", mode = "statisch", shape = "box",
+                    stiffness_N_m = part.stiffness_N_m, clearance_m = part.clearance_m, sourceId = part.sourceId
+                };
+                // Fahrzeug ist kinematisch: unendlich schwer (keine Masse im Kontakt), Kontaktfläche aus der Geometrie
+                SoftContact.RegisterObject(col, def, null, 0, go.transform.lossyScale, 0);
+                n++;
+            }
+            return n;
+        }
 
         // ------------------------------------------------------------------ Aufbau
 
         public void Clear()
         {
+            _softParts.Clear();
             // Sofort deaktivieren: Destroy greift erst am Ende des Frames, die neuen Teile entstehen am selben Ort.
             foreach (var go in _spawned) if (go) { go.SetActive(false); Destroy(go); }
             _spawned.Clear();
@@ -174,25 +202,32 @@ namespace NotfallSIM.Crash
                     Part(t, "Boden", new Vector3(0, -0.025f, 0.2f), new Vector3(1.5f, 0.05f, 2f), new Color(0.2f, 0.2f, 0.22f));
                     Part(t, "Sitzpolster", new Vector3(0, seatTop - 0.06f, -0.02f), new Vector3(0.52f, 0.12f, 0.52f), new Color(0.15f, 0.15f, 0.17f), counts: false);
                     Part(t, "Lehne", new Vector3(0, hipY + 0.3f, -0.08f * H - 0.06f), new Vector3(0.52f, 0.75f, 0.1f), new Color(0.15f, 0.15f, 0.17f), counts: false);
-                    Part(t, "Armaturenbrett", new Vector3(0, hipY + 0.08f, d.HipToKnee + 0.2f), new Vector3(1.3f, 0.3f, 0.16f), new Color(0.25f, 0.25f, 0.28f));
+                    // Armaturenbrett, Lenkrad und Fahrertür sind eigene (kinematische) Körper: sie können eindrücken
+                    var dash = Vehicle("Armaturenbrett", Vector3.zero);
+                    Part(dash.transform, "Armaturenbrett", new Vector3(0, hipY + 0.08f, d.HipToKnee + 0.2f), new Vector3(1.3f, 0.3f, 0.16f), new Color(0.25f, 0.25f, 0.28f));
                     Part(t, "Windschutzscheibe", new Vector3(0, hipY + 0.82f, 0.62f), new Vector3(1.4f, 0.04f, 0.9f), Color.clear, visible: false, tiltX: -55);
                     Part(t, "Dach", new Vector3(0, hipY + 1.0f, -0.1f), new Vector3(1.4f, 0.05f, 1.4f), Color.clear, visible: false);
-                    Part(t, "Fahrertür", new Vector3(-0.42f, hipY + 0.15f, 0.1f), new Vector3(0.06f, 0.9f, 1.3f), new Color(0.55f, 0.1f, 0.1f), visible: !frontal);
+                    var door = Vehicle("Fahrertür", Vector3.zero);
+                    Part(door.transform, "Fahrertür", new Vector3(-0.42f, hipY + 0.15f, 0.1f), new Vector3(0.06f, 0.9f, 1.3f), new Color(0.55f, 0.1f, 0.1f), visible: !frontal);
                     Part(t, "Mittelkonsole", new Vector3(0.38f, hipY - 0.05f, 0.2f), new Vector3(0.12f, 0.3f, 0.8f), new Color(0.2f, 0.2f, 0.22f), visible: false);
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, hipY, 0), Quaternion.identity, RagdollPose.Seated, H, p.Mass_kg, p.Male, invertKneeFlexion);
                     // Lenkrad dort, wo die Hände sind
                     Vector3 hr = Ragdoll.HandTipRight, hl = Ragdoll.HandTipLeft;
                     var wheel = new Vector3(0, (hr.y + hl.y) / 2, Mathf.Max(hr.z, hl.z) - 0.02f);
                     float wheelD = Mathf.Clamp(Mathf.Abs(hr.x - hl.x) - 0.08f, 0.32f, 0.42f);
-                    Part(t, "Lenkrad", wheel, new Vector3(wheelD, wheelD, 0.05f), new Color(0.1f, 0.1f, 0.1f), tiltX: -20);
+                    var wheelBody = Vehicle("Lenkrad", Vector3.zero);
+                    Part(wheelBody.transform, "Lenkrad", wheel, new Vector3(wheelD, wheelD, 0.05f), new Color(0.1f, 0.1f, 0.1f), tiltX: -20);
+                    var rbDash = dash.GetComponent<Rigidbody>(); var rbWheel = wheelBody.GetComponent<Rigidbody>(); var rbDoor = door.GetComponent<Rigidbody>();
+                    var vm = LoadVehicleModel();
                     if (p.Belted) Belt(car.GetComponent<Rigidbody>(), H);
 
                     var rbCar = car.GetComponent<Rigidbody>();
                     float t0 = 0.02f;
                     if (frontal)
                     {
-                        // Halbsinus-Verzögerung, Δv = v, Dauer 100 ms (typischer Frontalcrashpuls)
-                        const float T = 0.1f;
+                        // Halbsinus-Verzögerung (linearer Federstoß gegen die Barriere): Dauer π·√(m/k), Δv = v
+                        float T = vm != null ? (float)FrontalImpact.Pulse_s(vm.frontal) : 0.1f;
+                        float crush = 0;
                         Action<float> airbag = p.Airbag ? Airbag(car, wheel, t0 + 0.015f) : null;
                         // Sichtbare Fahrzeugfront und Betonbarriere (ohne Kollider: der Puls ersetzt die Verformung)
                         Visual(t, "Fahrzeugfront", new Vector3(0, 0.35f, 1.65f), new Vector3(1.6f, 0.6f, 0.9f), new Color(0.2f, 0.32f, 0.55f));
@@ -202,15 +237,22 @@ namespace NotfallSIM.Crash
                         {
                             float u = Mathf.Clamp01((time - t0) / T);
                             float vel = v - v * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
-                            rbCar.MovePosition(rbCar.position + new Vector3(0, 0, vel * dt));
+                            if (time >= t0) crush += (v - vel) * dt;   // Knautschweg der Front
+                            var carPos = rbCar.position + new Vector3(0, 0, vel * dt);
+                            rbCar.MovePosition(carPos);
+                            // Über die Knautschzone hinaus drücken Armaturenbrett/Fußraum und Lenkrad nach hinten (−z)
+                            float intr = vm != null ? (float)FrontalImpact.Intrusion_m(vm.frontal, crush) : 0;
+                            rbDash.MovePosition(carPos + new Vector3(0, 0, -intr));
+                            rbWheel.MovePosition(carPos + new Vector3(0, 0, -intr * 0.6f));
+                            rbDoor.MovePosition(carPos);
                             airbag?.Invoke(time);
                         };
                         return 0.6f;
                     }
                     else
                     {
-                        // Seitenaufprall links: getroffenes Fahrzeug wird nach rechts (+x) beschleunigt,
-                        // Δv ≈ halbe Aufprallgeschwindigkeit (gleich schwere Fahrzeuge, plastischer Stoß), Dauer 60 ms.
+                        // Seitenaufprall links: getroffenes Fahrzeug wird nach rechts (+x) beschleunigt.
+                        // Ohne vehicle_model.json: Halbsinus, Δv = halbe Aufprallgeschwindigkeit, Dauer 60 ms.
                         // Das stoßende Fahrzeug (nur sichtbar) kommt von links und trifft bei t0 die Fahrertür.
                         const float T = 0.06f;
                         float dv = v / 2;
@@ -221,13 +263,32 @@ namespace NotfallSIM.Crash
                         approach.Carry.Add((rbBullet, new Vector3(v, 0, 0)));
                         approach.RagdollVelocity = Vector3.zero;   // Fahrzeug steht (Kreuzung)
                         Shift(new[] { rbBullet }, new Vector3(-v * approachTime_s, 0, 0));
+                        if (vm != null)
+                        {
+                            // Feder-Masse-Modell (vehicle_model.json › side): Front des Gegners und Seitenstruktur in Reihe, plastisch;
+                            // die Tür dringt um den Anteil der Seite am Knautschweg ein und bleibt eingedrückt.
+                            var side = new SideImpactState(vm.side, v);
+                            drive = (time, dt) =>
+                            {
+                                if (time >= t0) side.Step(dt);
+                                double vS = side.StruckVelocity, vB = side.BulletVelocity, doorIn = side.Door;
+                                var carPos = rbCar.position + new Vector3((float)(vS * dt), 0, 0);
+                                rbCar.MovePosition(carPos);
+                                rbBullet.MovePosition(rbBullet.position + new Vector3((float)((time < t0 ? v : vB) * dt), 0, 0));
+                                rbDoor.MovePosition(carPos + new Vector3((float)doorIn, 0, 0));   // Tür nach innen (+x)
+                                rbDash.MovePosition(carPos); rbWheel.MovePosition(carPos);
+                            };
+                        }
+                        else
                         drive = (time, dt) =>
                         {
                             float u = Mathf.Clamp01((time - t0) / T);
                             float vel = dv * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
-                            rbCar.MovePosition(rbCar.position + new Vector3(vel * dt, 0, 0));
+                            var carPos = rbCar.position + new Vector3(vel * dt, 0, 0);
+                            rbCar.MovePosition(carPos);
                             float vb = time < t0 ? v : v - (v - dv) * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
                             rbBullet.MovePosition(rbBullet.position + new Vector3(vb * dt, 0, 0));
+                            rbDoor.MovePosition(carPos); rbDash.MovePosition(carPos); rbWheel.MovePosition(carPos);
                         };
                         return 0.5f;
                     }
@@ -269,10 +330,11 @@ namespace NotfallSIM.Crash
                     var car = Vehicle("Fahrzeug", new Vector3(0.13f * H + 0.12f, 0, 0));
                     var t = car.transform;
                     var c = new Color(0.55f, 0.1f, 0.1f);
-                    Part(t, "Stoßfänger", new Vector3(0.1f, 0.48f, 0), new Vector3(0.2f, 0.22f, 1.7f), c);
-                    Part(t, "Haubenvorderkante", new Vector3(0.3f, 0.72f, 0), new Vector3(0.5f, 0.2f, 1.7f), c);
-                    Part(t, "Motorhaube", new Vector3(1.0f, 0.82f, 0), new Vector3(1.1f, 0.08f, 1.7f), c, tiltZ: 6);
-                    Part(t, "Windschutzscheibe", new Vector3(1.75f, 1.08f, 0), new Vector3(0.7f, 0.05f, 1.5f), new Color(0.6f, 0.75f, 0.85f), tiltZ: 32);
+                    // Nachgiebige Front (vehicle_model.json › pedestrianFront): beim nachgiebigen Kontakt mit Steifigkeit und Federweg
+                    _softParts.Add(Part(t, "Stoßfänger", new Vector3(0.1f, 0.48f, 0), new Vector3(0.2f, 0.22f, 1.7f), c));
+                    _softParts.Add(Part(t, "Haubenvorderkante", new Vector3(0.3f, 0.72f, 0), new Vector3(0.5f, 0.2f, 1.7f), c));
+                    _softParts.Add(Part(t, "Motorhaube", new Vector3(1.0f, 0.82f, 0), new Vector3(1.1f, 0.08f, 1.7f), c, tiltZ: 6));
+                    _softParts.Add(Part(t, "Windschutzscheibe", new Vector3(1.75f, 1.08f, 0), new Vector3(0.7f, 0.05f, 1.5f), new Color(0.6f, 0.75f, 0.85f), tiltZ: 32));
                     Part(t, "Dach", new Vector3(2.6f, 1.35f, 0), new Vector3(1.2f, 0.05f, 1.5f), c);
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, hipY, 0), Quaternion.identity, RagdollPose.Standing, H, p.Mass_kg, p.Male, invertKneeFlexion);
                     var rbCar = car.GetComponent<Rigidbody>();
@@ -405,6 +467,7 @@ namespace NotfallSIM.Crash
             Physics.SyncTransforms();
             // Nachgiebiger Kontakt auch beim Fahrzeugunfall: Körper mit Gewebesteifigkeit und Fettschicht statt starr
             bool soft = p.SoftContact && RegisterSoftBody(p, Anatomy.BodyFatShape.Model());
+            if (soft) RegisterSoftVehicleParts();
             SoftContact.Enabled = soft;
             var tone = LoadMuscleTone();
             var muscles = tone != null ? new MuscleToneDriver(Ragdoll, tone, p.Occupant, p.Male) : null;
@@ -688,6 +751,18 @@ namespace NotfallSIM.Crash
             string path = System.IO.Path.Combine(Data.InjuryDatabase.Root, "muscle_tone.json");
             if (!System.IO.File.Exists(path)) { Debug.LogWarning("[Crash] muscle_tone.json fehlt — Ragdoll ohne Muskeltonus."); return null; }
             return _muscleTone = JsonUtility.FromJson<MuscleToneFile>(System.IO.File.ReadAllText(path));
+        }
+
+        static VehicleModelFile _vehicleModel;
+        static bool _vehicleTried;
+        /// <summary>Fahrzeugmodelle (vehicle_model.json); null ohne Datei — dann die alten festen Pulse.</summary>
+        public static VehicleModelFile LoadVehicleModel()
+        {
+            if (_vehicleModel != null || _vehicleTried) return _vehicleModel;
+            _vehicleTried = true;
+            string path = System.IO.Path.Combine(Data.InjuryDatabase.Root, "vehicle_model.json");
+            if (System.IO.File.Exists(path)) _vehicleModel = JsonUtility.FromJson<VehicleModelFile>(System.IO.File.ReadAllText(path));
+            return _vehicleModel;
         }
 
         static OrganModelFile _organModel;

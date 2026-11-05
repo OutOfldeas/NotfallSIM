@@ -86,6 +86,7 @@ static class Tests
         Run("Patientenmonitor: NIBP-Zyklus, Fehlmessung, Alarme mit Prioritäten, Pulsoxymetrie ohne Signal", PatientMonitorChecks);
         Run("Coach: Tipp nach xABCDE ohne Spoiler, spezifische Maßnahme erst nach Befund, Strategie vollständig", CoachChecks);
         Run("Aufprallmodell: Kontakt gegen Versuche (Faust, Thoraxpendel), Frakturschwellen, Durchstich, Stichkanal → Verletzung", ImpactModelChecks);
+        Run("Fahrzeugmodelle: Seitenaufprall mit Türeindrückung, Frontpuls, nachgiebige Fußgängerfront (Kopftest)", VehicleModelChecks);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
         return _failed == 0 ? 0 : 1;
@@ -1579,6 +1580,71 @@ static class Tests
         double sbp0 = na(new double[0]), sbp1 = na(new[] { 1.0 }), sbp3 = na(new[] { 3.0 }), sbp10 = na(new[] { 10.0 }), stop = na(new[] { 3.0, 0 });
         Check(Math.Abs(sbp1 - sbp0 - 20) < 0.5 && sbp3 > sbp1 && sbp10 - sbp0 < 40, $"Noradrenalin RRsys ohne {sbp0:F0}, 0,1 {sbp1:F0}, 0,3 {sbp3:F0}, 1,0 {sbp10:F0}");
         Check(Math.Abs(stop - sbp0) < 0.5, "Perfusor aus: Wirkung weg");
+    }
+
+    static void VehicleModelChecks()
+    {
+        var vm = Load<NotfallSIM.Crash.VehicleModelFile>("vehicle_model.json");
+        var m = Load<NotfallSIM.Crash.ImpactModelFile>("impact_model.json");
+        var srcIds = new HashSet<string>(vm.sources.Select(x => x.id));
+        Check(srcIds.Contains(vm.side.sourceId) && srcIds.Contains(vm.frontal.sourceId), "Fahrzeugmodelle: Quellen vorhanden");
+        foreach (var part in vm.pedestrianFront)
+        {
+            Check(part.stiffness_N_m > 0 && part.clearance_m > 0, part.part + ": Kennwerte");
+            Check(part.evidence == "annahme" || part.evidence == "kalibriert" || srcIds.Contains(part.sourceId), part.part + ": Quelle fehlt");
+        }
+
+        // Seitenaufprall (Reichert 2018: 1500 kg gegen 1530 kg bei 50 km/h, B-Säule 9,5 m/s, Restabstand 13 cm ≈ 29 cm Eindringen)
+        Func<double, NotfallSIM.Crash.SideImpactState> side = kmh =>
+        {
+            var st = new NotfallSIM.Crash.SideImpactState(vm.side, kmh / 3.6);
+            for (int i = 0; i < 300000; i++) st.Step(1e-6);   // 0,3 s
+            return st;
+        };
+        var s50 = side(50);
+        Check(s50.Door > 0.26 && s50.Door < 0.32, $"Seite 50 km/h: Tür {s50.Door * 100:0.0} cm (Ziel ≈ 29 cm)");
+        Check(s50.MaxDoorVelocity > 8.5 && s50.MaxDoorVelocity < 11, $"Seite 50 km/h: Türgeschwindigkeit {s50.MaxDoorVelocity:0.0} m/s (B-Säule 9,5 m/s)");
+        Check(Math.Abs(s50.StruckVelocity - s50.BulletVelocity) < 3, $"Seite: Fahrzeuge trennen sich langsam (plastisch), {s50.StruckVelocity:0.0} / {s50.BulletVelocity:0.0} m/s");
+        Check(s50.StruckVelocity * 3.6 > 25 && s50.StruckVelocity * 3.6 < 35, $"Seite 50 km/h: Δv getroffen {s50.StruckVelocity * 3.6:0} km/h");
+        var s30 = side(30); var s70 = side(70);
+        Check(s30.Door < s50.Door && s50.Door <= s70.Door + 1e-9, $"Seite: Tür wächst mit v ({s30.Door * 100:0} / {s50.Door * 100:0} / {s70.Door * 100:0} cm)");
+        Check(s70.Door <= vm.side.maxIntrusion_m + 1e-9, "Seite: Eindringen gedeckelt");
+
+        // Frontal: 100 ms, Eindringen erst oberhalb der Knautschzone
+        double T = NotfallSIM.Crash.FrontalImpact.Pulse_s(vm.frontal);
+        Check(Math.Abs(T - 0.1) < 0.005, $"Frontpuls {T * 1000:0} ms");
+        double i50 = NotfallSIM.Crash.FrontalImpact.Intrusion_m(vm.frontal, NotfallSIM.Crash.FrontalImpact.Crush_m(vm.frontal, 50 / 3.6));
+        double i100 = NotfallSIM.Crash.FrontalImpact.Intrusion_m(vm.frontal, NotfallSIM.Crash.FrontalImpact.Crush_m(vm.frontal, 100 / 3.6));
+        Check(i50 == 0, $"Frontal 50 km/h: kein Eindringen ({i50 * 100:0} cm)");
+        Check(i100 > 0.1 && i100 <= vm.frontal.maxIntrusion_m, $"Frontal 100 km/h: Eindringen {i100 * 100:0} cm");
+
+        // Federweg: bis zum Anschlag nachgiebig, danach starr
+        var head = NotfallSIM.Crash.ImpactModel.Region(m, "Kopf");
+        double soft = NotfallSIM.Crash.ImpactModel.Force(m, head, 0.02, 0, 50, 60000, 0, 0, 0.08, out _);
+        double noClr = NotfallSIM.Crash.ImpactModel.Force(m, head, 0.2, 0, 50, 60000, 0, 0, 0, out _);
+        double stop = NotfallSIM.Crash.ImpactModel.Force(m, head, 0.2, 0, 50, 60000, 0, 0, 0.08, out _);
+        Check(Math.Abs(soft - NotfallSIM.Crash.ImpactModel.Force(m, head, 0.02, 0, 50, 60000, 0, 0, out _)) < 1e-6, "Federweg: vor dem Anschlag wie ohne");
+        Check(stop > 5 * noClr, $"Federweg: nach dem Anschlag starr ({stop:0} N gegen {noClr:0} N)");
+
+        // Kopftest (4,5 kg, 40 km/h) gegen Haube und Scheibe: HIC wie kalibriert
+        Func<string, double> hic = name =>
+        {
+            var part = vm.pedestrianFront.First(pp => pp.part == name);
+            double x = 0, v = 40 / 3.6, dt = 2e-6, mass = head.effectiveMass_kg;
+            var acc = new List<double>();
+            for (int i = 0; i < 40000; i++)
+            {
+                double f = NotfallSIM.Crash.ImpactModel.Force(m, head, x, v, 52, part.stiffness_N_m, 0, 0, part.clearance_m, out _);
+                if (x > 0 && v <= 0 && f <= 0) break;
+                v -= f / mass * dt; x += v * dt; acc.Add(f / mass / 9.81);
+                if (x <= 0 && v < 0) break;
+            }
+            return NotfallSIM.Crash.Biomechanics.Hic(acc, dt);
+        };
+        double hHaube = hic("Motorhaube"), hScheibe = hic("Windschutzscheibe");
+        Check(hHaube > 900 && hHaube < 1600, $"Kopftest Haube HIC {hHaube:0} (Ziel ≈ 1250)");
+        Check(hScheibe > 180 && hScheibe < 360, $"Kopftest Scheibe HIC {hScheibe:0} (Stammen 2001: 257)");
+        Console.WriteLine($"        Seite 30/50/70 km/h: Tür {s30.Door * 100:0}/{s50.Door * 100:0}/{s70.Door * 100:0} cm, {s50.MaxDoorVelocity:0.0} m/s bei 50; Frontal 100 km/h {i100 * 100:0} cm; Kopftest HIC Haube {hHaube:0}, Scheibe {hScheibe:0}");
     }
 
     static void ImpactModelChecks()
