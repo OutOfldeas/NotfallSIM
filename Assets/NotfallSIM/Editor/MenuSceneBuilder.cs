@@ -19,6 +19,7 @@ namespace NotfallSIM.EditorTools
         [MenuItem("NotfallSIM/Alle Szenen erstellen", priority = 0)]
         public static void BuildAll()
         {
+            if (!EditModeGuard.Ready(BuildAll, "Alle Szenen erstellen")) return;
             SceneBuilder.Build();
             CrashSceneBuilder.Build();
             Build();
@@ -45,6 +46,7 @@ namespace NotfallSIM.EditorTools
         [MenuItem("NotfallSIM/Hauptmenü erstellen", priority = 1)]
         public static void Build()
         {
+            if (!EditModeGuard.Ready(Build, "Hauptmenü erstellen")) return;
             if (Resources.Load<TMP_Settings>("TMP Settings") == null)
             {
                 EditorUtility.DisplayDialog("TextMeshPro fehlt", "Bitte zuerst Window › TextMeshPro › Import TMP Essential Resources ausführen.", "OK");

@@ -41,6 +41,7 @@ namespace NotfallSIM.EditorTools
         [MenuItem("NotfallSIM/Schockraum-Szene erstellen")]
         public static void Build()
         {
+            if (!EditModeGuard.Ready(Build, "Schockraum-Szene erstellen")) return;
             if (Resources.Load<TMP_Settings>("TMP Settings") == null)
             {
                 EditorUtility.DisplayDialog("TextMeshPro fehlt",
