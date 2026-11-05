@@ -15,6 +15,7 @@ namespace NotfallSIM.Data
         public ImagingModality[] Imaging;
         public IReadOnlyList<LogEntry> Events;
         public VitalSigns Vitals;
+        public bool NoAccess;       // noch kein Gefäßzugang: Infusionen und Medikamente gehen nicht
     }
 
     /// <summary>Ein Schritt: Phase (x, A, B, C, D, E, Bildgebung, Verlauf), was zu tun ist, warum, Status.</summary>
@@ -139,6 +140,9 @@ namespace NotfallSIM.Data
                               : "Bei GCS ≤ 8 oder Ateminsuffizienz (S3 GoR A). Im Schock vorsichtig einleiten.", "intervention:Intubation");
             add("B", "o2", "Sauerstoff geben", "Jeder Schwerverletzte bekommt O2, bis die Oxygenierung gesichert ist.", "intervention:Oxygen");
             add("B", "exam:Thorax", "Thorax untersuchen", "Atemgeräusch, Thoraxbewegung, Trachea, Halsvenen: Spannungspneu und Hämatothorax ausschließen.", "exam:Thorax");
+            if (c.NoAccess)
+                add("C", "zugang_iv", "Gefäßzugang legen (i.v., nach 2 Fehlversuchen i.o.)",
+                    "Ohne Zugang keine Blutprodukte und Medikamente. Großlumig peripher; scheitert es (Adipositas, Schock), intraossär.", "access:");
             add("C", "bga", "BGA abnehmen", "Base Excess und Laktat zeigen den Schock früher als Puls und Blutdruck; Hb, Calcium, Kalium.", "intervention:BloodGas::");
             foreach (var region in new[] { "Abdomen", "Becken", "Oberschenkel rechts", "Oberschenkel links" })
                 add("C", "exam:" + region, $"{region} untersuchen", "Blutungsquellen suchen: Thorax, Abdomen, Becken, lange Röhrenknochen (und nach außen).", "exam:" + region);

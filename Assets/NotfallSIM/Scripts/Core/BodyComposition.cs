@@ -110,6 +110,17 @@ namespace NotfallSIM.Core
             return 1 / (1 + Math.Exp(-logit));
         }
 
+        /// <summary>
+        /// Misserfolg eines peripheren Venenzugangs je Versuch: 18 % bei BMI 18,5–29,9; die Chance (Odds) ist bei BMI ≥ 30
+        /// 1,98-fach, bei BMI &lt; 18,5 2,24-fach (Sebbane, 563 Patienten, insgesamt 21 % Misserfolg beim ersten Versuch;
+        /// 18 % für Normalgewicht so gewählt, dass die Mischung etwa 21 % ergibt). Gleich für jeden weiteren Versuch (Annahme).
+        /// </summary>
+        public static double VenousAccessFailure(double bmi)
+        {
+            double odds = 0.18 / 0.82 * (bmi >= 30 ? 1.98 : bmi < 18.5 ? 2.24 : 1);
+            return odds / (1 + odds);
+        }
+
         /// <summary>Wählbare Körperbauten (BMI); 0 = wie im Fall.</summary>
         public static readonly (string label, double bmi)[] BodyTypes =
         {

@@ -30,7 +30,7 @@ namespace NotfallSIM.UI
         MechanismDatabaseFile _mechanisms;
         string _choice;
         TextMeshProUGUI _brief, _warning;
-        Button _modeTextbook, _modeRegistry, _ctRadiology, _ctRoom, _bodyButton;
+        Button _modeTextbook, _modeRegistry, _ctRadiology, _ctRoom, _bodyButton, _accessButton;
         int _bodyIndex;
 
         public void Configure(RectTransform uiRoot) => root = uiRoot;
@@ -68,6 +68,7 @@ namespace NotfallSIM.UI
                 SessionSetup.BodyBmi = BodyComposition.BodyTypes[_bodyIndex].bmi;
                 Refresh();
             });
+            _accessButton = RuntimeUi.Button(right, "", Option, () => { SessionSetup.NoPrehospitalAccess = !SessionSetup.NoPrehospitalAccess; Refresh(); });
             _bodyIndex = System.Math.Max(0, System.Array.FindIndex(BodyComposition.BodyTypes, t => t.bmi == SessionSetup.BodyBmi));
             RuntimeUi.Label(right, "", 10, Dim, 12);
             RuntimeUi.Button(right, "Schockraum starten", Selected, StartTraumaRoom, 60, 26);
@@ -95,6 +96,9 @@ namespace NotfallSIM.UI
             var bodyText = _bodyButton.GetComponentInChildren<TMPro.TMP_Text>();
             if (bodyText != null) bodyText.text = "Körperbau: " + BodyComposition.BodyTypes[_bodyIndex].label + "  (klicken zum Wechseln)";
             _bodyButton.GetComponent<Image>().color = _bodyIndex > 0 ? Selected : Option;
+            var accText = _accessButton.GetComponentInChildren<TMPro.TMP_Text>();
+            if (accText != null) accText.text = SessionSetup.NoPrehospitalAccess ? "Präklinischer Zugang: keiner – im Schockraum legen" : "Präklinischer Zugang: liegt";
+            _accessButton.GetComponent<Image>().color = SessionSetup.NoPrehospitalAccess ? Selected : Option;
 
             if (_choice == null) { _brief.text = ""; return; }
             if (_choice.StartsWith("scenario:"))

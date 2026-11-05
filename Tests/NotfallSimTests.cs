@@ -666,6 +666,9 @@ static class Tests
         Check(obese.minSpO2 > 2 * lean.minSpO2 && noO2.minSpO2 > 3 * lean.minSpO2, $"Sättigungsabfall: schlank {lean.minSpO2:0.0}, adipös {obese.minSpO2:0.0}, ohne O2 {noO2.minSpO2:0.0} Punkte");
         // eFAST übersieht bei Adipositas häufiger (Armstrong 2023)
         Check(Math.Abs(BodyComposition.EfastMissProbability(25) - 0.10) < 1e-9 && BodyComposition.EfastMissProbability(40) > 0.18 && BodyComposition.EfastMissProbability(40) < 0.25, $"eFAST übersieht: BMI 25 10 %, BMI 40 {BodyComposition.EfastMissProbability(40):P0}");
+        // Venenzugang (Sebbane): Misserfolg je Versuch 18 % normal, ab BMI 30 und unter 18,5 häufiger
+        Check(Math.Abs(BodyComposition.VenousAccessFailure(24) - 0.18) < 1e-9 && Math.Abs(BodyComposition.VenousAccessFailure(35) - 0.303) < 0.002 && Math.Abs(BodyComposition.VenousAccessFailure(17) - 0.330) < 0.002,
+              $"Venenzugang scheitert: normal 18 %, adipös {BodyComposition.VenousAccessFailure(35):P0}, untergewichtig {BodyComposition.VenousAccessFailure(17):P0}");
         var big = new PatientProfile { weight_kg = 130, height_cm = 175 };
         Check(big.EstimatedBloodVolume_mL < 130 * 70 * 0.8, $"130 kg: Blutvolumen {big.EstimatedBloodVolume_mL:0} mL statt {130 * 70} mL");
     }
@@ -1731,6 +1734,8 @@ static class Tests
             return new CoachContext { Scenario = s, Injury = id => defs[id], Interventions = Interventions.interventions, Imaging = Imaging.modalities, Events = log, Vitals = v }; };
         Action<double, string> ev = (t, tag) => log.Add(new LogEntry { Time_s = t, Tag = tag, Message = tag });
 
+        var noAcc = ctx(30); noAcc.NoAccess = true;
+        Check(Coach.Strategy(noAcc).Any(i => i.Key == "zugang_iv" && i.Phase == "C") && Coach.Strategy(ctx(30)).All(i => i.Key != "zugang_iv"), "ohne Zugang: Strategie nennt Gefäßzugang (C)");
         var tip = Coach.Tip(ctx(30));
         Check(tip.Phase == "B" && tip.Key == "o2" && tip.Deadline_s == 120, "zuerst Sauerstoff (B, Ziel 2 min): " + tip);
         ev(31, "intervention:Oxygen::o2");

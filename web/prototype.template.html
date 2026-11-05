@@ -261,6 +261,13 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
       <div class="seg" role="group" aria-label="Körperbau" id="bodySeg"></div>
     </div>
     <div class="row" style="margin-top:10px">
+      <span class="eyebrow">Präklinischer Zugang</span>
+      <div class="seg" role="group" aria-label="Präklinischer Zugang">
+        <button type="button" id="accessYes" aria-pressed="true">liegt</button>
+        <button type="button" id="accessNo" aria-pressed="false">keiner</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px">
       <span class="eyebrow">CT-Standort</span>
       <div class="seg" role="group" aria-label="CT-Standort">
         <button type="button" id="ctRadiology" aria-pressed="true">Radiologie</button>
@@ -379,12 +386,14 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const R = (x) => Math.round(x);
 
-let selected = DATA.scenarios[0].id, generated = null, mode = "Textbook", ctInRoom = false, imgCount = 0, bodyBmi = 0;
+let selected = DATA.scenarios[0].id, generated = null, mode = "Textbook", ctInRoom = false, imgCount = 0, bodyBmi = 0, noAccess = false;
 const BODY_TYPES = [["wie im Fall", 0], ["schlank", 20], ["normal", 24], ["übergewichtig", 28], ["adipös", 34], ["stark adipös", 42]];
 /** Patient mit gewähltem Körperbau: gleiche Größe, Gewicht nach BMI (wie SessionSetup.BodyBmi in Unity). */
 function withBody(s) {
-  if (!bodyBmi) return s;
-  return { ...s, patient: { ...s.patient, weight_kg: E.Body.weightForBmi(bodyBmi, s.patient.height_cm) } };
+  if (!bodyBmi && !noAccess) return s;
+  const p = { ...s.patient, noPrehospitalAccess: noAccess || !!s.patient.noPrehospitalAccess };
+  if (bodyBmi) p.weight_kg = E.Body.weightForBmi(bodyBmi, s.patient.height_cm);
+  return { ...s, patient: p };
 }
 const bodyLine = (p) => `${esc(p.age)} J., ${p.sex === "female" ? "weiblich" : "männlich"}, ${esc(p.weight_kg)} kg, ${esc(p.height_cm)} cm · ${esc(E.Body.describe(p.weight_kg, p.height_cm, p.age, p.sex !== "female"))}`;
 let sim = null, speed = 1, paused = false, lastFrame = 0, lastRender = 0, wakeLock = null, logCount = 0;
@@ -408,6 +417,8 @@ function renderSetup() {
   $("modeRegistry").setAttribute("aria-pressed", mode === "Registry");
   $("ctRadiology").setAttribute("aria-pressed", !ctInRoom);
   $("ctTraumaRoom").setAttribute("aria-pressed", ctInRoom);
+  $("accessYes").setAttribute("aria-pressed", !noAccess);
+  $("accessNo").setAttribute("aria-pressed", noAccess);
   $("modeNote").textContent = (ctInRoom ? "CT im Schockraum: kein Transport, der Patient bleibt während des Scans zugänglich. " : "CT in der Radiologie: Für CCT und Ganzkörper-CT verlässt der Patient den Schockraum. ") + (mode === "Textbook"
     ? "Lehrbuch: Vitalwerte folgen den ATLS-Schockklassen. Gut zum Lernen der Muster."
     : "Realität: an Registerdaten angelehnt. Weniger Tachykardie, späte Hypotonie, jeder Patient reagiert etwas anders.");
@@ -422,6 +433,8 @@ function roll(mechanismId) {
 $("modeTextbook").onclick = () => { mode = "Textbook"; renderSetup(); };
 $("modeRegistry").onclick = () => { mode = "Registry"; renderSetup(); };
 $("ctRadiology").onclick = () => { ctInRoom = false; renderSetup(); };
+$("accessYes").onclick = () => { noAccess = false; renderSetup(); };
+$("accessNo").onclick = () => { noAccess = true; renderSetup(); };
 $("bodySeg").addEventListener("click", (e) => { const b = e.target.closest("[data-bmi]"); if (b) { bodyBmi = Number(b.dataset.bmi); renderSetup(); } });
 $("ctTraumaRoom").onclick = () => { ctInRoom = true; renderSetup(); };
 $("startBtn").onclick = start;

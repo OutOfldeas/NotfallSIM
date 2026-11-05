@@ -169,7 +169,9 @@ Browser-Prototyp gleich. Im Hauptmenü, im Prototyp und in der Unfall-Sandbox is
 stark adipös BMI 42). Folgen: Fentanyl, Propofol und Ketamin wirken nach Magergewicht (Dosisdialog zeigt es an), Adipöse
 kühlen langsamer aus, die Entlastungspunktion scheitert an dicker Brustwand (Ort 2. ICR MCL oder 4./5. ICR AAL und
 Kanülenlänge 3–8 cm wählbar), Unterhautfett je Region verlängert Stichkanäle und liegt im Kontaktmodell vor dem Gewebe,
-Haut und Ragdoll werden sichtbar dicker. Werte und Quellen: docs/LITERATUR.md › „Körperbau und Fettgewebe“.
+Haut und Ragdoll werden sichtbar dicker. Intubation (mehr Versuche, schnellere Entsättigung), eFAST (häufiger übersehen) und
+Venenzugang (häufiger Fehlversuche) hängen ebenfalls vom BMI ab. Infusionen und Medikamente brauchen einen Gefäßzugang;
+standardmäßig liegt präklinisch einer, im Hauptmenü bzw. Prototyp kann man ohne starten (Venenzugang oder i.o.). Werte und Quellen: docs/LITERATUR.md › „Körperbau und Fettgewebe“.
 
 ## Unfall-Sandbox (Ragdoll-Physik)
 

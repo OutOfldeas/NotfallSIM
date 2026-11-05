@@ -39,6 +39,46 @@ namespace NotfallSIM.Simulation
         readonly Dictionary<string, ImagingModality> _imaging = new Dictionary<string, ImagingModality>();
         readonly System.Random _imagingRng = new System.Random();   // übersehene eFAST-Befunde (Adipositas)
 
+        // ---------------------------------------------------------------- Gefäßzugang
+        /// <summary>Liegt ein Gefäßzugang? Ohne ihn keine Infusionen, Blutprodukte, Medikamente, Katecholamine.</summary>
+        public bool HasAccess { get; private set; } = true;
+        /// <summary>Dauer eines Punktionsversuchs (s), i.v. und i.o. (Annahme).</summary>
+        public const double AccessAttempt_s = 60;
+        /// <summary>Tibialer i.o.-Zugang: 91 % Erfolg im ersten Versuch (Studnek/Reades 2011, präklinische Reanimation).</summary>
+        public const double IoSuccess = 0.91;
+        double _accessDue = -1; bool _accessWillSucceed; string _accessKind; int _accessAttempts;
+        readonly System.Random _accessRng = new System.Random();
+
+        public static bool NeedsAccess(InterventionType t) => t == InterventionType.FluidInfusion || t == InterventionType.Medication || t == InterventionType.Vasopressor;
+
+        /// <summary>Zugang legen: i.v. bis zu 2 Versuche (Misserfolg je Versuch nach BMI, Sebbane), i.o. bis zu 2 Versuche (91 %).</summary>
+        void StartAccess(InterventionEvent iv, string label, string tag)
+        {
+            if (HasAccess && iv.Compound != "io") { Log($"{label}: Zugang liegt bereits", tag); return; }
+            if (_accessDue >= 0) { Log("Zugang wird gerade gelegt", null); return; }
+            bool io = iv.Compound == "io";
+            double pOk = io ? IoSuccess : 1 - BodyComposition.VenousAccessFailure(Scenario.patient != null ? Scenario.patient.Bmi : 24);
+            int attempts = 1;
+            bool ok = _accessRng.NextDouble() < pOk;
+            if (!ok) { attempts = 2; ok = _accessRng.NextDouble() < pOk; }
+            _accessDue = Engine.Current.SimTime_s + attempts * AccessAttempt_s;
+            _accessWillSucceed = ok; _accessKind = io ? "io" : "iv"; _accessAttempts = attempts;
+            Log($"Maßnahme: {label}", tag);
+        }
+
+        void TriggerAccess()
+        {
+            if (_accessDue < 0 || Engine.Current.SimTime_s < _accessDue) return;
+            string what = _accessKind == "io" ? "Intraossärer Zugang (Tibia)" : "Periphervenöser Zugang";
+            if (_accessWillSucceed)
+            {
+                HasAccess = true;
+                Log($"{what} liegt" + (_accessAttempts > 1 ? $" (im {_accessAttempts}. Versuch)" : ""), "access:" + _accessKind);
+            }
+            else Log($"{what} gescheitert ({_accessAttempts} Versuche)" + (_accessKind == "iv" ? " – i.o.-Zugang erwägen" : ""), "access-failed:" + _accessKind);
+            _accessDue = -1;
+        }
+
         [Header("Zeit")]
         [Tooltip("1 = Echtzeit. Höher = schneller (zum Testen von Verläufen).")]
         [SerializeField] float timeScale = 1f;
@@ -113,6 +153,7 @@ namespace NotfallSIM.Simulation
                 Scenario.patient.weight_kg = BodyComposition.WeightForBmi(SessionSetup.BodyBmi, Scenario.patient.height_cm);
             }
 
+            HasAccess = !(Scenario.patient != null && Scenario.patient.noPrehospitalAccess) && !(SessionSetup.Active && SessionSetup.NoPrehospitalAccess && !fromCrash);
             Engine = CreateEngine();
             if (!Engine.Initialize(Scenario.patient))
             {
@@ -129,6 +170,7 @@ namespace NotfallSIM.Simulation
             TriggerDueInjuries();
             Engine.Advance(stepSize_s);
             Log($"Szenario '{Scenario.title}' gestartet mit {Engine.Name} (DB v{Database.Version})");
+            if (!HasAccess) Log("Kein Gefäßzugang (präklinisch nicht gelegt)", "info:no-access");
             NotfallSIM.Rooms.TraumaRoom.Ensure(this); // Raum, Kamera, anatomischer Patient — auch in alten Szenendateien
             UI.PauseMenu.Ensure(this);
         }
@@ -154,6 +196,7 @@ namespace NotfallSIM.Simulation
             {
                 TriggerDueInjuries();
                 TriggerDelayedInterventions();
+                TriggerAccess();
                 Engine.Advance(stepSize_s);
                 foreach (var st in _watcher.Check(Engine.Current)) Log(st.message, st.tag);
                 _accumulator -= stepSize_s;
@@ -180,6 +223,12 @@ namespace NotfallSIM.Simulation
             if (Engine == null || Ended || Engine.Current.CardiacArrest) return;
             if (IsAway) { Log($"Nicht möglich: Patient ist zur Bildgebung außerhalb des Schockraums ({label})", null); return; }
             string tag = $"intervention:{iv.Type}:{iv.TargetCompartment ?? iv.Compound ?? ""}:{iv.Id}";
+            if (iv.Type == InterventionType.VascularAccess) { StartAccess(iv, label, tag); return; }
+            if (NeedsAccess(iv.Type) && !HasAccess)
+            {
+                Log($"Nicht möglich: kein Gefäßzugang ({label})", "warning:no-access");
+                return;
+            }
             if (iv.Type == InterventionType.BloodGas)
             {
                 // Werte zum Abnahmezeitpunkt, Ergebnis nach der Laufzeit des Analysegeräts.

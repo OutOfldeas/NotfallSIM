@@ -260,6 +260,7 @@
     },
     needleReach: (bmi, aal, len) => Body.normalCdf((len * 10 - Body.chestWall(bmi, aal)) / Body.chestWallSd),
     intubationFirstPass: (bmi) => (bmi < 25 ? 0.709 : bmi < 30 ? 0.664 : 0.593),
+    venousAccessFailure(bmi) { const o = 0.18 / 0.82 * (bmi >= 30 ? 1.98 : bmi < 18.5 ? 2.24 : 1); return o / (1 + o); },
     efastMiss: (bmi) => 1 / (1 + Math.exp(-(Math.log(0.1 / 0.9) + Math.log(1.0565) * (bmi - 25)))),
     apneaTimeTo90(bmi) {
       if (bmi <= 24) return 364;
@@ -278,6 +279,7 @@
   const isMale = (p) => String(p.sex).toLowerCase() !== "female";
   const LeanDosedDrugs = new Set(["Fentanyl", "Propofol", "Ketamin"]);
   const NeedleDefaultLength = 5;
+  const NEEDS_ACCESS = new Set(["FluidInfusion", "Medication", "Vasopressor"]), ACCESS_ATTEMPT = 60, IO_SUCCESS = 0.91;
   const IntubationAttempt = 40, IntubationMaxAttempts = 3, NoPreoxygenationFactor = 0.2;
   function bloodVolume(p) { return Body.bloodVolume(p.weight_kg, Body.bmi(p.weight_kg, p.height_cm), isMale(p)); }
 
@@ -661,6 +663,9 @@
       add("A", "intubation", "Atemweg sichern: Narkose und Intubation", `GCS ${v.gcs} – Schutzreflexe unsicher (GCS ≤ 8: Intubation, S3 GoR A). Im Schock Einleitung vorsichtig dosieren (Ketamin oder reduziertes Propofol).`, "intervention:Intubation");
     add("B", "o2", "Sauerstoff geben", "Jeder Schwerverletzte bekommt O2, bis die Oxygenierung gesichert ist.", "intervention:Oxygen");
     add("B", "exam:Thorax", "Thorax untersuchen", "Atemgeräusch, Thoraxbewegung, Trachea, Halsvenen: Spannungspneu und Hämatothorax ausschließen.", "exam:Thorax");
+    if (c.noAccess)
+      add("C", "zugang_iv", "Gefäßzugang legen (i.v., nach 2 Fehlversuchen i.o.)",
+        "Ohne Zugang keine Blutprodukte und Medikamente. Großlumig peripher; scheitert es (Adipositas, Schock), intraossär.", "access:");
     add("C", "bga", "BGA abnehmen", "Base Excess und Laktat zeigen den Schock früher als Puls und Blutdruck; Hb, Calcium, Kalium.", "intervention:BloodGas::");
     for (const region of ["Abdomen", "Becken", "Oberschenkel rechts", "Oberschenkel links"])
       add("C", "exam:" + region, `${region} untersuchen`, "Blutungsquellen suchen: Thorax, Abdomen, Becken, lange Röhrenknochen (und nach außen).", "exam:" + region);
@@ -722,6 +727,7 @@
       this.ctInTraumaRoom = !!ctInTraumaRoom;
       this.imaging = Object.fromEntries(data.imaging.modalities.map((m) => [m.id, m]));
       this.awayUntil = -1;
+      this.accessDue = -1;
       this.scenario = typeof scenarioId === "object" ? scenarioId : data.scenarios.find((s) => s.id === scenarioId);
       this.injuries = Object.fromEntries(data.injuries.injuries.map((i) => [i.id, i]));
       this.interventions = Object.fromEntries(data.interventions.interventions.map((i) => [i.id, i]));
@@ -740,6 +746,8 @@
       this.ended = false;
       this.step = 0.1;
       this.log(`Szenario „${this.scenario.title}“ gestartet (${this.engine.name})`, null);
+      this.hasAccess = !this.scenario.patient.noPrehospitalAccess;
+      if (!this.hasAccess) this.log("Kein Gefäßzugang (präklinisch nicht gelegt)", "info:no-access");
     }
     get vitals() { return this.engine.current; }
     get isAway() { return this.engine.current.time < this.awayUntil; }
@@ -748,7 +756,7 @@
     /** Für Tipp und Strategie (Data/Coach.cs). */
     coachContext() {
       return { scenario: this.scenario, injury: (id) => this.injuries[id] || null, interventions: this.data.interventions.interventions,
-        imaging: this.data.imaging.modalities, events: this.events, vitals: this.engine.current };
+        imaging: this.data.imaging.modalities, events: this.events, vitals: this.engine.current, noAccess: !this.hasAccess };
     }
 
     /** Rückt um dt Sekunden in Schritten von 0,1 s vor (wie SimulationManager.Update). */
@@ -778,6 +786,7 @@
           else { this.engine.applyIntervention(d.iv); this.log(`Wirksam: ${d.label}`, "effect:" + d.iv.type); this.logIntubationAttempts(d.iv); }
           this.delayed.splice(i, 1);
         }
+        this.triggerAccess();
         this.engine.advance(this.step);
         for (const [msg, tag] of this.watcher.check(this.engine.current)) this.log(msg, tag);
         if (this.engine.current.time >= this.nextSample) { this.samples.push(this.engine.current); this.nextSample += 5; }
@@ -791,6 +800,7 @@
       const def = this.interventions[id];
       if (!def || this.ended || this.engine.current.arrest || this.isAway) return false;
       if (def.once && this.used.has(id)) return false;
+      if (!this.hasAccess && NEEDS_ACCESS.has(def.type)) { this.log(`Nicht möglich: kein Gefäßzugang (${def.logLabel || def.label})`, "warning:no-access"); return false; }
       this.used.add(id);
       const dosed = def.dose && doseValue != null;
       const iv = { id: def.id, type: def.type, target: def.target || null, compound: def.compound || null, volume_mL: def.volume_mL,
@@ -798,6 +808,7 @@
         doseFactor: dosed && def.dose.reference > 0 ? doseValue / def.dose.reference : 1,
         doseValue: dosed ? doseValue : 0, site: def.site || null };
       const tag = `intervention:${iv.type}:${iv.target || iv.compound || ""}:${iv.id}`;
+      if (iv.type === "VascularAccess") return this.startAccess(iv, def.logLabel || def.label, tag);
       const weight = this.scenario.patient.weight_kg;
       const label = (def.logLabel || def.label) + (dosed ? " " + formatDose(def.dose, doseValue, weight) : "");
       if (dosed && !doseUsual(def.dose, doseValue))
@@ -824,6 +835,27 @@
       this.logIntubationAttempts(iv);
       this.warnContraindicated(def);
       return true;
+    }
+
+    /** Wie SimulationManager.StartAccess: i.v. bis zu 2 Versuche (Misserfolg nach BMI), i.o. bis zu 2 Versuche (91 %). */
+    startAccess(iv, label, tag) {
+      if (this.hasAccess && iv.compound !== "io") { this.log(`${label}: Zugang liegt bereits`, tag); return true; }
+      if (this.accessDue >= 0) { this.log("Zugang wird gerade gelegt", null); return false; }
+      const io = iv.compound === "io", p = this.scenario.patient;
+      const pOk = io ? IO_SUCCESS : 1 - Body.venousAccessFailure(p.weight_kg > 0 ? Body.bmi(p.weight_kg, p.height_cm) : 24);
+      let attempts = 1, ok = Math.random() < pOk;
+      if (!ok) { attempts = 2; ok = Math.random() < pOk; }
+      this.accessDue = this.engine.current.time + attempts * ACCESS_ATTEMPT;
+      this.access = { ok, kind: io ? "io" : "iv", attempts };
+      this.log(`Maßnahme: ${label}`, tag);
+      return true;
+    }
+    triggerAccess() {
+      if (this.accessDue < 0 || this.engine.current.time < this.accessDue) return;
+      const a = this.access, what = a.kind === "io" ? "Intraossärer Zugang (Tibia)" : "Periphervenöser Zugang";
+      if (a.ok) { this.hasAccess = true; this.log(`${what} liegt` + (a.attempts > 1 ? ` (im ${a.attempts}. Versuch)` : ""), "access:" + a.kind); }
+      else this.log(`${what} gescheitert (${a.attempts} Versuche)` + (a.kind === "iv" ? " – i.o.-Zugang erwägen" : ""), "access-failed:" + a.kind);
+      this.accessDue = -1;
     }
 
     /** Wie SimulationManager.LogIntubationAttempts. */

@@ -2,6 +2,58 @@
   "version": "0.9.0",
   "interventions": [
     {
+      "id": "zugang_iv",
+      "label": "Venenzugang",
+      "logLabel": "Periphervenöser Zugang (großlumig)",
+      "type": "VascularAccess",
+      "target": "",
+      "compound": "iv",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": false,
+      "effectDelay_s": 0,
+      "contraindicatedBy": [],
+      "contraindicationNote": "",
+      "dose": null,
+      "sources": [
+        {
+          "citation": "Sebbane M, et al. Predicting peripheral venous access difficulty in the emergency department using body mass index and a clinical evaluation of venous accessibility.",
+          "url": "https://read.qxmd.com/read/22981661",
+          "note": "563 Patienten: 21 % Misserfolg beim ersten Versuch; BMI ≥ 30 OR 1,98, BMI < 18,5 OR 2,24"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Bis zu 2 Versuche à 60 s (Annahme). Misserfolg je Versuch 18 % bei Normalgewicht, ab BMI 30 ca. 30 %, unter BMI 18,5 ca. 33 % (Odds nach Sebbane). Ohne Zugang keine Infusionen, Blutprodukte, Medikamente, Katecholamine. Standardmäßig liegt präklinisch ein Zugang."
+    },
+    {
+      "id": "zugang_io",
+      "label": "i.o.-Zugang",
+      "logLabel": "Intraossärer Zugang (proximale Tibia)",
+      "type": "VascularAccess",
+      "target": "",
+      "compound": "io",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 1,
+      "once": false,
+      "effectDelay_s": 0,
+      "contraindicatedBy": [],
+      "contraindicationNote": "",
+      "dose": null,
+      "sources": [
+        {
+          "citation": "Intraosseous versus intravenous vascular access during out-of-hospital cardiac arrest: a randomized controlled trial. Ann Emerg Med. 2011 (Mecklenburg EMS, 182 Patienten).",
+          "url": "https://www.thedoctorschannel.com/view/tibial-intraosseous-vascular-access-most-reliable-in-out-of-hospital-resuscitation/",
+          "note": "Erfolg im ersten Versuch: tibial i.o. 91 %, humeral i.o. 51 %, periphervenös 43 %"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Bis zu 2 Versuche à 60 s (Annahme), Erfolg je Versuch 91 % (tibial, Reanimationsstudie). Unabhängig vom BMI angesetzt."
+    },
+    {
       "id": "o2",
       "label": "O2 über Maske",
       "logLabel": "O2 über Maske",
