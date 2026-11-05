@@ -709,6 +709,17 @@ auf die beiden Seiten so auf, dass beide dieselbe Kraft tragen (Federn in Reihe)
   am Kontaktort voll, 1 m daneben nicht mehr (**Annahme**).
 - Airbags lösen aus, wenn die Front mehr als 3 cm verformt ist (+15 ms); Seitenairbags fehlen.
 
+**Reaktion und Ausweichen.** Manöver können an einer erkennbaren Gefahr hängen: „Gefahr x s vorher sichtbar“ plus
+Wahrnehmungs-Reaktionszeit bis zum Bremsbeginn nach Green [127]: erwartet ca. 0,75 s, unerwartet (z. B. Bremslicht
+vorn) ca. 1,25 s, überraschend (Hindernis tritt plötzlich in den Weg) ca. 1,5 s. Liegt der Reaktionszeitpunkt nach dem
+geplanten Aufprall, kommt das Manöver zu spät. Ausweichen entweder „abwenden“ (Querbeschleunigung in 0,3 s auf 70 % der
+Haftung, gehalten) oder „Spurwechsel“ (Querbeschleunigung als eine Sinusperiode über 2 s, danach wieder geradeaus;
+Versatz a·T²/2π ≈ 3,5 m bei 0,56 g — Dauer **Annahme**, typisch 2–3 s). Nach dem ersten Stoß lenkt niemand mehr,
+die Bremse bleibt getreten. Test: Stauende mit 70 km/h, Gefahr 2,5 s vorher — mit normaler Reaktion 3,4 m Versatz und
+verfehlt, überrascht Anprall an der Ecke.
+Wenn der Fahrer reagiert, spannen sich alle Insassen dieses Fahrzeugs an (Muskeltonus „angespannt“, außer bewusstlos) —
+sie spüren Bremsen bzw. Lenken (**Annahme**: gleicher Zeitpunkt für alle).
+
 **Personen.** Insassen werden bis zum Beginn des eigenen Manövers bzw. 0,1 s vor dem ersten Kontakt mitgeführt,
 danach sind sie frei (Bremsen verlagert sie vor dem Stoß nach vorn, Muskeltonus wie eingestellt). Fußgänger gehen
 geradeaus und werden 0,15 s vor ihrem Kontakt freigegeben; ihre Rückwirkung auf das Fahrzeug fehlt. Jede Person wird
@@ -919,3 +930,4 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 124. Stammen JA, Saul RA, Ko B. Pedestrian head impact testing and PCDS reconstructions. ESV 2001, Paper 326. [Link](https://www.nhtsa.gov/sites/nhtsa.dot.gov/files/pedestrianimpacts2001esv.pdf.pdf) (Scheibenaufprall HIC 257)
 125. NHTSA Vehicle Crash Test Database, Test 8545: 2014.5 Toyota Camry, NCAP-Frontaltest gegen starre Wand, 56,7 km/h. Calspan 2014. [Link](https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v08500/v08545R001.pdf) (bleibende Frontverformung 554 mm)
 126. NHTSA Vehicle Crash Test Database, Test 8560: 2014.5 Toyota Camry, NCAP-Seitenaufprall mit fahrender Barriere, 61,9 km/h. Calspan 2014. [Link](https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v08500/v08560R001.pdf) (Seitenverformung außen max. 258 mm)
+127. Green M. „How long does it take to stop?“ Methodological analysis of driver perception-brake times. Transportation Human Factors 2000. [Link](https://drivingresearch.pages.dev/catalog/green-2000-perception-brake-times/) (erwartet 0,70–0,75 s, unerwartet ca. 1,25 s, überraschend ca. 1,5 s)

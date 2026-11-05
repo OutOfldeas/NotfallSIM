@@ -819,7 +819,10 @@ namespace NotfallSIM.Crash
     public class MuscleToneDriver
     {
         readonly MuscleToneFile _f;
-        readonly OccupantState _state;
+        OccupantState _state;
+        /// <summary>Zustand wechseln (z. B. Insasse sieht die Gefahr und spannt sich an).</summary>
+        public void SetState(OccupantState state) { if (state == _state) return; _state = state; _lastActivation = double.NaN; }
+        public OccupantState State => _state;
         readonly bool _male;
         double _lastActivation = double.NaN;
         class Driven { public string Segment; public ConfigurableJoint Joint; public float Passive; }

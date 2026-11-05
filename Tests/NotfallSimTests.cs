@@ -1583,6 +1583,12 @@ static class Tests
         Check(Math.Abs(stop - sbp0) < 0.5, "Perfusor aus: Wirkung weg");
     }
 
+    static T JsonRoundTrip<T>(T o)
+    {
+        var ser = new DataContractJsonSerializer(typeof(T));
+        using (var ms = new MemoryStream()) { ser.WriteObject(ms, o); ms.Position = 0; return (T)ser.ReadObject(ms); }
+    }
+
     static NotfallSIM.Crash.TrafficSim RunTraffic(NotfallSIM.Crash.TrafficScenario sc, NotfallSIM.Crash.VehicleType[] types, double until)
     {
         var sim = new NotfallSIM.Crash.TrafficSim(sc, types);
@@ -1616,7 +1622,7 @@ static class Tests
             foreach (var p in sc.pedestrians ?? new NotfallSIM.Crash.TrafficPedestrian[0]) Check(string.IsNullOrEmpty(p.target) || ids.Contains(p.target), sc.id + ": Fußgängerziel");
         }
         Func<string, NotfallSIM.Crash.TrafficScenario> get = id => file.scenarios.First(x => x.id == id);
-        foreach (var sc in file.scenarios)
+        foreach (var sc in file.scenarios.Where(x => x.id != "auffahren_ausweichen"))
         {
             var pr = NotfallSIM.Crash.TrafficSim.Predict(sc, types);
             Check(pr.FirstContact > sc.approach_s - 0.5 && pr.FirstContact < sc.approach_s + 0.6, $"{sc.id}: Kontakt bei {pr.FirstContact:0.00} s (Vorlage soll treffen)");
@@ -1682,6 +1688,25 @@ static class Tests
         var pb = RunTraffic(get("fussgaenger_bremsung"), types, 4.5).Walkers[0];
         Check(pq.FirstContact > 2.9 && pq.FirstContact < 3.15, $"Fußgänger: Aufprall bei {pq.FirstContact:0.00} s");
         Check(pb.FirstContact > pq.FirstContact && pb.ContactSpeed * 3.6 < 40, $"Fußgänger mit Bremsung: {pb.ContactSpeed * 3.6:0} km/h bei {pb.FirstContact:0.00} s");
+
+        // Reaktionszeiten (Green 2000) und Spurwechsel: rechtzeitig verfehlt, überrascht kracht es
+        var mm = new NotfallSIM.Crash.TrafficManeuver { reaction = "erwartet" };
+        Check(Math.Abs(mm.ReactionTime() - 0.75) < 1e-9, "Reaktion erwartet 0,75 s");
+        mm.reaction = "unerwartet"; Check(Math.Abs(mm.ReactionTime() - 1.25) < 1e-9, "Reaktion unerwartet 1,25 s");
+        mm.reaction = "ueberrascht"; Check(Math.Abs(mm.ReactionTime() - 1.5) < 1e-9, "Reaktion überrascht 1,5 s");
+        var lane = get("auffahren_ausweichen");
+        var laneSim = RunTraffic(lane, types, 6);
+        var lb = laneSim.Bodies[1];
+        Check(laneSim.FirstContact < 0, "Spurwechsel rechtzeitig: kein Aufprall");
+        Check(Math.Abs(lb.Psi) * 180 / Math.PI < 6, $"Spurwechsel: wieder geradeaus ({lb.Psi * 180 / Math.PI:0.0}°)");
+        Check(lb.X < -2.5 && lb.X > -5, $"Spurwechsel: Versatz {-lb.X:0.0} m (≈ a·T²/2π = 3,5 m)");
+        var late = JsonRoundTrip(lane);
+        late.vehicles[1].maneuver.reaction = "ueberrascht";
+        var lateSim = RunTraffic(late, types, 6);
+        Check(lateSim.FirstContact > 0, "Spurwechsel überrascht: streift das Stauende");
+        var lateHit = lateSim.Bodies[1].Faces[NotfallSIM.Crash.TrafficSim.Front];
+        Check(Math.Abs(lateHit.Position) > 0.5, $"Spurwechsel überrascht: Anprall an der Ecke (Kontakt {lateHit.Position:0.00} m neben der Mitte)");
+        Console.WriteLine($"        Spurwechsel: Versatz {-lb.X:0.0} m, verfehlt; überrascht Δv {lateSim.Bodies[1].MaxDeltaV * 3.6:0} km/h");
 
         // Pfahl/Baum: schmaler Kontakt drückt tiefer ein als die Wand mit gleicher Energie
         var tree = RunTraffic(get("baum_seitlich"), types, 4.5).Bodies[0];
