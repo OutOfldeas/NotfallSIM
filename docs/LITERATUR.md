@@ -655,6 +655,35 @@ tibial 91 %, humeral 51 %, periphervenös 43 % im ersten Versuch), unabhängig v
 Brustwand bei gleichem BMI geschätzt: Aus Schroeder 2013 (SD 14 mm bei BMI-SD 7) blieben bei 1,93 mm je BMI-Punkt nur
 ca. 4 mm, die Metaanalyse von Ahmad 2025 findet aber keinen engen Zusammenhang mit dem BMI — 9 mm liegt dazwischen.
 
+## Fahrzeugverformung (`vehicle_model.json`)
+
+**Seitenaufprall.** Stoßendes Fahrzeug (1500 kg, wie die IIHS-Barriere) und getroffenes Fahrzeug (1530 kg) sind über
+zwei Federn in Reihe verbunden: Front des Gegners (3000 N/mm) und Seitenstruktur (1240 N/mm). Das Verhältnis 2,4 folgt
+den statischen Steifigkeiten bei Digges [122] (Front ca. 730 N/mm, Seite 250–350 N/mm); der Betrag ist so gewählt, dass
+die Tür bei 50 km/h ca. 29 cm eindringt — Reichert [123] findet in der Simulation des IIHS-Tests (50 km/h) einen
+Restabstand der B-Säule zur Sitzmitte von 13 cm. Die Verformung ist plastisch (Entlastung 30-fach steifer, **Annahme**),
+die Tür folgt dem Anteil der Seitenstruktur am größten Knautschweg mit 3 ms Verzögerung (**Annahme**, Trägheit) und
+bleibt eingedrückt, höchstens 33 cm. Prüfung: Spitzengeschwindigkeit der Tür 9,8 m/s (B-Säule bei Reichert 9,5 m/s);
+30/50/70 km/h ergeben 17/29/33 cm. Die Tür ist im Rig ein eigener kinematischer Körper, der Insasse wird von ihr
+getroffen, statt von einem starren Fahrzeug mitgerissen.
+
+**Frontalaufprall.** Halbsinus-Puls mit Δv = v über T = π·√(m/k) = 100 ms (1500 kg, 1480 N/mm), Knautschweg v·T/2.
+Über 0,8 m Knautschweg (ab ca. 58 km/h) drücken Armaturenbrett/Fußraum um 0,5 m je m weiteren Knautschwegs nach hinten,
+höchstens 25 cm, das Lenkrad um 60 % davon (alles **Annahme**: grobe Form, wie sie bei Crashtests mit Fußraumeindringung
+beschrieben wird; keine Kennlinie eines bestimmten Fahrzeugs). Die Spitzenverzögerung des Halbsinus (25 g bei 56 km/h)
+liegt unter gemessenen Pulsen (oft 30–40 g).
+
+**Fußgängerfront.** Mit nachgiebigem Kontakt sind Stoßfänger, Haubenvorderkante, Motorhaube und Windschutzscheibe
+Gegenstände mit eigener Steifigkeit in Reihe zum Körper und einem Federweg bis zum starren Anschlag (Motorblock,
+Querträger). Motorhaube 60 N/mm mit 8 cm Federweg ist so kalibriert, dass ein Kopf (4,5 kg, 40 km/h, wie im
+Euro-NCAP-Kopftest) HIC ca. 1250 ergibt (übliche Haubenmitte, **kalibriert**); die Scheibe (14 N/mm, 20 cm) ergibt HIC
+ca. 270 — Stammen [124] rekonstruiert einen Scheibenaufprall mit HIC 257. Stoßfänger (80 N/mm, 7 cm) und Haubenkante
+(150 N/mm, 5 cm) sind **Annahmen**. Test: `VehicleModelChecks`.
+
+**Grenzen.** Keine Verformung der Fahrzeugstruktur im Physikmodell selbst (die Teile bewegen sich als Ganzes), kein
+Rückfedern, kein Einfluss des Insassen auf den Puls. Kalibrierfaktoren aus `calibration.json` nach dem ersten Test in
+Unity neu prüfen.
+
 ## Offene Punkte zum Prüfen
 
 - Lagerung in Unity prüfen: Klickflächen nach Umlagerung, Rinnsale neu verlegt, Lache auf der richtigen Fläche; Luftwiderstand der Partikel (limitVelocityOverLifetime mit Geschwindigkeitsfaktor). Außerhalb von Unity geprüft: Drehrichtungen und Auflage auf Rücken-/Beinteil und Keil. Bekannt: Unterkante des Rückenteils taucht am Gelenk etwas ins Sitzteil; bei senkrechtem Arm dehnt sich die Haut an der Achsel (lineares Skinning mit zwei Knochen); Arm ohne Auflage.
@@ -851,3 +880,6 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 119. Armstrong LR, Rutherford NR, Heidel RE, Smith LM, Butts C. The effect of BMI on eFAST accuracy in trauma by residents in the emergency room. *Am Surg*. 2023;89(7):3238-3240. [DOI](https://doi.org/10.1177/00031348231157851)
 120. Sebbane M, et al. Predicting peripheral venous access difficulty in the emergency department using body mass index and a clinical evaluation of venous accessibility. [Link](https://read.qxmd.com/read/22981661) (563 Patienten; BMI ≥ 30: OR 1,98 für Misserfolg beim ersten Versuch)
 121. Intraosseous versus intravenous vascular access during out-of-hospital cardiac arrest: a randomized controlled trial. *Ann Emerg Med*. 2011 (Mecklenburg EMS, 182 Patienten). [Link](https://www.thedoctorschannel.com/view/tibial-intraosseous-vascular-access-most-reliable-in-out-of-hospital-resuscitation/)
+122. Digges K, Eigen A. Measurements of vehicle compatibility in front-to-side crashes. IRCOBI 2001. [Link](https://www.ircobi.org/wordpress/downloads/irc0111/2001/Session1/1.4.pdf) (Frontsteifigkeit aus Lastzellen, Seite statisch 250–350 N/mm)
+123. Reichert R, Kan S, Arnold-Keifer S, Mueller B. IIHS side impact parametric study using LS-DYNA. 15th International LS-DYNA Users Conference, 2018. [Link](https://lsdyna.ansys.com/wp-content/uploads/2022/11/iihs-side-impact-parametric-study-using-ls-dyna-r.pdf) (B-Säule 9,5 m/s, Restabstand 13,2 cm)
+124. Stammen JA, Saul RA, Ko B. Pedestrian head impact testing and PCDS reconstructions. ESV 2001, Paper 326. [Link](https://www.nhtsa.gov/sites/nhtsa.dot.gov/files/pedestrianimpacts2001esv.pdf.pdf) (Scheibenaufprall HIC 257)
