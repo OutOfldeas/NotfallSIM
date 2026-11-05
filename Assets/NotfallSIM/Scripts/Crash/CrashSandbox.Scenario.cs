@@ -90,7 +90,7 @@ namespace NotfallSIM.Crash
             Row(src, B("hazard:Gefahr", () => CycleHazard()), B("reaction:Reaktion", () => CycleReaction()));
             Row(src, B("brake:Bremsen", () => CycleBrake()), B("steer:Ausweichen", () => CycleSteer()));
             Row(src, B("seats:Insassen", () => CycleSeats()), B("road:Fahrbahn", () => CycleRoad()));
-            Row(src, B("patient:Patient", () => CyclePatient()));
+            Row(src, B("patient:Patient", () => CyclePatient()), B("rescue:Rettung", () => CycleRescue()));
             _scPanel.SetActive(false);
         }
 
@@ -143,6 +143,7 @@ namespace NotfallSIM.Crash
         void RefreshScenario(bool rebuild)
         {
             _result = null;
+            _rescueModes.Clear();
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
             if (_replayButton) _replayButton.SetActive(false);
             UpdateScenarioLabels();
@@ -266,6 +267,8 @@ namespace NotfallSIM.Crash
             set("seats", $"Insassen: {(v.occupants ?? new TrafficOccupant[0]).Length}");
             var road = Roads.FirstOrDefault(r => Math.Abs(r.mu - _sc.friction) < 0.01);
             set("road", $"Fahrbahn: {road.label ?? $"µ {_sc.friction:0.0}"}");
+            string rm; _rescueModes.TryGetValue(_p.Patient, out rm);
+            set("rescue", $"Rettung: {RescueModes.First(x => x.id == (rm ?? "auto")).label}");
             set("patient", rig.Humans.Count > 0 ? $"Patient: {rig.Humans[Mathf.Clamp(_p.Patient, 0, rig.Humans.Count - 1)].Label}" : "Patient: –");
         }
 
@@ -311,23 +314,33 @@ namespace NotfallSIM.Crash
             CrashResult chosen = null;
             string triPath = Path.Combine(root, "triage.json");
             var tri = File.Exists(triPath) ? JsonUtility.FromJson<TriageFile>(File.ReadAllText(triPath)) : null;
+            string resPath = Path.Combine(root, "rescue.json");
+            var rescue = File.Exists(resPath) ? JsonUtility.FromJson<RescueFile>(File.ReadAllText(resPath)) : null;
             var defs = db.All.ToDictionary(d => d.id);
+            string patientRescue = "";
             for (int i = 0; i < rig.Humans.Count; i++)
             {
                 var h = rig.Humans[i];
                 var meas = InjuryRisk.Calibrate(h.Measurements ?? new List<CrashMeasurement>(), calibrated ? cal : null);
-                var res = BuildFor(h, i, meas, risk, mech, db);
+                TriageCard card; RescueSituation sit; RescuePlan plan;
+                var res = BuildFor(h, i, meas, risk, mech, db, defs, tri, rescue, out card, out sit, out plan);
                 var top = res.InjuryProbability.OrderByDescending(x => x.Value).Where(x => x.Value >= 0.1).Take(3).Select(x => $"{db.Get(x.Key).name} {x.Value:P0}");
                 string line = string.Join(", ", top);
                 string cat = "";
-                if (tri != null)
+                if (card != null)
                 {
-                    var card = Triage.Assess(res.Scenario, defs, tri.rules, h.Label);
                     var c = tri.categories.FirstOrDefault(x => x.id == card.Category);
                     cat = c != null ? $"<color={c.color}><b>{c.label}</b></color> " : "";
                 }
-                sb.AppendLine($"{(i == _p.Patient ? "▶ " : "")}{cat}{h.Label}: <size=85%>{(line.Length > 0 ? line : "kaum verletzt")}</size>");
-                if (i == _p.Patient) chosen = res;
+                string resc = plan != null ? $" <size=80%>[{sit.Text}; {plan.Label}, {plan.Total_min:0} min bis Schockraum]</size>" : "";
+                sb.AppendLine($"{(i == _p.Patient ? "▶ " : "")}{cat}{h.Label}: <size=85%>{(line.Length > 0 ? line : "kaum verletzt")}</size>{resc}");
+                if (i == _p.Patient)
+                {
+                    chosen = res;
+                    if (plan != null)
+                        patientRescue = $"Rettung: {sit.Text}. {plan.Label}: Befreiung {plan.Extrication_min:0} min, bis zum Schockraum {plan.Total_min:0} min" +
+                                        (plan.Replaced ? " <size=80%>(gewählte Art hier nicht möglich)</size>" : "") + $"\n<size=80%>{plan.Note}</size>";
+                }
             }
             rig.SelectHuman(_p.Patient);
             _result = chosen;
@@ -344,6 +357,7 @@ namespace NotfallSIM.Crash
                 foreach (var o in organLoad.Organs.Where(x => x.Exposure > 0 && x.Probability >= 0.05))
                     sb.AppendLine($"{o.Organ.label}: Dehnung {o.Strain:P0} von {o.FailureStrain:P0} → {o.Probability:P0}");
             if (_crashMarks.Count > 0) sb.AppendLine("Zeichen: " + string.Join("; ", _crashMarks.Take(4).Select(c => c.Finding)));
+            if (patientRescue.Length > 0) sb.AppendLine(patientRescue);
             sb.AppendLine();
             sb.AppendLine("<size=80%>„Patient“ wechselt die Person. Fahrzeugbewegung aus einem Draufsicht-Modell (kein Überschlag); Werte qualitativ.</size>");
             resultText.text = sb.ToString();
@@ -352,8 +366,31 @@ namespace NotfallSIM.Crash
             UpdateScenarioLabels();
         }
 
-        CrashResult BuildFor(ScenarioHuman h, int index, List<CrashMeasurement> meas, InjuryRiskDatabaseFile risk, MechanismDatabaseFile mech, InjuryDatabase db)
+        /// <summary>Rettungsart je Person (Index in rig.Humans); fehlt = automatisch.</summary>
+        readonly Dictionary<int, string> _rescueModes = new Dictionary<int, string>();
+        static readonly (string id, string label)[] RescueModes =
         {
+            ("auto", "automatisch"), ("selbst", "Selbstbefreiung"), ("sofort", "Sofortrettung"), ("schnell", "schnelle Rettung"), ("schonend", "schonende Rettung")
+        };
+
+        void CycleRescue()
+        {
+            if (Busy || !Scenario || rig.Humans.Count == 0) return;
+            string cur; _rescueModes.TryGetValue(_p.Patient, out cur);
+            int i = Array.FindIndex(RescueModes, x => x.id == (cur ?? "auto"));
+            _rescueModes[_p.Patient] = RescueModes[(i + 1) % RescueModes.Length].id;
+            UpdateScenarioLabels();
+            if (rig.Humans[_p.Patient].Measurements != null && rig.HasRecording) ShowScenarioResult();
+        }
+
+        /// <summary>
+        /// Fall einer Person in zwei Durchgängen mit gleichem Seed (gleiche Verletzungen): erst mit der Zeit bis zum Eintreffen
+        /// (Sichtung vor Ort), dann mit der Rettungszeit aus Einklemmung und Rettungsart (Blutverlust bis zum Schockraum).
+        /// </summary>
+        CrashResult BuildFor(ScenarioHuman h, int index, List<CrashMeasurement> meas, InjuryRiskDatabaseFile risk, MechanismDatabaseFile mech, InjuryDatabase db,
+                             Dictionary<string, InjuryDefinition> defs, TriageFile tri, RescueFile rescue, out TriageCard card, out RescueSituation sit, out RescuePlan plan)
+        {
+            card = null; sit = null; plan = null;
             var mechDef = mech.mechanisms.FirstOrDefault(x => x.id == h.MechanismId);
             var tr = rig.Traffic;
             double speed = 0;
@@ -370,7 +407,26 @@ namespace NotfallSIM.Crash
             };
             string title = $"Unfall: {_sc?.label} — {h.Label}";
             string desc = $"{_sc?.description} Patient/in: {h.Label}" + (h.Pedestrian ? "." : $", {(h.Belted ? "angegurtet" : "nicht angegurtet")}, Δv ca. {speed:0} km/h.");
-            return InjuryRisk.BuildScenario(risk, mech, db.All, meas, setup, (uint)(_p.Seed + 7919 * index), null, title, desc);
+            uint seed = (uint)(_p.Seed + 7919 * index);
+            if (rescue != null) setup.Rescue_min = (int)Math.Round(rescue.arrival_min);
+            var atScene = InjuryRisk.BuildScenario(risk, mech, db.All, meas, setup, seed, null, title, desc);
+            if (tri != null) card = Triage.Assess(atScene.Scenario, defs, tri.rules, h.Label);
+            if (rescue == null) return atScene;
+
+            bool walks = card != null && card.Walks;
+            if (h.Pedestrian) sit = Rescue.PedestrianSituation();
+            else
+            {
+                double side, foot, door;
+                rig.SeatDeformation(h, out side, out foot, out door);
+                sit = Rescue.Situation(rescue, side, foot, door, walks);
+            }
+            string mode;
+            if (!_rescueModes.TryGetValue(index, out mode) || mode == "auto") mode = Rescue.AutoMethod(sit, walks, card != null && card.Category == "T1");
+            plan = Rescue.Plan(rescue, sit, mode, walks);
+            setup.Rescue_min = (int)Math.Round(plan.Total_min);
+            string rescueText = h.Pedestrian ? "" : $" {char.ToUpper(sit.Text[0]) + sit.Text.Substring(1)}; {plan.Label}.";
+            return InjuryRisk.BuildScenario(risk, mech, db.All, meas, setup, seed, null, title, desc + rescueText + $" Ankunft im Schockraum nach ca. {plan.Total_min:0} min.");
         }
     }
 }

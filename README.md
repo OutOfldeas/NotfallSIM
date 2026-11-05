@@ -202,6 +202,10 @@ Manöver können den Unfall mildern oder verhindern. Die Fahrdynamik (Einspurmod
 (Kraft-Weg-Kennlinien je Seite, plastisch, Drehung) rechnet `TrafficSim` in der Draufsicht; die Linien am Boden zeigen
 die vorausberechneten Bahnen. Alle Insassen und Fußgänger sind Ragdolls und werden einzeln gemessen; „Patient“ wählt,
 wer in den Schockraum geht.
+Aus der Verformung am Sitzplatz folgt, ob jemand eingeklemmt (Fußraum/Tür drückt ein) oder eingeschlossen (Tür klemmt)
+ist; die Rettungsart (automatisch, Selbstbefreiung, Sofortrettung, schnelle oder schonende Rettung, `rescue.json`)
+bestimmt die Zeit bis zum Schockraum und damit den präklinischen Blutverlust. Die Sichtung vor Ort (mSTaRT) steht neben
+jeder Person.
 Danach zeigt die Sandbox die Messwerte wie beim Crashtest-Dummy (HIC15, Brustbeschleunigung, Kontaktkräfte),
 das Verletzungsrisiko je Region, färbt den Körper danach ein und übergibt den Fall auf Knopfdruck verdeckt an
 den Schockraum (Schockraum-Szene muss erzeugt sein).

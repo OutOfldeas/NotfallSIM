@@ -28,6 +28,8 @@ namespace NotfallSIM.Crash
         /// <summary>Mechanismus für Text und Rettungszeit (mechanisms.json): pkw_frontal, pkw_seite, fussgaenger.</summary>
         public string MechanismId = "pkw_frontal";
         public string Summary;
+        /// <summary>Sitzplatz im Fahrzeug (lokal x, z) und Mitte der eigenen Tür (z) — für Einklemmung.</summary>
+        public float SeatX, SeatZ, DoorZ;
     }
 
     /// <summary>Kinematisch mitgeführter Körper (bis zur Freigabe), Lage im Fahrzeug- bzw. Fußgängersystem.</summary>
@@ -235,7 +237,8 @@ namespace NotfallSIM.Crash
                 var rd = RagdollBuilder.Build(hip, rot, RagdollPose.Seated, H, p.Mass_kg, p.Male, invertKneeFlexion);
                 var h = new ScenarioHuman
                 {
-                    Label = $"{b.Label}: {SeatLabel(o.seat)}", VehicleId = b.Id, Seat = o.seat, Belted = o.belted, Rd = rd, Vehicle = index
+                    Label = $"{b.Label}: {SeatLabel(o.seat)}", VehicleId = b.Id, Seat = o.seat, Belted = o.belted, Rd = rd, Vehicle = index,
+                    SeatX = sx, SeatZ = sz, DoorZ = front ? zFront + 0.1f : zRear
                 };
                 if (o.belted) h.Belts = BeltFor(rd, vr.Root);
                 Hold(h, pos, rot);
@@ -534,6 +537,20 @@ namespace NotfallSIM.Crash
             var measured = Humans[Mathf.Clamp(p.Patient, 0, Humans.Count - 1)].Measurements;
             if (playback) yield return Replay(slowMotion, () => done(measured));
             else { SetVisible(true); RestorePhysics(); done(measured); }
+        }
+
+        /// <summary>
+        /// Verformung am Sitzplatz einer Person: Tür der eigenen Seite (Eindringen am Sitz und Verformung an der Tür)
+        /// und Fußraum (Front, auf der Sitzseite). Gleiche Verteilung entlang der Seite wie bei den Türen (voll am Kontaktort,
+        /// 1 m daneben nicht mehr).
+        /// </summary>
+        public void SeatDeformation(ScenarioHuman h, out double side_m, out double footwell_m, out double door_m)
+        {
+            side_m = footwell_m = door_m = 0;
+            if (_traffic == null || h.Pedestrian || h.Vehicle < 0) return;
+            var b = _traffic.Bodies[h.Vehicle];
+            Data.Rescue.SeatDeformation(b.Faces[h.SeatX < 0 ? TrafficSim.Left : TrafficSim.Right], b.Faces[TrafficSim.Front],
+                                        h.Seat == "fahrer" || h.Seat == "beifahrer", h.SeatX, h.SeatZ, h.DoorZ, out side_m, out footwell_m, out door_m);
         }
 
         /// <summary>Mechanismus für Text/Rettungszeit nach der Hauptstoßrichtung: Front/Heck → frontal, Seite → seitlich.</summary>
