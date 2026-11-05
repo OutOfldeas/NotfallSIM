@@ -130,7 +130,7 @@ namespace NotfallSIM.Crash
             }
             _spawned.Add(go);
             SoftContact.RegisterObject(col, def, rb, skinForce_N, size, Impact != null ? ImpactModel.CutLoad(Impact, def) : 0);
-            return SoftContact.Object(col.GetInstanceID());
+            return SoftContact.Object(col.GetEntityId());
         }
 
         /// <summary>Vier Beine unter einer Platte (Tisch), vom Plattenboden bis zum Boden; Kontakt starr, zählt als derselbe Gegenstand.</summary>

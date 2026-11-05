@@ -20,7 +20,7 @@ namespace NotfallSIM.UI
 #if UNITY_2023_1_OR_NEWER
             if (FindAnyObjectByType<PauseMenu>() != null) return;
 #else
-            if (FindObjectOfType<PauseMenu>() != null) return;
+            if (FindAnyObjectByType<PauseMenu>() != null) return;
 #endif
             var go = new GameObject("Pausenmenü", typeof(RectTransform));
             go.AddComponent<PauseMenu>()._sim = sim;

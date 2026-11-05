@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Unity.Collections;
@@ -44,7 +45,7 @@ namespace NotfallSIM.Crash
         /// <summary>Gleitweg einer Schneide über ein Segment unter Andruck (für Schnittwunden).</summary>
         public class CutTrack
         {
-            public int BodyCollider, ObjectCollider;
+            public EntityId BodyCollider, ObjectCollider;
             public double Length_m, PeakLoad_N;
             public Vector3 Start, End;   // relativ zum Körpersegment (Lage des Rigidbody im Moment des Kontakts)
         }
@@ -54,17 +55,17 @@ namespace NotfallSIM.Crash
 
         public struct PenetrationRequest
         {
-            public int BodyCollider, ObjectCollider;
+            public EntityId BodyCollider, ObjectCollider;
             public Vector3 Point, Normal;
             public float Force_N;
         }
 
-        static readonly Dictionary<int, BodyInfo> Bodies = new Dictionary<int, BodyInfo>();
-        static readonly Dictionary<int, ObjectInfo> Objects = new Dictionary<int, ObjectInfo>();
-        static readonly HashSet<long> Ignored = new HashSet<long>();     // laufende Durchstiche (Klinge ↔ Segment)
-        static readonly ConcurrentDictionary<int, float> MaxIndent = new ConcurrentDictionary<int, float>();
-        static readonly ConcurrentDictionary<long, PeakContact> Peaks = new ConcurrentDictionary<long, PeakContact>();
-        static readonly Dictionary<long, CutTrack> Cuts = new Dictionary<long, CutTrack>();   // Zugriff nur unter lock(Cuts)
+        static readonly Dictionary<EntityId, BodyInfo> Bodies = new Dictionary<EntityId, BodyInfo>();
+        static readonly Dictionary<EntityId, ObjectInfo> Objects = new Dictionary<EntityId, ObjectInfo>();
+        static readonly HashSet<PairId> Ignored = new HashSet<PairId>();     // laufende Durchstiche (Klinge ↔ Segment)
+        static readonly ConcurrentDictionary<EntityId, float> MaxIndent = new ConcurrentDictionary<EntityId, float>();
+        static readonly ConcurrentDictionary<PairId, PeakContact> Peaks = new ConcurrentDictionary<PairId, PeakContact>();
+        static readonly Dictionary<PairId, CutTrack> Cuts = new Dictionary<PairId, CutTrack>();   // Zugriff nur unter lock(Cuts)
         public static readonly ConcurrentQueue<PenetrationRequest> PenetrationRequests = new ConcurrentQueue<PenetrationRequest>();
 
         /// <summary>Physikschritt (s), vor jedem Physics.Simulate bzw. beim Wechsel der festen Schrittweite setzen.</summary>
@@ -97,7 +98,7 @@ namespace NotfallSIM.Crash
             if (c == null || region == null) return;
             Hook();
             c.hasModifiableContacts = true;
-            Bodies[c.GetInstanceID()] = new BodyInfo { Region = region, Collider = c, Sensor = sensor, Fat_m = fat_m, FatExtra_m = fatExtra_m };
+            Bodies[c.GetEntityId()] = new BodyInfo { Region = region, Collider = c, Sensor = sensor, Fat_m = fat_m, FatExtra_m = fatExtra_m };
         }
 
         /// <summary>Aufprallmodell für die Fettschicht (Elastizitätsmodul); ohne Modell kein Fett im Kontakt.</summary>
@@ -108,7 +109,7 @@ namespace NotfallSIM.Crash
             if (c == null || def == null) return;
             Hook();
             c.hasModifiableContacts = true;
-            Objects[c.GetInstanceID()] = new ObjectInfo
+            Objects[c.GetEntityId()] = new ObjectInfo
             {
                 Def = def, Collider = c, Body = body, SkinForce_N = skinForce_N,
                 Area_cm2 = def.contactArea_cm2, Stiffness_N_m = def.stiffness_N_m, Mass_kg = body != null ? body.mass : 0,
@@ -123,20 +124,29 @@ namespace NotfallSIM.Crash
             return null;
         }
 
-        public static BodyInfo Body(int colliderId) => Bodies.TryGetValue(colliderId, out var b) ? b : null;
-        public static ObjectInfo Object(int colliderId) => Objects.TryGetValue(colliderId, out var o) ? o : null;
+        public static BodyInfo Body(EntityId colliderId) => Bodies.TryGetValue(colliderId, out var b) ? b : null;
+        public static ObjectInfo Object(EntityId colliderId) => Objects.TryGetValue(colliderId, out var o) ? o : null;
 
-        static long PairKey(int a, int b) => ((long)Mathf.Min(a, b) << 32) ^ (uint)Mathf.Max(a, b);
+        /// <summary>Schlüssel eines Paares Körper ↔ Gegenstand (immer Körper zuerst).</summary>
+        public struct PairId : IEquatable<PairId>
+        {
+            public readonly EntityId Body, Other;
+            public PairId(EntityId body, EntityId other) { Body = body; Other = other; }
+            public bool Equals(PairId o) => Body.Equals(o.Body) && Other.Equals(o.Other);
+            public override bool Equals(object o) => o is PairId p && Equals(p);
+            public override int GetHashCode() => Body.GetHashCode() * 486187739 ^ Other.GetHashCode();
+        }
+        static PairId PairKey(EntityId body, EntityId other) => new PairId(body, other);
 
         /// <summary>Kontakt zwischen Klinge und Segment abschalten bzw. wieder zulassen (Hauptthread).</summary>
-        public static void SetIgnored(int bodyCollider, int objectCollider, bool ignored)
+        public static void SetIgnored(EntityId bodyCollider, EntityId objectCollider, bool ignored)
         {
-            long k = PairKey(bodyCollider, objectCollider);
+            var k = PairKey(bodyCollider, objectCollider);
             if (ignored) Ignored.Add(k); else Ignored.Remove(k);
         }
 
         /// <summary>Größte Eindrücktiefe an einem Kollider seit dem letzten <see cref="ResetIndentation"/>.</summary>
-        public static float MaxIndentation(Collider c) => c != null && MaxIndent.TryGetValue(c.GetInstanceID(), out float d) ? d : 0;
+        public static float MaxIndentation(Collider c) => c != null && MaxIndent.TryGetValue(c.GetEntityId(), out float d) ? d : 0;
         public static void ResetIndentation() { MaxIndent.Clear(); Peaks.Clear(); lock (Cuts) Cuts.Clear(); }
 
         /// <summary>Fläche im Moment der größten Kraft zwischen einem Körperkollider und Gegenständen mit dieser Id (cm²; 0 = kein Kontakt).</summary>
@@ -144,7 +154,7 @@ namespace NotfallSIM.Crash
         {
             var best = new PeakContact();
             if (body == null) return best;
-            int bid = body.GetInstanceID();
+            var bid = body.GetEntityId();
             foreach (var o in Objects)
             {
                 if (o.Value.Def == null || o.Value.Def.id != objectDefId) continue;
@@ -167,12 +177,12 @@ namespace NotfallSIM.Crash
             {
                 var pair = pairs[p];
                 BodyInfo body; bool bodyFirst;
-                if (Bodies.TryGetValue(pair.colliderInstanceID, out body)) bodyFirst = true;
-                else if (Bodies.TryGetValue(pair.otherColliderInstanceID, out body)) bodyFirst = false;
+                if (Bodies.TryGetValue(pair.colliderEntityId, out body)) bodyFirst = true;
+                else if (Bodies.TryGetValue(pair.otherColliderEntityId, out body)) bodyFirst = false;
                 else continue;
-                int otherId = bodyFirst ? pair.otherColliderInstanceID : pair.colliderInstanceID;
+                var otherId = bodyFirst ? pair.otherColliderEntityId : pair.colliderEntityId;
                 if (Bodies.ContainsKey(otherId)) continue;               // Selbstkontakt des Ragdolls bleibt starr
-                int bodyId = bodyFirst ? pair.colliderInstanceID : pair.otherColliderInstanceID;
+                var bodyId = bodyFirst ? pair.colliderEntityId : pair.otherColliderEntityId;
                 if (Ignored.Contains(PairKey(bodyId, otherId)))
                 {
                     for (int i = 0; i < pair.contactCount; i++) pair.IgnoreContact(i);
@@ -187,7 +197,7 @@ namespace NotfallSIM.Crash
                 var region = body.Region;
                 Quaternion rotObj = bodyFirst ? pair.otherRotation : pair.rotation;
                 Quaternion invObj = Quaternion.Inverse(rotObj);
-                long key = PairKey(bodyId, otherId);
+                var key = PairKey(bodyId, otherId);
                 double kObj = obj != null ? obj.Stiffness_N_m : 0, mObj = obj != null ? obj.Mass_kg : 0;
                 int n = pair.contactCount;
                 float maxDelta = 0;
