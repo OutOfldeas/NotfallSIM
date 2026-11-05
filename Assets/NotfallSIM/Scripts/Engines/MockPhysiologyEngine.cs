@@ -246,6 +246,13 @@ namespace NotfallSIM.Engines
         readonly List<double[]> _drugDoses = new List<double[]>();   // je Gabe: Zeit, Dosisfaktor (parallel zu _drugs)
         readonly List<KeyValuePair<string, double>> _drugs = new List<KeyValuePair<string, double>>();
         double _weight_kg = 75, _temp = 36.5, _factors = 1, _fib = 1, _calciumGiven_g;
+        double _bmi = 22, _coolingFactor = 1;
+        bool _male = true;
+
+        /// <summary>Medikamente, die nach Magergewicht dosiert werden: Gabe je kg Gesamtgewicht wirkt bei Adipositas stärker.</summary>
+        public static readonly HashSet<string> LeanDosedDrugs = new HashSet<string> { "Fentanyl", "Propofol", "Ketamin" };
+        /// <summary>Kanülenlänge ohne Angabe (cm): übliche 14-G-Venenverweilkanüle.</summary>
+        public const double NeedleDefaultLength_cm = 5;
         bool _warming, _fluidWarmer, _txa;
 
         /// <summary>Noradrenalin: sättigende Dosis-Wirkung (Emax), 1 bei Referenzrate, höchstens 2.</summary>
@@ -349,6 +356,10 @@ namespace NotfallSIM.Engines
             _temp = patient.initialTemperature_C > 0 ? patient.initialTemperature_C : 36.5;
             _factors = 1; _fib = 1; _calciumGiven_g = 0;
             _height_m = patient.height_cm > 100 ? patient.height_cm / 100 : 1.8;
+            // Körperbau: BMI für Dosiswirkung und Brustwanddicke, Oberfläche/Masse für die Auskühlung
+            _male = patient.IsMale;
+            _bmi = BodyComposition.Bmi(_weight_kg, _height_m * 100);
+            _coolingFactor = BodyComposition.CoolingFactor(_weight_kg, _height_m * 100);
             // Lehrbuch: idealisierter Patient. Register: Ausgangswerte und Reaktionsstärke streuen.
             _hrBaseOffset = 0; _hrResponse = 1; _sbpOffset = 0;
             if (Mode == PhysiologyMode.Registry)
@@ -419,7 +430,8 @@ namespace NotfallSIM.Engines
                             if (iv.Compound != null && Drugs.ContainsKey(iv.Compound) && iv.DoseFactor > 0)
                             {
                                 _drugs.Add(new KeyValuePair<string, double>(iv.Compound, _time));
-                                _drugDoses.Add(new[] { _time, iv.DoseFactor });
+                                double f = iv.DoseFactor * (LeanDosedDrugs.Contains(iv.Compound) ? BodyComposition.LeanDoseFactor(_bmi, _male) : 1);
+                                _drugDoses.Add(new[] { _time, f });
                             }
                             break;
                     }
@@ -433,9 +445,11 @@ namespace NotfallSIM.Engines
                     _oxygen = true;
                     break;
                 case InterventionType.NeedleDecompression:
-                    // Kann versagen (Nadel zu kurz, abgeknickt) — dann ändert sich nichts.
+                    // Kann versagen: Nadel zu kurz für die Brustwand (BMI, Ort, Kanülenlänge) oder abgeknickt/disloziert
+                    // (SuccessProbability) — dann ändert sich nichts.
+                    double reach = BodyComposition.NeedleReachProbability(_bmi, iv.Site == "aal", iv.DoseValue > 0 ? iv.DoseValue : NeedleDefaultLength_cm);
                     if (_tension.TryGetValue(iv.TargetCompartment, out var tn) && !tn.Drained
-                        && _rng.NextDouble() < iv.SuccessProbability)
+                        && _rng.NextDouble() < iv.SuccessProbability * reach)
                     {
                         tn.Level = Math.Min(tn.Level, TpLevelAfterNeedle);
                         tn.RateFactor = Math.Min(tn.RateFactor, TpRateAfterNeedle); // Re-Spannung möglich
@@ -551,7 +565,7 @@ namespace NotfallSIM.Engines
             if (!_txa && !_arrest && lossNow > 0.15) _fib = Math.Max(0, _fib - LysisPerMinAt40 * (lossNow / 0.4) * minutes);
             // Temperatur: entkleidet kühlt aus (in Narkose schneller), Wärmeerhalt wärmt bis 37 °C
             if (_warming) _temp = Math.Min(37, _temp + ActiveWarming_C_per_h * dt_s / 3600);
-            else _temp -= ExposureCooling_C_per_h * (_intubated ? AnesthesiaCoolingFactor : 1) * dt_s / 3600;
+            else _temp -= ExposureCooling_C_per_h * (_intubated ? AnesthesiaCoolingFactor : 1) * _coolingFactor * dt_s / 3600;
             _infusions.RemoveAll(i => i.Remaining_mL <= 0);
 
             _redCellVolume = Math.Max(0, Math.Min(_redCellVolume, _volume));

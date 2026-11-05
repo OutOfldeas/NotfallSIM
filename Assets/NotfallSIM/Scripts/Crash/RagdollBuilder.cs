@@ -157,9 +157,12 @@ namespace NotfallSIM.Crash
                 // Kollisionsform in Ruhelage-Achsen (Segmentursprung = proximales Gelenk)
                 Vector3 axis = end - joint;
                 GameObject vis;
+                // Unterhautfett über dem Bezugs-BMI macht die Segmente dicker (Kollider wie Haut, siehe BodyFatShape)
+                float fat = (float)Anatomy.BodyFatShape.Extra_m(s.region ?? s.name, Core.BodyComposition.Bmi(mass_kg, H * 100), male);
+                if (s.name.StartsWith("Hand") || s.name.StartsWith("Fuß")) fat *= 0.3f;
                 if (s.capsule)
                 {
-                    float r = s.radius * k;
+                    float r = Mathf.Max(s.radius * k * 0.6f, s.radius * k + fat);
                     float len = axis.magnitude;
                     if (s.name.StartsWith("Unterschenkel")) { axis += new Vector3(0, -(AnatomyBuilder.V(s.end).y - h.floorY) * k * 0.8f, 0); len = axis.magnitude; }
                     // Kapsel entlang der Segmentachse (Unterarm ist ~20° gegen die Senkrechte geneigt) — als Kind-Kollider,
@@ -192,7 +195,7 @@ namespace NotfallSIM.Crash
                 {
                     var c = go.AddComponent<BoxCollider>();
                     c.center = AnatomyBuilder.V(s.boxCenter) * k;
-                    c.size = AnatomyBuilder.V(s.boxSize) * k * 0.9f;
+                    c.size = AnatomyBuilder.V(s.boxSize) * k * 0.9f + new Vector3(2 * fat, 0, 2 * fat * (s.region == "Abdomen" ? 1.8f : 1f));
                     vis = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     vis.transform.SetParent(go.transform, false);
                     vis.transform.localPosition = c.center;
@@ -263,7 +266,8 @@ namespace NotfallSIM.Crash
             Debug.Log($"[Ragdoll] {cols.Length} Kollider, {ignored} Paare ignoriert (Gelenknachbarn oder Startüberlappung)");
 
             // Haut an die Segmente binden
-            rd.Skin = AnatomyBuilder.BuildSkinForBones(T, bones, k, CrashPhysics.Mat(new Color(0.86f, 0.67f, 0.55f)), CrashPhysics.Mat(new Color(0.12f, 0.15f, 0.22f)));
+            rd.Skin = AnatomyBuilder.BuildSkinForBones(T, bones, k, CrashPhysics.Mat(new Color(0.86f, 0.67f, 0.55f)), CrashPhysics.Mat(new Color(0.12f, 0.15f, 0.22f)),
+                                                       Core.BodyComposition.Bmi(mass_kg, H * 100), male);
             return rd;
         }
 

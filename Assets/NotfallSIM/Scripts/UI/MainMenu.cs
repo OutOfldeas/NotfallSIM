@@ -30,7 +30,8 @@ namespace NotfallSIM.UI
         MechanismDatabaseFile _mechanisms;
         string _choice;
         TextMeshProUGUI _brief, _warning;
-        Button _modeTextbook, _modeRegistry, _ctRadiology, _ctRoom;
+        Button _modeTextbook, _modeRegistry, _ctRadiology, _ctRoom, _bodyButton;
+        int _bodyIndex;
 
         public void Configure(RectTransform uiRoot) => root = uiRoot;
 
@@ -60,6 +61,14 @@ namespace NotfallSIM.UI
             RuntimeUi.Label(right, "CT-STANDORT", 16, Dim, 24);
             _ctRadiology = RuntimeUi.Button(right, "Radiologie (Transport nötig)", Option, () => { SessionSetup.CtInTraumaRoom = false; Refresh(); });
             _ctRoom = RuntimeUi.Button(right, "Im Schockraum", Option, () => { SessionSetup.CtInTraumaRoom = true; Refresh(); });
+            RuntimeUi.Label(right, "KÖRPERBAU", 16, Dim, 24);
+            _bodyButton = RuntimeUi.Button(right, "", Option, () =>
+            {
+                _bodyIndex = (_bodyIndex + 1) % BodyComposition.BodyTypes.Length;
+                SessionSetup.BodyBmi = BodyComposition.BodyTypes[_bodyIndex].bmi;
+                Refresh();
+            });
+            _bodyIndex = System.Math.Max(0, System.Array.FindIndex(BodyComposition.BodyTypes, t => t.bmi == SessionSetup.BodyBmi));
             RuntimeUi.Label(right, "", 10, Dim, 12);
             RuntimeUi.Button(right, "Schockraum starten", Selected, StartTraumaRoom, 60, 26);
             RuntimeUi.Button(right, "Unfall-Sandbox (Ragdoll-Crash)", Primary, () => Load(SessionSetup.CrashScene), 56, 22);
@@ -83,12 +92,16 @@ namespace NotfallSIM.UI
             _modeRegistry.GetComponent<Image>().color = SessionSetup.Mode == PhysiologyMode.Registry ? Selected : Option;
             _ctRadiology.GetComponent<Image>().color = !SessionSetup.CtInTraumaRoom ? Selected : Option;
             _ctRoom.GetComponent<Image>().color = SessionSetup.CtInTraumaRoom ? Selected : Option;
+            var bodyText = _bodyButton.GetComponentInChildren<TMPro.TMP_Text>();
+            if (bodyText != null) bodyText.text = "Körperbau: " + BodyComposition.BodyTypes[_bodyIndex].label + "  (klicken zum Wechseln)";
+            _bodyButton.GetComponent<Image>().color = _bodyIndex > 0 ? Selected : Option;
 
             if (_choice == null) { _brief.text = ""; return; }
             if (_choice.StartsWith("scenario:"))
             {
                 var s = _scenarios.First(x => "scenario:" + x.id == _choice);
-                _brief.text = $"<b>{s.title}</b>\n{s.description}\n\n<color=#BFC6CE>{s.patient.age} J., {(s.patient.sex == "female" ? "weiblich" : "männlich")}, {s.patient.weight_kg:0} kg" +
+                double w = SessionSetup.BodyBmi > 0 ? BodyComposition.WeightForBmi(SessionSetup.BodyBmi, s.patient.height_cm) : s.patient.weight_kg;
+                _brief.text = $"<b>{s.title}</b>\n{s.description}\n\n<color=#BFC6CE>{s.patient.age} J., {(s.patient.sex == "female" ? "weiblich" : "männlich")}, {w:0} kg, {s.patient.height_cm:0} cm · {BodyComposition.Describe(w, s.patient.height_cm, s.patient.age, s.patient.sex != "female")}" +
                               (s.patient.betaBlocker ? " · Betablocker" : "") + "</color>\n\n<size=85%><b>Lernziele</b>\n• " + string.Join("\n• ", s.learningGoals) + "</size>";
             }
             else

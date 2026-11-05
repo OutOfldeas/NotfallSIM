@@ -107,6 +107,13 @@ run("dosis", { weight_kg: 80, age: 50, sex: "female", initialBloodLoss_mL: 1000 
   if (s === 5000) e.applyIntervention(iv("Vasopressor", { doseFactor: 0.5 }));
   if (s === 8000) e.applyIntervention(iv("Vasopressor", { doseFactor: 0 }));
 }, 1500);
+run("adipos", { weight_kg: 130, height_cm: 172, age: 45, sex: "male", initialBloodLoss_mL: 800 }, (e, s) => {
+  if (s === 0) { e.applyInjury({ effect: "TensionPneumothorax", compartment: "LeftLung", severity: 0.8, progressionRate_per_min: 0.06 }); e.applyInjury(bleed("Liver", 0.5, 30, 1500)); }
+  if (s === 600) e.applyIntervention(iv("NeedleDecompression", { target: "LeftLung", successProbability: 0.71, doseValue: 5 }));
+  if (s === 900) e.applyIntervention(iv("NeedleDecompression", { target: "LeftLung", successProbability: 0.71, doseValue: 8, site: "aal" }));
+  if (s === 1500) e.applyIntervention(iv("Medication", { compound: "Propofol", doseFactor: 1 }));
+  if (s === 1600) e.applyIntervention(iv("Intubation"));
+}, 1500);
 
 // Zufallsszenarien (Datei als drittes Argument)
 if (process.argv[3]) {

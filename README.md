@@ -161,6 +161,16 @@ Prüfen ohne Unity:
 [CC BY-SA 2.1 Japan](https://creativecommons.org/licenses/by-sa/2.1/jp/deed.de). `body.bin` ist eine Bearbeitung
 (vereinfacht, Haut neu vernetzt, Nerven und Extremitätengefäße schematisch ergänzt) und steht unter derselben Lizenz.
 
+## Körperbau
+
+Gewicht, Größe, Alter und Geschlecht des Patienten bestimmen BMI, Körperfett (Deurenberg), Mager- und Idealgewicht,
+Körperoberfläche und Blutvolumen (Lemmens: bei Adipositas weniger mL/kg) — `Scripts/Core/BodyComposition.cs`, im
+Browser-Prototyp gleich. Im Hauptmenü, im Prototyp und in der Unfall-Sandbox ist der Körperbau wählbar (schlank BMI 20 …
+stark adipös BMI 42). Folgen: Fentanyl, Propofol und Ketamin wirken nach Magergewicht (Dosisdialog zeigt es an), Adipöse
+kühlen langsamer aus, die Entlastungspunktion scheitert an dicker Brustwand (Ort 2. ICR MCL oder 4./5. ICR AAL und
+Kanülenlänge 3–8 cm wählbar), Unterhautfett je Region verlängert Stichkanäle und liegt im Kontaktmodell vor dem Gewebe,
+Haut und Ragdoll werden sichtbar dicker. Werte und Quellen: docs/LITERATUR.md › „Körperbau und Fettgewebe“.
+
 ## Unfall-Sandbox (Ragdoll-Physik)
 
 Menü *NotfallSIM › Unfall-Sandbox erstellen* legt `Assets/NotfallSIM/Scenes/UnfallSandbox.unity` an.

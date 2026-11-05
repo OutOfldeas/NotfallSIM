@@ -257,6 +257,10 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
       </div>
     </div>
     <div class="row" style="margin-top:10px">
+      <span class="eyebrow">Körperbau</span>
+      <div class="seg" role="group" aria-label="Körperbau" id="bodySeg"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
       <span class="eyebrow">CT-Standort</span>
       <div class="seg" role="group" aria-label="CT-Standort">
         <button type="button" id="ctRadiology" aria-pressed="true">Radiologie</button>
@@ -375,7 +379,14 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const R = (x) => Math.round(x);
 
-let selected = DATA.scenarios[0].id, generated = null, mode = "Textbook", ctInRoom = false, imgCount = 0;
+let selected = DATA.scenarios[0].id, generated = null, mode = "Textbook", ctInRoom = false, imgCount = 0, bodyBmi = 0;
+const BODY_TYPES = [["wie im Fall", 0], ["schlank", 20], ["normal", 24], ["übergewichtig", 28], ["adipös", 34], ["stark adipös", 42]];
+/** Patient mit gewähltem Körperbau: gleiche Größe, Gewicht nach BMI (wie SessionSetup.BodyBmi in Unity). */
+function withBody(s) {
+  if (!bodyBmi) return s;
+  return { ...s, patient: { ...s.patient, weight_kg: E.Body.weightForBmi(bodyBmi, s.patient.height_cm) } };
+}
+const bodyLine = (p) => `${esc(p.age)} J., ${p.sex === "female" ? "weiblich" : "männlich"}, ${esc(p.weight_kg)} kg, ${esc(p.height_cm)} cm · ${esc(E.Body.describe(p.weight_kg, p.height_cm, p.age, p.sex !== "female"))}`;
 let sim = null, speed = 1, paused = false, lastFrame = 0, lastRender = 0, wakeLock = null, logCount = 0;
 
 $("dataVersion").textContent = `Verletzungen v${DATA.injuries.version}, Maßnahmen v${DATA.interventions.version}, Bildgebung v${DATA.imaging.version}, Mechanismen v${DATA.mechanisms.version}, Stand ${DATA.built}`;
@@ -386,9 +397,10 @@ function renderSetup() {
     `<button type="button" class="scenario-opt" data-id="${s.id}" aria-pressed="${!generated && s.id === selected}"><b>${esc(s.title)}</b><span class="muted">${esc(s.patient.age)} J., ${s.patient.sex === "female" ? "weiblich" : "männlich"}, ${esc(s.patient.weight_kg)} kg${s.patient.betaBlocker ? " · Betablocker" : ""}</span></button>`).join("");
   $("mechList").innerHTML = DATA.mechanisms.mechanisms.map((m) =>
     `<button type="button" class="mech-opt" data-mech="${m.id}" aria-pressed="${!!generated && generated.mechanismId === m.id}">${esc(m.label)}</button>`).join("");
-  const s = generated ? generated.scenario : DATA.scenarios.find((x) => x.id === selected);
-  $("brief").innerHTML = `<p>${esc(s.description)}</p>` + (generated
-    ? `<p class="muted">${esc(s.patient.age)} J., ${s.patient.sex === "female" ? "weiblich" : "männlich"}, ${esc(s.patient.weight_kg)} kg. Welche Verletzungen vorliegen, zeigt erst das Debriefing.</p>
+  const s = withBody(generated ? generated.scenario : DATA.scenarios.find((x) => x.id === selected));
+  $("bodySeg").innerHTML = BODY_TYPES.map(([l, b]) => `<button type="button" data-bmi="${b}" aria-pressed="${b === bodyBmi}" title="${b ? "BMI " + b : "Gewicht wie im Fall"}">${esc(l)}</button>`).join("");
+  $("brief").innerHTML = `<p>${esc(s.description)}</p>` + `<p class="muted">${bodyLine(s.patient)}</p>` + (generated
+    ? `<p class="muted">Welche Verletzungen vorliegen, zeigt erst das Debriefing.</p>
        <div class="row"><span class="muted">Fall-Code <span class="case-code">${esc(generated.mechanismId)}-${generated.seed}</span></span><button type="button" class="btn" id="rerollBtn">Neuer Fall</button></div>`
     : `<p class="muted"><b>Mechanismus:</b> ${esc(s.mechanism)}</p>`);
   if (generated) $("rerollBtn").onclick = () => roll(generated.mechanismId);
@@ -410,13 +422,14 @@ function roll(mechanismId) {
 $("modeTextbook").onclick = () => { mode = "Textbook"; renderSetup(); };
 $("modeRegistry").onclick = () => { mode = "Registry"; renderSetup(); };
 $("ctRadiology").onclick = () => { ctInRoom = false; renderSetup(); };
+$("bodySeg").addEventListener("click", (e) => { const b = e.target.closest("[data-bmi]"); if (b) { bodyBmi = Number(b.dataset.bmi); renderSetup(); } });
 $("ctTraumaRoom").onclick = () => { ctInRoom = true; renderSetup(); };
 $("startBtn").onclick = start;
 $("againBtn").onclick = () => { $("debrief").hidden = true; $("setup").hidden = false; sim = null; resetMonitor(); renderSetup(); window.scrollTo({ top: 0 }); };
 
 // ---------- Lauf ----------
 function start() {
-  sim = new E.Simulation(DATA, generated ? generated.scenario : selected, mode, undefined, ctInRoom);
+  sim = new E.Simulation(DATA, withBody(generated ? generated.scenario : DATA.scenarios.find((x) => x.id === selected)), mode, undefined, ctInRoom);
   speed = 1; paused = false; logCount = 0; imgCount = 0;
   $("imagingResults").innerHTML = "";
   renderGoals(); closeDose(); coachMode = null; $("coachBox").hidden = true; MON.nibp = null; MON.alarms = []; MON.silencedUntil = 0;
@@ -674,7 +687,13 @@ function renderDose() {
   $("doseVal").classList.toggle("off", !usual);
   $("doseRange").value = doseValue;
   const lo = E.formatDose(d, d.usualMin, 0).replace(" " + d.unit, "");
-  $("doseHint").textContent = `Üblich ${lo}–${E.formatDose(d, d.usualMax, 0)}` + (d.perKg ? ` · Patient ${w} kg` : "") + (usual ? "" : " · außerhalb des üblichen Bereichs");
+  const p = sim.scenario.patient, male = p.sex !== "female", bmi = E.Body.bmi(p.weight_kg, p.height_cm);
+  const lbw = E.Body.leanWeight(p.weight_kg, bmi, male), ibw = E.Body.idealWeight(p.height_cm, male);
+  const lean = d.perKg && E.LeanDosedDrugs.has(doseDef.compound);
+  $("doseHint").textContent = `Üblich ${lo}–${E.formatDose(d, d.usualMax, 0)}` +
+    (d.perKg ? ` · Gesamtgewicht ${w} kg, Magergewicht ca. ${R(lbw)} kg, Idealgewicht ca. ${R(ibw)} kg (BMI ${R(bmi)})` : "") +
+    (lean ? ` · entspricht ${String(Math.round(doseValue * w / lbw * 100) / 100).replace(".", ",")} ${d.unit.replace("/kg", "")} je kg Magergewicht` + (bmi >= 30 ? " – bei Adipositas nach Magergewicht dosieren" : "") : "") +
+    (usual ? "" : " · außerhalb des üblichen Bereichs");
   $("doseHint").classList.toggle("off", !usual);
 }
 function closeDose() { doseDef = null; $("doseBox").hidden = true; }

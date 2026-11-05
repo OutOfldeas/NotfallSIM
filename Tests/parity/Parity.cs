@@ -260,5 +260,14 @@ static class Parity
             if (s == 5000) e.ApplyIntervention(Iv(InterventionType.Vasopressor, dose: 0.5));
             if (s == 8000) e.ApplyIntervention(Iv(InterventionType.Vasopressor, dose: 0));
         }, 1500);
+        // Körperbau: adipöser Patient — Blutvolumen, Auskühlung, Magergewicht-Dosis, Nadel durch dicke Brustwand (Länge, Ort)
+        Run("adipos", new PatientProfile { weight_kg = 130, height_cm = 172, age = 45, sex = "male", initialBloodLoss_mL = 800 }, (e, s) =>
+        {
+            if (s == 0) { e.ApplyInjury(new InjuryEvent { Effect = InjuryEffectType.TensionPneumothorax, Compartment = "LeftLung", Severity = 0.8, ProgressionRate_per_min = 0.06 }); e.ApplyInjury(Bleed("Liver", 0.5, 30, 1500)); }
+            if (s == 600) e.ApplyIntervention(new InterventionEvent { Type = InterventionType.NeedleDecompression, TargetCompartment = "LeftLung", SuccessProbability = 0.71, DoseValue = 5 });
+            if (s == 900) e.ApplyIntervention(new InterventionEvent { Type = InterventionType.NeedleDecompression, TargetCompartment = "LeftLung", SuccessProbability = 0.71, DoseValue = 8, Site = "aal" });
+            if (s == 1500) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "Propofol", dose: 1));
+            if (s == 1600) e.ApplyIntervention(Iv(InterventionType.Intubation));
+        }, 1500);
     }
 }

@@ -610,55 +610,169 @@
     },
     {
       "id": "nadel_li",
-      "label": "Nadeldekompression li.",
-      "logLabel": "Nadeldekompression links",
+      "label": "Nadel li. 2. ICR MCL",
+      "logLabel": "Nadeldekompression links, 2. ICR Medioklavikularlinie",
       "type": "NeedleDecompression",
       "target": "LeftLung",
       "compound": "",
       "volume_mL": 0,
       "rate_mL_min": 0,
       "rateMultiplier": 1,
-      "successProbability": 0.57,
+      "successProbability": 0.71,
       "once": false,
       "effectDelay_s": 0,
       "contraindicatedBy": [],
       "contraindicationNote": "",
-      "dose": null,
+      "dose": {
+        "unit": "cm",
+        "perKg": false,
+        "reference": 5,
+        "min": 3,
+        "max": 8,
+        "step": 0.5,
+        "usualMin": 5,
+        "usualMax": 8,
+        "absoluteUnit": ""
+      },
       "sources": [
         {
           "citation": "Ahmad SJS, et al. Meta-analysis of the optimal needle length and decompression site for tension pneumothorax and consensus recommendations on current ATLS and ETC guidelines. World J Emerg Surg. 2025;20:39.",
           "url": "https://doi.org/10.1186/s13017-025-00613-7",
           "note": "Kombinierte Versagerrate ca. 43 % (sehr heterogene, überwiegend retrospektive Daten)"
+        },
+        {
+          "citation": "Inaba K, Ives C, McClure K, et al. Radiologic evaluation of alternative sites for needle decompression of tension pneumothorax. Arch Surg. 2012;147(9):813-818.",
+          "url": "https://doi.org/10.1001/archsurg.2012.751",
+          "note": "Brustwanddicke im CT je BMI-Quartil (2. ICR MCL 33–60 mm, 5. ICR AAL 21–52 mm); im Modell: Nadel erreicht die Pleura mit Wahrscheinlichkeit Φ((Länge − Brustwand)/9 mm)"
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Bei Erfolg sinkt die Spannung auf 15 % und steigt danach mit 20 % der Rate weiter (Re-Spannung möglich)."
+      "reviewNotes": "Erfolg = 0,71 (Abknicken, Dislokation; so dass bei BMI 26 und 5 cm die Versagerrate der Metaanalyse von ca. 43 % herauskommt) × Wahrscheinlichkeit, dass die Kanüle die Brustwand durchdringt (BMI, Ort, Kanülenlänge; Inaba 2012). Bei Erfolg sinkt die Spannung auf 15 % und steigt danach mit 20 % der Rate weiter (Re-Spannung möglich). Länge im Dosisdialog: 5 cm übliche 14-G-Kanüle, 8 cm ATLS für kräftige Erwachsene."
     },
     {
       "id": "nadel_re",
-      "label": "Nadeldekompression re.",
-      "logLabel": "Nadeldekompression rechts",
+      "label": "Nadel re. 2. ICR MCL",
+      "logLabel": "Nadeldekompression rechts, 2. ICR Medioklavikularlinie",
       "type": "NeedleDecompression",
       "target": "RightLung",
       "compound": "",
       "volume_mL": 0,
       "rate_mL_min": 0,
       "rateMultiplier": 1,
-      "successProbability": 0.57,
+      "successProbability": 0.71,
       "once": false,
       "effectDelay_s": 0,
       "contraindicatedBy": [],
       "contraindicationNote": "",
-      "dose": null,
+      "dose": {
+        "unit": "cm",
+        "perKg": false,
+        "reference": 5,
+        "min": 3,
+        "max": 8,
+        "step": 0.5,
+        "usualMin": 5,
+        "usualMax": 8,
+        "absoluteUnit": ""
+      },
       "sources": [
         {
           "citation": "Ahmad SJS, et al. Meta-analysis of the optimal needle length and decompression site for tension pneumothorax and consensus recommendations on current ATLS and ETC guidelines. World J Emerg Surg. 2025;20:39.",
           "url": "https://doi.org/10.1186/s13017-025-00613-7",
           "note": "Kombinierte Versagerrate ca. 43 % (sehr heterogene, überwiegend retrospektive Daten)"
+        },
+        {
+          "citation": "Inaba K, Ives C, McClure K, et al. Radiologic evaluation of alternative sites for needle decompression of tension pneumothorax. Arch Surg. 2012;147(9):813-818.",
+          "url": "https://doi.org/10.1001/archsurg.2012.751",
+          "note": "Brustwanddicke im CT je BMI-Quartil (2. ICR MCL 33–60 mm, 5. ICR AAL 21–52 mm); im Modell: Nadel erreicht die Pleura mit Wahrscheinlichkeit Φ((Länge − Brustwand)/9 mm)"
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Bei Erfolg sinkt die Spannung auf 15 % und steigt danach mit 20 % der Rate weiter (Re-Spannung möglich)."
+      "reviewNotes": "Erfolg = 0,71 (Abknicken, Dislokation; so dass bei BMI 26 und 5 cm die Versagerrate der Metaanalyse von ca. 43 % herauskommt) × Wahrscheinlichkeit, dass die Kanüle die Brustwand durchdringt (BMI, Ort, Kanülenlänge; Inaba 2012). Bei Erfolg sinkt die Spannung auf 15 % und steigt danach mit 20 % der Rate weiter (Re-Spannung möglich). Länge im Dosisdialog: 5 cm übliche 14-G-Kanüle, 8 cm ATLS für kräftige Erwachsene."
+    },
+    {
+      "id": "nadel_aal_li",
+      "label": "Nadel li. 4./5. ICR AAL",
+      "logLabel": "Nadeldekompression links, 4./5. ICR vordere Axillarlinie",
+      "site": "aal",
+      "type": "NeedleDecompression",
+      "target": "LeftLung",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 0.71,
+      "once": false,
+      "effectDelay_s": 0,
+      "contraindicatedBy": [],
+      "contraindicationNote": "",
+      "dose": {
+        "unit": "cm",
+        "perKg": false,
+        "reference": 5,
+        "min": 3,
+        "max": 8,
+        "step": 0.5,
+        "usualMin": 5,
+        "usualMax": 8,
+        "absoluteUnit": ""
+      },
+      "sources": [
+        {
+          "citation": "Ahmad SJS, et al. Meta-analysis of the optimal needle length and decompression site for tension pneumothorax and consensus recommendations on current ATLS and ETC guidelines. World J Emerg Surg. 2025;20:39.",
+          "url": "https://doi.org/10.1186/s13017-025-00613-7",
+          "note": "Kombinierte Versagerrate ca. 43 % (sehr heterogene, überwiegend retrospektive Daten)"
+        },
+        {
+          "citation": "Inaba K, Ives C, McClure K, et al. Radiologic evaluation of alternative sites for needle decompression of tension pneumothorax. Arch Surg. 2012;147(9):813-818.",
+          "url": "https://doi.org/10.1001/archsurg.2012.751",
+          "note": "Brustwanddicke im CT je BMI-Quartil (2. ICR MCL 33–60 mm, 5. ICR AAL 21–52 mm); im Modell: Nadel erreicht die Pleura mit Wahrscheinlichkeit Φ((Länge − Brustwand)/9 mm)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Erfolg = 0,71 (Abknicken, Dislokation; so dass bei BMI 26 und 5 cm die Versagerrate der Metaanalyse von ca. 43 % herauskommt) × Wahrscheinlichkeit, dass die Kanüle die Brustwand durchdringt (BMI, Ort, Kanülenlänge; Inaba 2012). Bei Erfolg sinkt die Spannung auf 15 % und steigt danach mit 20 % der Rate weiter (Re-Spannung möglich). Länge im Dosisdialog: 5 cm übliche 14-G-Kanüle, 8 cm ATLS für kräftige Erwachsene."
+    },
+    {
+      "id": "nadel_aal_re",
+      "label": "Nadel re. 4./5. ICR AAL",
+      "logLabel": "Nadeldekompression rechts, 4./5. ICR vordere Axillarlinie",
+      "site": "aal",
+      "type": "NeedleDecompression",
+      "target": "RightLung",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 0.71,
+      "once": false,
+      "effectDelay_s": 0,
+      "contraindicatedBy": [],
+      "contraindicationNote": "",
+      "dose": {
+        "unit": "cm",
+        "perKg": false,
+        "reference": 5,
+        "min": 3,
+        "max": 8,
+        "step": 0.5,
+        "usualMin": 5,
+        "usualMax": 8,
+        "absoluteUnit": ""
+      },
+      "sources": [
+        {
+          "citation": "Ahmad SJS, et al. Meta-analysis of the optimal needle length and decompression site for tension pneumothorax and consensus recommendations on current ATLS and ETC guidelines. World J Emerg Surg. 2025;20:39.",
+          "url": "https://doi.org/10.1186/s13017-025-00613-7",
+          "note": "Kombinierte Versagerrate ca. 43 % (sehr heterogene, überwiegend retrospektive Daten)"
+        },
+        {
+          "citation": "Inaba K, Ives C, McClure K, et al. Radiologic evaluation of alternative sites for needle decompression of tension pneumothorax. Arch Surg. 2012;147(9):813-818.",
+          "url": "https://doi.org/10.1001/archsurg.2012.751",
+          "note": "Brustwanddicke im CT je BMI-Quartil (2. ICR MCL 33–60 mm, 5. ICR AAL 21–52 mm); im Modell: Nadel erreicht die Pleura mit Wahrscheinlichkeit Φ((Länge − Brustwand)/9 mm)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Erfolg = 0,71 (Abknicken, Dislokation; so dass bei BMI 26 und 5 cm die Versagerrate der Metaanalyse von ca. 43 % herauskommt) × Wahrscheinlichkeit, dass die Kanüle die Brustwand durchdringt (BMI, Ort, Kanülenlänge; Inaba 2012). Bei Erfolg sinkt die Spannung auf 15 % und steigt danach mit 20 % der Rate weiter (Re-Spannung möglich). Länge im Dosisdialog: 5 cm übliche 14-G-Kanüle, 8 cm ATLS für kräftige Erwachsene."
     },
     {
       "id": "drainage_li",

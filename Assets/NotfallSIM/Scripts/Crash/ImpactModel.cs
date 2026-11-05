@@ -48,6 +48,18 @@ namespace NotfallSIM.Crash
 
     [Serializable] public class ImpactSource { public string id, citation, url, note; }
 
+    /// <summary>Unterhautfett einer Region: Dicke beim Bezugs-BMI (Mann), Zunahme je BMI-Punkt, Zuschlag für Frauen.</summary>
+    [Serializable] public class FatRegion { public string region; public double ref_mm, perBmi_mm, female_mm; public string sourceId, note; }
+    /// <summary>Fettgewebe: Dicke je Region, dehnratenabhängiger Elastizitätsmodul (Potenzgesetz durch zwei Messpunkte), Stichwiderstand.</summary>
+    [Serializable]
+    public class FatModel
+    {
+        public double refBmi;
+        public double rate1_per_s, modulus1_Pa, rate2_per_s, modulus2_Pa, minModulus_Pa, maxModulus_Pa;
+        public FatRegion[] regions;
+        public string modulusSourceId, note;
+    }
+
     [Serializable]
     public class ImpactModelFile
     {
@@ -56,6 +68,7 @@ namespace NotfallSIM.Crash
         public FractureModel fractures;
         public PenetrationModel penetration;
         public CuttingModel cutting;
+        public FatModel fat;
         public ImpactSource[] sources;
     }
 
@@ -106,6 +119,7 @@ namespace NotfallSIM.Crash
         public string ObjectId;
         public bool Embedded;          // steckt noch (Pfählung, Messer nicht zurückgezogen)
         public bool BonePierced;       // Knochen getroffen und durchstoßen (z. B. Rippe)
+        public double FatExtra_m;      // Unterhautfett über dem Bezugs-BMI: verlängert den Weg bis hinter die Wand
         public float[] ModelPoint, ModelInside;   // Einstich im Modellraum (für die Wundmarke), sonst null
     }
 
@@ -233,6 +247,65 @@ namespace NotfallSIM.Crash
         // ---------- Spitze Gewalt
 
         /// <summary>Kraft zum Durchstechen der Haut aus der Klingengeometrie (Ní Annaidh 2015), mit Kleidung höher.</summary>
+        // ---------- Fettgewebe
+
+        static FatRegion FatRule(ImpactModelFile m, string region)
+        {
+            if (m?.fat?.regions == null) return null;
+            string key = ContactRegion(region);
+            foreach (var f in m.fat.regions) if (f.region == key) return f;
+            return null;
+        }
+
+        /// <summary>Dicke des Unterhautfetts (m) einer Region bei BMI und Geschlecht (mind. 1 mm; Kopf: 0).</summary>
+        public static double FatThickness_m(ImpactModelFile m, string region, double bmi, bool male)
+        {
+            var f = FatRule(m, region);
+            if (f == null) return 0;
+            return Math.Max(1, f.ref_mm + f.perBmi_mm * (bmi - m.fat.refBmi) + (male ? 0 : f.female_mm)) / 1000;
+        }
+
+        /// <summary>Zusätzliches Fett gegenüber dem Bezugs-BMI (gleiches Geschlecht, m): verlängert die Körperwand im Stichkanal.</summary>
+        public static double FatExtra_m(ImpactModelFile m, string region, double bmi, bool male) =>
+            FatRule(m, region) == null ? 0 : FatThickness_m(m, region, bmi, male) - FatThickness_m(m, region, m.fat.refBmi, male);
+
+        /// <summary>Elastizitätsmodul von Fettgewebe bei der Dehnrate (1/s): Potenzgesetz durch die beiden Messpunkte, begrenzt.</summary>
+        public static double FatModulus_Pa(ImpactModelFile m, double strainRate_per_s)
+        {
+            var f = m.fat;
+            if (f == null) return 0;
+            double rate = Math.Max(1e-3, strainRate_per_s);
+            double n = Math.Log(f.modulus2_Pa / f.modulus1_Pa) / Math.Log(f.rate2_per_s / f.rate1_per_s);
+            double e = f.modulus1_Pa * Math.Pow(rate / f.rate1_per_s, n);
+            return Math.Max(f.minModulus_Pa, Math.Min(f.maxModulus_Pa, e));
+        }
+
+        /// <summary>
+        /// Kontaktkraft mit Fettschicht: Fett (k = E·A/Dicke, E nach Dehnrate) liegt in Reihe vor dem Gewebe und dem
+        /// Gegenstand. <paramref name="tissueDelta_m"/>: Anteil der Eindrückung, der auf das Gewebe darunter entfällt
+        /// (für Thoraxkompression und Rippen). Ohne Fett wie <see cref="Force(RegionContact,double,double,double,double,double)"/>.
+        /// </summary>
+        public static double Force(ImpactModelFile m, RegionContact r, double delta_m, double closing_m_s, double area_cm2,
+                                   double objectStiffness_N_m, double objectMass_kg, double fat_m, out double tissueDelta_m)
+        {
+            tissueDelta_m = Math.Max(0, delta_m);
+            if (fat_m <= 0 || m?.fat == null) return Force(r, delta_m, closing_m_s, area_cm2, objectStiffness_N_m, objectMass_kg);
+            if (delta_m <= 0 && closing_m_s <= 0) return 0;
+            double kFat = FatModulus_Pa(m, Math.Abs(closing_m_s) / fat_m) * area_cm2 * 1e-4 / fat_m;
+            // Gewebesteifigkeit bei der Gewebe-Eindrückung (eine Fixpunkt-Iteration genügt: k ändert sich stückweise linear)
+            double kb = Stiffness(r, Math.Max(0, delta_m), area_cm2), kSeries = 0;
+            for (int i = 0; i < 2; i++)
+            {
+                double inv = 1 / kb + 1 / kFat + (objectStiffness_N_m > 0 ? 1 / objectStiffness_N_m : 0);
+                kSeries = 1 / inv;
+                tissueDelta_m = Math.Max(0, delta_m) * kSeries / kb;
+                kb = Stiffness(r, tissueDelta_m, area_cm2);
+            }
+            double mb = r.effectiveMass_kg, mm = objectMass_kg > 0 ? mb * objectMass_kg / (mb + objectMass_kg) : mb;
+            double c = 2 * DampingRatio(r.restitution) * Math.Sqrt(kSeries * mm);
+            return Math.Max(0, kSeries * Math.Max(0, delta_m) + c * closing_m_s);
+        }
+
         public static double BoneThickness(PenetrationRegion rule) => rule != null && rule.boneThickness_m > 0 ? rule.boneThickness_m : 0.01;
         public static string BoneTissue(PenetrationRegion rule) => rule != null && !string.IsNullOrEmpty(rule.boneTissue) ? rule.boneTissue : "knochen";
 
@@ -320,6 +393,13 @@ namespace NotfallSIM.Crash
         /// Widerstand gegen die Klinge in Tiefe d (nach dem Hautdurchstich): Weichteil bis zur Wand, dort ggf. Knochen
         /// (wenn <paramref name="boneHit"/>), dahinter Organ.
         /// </summary>
+        /// <summary>Widerstand mit zusätzlichem Unterhautfett (<paramref name="fatExtra_m"/>): erst Fett, dann die Wand wie beim Bezugs-BMI.</summary>
+        public static double ResistanceAt(ImpactModelFile m, string region, double depth_m, bool boneHit, double fatExtra_m)
+        {
+            if (fatExtra_m > 0 && depth_m < fatExtra_m) return TissueResistance(m, "fett");
+            return ResistanceAt(m, region, depth_m - Math.Max(0, fatExtra_m), boneHit);
+        }
+
         public static double ResistanceAt(ImpactModelFile m, string region, double depth_m, bool boneHit)
         {
             var rule = PenetrationRule(m, region);
@@ -376,11 +456,11 @@ namespace NotfallSIM.Crash
             foreach (var pen in penetrations ?? new PenetrationResult[0])
             {
                 var rule = PenetrationRule(m, pen.Region);
-                if (rule == null || pen.Depth_m < rule.wall_m) continue;   // in der Wand geblieben (auch: an der Rippe gestoppt)
+                if (rule == null || pen.Depth_m < rule.wall_m + Math.Max(0, pen.FatExtra_m)) continue;   // in der Wand geblieben (auch: Rippe, dickes Fett)
                 if (ContactRegion(pen.Region) == "Arm" && (pen.Segment == null || !pen.Segment.StartsWith("Unterarm"))) continue;
                 string id = !string.IsNullOrEmpty(rule.deep) ? rule.deep : pen.Side > 0 ? rule.deepRight : rule.deepLeft;
                 double p = draw() < rule.probability ? 1 : 0;
-                double extra = Math.Min(1, (pen.Depth_m - rule.wall_m) / 0.08);
+                double extra = Math.Min(1, (pen.Depth_m - rule.wall_m - Math.Max(0, pen.FatExtra_m)) / 0.08);
                 add(id, p, 0.5 + 0.4 * extra, $"Stichkanal {pen.Region} {pen.Depth_m * 100:0} cm tief" + (pen.BonePierced ? " durch die Rippe" : "") + (pen.Embedded ? " (Fremdkörper steckt)" : ""));
             }
             foreach (var c in cuts ?? new CutResult[0])
