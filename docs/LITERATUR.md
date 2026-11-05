@@ -729,6 +729,18 @@ wie beim Einzelunfall gemessen (HIC, Thorax, Organe, Zeichen), Text und Rettungs
 Armaturenbrett); Schwerpunkt fest; schleudernde Fahrzeuge gleiten bis zum Aufprall mit fester Geschwindigkeit
 (Vorgeschichte nicht gerechnet). Test: `TrafficChecks`.
 
+## MANV-Vorsichtung (`triage.json`, `Data/Triage.cs`)
+
+Vorsichtung Erwachsener nach mSTaRT [128]: gehfähig → grün (T3); keine Atmung nach Freimachen der Atemwege → schwarz;
+Atemfrequenz > 30/min → rot (T1); Radialispuls nicht tastbar → rot; Aufforderungen nicht befolgt → rot; sonst gelb (T2).
+Die ärztliche Sichtung bestätigt oder korrigiert danach (nicht simuliert). Befunde aus der Mock-Physiologie 1 s nach
+Szenariobeginn — Verletzungen mit späterem Beginn (z. B. Spannungspneu) sind noch unauffällig und werden markiert.
+**Annahmen** des Simulators: Radialispuls tastbar ab systolisch 80 mmHg (Neidel [129] prüfen für das Pulskriterium
+Grenzen von 60–130 mmHg), Aufforderungen befolgt ab GCS 13, gehfähig bei GCS ≥ 14, systolisch ≥ 90 mmHg, SpO2 ≥ 90 %,
+AF ≤ 30 und ohne Verletzung an Becken/Beinen oder bereits wirksame Verletzung ab AIS 4. Über 100 Zufallslagen: rot 23 %,
+gelb 46 %, grün 31 %; 8 % der Grünen haben eine (später auffällige) Verletzung ab AIS 4 — die bekannte Untertriage-Gefahr
+der Gehfähigkeit als einzigem Grün-Kriterium [129]. Test: `TriageChecks`, Abgleich C#/JS in `run_parity.sh`.
+
 ## Offene Punkte zum Prüfen
 
 - Lagerung in Unity prüfen: Klickflächen nach Umlagerung, Rinnsale neu verlegt, Lache auf der richtigen Fläche; Luftwiderstand der Partikel (limitVelocityOverLifetime mit Geschwindigkeitsfaktor). Außerhalb von Unity geprüft: Drehrichtungen und Auflage auf Rücken-/Beinteil und Keil. Bekannt: Unterkante des Rückenteils taucht am Gelenk etwas ins Sitzteil; bei senkrechtem Arm dehnt sich die Haut an der Achsel (lineares Skinning mit zwei Knochen); Arm ohne Auflage.
@@ -931,3 +943,5 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 125. NHTSA Vehicle Crash Test Database, Test 8545: 2014.5 Toyota Camry, NCAP-Frontaltest gegen starre Wand, 56,7 km/h. Calspan 2014. [Link](https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v08500/v08545R001.pdf) (bleibende Frontverformung 554 mm)
 126. NHTSA Vehicle Crash Test Database, Test 8560: 2014.5 Toyota Camry, NCAP-Seitenaufprall mit fahrender Barriere, 61,9 km/h. Calspan 2014. [Link](https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v08500/v08560R001.pdf) (Seitenverformung außen max. 258 mm)
 127. Green M. „How long does it take to stop?“ Methodological analysis of driver perception-brake times. Transportation Human Factors 2000. [Link](https://drivingresearch.pages.dev/catalog/green-2000-perception-brake-times/) (erwartet 0,70–0,75 s, unerwartet ca. 1,25 s, überraschend ca. 1,5 s)
+128. Kanz KG et al. mSTaRT-Algorithmus für Sichtung, Behandlung und Transport bei einem Massenanfall von Verletzten. Notfall Rettungsmed 2006;9:264–270. [Link](https://link.springer.com/article/10.1007/s10049-006-0821-3)
+129. Neidel T, Salvador N, Heller AR. Impact of systolic blood pressure limits on the diagnostic value of triage algorithms. Scand J Trauma Resusc Emerg Med 2017;25:118. [Link](https://doi.org/10.1186/s13049-017-0461-2)

@@ -307,8 +307,11 @@ namespace NotfallSIM.Crash
             var sb = new StringBuilder();
             sb.AppendLine("<b>Unfallhergang</b>");
             sb.Append("<size=85%>").Append(rig.TrafficReport()).AppendLine("</size>");
-            sb.AppendLine("<b>Personen</b> <size=80%>(wahrscheinlichste Verletzungen)</size>");
+            sb.AppendLine("<b>Personen</b> <size=80%>(Vorsichtung nach mSTaRT beim Eintreffen; wahrscheinlichste Verletzungen)</size>");
             CrashResult chosen = null;
+            string triPath = Path.Combine(root, "triage.json");
+            var tri = File.Exists(triPath) ? JsonUtility.FromJson<TriageFile>(File.ReadAllText(triPath)) : null;
+            var defs = db.All.ToDictionary(d => d.id);
             for (int i = 0; i < rig.Humans.Count; i++)
             {
                 var h = rig.Humans[i];
@@ -316,7 +319,14 @@ namespace NotfallSIM.Crash
                 var res = BuildFor(h, i, meas, risk, mech, db);
                 var top = res.InjuryProbability.OrderByDescending(x => x.Value).Where(x => x.Value >= 0.1).Take(3).Select(x => $"{db.Get(x.Key).name} {x.Value:P0}");
                 string line = string.Join(", ", top);
-                sb.AppendLine($"{(i == _p.Patient ? "▶ " : "")}{h.Label}: <size=85%>{(line.Length > 0 ? line : "kaum verletzt")}</size>");
+                string cat = "";
+                if (tri != null)
+                {
+                    var card = Triage.Assess(res.Scenario, defs, tri.rules, h.Label);
+                    var c = tri.categories.FirstOrDefault(x => x.id == card.Category);
+                    cat = c != null ? $"<color={c.color}><b>{c.label}</b></color> " : "";
+                }
+                sb.AppendLine($"{(i == _p.Patient ? "▶ " : "")}{cat}{h.Label}: <size=85%>{(line.Length > 0 ? line : "kaum verletzt")}</size>");
                 if (i == _p.Patient) chosen = res;
             }
             rig.SelectHuman(_p.Patient);

@@ -87,6 +87,7 @@ static class Tests
         Run("Coach: Tipp nach xABCDE ohne Spoiler, spezifische Maßnahme erst nach Befund, Strategie vollständig", CoachChecks);
         Run("Aufprallmodell: Kontakt gegen Versuche (Faust, Thoraxpendel), Frakturschwellen, Durchstich, Stichkanal → Verletzung", ImpactModelChecks);
         Run("Fahrzeugmodelle: Seitenaufprall mit Türeindrückung, Frontpuls, nachgiebige Fußgängerfront (Kopftest)", VehicleModelChecks);
+        Run("MANV: Vorsichtung nach mSTaRT aus den Befunden beim Eintreffen", TriageChecks);
         Run("Verkehrsunfall: Fahrdynamik, Bremsen, Ausweichen, Fahrzeug-Kollision mit Kennlinien (TrafficSim)", TrafficChecks);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
@@ -1587,6 +1588,41 @@ static class Tests
     {
         var ser = new DataContractJsonSerializer(typeof(T));
         using (var ms = new MemoryStream()) { ser.WriteObject(ms, o); ms.Position = 0; return (T)ser.ReadObject(ms); }
+    }
+
+    static void TriageChecks()
+    {
+        var tf = Load<TriageFile>("triage.json");
+        var defs = Injuries.injuries.ToDictionary(d => d.id);
+        var r = tf.rules;
+        Func<string, double, double, ScenarioDefinition> one = (id, sev, loss) => new ScenarioDefinition
+        {
+            id = "t", patient = new PatientProfile { sex = "male", age = 35, weight_kg = 80, height_cm = 180, initialBloodLoss_mL = loss },
+            injuries = new[] { new ScenarioInjury { injuryId = id, severity = sev, onsetTime_s = 0 } }
+        };
+        var minor = Triage.Assess(one("schnittverletzung_unterarm_links", 0.2, 0), defs, r, "a");
+        Check(minor.Walks && minor.Category == "T3", $"Schnittwunde Unterarm: gehfähig → grün ({minor.Category})");
+        var femur = Triage.Assess(one("femur_schaft_rechts", 0.6, 0), defs, r, "b");
+        Check(!femur.Walks && femur.Category == "T2", $"Femurfraktur, stabil: nicht gehfähig → gelb ({femur.Category}, {femur.Reason})");
+        var sdh = Triage.Assess(one("sdh_akut_links", 0.9, 0), defs, r, "c");
+        Check(sdh.Category == "T1" && !sdh.FollowsCommands, $"Akutes SDH: befolgt keine Aufforderungen → rot (GCS {sdh.Gcs})");
+        var shock = Triage.Assess(one("becken_instabil", 0.9, 2600), defs, r, "d");
+        Check(shock.Category == "T1", $"Beckenblutung mit 2,6 L Verlust: rot ({shock.Reason}, RR {shock.Sbp}, AF {shock.Rr})");
+        var dead = Triage.Assess(one("becken_instabil", 1, 4000), defs, r, "e");
+        Check(dead.Category == "T4" || dead.Category == "T1", $"Massive Blutung: schwarz oder rot ({dead.Category})");
+        var delayed = new ScenarioDefinition { id = "f", patient = new PatientProfile { sex = "male", age = 30, weight_kg = 80, height_cm = 180 },
+            injuries = new[] { new ScenarioInjury { injuryId = "spannungspneu_links", severity = 0.8, onsetTime_s = 600 } } };
+        var dc = Triage.Assess(delayed, defs, r, "g");
+        Check(dc.HasDelayed && dc.Category == "T3", "Spannungspneu später: zunächst gehfähig, als „später auffällig“ markiert (Nachsichtung)");
+        Check(Triage.Compare("T1", "T2") == "Übertriage" && Triage.Compare("T3", "T1") == "Untertriage" && Triage.Compare("T2", "T2") == "richtig", "Vergleich Über-/Untertriage");
+        var inc = Triage.Incident(Mechanisms, Injuries.injuries, tf, 4242);
+        Check(inc.Count == tf.incident.mechanisms.Length + tf.incident.minorCount, $"Lage: {inc.Count} Personen");
+        Check(inc.Select(c => c.Scenario.id).Distinct().Count() == inc.Count, "Lage: eindeutige Fälle");
+        var all = Enumerable.Range(1, 100).SelectMany(sd => Triage.Incident(Mechanisms, Injuries.injuries, tf, (uint)sd * 13u)).ToList();
+        var share = all.GroupBy(c => c.Category).ToDictionary(g => g.Key, g => (double)g.Count() / all.Count);
+        Check(share.ContainsKey("T1") && share.ContainsKey("T2") && share.ContainsKey("T3"), "Lagen enthalten rot, gelb und grün");
+        Console.WriteLine($"        Anteile über 100 Lagen: " + string.Join(", ", share.OrderBy(k => k.Key).Select(k => $"{k.Key} {k.Value:P0}")) +
+                          $"; grün mit (später auffälliger) Verletzung ab AIS 4: {all.Count(c => c.Category == "T3" && c.MaxAis >= 4)} von {all.Count(c => c.Category == "T3")}");
     }
 
     static NotfallSIM.Crash.TrafficSim RunTraffic(NotfallSIM.Crash.TrafficScenario sc, NotfallSIM.Crash.VehicleType[] types, double until)

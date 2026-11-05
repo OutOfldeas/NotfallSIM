@@ -124,6 +124,13 @@ static class Parity
                     DiagnosisLine(s, byId, mods, diffs)));
             }
         ExamCourse(byId, Load<FindingsDatabaseFile>(Path.Combine(root, "findings.json")));
+        // MANV: Sichtungskarten (mSTaRT) gleicher Lagen
+        var tf = Load<TriageFile>(Path.Combine(root, "triage.json"));
+        for (uint seed = 1; seed <= 25; seed++)
+            foreach (var c in Triage.Incident(mech, inj, tf, seed * 104729u))
+                Console.WriteLine(string.Join("|", "triage", c.Scenario.id, c.Label, string.Join(",", c.Scenario.injuries.Select(i => i.injuryId + ":" + N(i.severity) + ":" + N(i.onsetTime_s))),
+                    N(c.Scenario.patient.initialBloodLoss_mL), c.Walks ? 1 : 0, c.Breathing ? 1 : 0, c.RadialPulse ? 1 : 0, c.FollowsCommands ? 1 : 0, N(c.Rr), N(c.Hr), N(c.Sbp), N(c.Gcs), N(c.SpO2),
+                    c.Category, c.Reason, string.Join(" / ", c.Findings), c.MaxAis, c.HasDelayed ? 1 : 0, string.Join(",", c.Scenario.assessment.Select(x => x.id))));
         // Coach: Tipp und Strategie entlang einer festen Ereignisfolge, wechselnde Vitalwerte (stabil, Schock, Koma)
         var ivDefs = Load<InterventionDatabaseFile>(Path.Combine(root, "interventions.json")).interventions;
         var cases = Directory.GetFiles(Path.Combine(root, "scenarios"), "*.json").OrderBy(f => Path.GetFileName(f), StringComparer.Ordinal)

@@ -1114,7 +1114,82 @@
     };
   }
 
-  const api = { Body, LeanDosedDrugs, coachTip, coachStrategy, coachCautions, coachStatus, COACH_PHASE_NAMES, NibpCycle, monitorAlarms, perfusionIndex, spo2Valid, ALARM_LIMITS, formatDose, doseUsual, doseClamp, examFindings, evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
+  // ---------- Sichtung beim MANV (wie Data/Triage.cs, mSTaRT) ----------
+  const triageRank = (c) => (c === "T1" ? 3 : c === "T2" ? 2 : c === "T3" ? 1 : 0);
+  function triageCompare(chosen, ref) { return chosen === ref ? "richtig" : triageRank(chosen) > triageRank(ref) ? "Übertriage" : "Untertriage"; }
+
+  function triageAssess(data, s, r, label) {
+    const defs = Object.fromEntries(data.injuries.injuries.map((d) => [d.id, d]));
+    const R = (v) => Math.floor(v + 0.5);
+    const e = new MockEngine(1, "Textbook");
+    e.initialize(s.patient);
+    const pending = s.injuries.slice(), observe = 1.0;
+    for (let step = 0; step < 10; step++) {
+      const t = e.current.time;
+      for (let i = pending.length - 1; i >= 0; i--) {
+        const si = pending[i];
+        if (si.onsetTime_s > t) continue;
+        for (const x of defs[si.injuryId].effects) e.applyInjury({ injuryId: si.injuryId, effect: x.effectType, compartment: x.compartment, severity: si.severity,
+          baseRate_mL_min: x.baseRate_mL_min, maxTotalLoss_mL: x.maxTotalLoss_mL, lesion: x.lesion || "", progressionRate_per_min: x.progressionRate_per_min, initialLevel: x.initialLevel || 0 });
+        pending.splice(i, 1);
+      }
+      e.advance(0.1);
+    }
+    const v = e.current, arrest = !!v.arrest;
+    const active = s.injuries.filter((si) => si.onsetTime_s <= observe).map((si) => defs[si.injuryId]);
+    const c = {
+      label, scenario: s,
+      rr: arrest ? 0 : R(v.rr), hr: arrest ? 0 : R(v.hr), sbp: arrest ? 0 : R(v.sbp), gcs: arrest ? 3 : v.gcs, spo2: arrest ? 0 : R(v.spo2),
+      maxAis: Math.max(0, ...s.injuries.map((si) => defs[si.injuryId].aisSeverity)), hasDelayed: s.injuries.some((si) => si.onsetTime_s > observe), findings: [],
+    };
+    const legs = active.some((d) => (r.nonAmbulatoryRegions || []).includes(d.region) || (r.nonAmbulatoryMinAis > 0 && d.aisSeverity >= r.nonAmbulatoryMinAis));
+    c.breathing = !arrest && c.rr > 0;
+    c.radialPulse = !arrest && c.sbp >= r.radialPulseMinSbp;
+    c.followsCommands = !arrest && c.gcs >= r.followsCommandsMinGcs;
+    c.walks = !arrest && c.gcs >= r.walkMinGcs && c.sbp >= r.walkMinSbp && c.spo2 >= r.walkMinSpo2 && c.rr <= r.rrRedAbove && !legs;
+    for (const d of active) if (d.clinicalFindings && d.clinicalFindings.length && c.findings.length < 3) c.findings.push(d.clinicalFindings[0]);
+    if (c.walks) { c.category = "T3"; c.reason = "gehfähig"; }
+    else if (!c.breathing) { c.category = "T4"; c.reason = "keine Atmung nach Freimachen der Atemwege"; }
+    else if (c.rr > r.rrRedAbove) { c.category = "T1"; c.reason = `Atemfrequenz ${c.rr}/min (> ${r.rrRedAbove})`; }
+    else if (!c.radialPulse) { c.category = "T1"; c.reason = "Radialispuls nicht tastbar"; }
+    else if (!c.followsCommands) { c.category = "T1"; c.reason = "befolgt keine Aufforderungen"; }
+    else { c.category = "T2"; c.reason = "nicht gehfähig, Atmung, Puls und Bewusstsein ausreichend"; }
+    return c;
+  }
+
+  /** Lage mit mehreren Verletzten (wie Triage.Incident). */
+  function triageIncident(data, tf, seed) {
+    const inc = tf.incident, db = data.mechanisms;
+    const defs = Object.fromEntries(data.injuries.injuries.map((d) => [d.id, d]));
+    const list = [];
+    for (let i = 0; i < inc.mechanisms.length; i++) list.push(generateScenario(data, inc.mechanisms[i], (seed + 7919 * (i + 1)) >>> 0));
+    const rng = seededRandom((seed ^ 0x9E3779B9) >>> 0);
+    const R = (v) => Math.floor(v + 0.5), round2 = (v) => R(v * 100) / 100;
+    for (let k = 0; k < inc.minorCount; k++) {
+      const s = generateScenario(data, inc.mechanisms[k % inc.mechanisms.length], (seed + 104729 * (k + 1)) >>> 0);
+      const pick = inc.minor[Math.floor(rng.next() * inc.minor.length)];
+      const sev = round2(rng.range(pick.severityMin, pick.severityMax));
+      s.injuries = [{ injuryId: pick.injuryId, severity: sev, onsetTime_s: 0 }];
+      s.patient.initialBloodLoss_mL = 0;
+      s.description = `${inc.label}: beteiligte Person, an der Unfallstelle angetroffen.`;
+      s.expectedCourse = "Verletzungen: " + defs[pick.injuryId].name + ".";
+      const crit = [], ids = new Set();
+      for (const cr of db.baseCriteria.concat(...s.injuries.map((si) => defs[si.injuryId].criteria || [])))
+        if (!ids.has(cr.id)) { ids.add(cr.id); crit.push(cr); }
+      s.assessment = crit;
+      list.push(s);
+    }
+    for (let i = list.length - 1; i > 0; i--) {
+      const j = Math.floor(rng.next() * (i + 1));
+      const tmp = list[i]; list[i] = list[j]; list[j] = tmp;
+    }
+    return list.map((s, i) => {
+      s.id = `manv_${seed}_${i + 1}`; s.title = `MANV: Person ${i + 1}`;
+      return triageAssess(data, s, tf.rules, `Person ${i + 1}`);
+    });
+  }
+
+  const api = { triageAssess, triageIncident, triageCompare, triageRank, Body, LeanDosedDrugs, coachTip, coachStrategy, coachCautions, coachStatus, COACH_PHASE_NAMES, NibpCycle, monitorAlarms, perfusionIndex, spo2Valid, ALARM_LIMITS, formatDose, doseUsual, doseClamp, examFindings, evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.NotfallEngine = api;
 })(typeof window !== "undefined" ? window : globalThis);
