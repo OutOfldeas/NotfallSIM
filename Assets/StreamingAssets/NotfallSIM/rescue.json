@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "note": "Eingeklemmt und technische Rettung. Aus der berechneten Verformung am Sitzplatz (Tür seitlich, Fußraum/Armaturenbrett vorn) folgt, ob die Person eingeklemmt (Körper durch Verformung festgehalten) oder nur eingeschlossen (eigene Tür klemmt) ist; ob sie sich selbst befreien kann, hängt zusätzlich von Verletzungen und Bewusstsein ab. Die Rettungsart bestimmt die Zeit bis zum Schockraum (präklinischer Blutverlust). Schwellen und Zeiten außer der schonenden Rettung sind Annahmen.",
+  "trappedFootwell_m": 0.10,
+  "trappedSide_m": 0.25,
+  "doorJam_m": 0.15,
+  "trappedExtra_min": 10,
+  "jammedExtra_min": 5,
+  "arrival_min": 8,
+  "care_min": 7,
+  "transport_min": 12,
+  "methods": [
+    { "id": "selbst", "label": "Selbstbefreiung", "minutes": 2, "note": "Steigt mit Hilfe selbst aus (nur gehfähig und nicht eingeklemmt)." },
+    { "id": "sofort", "label": "Sofortrettung (Rautek)", "minutes": 3, "note": "Bei akuter Lebensgefahr ohne Rücksicht auf die Wirbelsäule herausziehen; nicht möglich, wenn eingeklemmt." },
+    { "id": "schnell", "label": "Schnelle Rettung (Tür ab)", "minutes": 12, "note": "Großer Zugang über die Seite, Rettung mit Hilfsmitteln (Annahme)." },
+    { "id": "schonend", "label": "Schonende Rettung (Dach ab, Spineboard)", "minutes": 30, "sourceId": "nutbeam2014", "note": "Feuerwehr-Rettung mit Dachabnahme: im Mittel 30 min (IQR 24–38), erster begrenzter Zugang nach ca. 8 min." }
+  ],
+  "sources": [
+    { "id": "nutbeam2014", "citation": "Nutbeam T, Fenwick R, Hobson C, Holland V, Palmer M. The stages of extrication: a prospective study. Emerg Med J 2014;31(12):1006.", "url": "https://emj.bmj.com/content/31/12/1006", "note": "158 Einsätze (West Midlands): Befreiung im Median 30 min (IQR 24–38), 8 min bis zur ersten begrenzten Untersuchung" },
+    { "id": "nutbeam2021", "citation": "Nutbeam T, Fenwick R, Smith J, Bouamra O, Wallis L, Stassen W. A comparison of the demographics, injury patterns and outcome data for patients injured in motor vehicle collisions who are trapped compared to those patients who are not trapped. Scand J Trauma Resusc Emerg Med 2021;29:17.", "url": "https://doi.org/10.1186/s13049-020-00818-6", "note": "Eingeschlossene: ISS 18 gegen 13, Sterblichkeit 8,9 % gegen 5,0 % (OR 1,88); ca. 12 % körperlich eingeklemmt, ca. 88 % 'medizinisch' (können wegen Verletzungen nicht selbst heraus)" },
+    { "id": "nhtsa8560", "citation": "NHTSA Vehicle Crash Test Database, Test 8560: 2014.5 Toyota Camry, NCAP-Seitenaufprall, 61,9 km/h.", "url": "https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v08500/v08560R001.pdf", "note": "Türen der Aufprallseite nach 258 mm Verformung verklemmt (Anhaltspunkt für doorJam_m)" }
+  ]
+}

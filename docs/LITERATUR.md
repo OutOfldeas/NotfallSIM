@@ -741,6 +741,24 @@ AF ≤ 30 und ohne Verletzung an Becken/Beinen oder bereits wirksame Verletzung 
 gelb 46 %, grün 31 %; 8 % der Grünen haben eine (später auffällige) Verletzung ab AIS 4 — die bekannte Untertriage-Gefahr
 der Gehfähigkeit als einzigem Grün-Kriterium [129]. Test: `TriageChecks`, Abgleich C#/JS in `run_parity.sh`.
 
+## Eingeklemmt und technische Rettung (`rescue.json`, `Data/Rescue.cs`)
+
+Aus der berechneten Verformung am Sitzplatz (Eindringen der eigenen Tür, Fußraum/Armaturenbrett bei den vorderen Sitzen,
+verteilt wie im Rig) folgt die Lage: **eingeklemmt**, wenn der Fußraum ≥ 10 cm oder die Tür am Sitz ≥ 25 cm eindrückt;
+**eingeschlossen**, wenn die eigene Tür ≥ 15 cm verformt ist (klemmt) — NHTSA-Test 8560 meldet nach 258 mm Verformung
+verklemmte Türen [126]; sonst frei, aber ggf. „medizinisch eingeklemmt“ (kann wegen Verletzung/Bewusstsein nicht selbst
+heraus). Etwa 12 % der eingeschlossenen Unfallopfer sind tatsächlich körperlich eingeklemmt, 88 % „medizinisch“; sie sind
+schwerer verletzt (ISS 18 gegen 13) und sterben häufiger (8,9 % gegen 5,0 %) [131]. Schwellen sind **Annahmen**.
+
+Rettungsarten und Befreiungszeiten: Selbstbefreiung 2 min, Sofortrettung (Rautek) 3 min, schnelle Rettung (Tür ab)
+12 min (**Annahmen**), schonende Rettung mit Dachabnahme 30 min — Median der Feuerwehr-Befreiung 30 min (IQR 24–38),
+erster begrenzter Zugang nach ca. 8 min [130]. Eingeklemmt +10 min, eingeschlossen +5 min (außer schonend). Sofortrettung
+und Selbstbefreiung sind bei Einklemmung nicht möglich. Bis zum Schockraum kommen Eintreffen 8 min, Versorgung 7 min und
+Transport 12 min hinzu (**Annahmen**): frei und gehfähig 29 min, eingeklemmt mit schonender Rettung 67 min. Die Zeit
+bestimmt den präklinischen Blutverlust des Falls; die Sichtung vor Ort rechnet mit dem Stand beim Eintreffen.
+Automatische Wahl: eingeklemmt → schonend; gehfähig → selbst; rot (T1) → sofort; sonst schnell — in der Sandbox je Person
+änderbar. Ein Nutzen der schonenden Rettung für die Wirbelsäule ist nicht modelliert. Test: `RescueChecks`.
+
 ## Offene Punkte zum Prüfen
 
 - Lagerung in Unity prüfen: Klickflächen nach Umlagerung, Rinnsale neu verlegt, Lache auf der richtigen Fläche; Luftwiderstand der Partikel (limitVelocityOverLifetime mit Geschwindigkeitsfaktor). Außerhalb von Unity geprüft: Drehrichtungen und Auflage auf Rücken-/Beinteil und Keil. Bekannt: Unterkante des Rückenteils taucht am Gelenk etwas ins Sitzteil; bei senkrechtem Arm dehnt sich die Haut an der Achsel (lineares Skinning mit zwei Knochen); Arm ohne Auflage.
@@ -945,3 +963,5 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 127. Green M. „How long does it take to stop?“ Methodological analysis of driver perception-brake times. Transportation Human Factors 2000. [Link](https://drivingresearch.pages.dev/catalog/green-2000-perception-brake-times/) (erwartet 0,70–0,75 s, unerwartet ca. 1,25 s, überraschend ca. 1,5 s)
 128. Kanz KG et al. mSTaRT-Algorithmus für Sichtung, Behandlung und Transport bei einem Massenanfall von Verletzten. Notfall Rettungsmed 2006;9:264–270. [Link](https://link.springer.com/article/10.1007/s10049-006-0821-3)
 129. Neidel T, Salvador N, Heller AR. Impact of systolic blood pressure limits on the diagnostic value of triage algorithms. Scand J Trauma Resusc Emerg Med 2017;25:118. [Link](https://doi.org/10.1186/s13049-017-0461-2)
+130. Nutbeam T, Fenwick R, Hobson C, Holland V, Palmer M. The stages of extrication: a prospective study. Emerg Med J 2014;31(12):1006. [Link](https://emj.bmj.com/content/31/12/1006) (Befreiung Median 30 min, IQR 24–38; 8 min bis zur ersten Untersuchung)
+131. Nutbeam T, Fenwick R, Smith J, Bouamra O, Wallis L, Stassen W. A comparison of the demographics, injury patterns and outcome data for patients injured in motor vehicle collisions who are trapped compared to those patients who are not trapped. Scand J Trauma Resusc Emerg Med 2021;29:17. [Link](https://doi.org/10.1186/s13049-020-00818-6)

@@ -18,6 +18,7 @@ mcs -nologo -warnaserror- \
     $SCRIPTS/Data/DiagnosisEvaluation.cs \
     $SCRIPTS/Data/Coach.cs \
     $SCRIPTS/Data/Triage.cs \
+    $SCRIPTS/Data/Rescue.cs \
     $SCRIPTS/Engines/MockPhysiologyEngine.cs \
     $SCRIPTS/Crash/Biomechanics.cs \
     $SCRIPTS/Anatomy/AnatomyFile.cs \

@@ -88,6 +88,7 @@ static class Tests
         Run("Aufprallmodell: Kontakt gegen Versuche (Faust, Thoraxpendel), Frakturschwellen, Durchstich, Stichkanal → Verletzung", ImpactModelChecks);
         Run("Fahrzeugmodelle: Seitenaufprall mit Türeindrückung, Frontpuls, nachgiebige Fußgängerfront (Kopftest)", VehicleModelChecks);
         Run("MANV: Vorsichtung nach mSTaRT aus den Befunden beim Eintreffen", TriageChecks);
+        Run("Rettung: eingeklemmt/eingeschlossen aus der Verformung am Sitz, Rettungsart und Zeit bis zum Schockraum", RescueChecks);
         Run("Verkehrsunfall: Fahrdynamik, Bremsen, Ausweichen, Fahrzeug-Kollision mit Kennlinien (TrafficSim)", TrafficChecks);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
@@ -1588,6 +1589,47 @@ static class Tests
     {
         var ser = new DataContractJsonSerializer(typeof(T));
         using (var ms = new MemoryStream()) { ser.WriteObject(ms, o); ms.Position = 0; return (T)ser.ReadObject(ms); }
+    }
+
+    static void RescueChecks()
+    {
+        var rf = Load<RescueFile>("rescue.json");
+        var src = new HashSet<string>(rf.sources.Select(x => x.id));
+        Check(rf.methods.All(m => string.IsNullOrEmpty(m.sourceId) || src.Contains(m.sourceId)), "Rettung: Quellen");
+        var free = Rescue.Situation(rf, 0.05, 0, 0.05, true);
+        Check(!free.Trapped && !free.Jammed && Rescue.AutoMethod(free, true, false) == "selbst", "frei und gehfähig → Selbstbefreiung");
+        var foot = Rescue.Situation(rf, 0, 0.15, 0, false);
+        Check(foot.Trapped && Rescue.AutoMethod(foot, false, true) == "schonend", "Fußraum 15 cm → eingeklemmt, schonende Rettung");
+        var jam = Rescue.Situation(rf, 0.1, 0, 0.2, false);
+        Check(!jam.Trapped && jam.Jammed, "Tür 20 cm verformt → eingeschlossen");
+        var red = Rescue.Situation(rf, 0, 0, 0, false);
+        Check(red.CannotSelfExtricate && Rescue.AutoMethod(red, false, true) == "sofort", "kritisch, nicht eingeklemmt → Sofortrettung");
+        var p1 = Rescue.Plan(rf, foot, "sofort", false);
+        Check(p1.Replaced && p1.MethodId != "sofort", "Sofortrettung bei Einklemmung nicht möglich");
+        var p2 = Rescue.Plan(rf, foot, "schonend", false);
+        double fixedT = rf.arrival_min + rf.care_min + rf.transport_min;
+        Check(Math.Abs(p2.Total_min - (fixedT + 30 + rf.trappedExtra_min)) < 1e-9, $"Eingeklemmt schonend: {p2.Total_min:0} min bis Schockraum");
+        var p3 = Rescue.Plan(rf, free, "selbst", true);
+        Check(p3.Total_min < p2.Total_min - 30, $"Selbstbefreiung {p3.Total_min:0} min");
+        Check(Rescue.Plan(rf, Rescue.PedestrianSituation(), "", false).Total_min == fixedT, "Fußgänger: ohne Befreiung");
+
+        // aus dem Fahrzeugmodell: Kreuzung 90° (Fahrer eingeschlossen bzw. eingeklemmt), Gegenverkehr (Fußraum)
+        var vm = Load<NotfallSIM.Crash.VehicleModelFile>("vehicle_model.json");
+        var file = Load<NotfallSIM.Crash.TrafficScenarioFile>("traffic_scenarios.json");
+        Func<string, NotfallSIM.Crash.TrafficSim.Body> car = id => RunTraffic(file.scenarios.First(x => x.id == id), vm.vehicleTypes, 5).Bodies[0];
+        double sd, fw, dr;
+        var k = car("kreuzung_90");
+        Rescue.SeatDeformation(k.Faces[NotfallSIM.Crash.TrafficSim.Left], k.Faces[0], true, -0.37, 0.21, 0.31, out sd, out fw, out dr);
+        var ks = Rescue.Situation(rf, sd, fw, dr, false);
+        Check(ks.Jammed || ks.Trapped, $"Kreuzung 90°: Fahrer {ks.Text}");
+        var g = car("gegenverkehr");
+        Rescue.SeatDeformation(g.Faces[NotfallSIM.Crash.TrafficSim.Left], g.Faces[0], true, -0.37, 0.21, 0.31, out sd, out fw, out dr);
+        var gs = Rescue.Situation(rf, sd, fw, dr, false);
+        Check(gs.Trapped && fw >= rf.trappedFootwell_m, $"Gegenverkehr 2×70 km/h: Fahrer {gs.Text}");
+        var w = car("wand_frontal");
+        Rescue.SeatDeformation(w.Faces[NotfallSIM.Crash.TrafficSim.Left], w.Faces[0], true, -0.37, 0.21, 0.31, out sd, out fw, out dr);
+        Check(!Rescue.Situation(rf, sd, fw, dr, true).Trapped, $"Wand 56 km/h: nicht eingeklemmt (Fußraum {fw * 100:0} cm)");
+        Console.WriteLine($"        Kreuzung: {ks.Text}; Gegenverkehr: {gs.Text}; eingeklemmt schonend {p2.Total_min:0} min, selbst {p3.Total_min:0} min");
     }
 
     static void TriageChecks()
