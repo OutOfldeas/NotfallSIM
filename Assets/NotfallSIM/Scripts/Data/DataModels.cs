@@ -103,17 +103,30 @@ namespace NotfallSIM.Data
     public static class ImagingReport
     {
         public static List<string> Build(ImagingModality modality, IEnumerable<InjuryDefinition> activeInjuries, IEnumerable<string> occurredTags)
+            => Build(modality, activeInjuries, occurredTags, 0, null);
+
+        /// <summary>
+        /// Mit Körperbau: Sonographische Befunde (eFAST) werden bei Adipositas öfter übersehen
+        /// (<see cref="Core.BodyComposition.EfastMissProbability"/>, <paramref name="draw"/> liefert 0..1); ab BMI 30 steht
+        /// der Hinweis auf eingeschränkte Schallbedingungen im Befund.
+        /// </summary>
+        public static List<string> Build(ImagingModality modality, IEnumerable<InjuryDefinition> activeInjuries, IEnumerable<string> occurredTags,
+                                         double bmi, Func<double> draw)
         {
             var tags = occurredTags.Where(t => t != null).ToList();
             var lines = new List<string>();
+            bool sono = modality.covers.Contains("eFAST");
+            double miss = sono && bmi > 0 && draw != null ? Core.BodyComposition.EfastMissProbability(bmi) : 0;
             foreach (var inj in activeInjuries)
                 foreach (var f in inj.imaging ?? new ImagingFinding[0])
                 {
                     if (!modality.covers.Contains(f.modality)) continue;
+                    if (f.modality == "eFAST" && miss > 0 && draw() < miss) continue;   // übersehen
                     bool resolved = !string.IsNullOrEmpty(f.resolvedByTag) && tags.Any(t => t.StartsWith(f.resolvedByTag, StringComparison.Ordinal));
                     lines.Add(resolved && !string.IsNullOrEmpty(f.resolvedFinding) ? f.resolvedFinding : f.finding);
                 }
             if (lines.Count == 0) lines.Add(modality.normalFinding);
+            if (sono && bmi >= 30) lines.Add("Eingeschränkte Schallbedingungen (Adipositas), Beurteilbarkeit vermindert.");
             return lines;
         }
     }

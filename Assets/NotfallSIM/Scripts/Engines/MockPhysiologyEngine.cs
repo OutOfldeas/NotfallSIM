@@ -251,6 +251,15 @@ namespace NotfallSIM.Engines
 
         /// <summary>Medikamente, die nach Magergewicht dosiert werden: Gabe je kg Gesamtgewicht wirkt bei Adipositas stärker.</summary>
         public static readonly HashSet<string> LeanDosedDrugs = new HashSet<string> { "Fentanyl", "Propofol", "Ketamin" };
+        /// <summary>Intubation: Dauer eines Versuchs in Apnoe (s, Annahme) und höchstens so viele Versuche (der letzte gelingt).</summary>
+        public const double IntubationAttempt_s = 40;
+        public const int IntubationMaxAttempts = 3;
+        /// <summary>Ohne Sauerstoffgabe vor der Narkose: Zeit bis SpO2 90 % nur etwa ein Fünftel (Farmery &amp; Roe 1996: ca. 1 min statt ca. 6 min).</summary>
+        public const double NoPreoxygenationFactor = 0.2;
+        double _apneaStart = -1, _apneaEnd = -1, _apneaT90 = 364;
+        /// <summary>Versuche bei der letzten Intubation (für das Protokoll).</summary>
+        public int LastIntubationAttempts { get; private set; }
+
         /// <summary>Kanülenlänge ohne Angabe (cm): übliche 14-G-Venenverweilkanüle.</summary>
         public const double NeedleDefaultLength_cm = 5;
         bool _warming, _fluidWarmer, _txa;
@@ -266,6 +275,15 @@ namespace NotfallSIM.Engines
         {
             double g = DurationFactor(f), t1 = d[4] * g, t2 = d[5] * g;
             return t_min < 0 ? 0 : t_min <= t1 ? 1 : t_min >= t2 ? 0 : 1 - (t_min - t1) / (t2 - t1);
+        }
+
+        /// <summary>SpO2-Abfall (Prozentpunkte) während der Intubationsversuche: linear 10 Punkte bis zur Zeit bis 90 %, danach in 30 s zurück.</summary>
+        double ApneaDesaturation()
+        {
+            if (_apneaStart < 0 || _time < _apneaStart) return 0;
+            double endDrop = 10 * (_apneaEnd - _apneaStart) / _apneaT90;
+            if (_time <= _apneaEnd) return 10 * (_time - _apneaStart) / _apneaT90;
+            return Math.Max(0, endDrop * (1 - (_time - _apneaEnd) / 30));
         }
 
         /// <summary>Summe der Medikamentenwirkungen: SBP-Faktor, HF-Änderung, Atemdepression 0..1.</summary>
@@ -350,6 +368,7 @@ namespace NotfallSIM.Engines
             _brain.Clear();
             _infusions.Clear();
             _oxygen = _arrest = _intubated = false; _pressor = 0;
+            _apneaStart = _apneaEnd = -1; LastIntubationAttempts = 0;
             _position = Positions["flach"]; PositionId = "flach";
             _drugs.Clear(); _drugDoses.Clear(); _warming = _fluidWarmer = _txa = false;
             _weight_kg = patient.weight_kg > 0 ? patient.weight_kg : 75;
@@ -456,7 +475,16 @@ namespace NotfallSIM.Engines
                     }
                     break;
                 case InterventionType.Intubation:
+                    if (_intubated) break;
+                    // Versuche: Erfolg je Versuch nach BMI (Yakushiji 2018); während der Versuche Apnoe mit Entsättigung (Jense 1991)
+                    int attempts = 1;
+                    double pFirst = BodyComposition.IntubationFirstPass(_bmi);
+                    while (attempts < IntubationMaxAttempts && _rng.NextDouble() >= pFirst) attempts++;
+                    LastIntubationAttempts = attempts;
+                    _apneaStart = _time; _apneaEnd = _time + attempts * IntubationAttempt_s;
+                    _apneaT90 = BodyComposition.ApneaTimeTo90_s(_bmi) * (_oxygen ? 1 : NoPreoxygenationFactor);
                     _intubated = true;
+                    UpdateVitals();
                     break;
                 case InterventionType.Vasopressor:
                     _pressor = Math.Max(0, iv.DoseFactor);
@@ -623,7 +651,7 @@ namespace NotfallSIM.Engines
             double rrFactor = 1 - 0.5 * respDep;
             airway = Math.Max(airway, respDep);
             double spo2 = Interp(f, ShockTables.SpO2Air) - TpMaxSpO2Drop * tp - AirwayMaxSpO2Drop * airway
-                          + (_oxygen ? 3 : 0) + (_intubated ? 3 : 0);
+                          + (_oxygen ? 3 : 0) + (_intubated ? 3 : 0) - ApneaDesaturation();
             spo2 = Math.Max(50, Math.Min(100, spo2));
             double be = Interp(f, ShockTables.BaseExcess);
             double hco3 = BloodGas.Hco3(be);

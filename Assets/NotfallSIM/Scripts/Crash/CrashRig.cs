@@ -17,6 +17,7 @@ namespace NotfallSIM.Crash
         public bool Male = true;
         public int Seed = 1;
         public OccupantState Occupant = OccupantState.Entspannt;   // Muskeltonus (muscle_tone.json)
+        public bool SoftContact = true;           // nachgiebiger Kontakt am Körper (SoftContact, impact_model.json) statt starrer Kollision
     }
 
     /// <summary>
@@ -402,6 +403,9 @@ namespace NotfallSIM.Crash
             BeginRecording();
             SetVisible(false);   // Zwischenstände der Berechnung nicht zeigen
             Physics.SyncTransforms();
+            // Nachgiebiger Kontakt auch beim Fahrzeugunfall: Körper mit Gewebesteifigkeit und Fettschicht statt starr
+            bool soft = p.SoftContact && RegisterSoftBody(p, Anatomy.BodyFatShape.Model());
+            SoftContact.Enabled = soft;
             var tone = LoadMuscleTone();
             var muscles = tone != null ? new MuscleToneDriver(Ragdoll, tone, p.Occupant, p.Male) : null;
             var watch = new System.Diagnostics.Stopwatch();
@@ -434,6 +438,7 @@ namespace NotfallSIM.Crash
                                 float sp = vel.magnitude;
                                 if (sp > 0.01f) rb.AddForce(-vel / sp * 9.81f * (sp / vt) * (sp / vt), ForceMode.Acceleration);
                             }
+                        SoftContact.StepDt = da;
                         Physics.Simulate(da);
                         if (ta - lastFrame >= recordInterval_s - 1e-6f) { RecordFrame(ta); lastFrame = ta; }
                         arrived = k >= aSteps || (approach.Fall && Ragdoll.Pelvis.position.y <= approach.FallReleaseY);
@@ -472,6 +477,7 @@ namespace NotfallSIM.Crash
                     if (beltShoulder) ShoulderBeltImpulse_Ns += beltShoulder.currentForce.magnitude * dt;
                     if (beltLap) LapBeltImpulse_Ns += beltLap.currentForce.magnitude * dt;
                     gauges.Step();
+                    SoftContact.StepDt = dt;
                     Physics.Simulate(dt);
                     step++;
                     if (step % everyFrame == 0 || step == steps) RecordFrame(CrashStart + step * dt);
@@ -480,6 +486,7 @@ namespace NotfallSIM.Crash
                 yield return null;
             }
             foreach (var s in Ragdoll.Sensors) s.StopRecording();
+            SoftContact.Enabled = false;
             gauges.Stop();
             var measured = Measure(p, gauges);
             Destroy(gauges);

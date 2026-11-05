@@ -632,6 +632,14 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
       return x >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf);
     },
     needleReach: (bmi, aal, len) => Body.normalCdf((len * 10 - Body.chestWall(bmi, aal)) / Body.chestWallSd),
+    intubationFirstPass: (bmi) => (bmi < 25 ? 0.709 : bmi < 30 ? 0.664 : 0.593),
+    efastMiss: (bmi) => 1 / (1 + Math.exp(-(Math.log(0.1 / 0.9) + Math.log(1.0565) * (bmi - 25)))),
+    apneaTimeTo90(bmi) {
+      if (bmi <= 24) return 364;
+      if (bmi <= 31) return 364 + (247 - 364) * (bmi - 24) / 7;
+      if (bmi <= 45) return 247 + (163 - 247) * (bmi - 31) / 14;
+      return 163;
+    },
     weightForBmi: (bmi, hcm) => { const h = hcm > 100 ? hcm / 100 : 1.8; return Math.round(bmi * h * h); },
     describe(w, hcm, age, male) {
       const bmi = Body.bmi(w, hcm);
@@ -643,6 +651,7 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
   const isMale = (p) => String(p.sex).toLowerCase() !== "female";
   const LeanDosedDrugs = new Set(["Fentanyl", "Propofol", "Ketamin"]);
   const NeedleDefaultLength = 5;
+  const IntubationAttempt = 40, IntubationMaxAttempts = 3, NoPreoxygenationFactor = 0.2;
   function bloodVolume(p) { return Body.bloodVolume(p.weight_kg, Body.bmi(p.weight_kg, p.height_cm), isMale(p)); }
 
   class MockEngine {
@@ -658,6 +667,7 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
       this.time = 0;
       this.bleeds = {}; this.tension = {}; this.brain = {}; this.infusions = [];
       this.oxygen = this.arrest = this.intubated = false; this.pressor = 0;
+      this.apneaStart = this.apneaEnd = -1; this.apneaT90 = 364; this.lastIntubationAttempts = 0;
       this.position = Positions.flach; this.positionId = "flach";
       this.drugs = []; this.warming = this.fluidWarmer = this.txa = false;
       this.weight = patient.weight_kg > 0 ? patient.weight_kg : 75;
@@ -687,6 +697,13 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
         this.updateVitals();
       }
       return true;
+    }
+
+    apneaDesaturation() {
+      if (this.apneaStart < 0 || this.time < this.apneaStart) return 0;
+      const endDrop = 10 * (this.apneaEnd - this.apneaStart) / this.apneaT90;
+      if (this.time <= this.apneaEnd) return 10 * (this.time - this.apneaStart) / this.apneaT90;
+      return Math.max(0, endDrop * (1 - (this.time - this.apneaEnd) / 30));
     }
 
     /** Schwere 0..1 (Spannungspneu, SHT) bzw. Blutverlust einer Verletzung — für dynamische Befunde. */
@@ -743,7 +760,18 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
           }
           break;
         }
-        case "Intubation": this.intubated = true; break;
+        case "Intubation": {
+          if (this.intubated) break;
+          let attempts = 1;
+          const pFirst = Body.intubationFirstPass(this.bmi);
+          while (attempts < IntubationMaxAttempts && this.random() >= pFirst) attempts++;
+          this.lastIntubationAttempts = attempts;
+          this.apneaStart = this.time; this.apneaEnd = this.time + attempts * IntubationAttempt;
+          this.apneaT90 = Body.apneaTimeTo90(this.bmi) * (this.oxygen ? 1 : NoPreoxygenationFactor);
+          this.intubated = true;
+          this.updateVitals();
+          break;
+        }
         case "Vasopressor": this.pressor = Math.max(0, dose(iv)); break;
         case "Osmotherapy": for (const b of Object.values(this.brain)) b.level = Math.max(0, b.level - C.TbiOsmotherapyReduction); break;
         case "NeurosurgicalDecompression": for (const b of Object.values(this.brain)) { b.level = Math.min(b.level, C.TbiLevelAfterSurgery); b.stopped = true; } break;
@@ -863,7 +891,7 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
       const dbp = (Shock.dbp(m, fh) + this.sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + C.VasopressorDbpRise * pressorEffect(this.pressor)) * dr.sbp - 8 * hypoCa;
       const respDep = this.intubated ? 0 : dr.resp, rrFactor = 1 - 0.5 * respDep;
       airway = Math.max(airway, respDep);
-      let spo2 = loss(f, SpO2Air) - C.TpMaxSpO2Drop * tp - C.AirwayMaxSpO2Drop * airway + (this.oxygen ? 3 : 0) + (this.intubated ? 3 : 0);
+      let spo2 = loss(f, SpO2Air) - C.TpMaxSpO2Drop * tp - C.AirwayMaxSpO2Drop * airway + (this.oxygen ? 3 : 0) + (this.intubated ? 3 : 0) - this.apneaDesaturation();
       spo2 = Math.max(50, Math.min(100, spo2));
       const be = Shock.be(f), hco3 = BloodGas.hco3(be), paco2 = BloodGas.paco2(hco3, this.intubated, airway, tp), ph = BloodGas.ph(hco3, paco2);
       this.current = {
@@ -1120,7 +1148,7 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
             if (img) { this.imagingResults.push({ time: t, id: d.iv.id, label: d.label, lines: d.lines, images: d.images });
               if (this.awayUntil > 0 && t >= this.awayUntil - 1e-6) { this.awayUntil = -1; this.log("Patient zurück im Schockraum", "transport:back"); } }
           }
-          else { this.engine.applyIntervention(d.iv); this.log(`Wirksam: ${d.label}`, "effect:" + d.iv.type); }
+          else { this.engine.applyIntervention(d.iv); this.log(`Wirksam: ${d.label}`, "effect:" + d.iv.type); this.logIntubationAttempts(d.iv); }
           this.delayed.splice(i, 1);
         }
         this.engine.advance(this.step);
@@ -1166,8 +1194,16 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
       }
       this.engine.applyIntervention(iv);
       this.log(`Maßnahme: ${label}`, tag);
+      this.logIntubationAttempts(iv);
       this.warnContraindicated(def);
       return true;
+    }
+
+    /** Wie SimulationManager.LogIntubationAttempts. */
+    logIntubationAttempts(iv) {
+      const n = this.engine.lastIntubationAttempts;
+      if (iv.type !== "Intubation" || !(n > 1)) return;
+      this.log(`Intubation erst im ${n}. Versuch (ca. ${n * IntubationAttempt} s Apnoe, Sättigung fällt)`, "event:intubation-attempts:" + n);
     }
 
     /** Wie InterventionController.WarnContraindicated: Warnung, wenn eine aktive Verletzung die Maßnahme verbietet. */
@@ -1187,16 +1223,20 @@ details.goals ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px;
       const total = m.duration_s + (transport ? m.transport_s : 0);
       const tags = this.events.map((e) => e.tag).filter(Boolean);
       const lines = [], images = [];
+      const p = this.scenario.patient, bmi = p && p.weight_kg > 0 ? Body.bmi(p.weight_kg, p.height_cm) : 0;
+      const sono = m.covers.includes("eFAST"), miss = sono && bmi > 0 ? Body.efastMiss(bmi) : 0;
       for (const si of this.scenario.injuries) {
         if (si.onsetTime_s > v.time) continue;
         for (const f of this.injuries[si.injuryId].imaging || []) {
           if (!m.covers.includes(f.modality)) continue;
+          if (f.modality === "eFAST" && miss > 0 && Math.random() < miss) continue;   // übersehen (Adipositas, Armstrong 2023)
           const resolved = f.resolvedByTag && tags.some((x) => x.startsWith(f.resolvedByTag));
           lines.push(resolved && f.resolvedFinding ? f.resolvedFinding : f.finding);
           if (f.image && !resolved) images.push({ src: f.image, credit: f.imageCredit });
         }
       }
       if (!lines.length) lines.push(m.normalFinding);
+      if (sono && bmi >= 30) lines.push("Eingeschränkte Schallbedingungen (Adipositas), Beurteilbarkeit vermindert.");
       this.log(`Bildgebung: ${m.logLabel}` + (transport ? " (Transport in die Radiologie)" : m.isCT ? " (CT im Schockraum)" : ""), "imaging:" + m.id);
       if (transport) {
         this.awayUntil = v.time + total;

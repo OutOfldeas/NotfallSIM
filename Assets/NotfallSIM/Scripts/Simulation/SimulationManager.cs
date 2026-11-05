@@ -37,6 +37,7 @@ namespace NotfallSIM.Simulation
         public bool CtInTraumaRoom => ctInTraumaRoom;
         double _awayUntil = -1;
         readonly Dictionary<string, ImagingModality> _imaging = new Dictionary<string, ImagingModality>();
+        readonly System.Random _imagingRng = new System.Random();   // übersehene eFAST-Befunde (Adipositas)
 
         [Header("Zeit")]
         [Tooltip("1 = Echtzeit. Höher = schneller (zum Testen von Verläufen).")]
@@ -198,6 +199,15 @@ namespace NotfallSIM.Simulation
             }
             Engine.ApplyIntervention(iv);
             Log($"Maßnahme: {label}", tag);
+            LogIntubationAttempts(iv);
+        }
+
+        /// <summary>Mehrere Intubationsversuche (BMI, Yakushiji 2018) ins Protokoll — der Patient entsättigt währenddessen.</summary>
+        void LogIntubationAttempts(InterventionEvent iv)
+        {
+            if (iv.Type != InterventionType.Intubation || !(Engine is MockPhysiologyEngine me) || me.LastIntubationAttempts <= 1) return;
+            Log($"Intubation erst im {me.LastIntubationAttempts}. Versuch (ca. {me.LastIntubationAttempts * MockPhysiologyEngine.IntubationAttempt_s:0} s Apnoe, Sättigung fällt)",
+                "event:intubation-attempts:" + me.LastIntubationAttempts);
         }
 
         void TriggerDelayedInterventions()
@@ -216,6 +226,7 @@ namespace NotfallSIM.Simulation
                 {
                     Engine.ApplyIntervention(_delayed[i].iv);
                     Log($"Wirksam: {_delayed[i].label}", "effect:" + _delayed[i].iv.Type);
+                    LogIntubationAttempts(_delayed[i].iv);
                 }
                 _delayed.RemoveAt(i);
             }
@@ -234,7 +245,7 @@ namespace NotfallSIM.Simulation
             bool transport = m.transport_s > 0 && !(m.isCT && ctInTraumaRoom);
             double total = m.duration_s + (transport ? m.transport_s : 0);
             var active = Scenario.injuries.Where(si => si.onsetTime_s <= v.SimTime_s).Select(si => Database.Get(si.injuryId));
-            var lines = ImagingReport.Build(m, active, _log.Select(e => e.Tag));
+            var lines = ImagingReport.Build(m, active, _log.Select(e => e.Tag), Scenario.patient != null ? Scenario.patient.Bmi : 0, () => _imagingRng.NextDouble());
 
             Log($"Bildgebung: {m.logLabel}" + (transport ? " (Transport in die Radiologie)" : m.isCT ? " (CT im Schockraum)" : ""), "imaging:" + m.id);
             if (transport)

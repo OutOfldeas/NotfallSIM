@@ -501,6 +501,11 @@ static class Tests
         Check(tp.Count == 1 && tp[0].Contains("Pneumothorax links"), "Spannungspneu im Röntgen: " + string.Join(" ", tp));
         var after = ImagingReport.Build(mods["rx_thorax"], new[] { inj["spannungspneu_links"] }, new[] { "intervention:ChestDrain:LeftLung:drainage_li" });
         Check(after[0].Contains("Thoraxdrainage"), "nach Drainage: " + after[0]);
+        var withFluid = Injuries.injuries.First(i => i.imaging != null && i.imaging.Any(f => f.modality == "eFAST"));
+        var seen = ImagingReport.Build(mods["efast"], new[] { withFluid }, new string[0], 22, () => 0.99);
+        var missed = ImagingReport.Build(mods["efast"], new[] { withFluid }, new string[0], 40, () => 0.0);
+        Check(!seen.Contains(mods["efast"].normalFinding) && seen.Count == 1, "eFAST schlank: Befund gesehen");
+        Check(missed[0] == mods["efast"].normalFinding && missed.Any(l => l.Contains("Schallbedingungen")), "eFAST adipös: übersehen, Hinweis auf Schallbedingungen: " + string.Join(" ", missed));
         var ct = ImagingReport.Build(mods["ct_ganzkoerper"], new[] { inj["becken_instabil"], inj["epiduralhaematom_rechts"] }, new string[0]);
         Check(ct.Count == 2, "Ganzkörper-CT sollte Becken und Kopf zeigen: " + ct.Count);
         var cct = ImagingReport.Build(mods["cct"], new[] { inj["becken_instabil"] }, new string[0]);
@@ -636,6 +641,31 @@ static class Tests
             return 36.5 - e.Current.Temperature_C;
         };
         Check(cool(130, 175) < cool(75, 180) && cool(55, 170) > cool(75, 180), $"Auskühlung in 1 h: adipös {cool(130, 175):0.00} °C, Bezug {cool(75, 180):0.00} °C, schlank {cool(55, 170):0.00} °C");
+        // Intubation: Erfolg im ersten Versuch nach BMI (Yakushiji 2018), Entsättigung in Apnoe (Jense 1991)
+        Check(BodyComposition.IntubationFirstPass(22) == 0.709 && BodyComposition.IntubationFirstPass(27) == 0.664 && BodyComposition.IntubationFirstPass(35) == 0.593, "Erstversuch nach BMI");
+        Check(BodyComposition.ApneaTimeTo90_s(22) == 364 && BodyComposition.ApneaTimeTo90_s(31) == 247 && BodyComposition.ApneaTimeTo90_s(50) == 163, "Zeit bis SpO2 90 %");
+        Func<double, bool, (double attempts, double minSpO2)> intub = (w, o2) =>
+        {
+            double att = 0, minS = 0;
+            for (int seed = 0; seed < 300; seed++)
+            {
+                var e = new MockPhysiologyEngine(seed);
+                e.Initialize(new PatientProfile { weight_kg = w, height_cm = 175 });
+                if (o2) e.ApplyIntervention(new InterventionEvent { Type = InterventionType.Oxygen });
+                e.Advance(10);
+                double before = e.Current.SpO2_percent, low = before;
+                e.ApplyIntervention(new InterventionEvent { Type = InterventionType.Intubation });
+                att += e.LastIntubationAttempts;
+                for (int k = 0; k < 160; k++) { e.Advance(1); low = Math.Min(low, e.Current.SpO2_percent); }
+                minS += before - low;
+            }
+            return (att / 300, minS / 300);
+        };
+        var lean = intub(65, true); var obese = intub(130, true); var noO2 = intub(65, false);
+        Check(obese.attempts > lean.attempts && lean.attempts > 1.2 && lean.attempts < 1.5, $"Versuche im Mittel: schlank {lean.attempts:0.00}, adipös {obese.attempts:0.00}");
+        Check(obese.minSpO2 > 2 * lean.minSpO2 && noO2.minSpO2 > 3 * lean.minSpO2, $"Sättigungsabfall: schlank {lean.minSpO2:0.0}, adipös {obese.minSpO2:0.0}, ohne O2 {noO2.minSpO2:0.0} Punkte");
+        // eFAST übersieht bei Adipositas häufiger (Armstrong 2023)
+        Check(Math.Abs(BodyComposition.EfastMissProbability(25) - 0.10) < 1e-9 && BodyComposition.EfastMissProbability(40) > 0.18 && BodyComposition.EfastMissProbability(40) < 0.25, $"eFAST übersieht: BMI 25 10 %, BMI 40 {BodyComposition.EfastMissProbability(40):P0}");
         var big = new PatientProfile { weight_kg = 130, height_cm = 175 };
         Check(big.EstimatedBloodVolume_mL < 130 * 70 * 0.8, $"130 kg: Blutvolumen {big.EstimatedBloodVolume_mL:0} mL statt {130 * 70} mL");
     }
@@ -1622,7 +1652,7 @@ static class Tests
         double fAbd24 = NotfallSIM.Crash.ImpactModel.FatThickness_m(m, "Abdomen", 24, true), fAbd42 = NotfallSIM.Crash.ImpactModel.FatThickness_m(m, "Abdomen", 42, true);
         double fThigh = NotfallSIM.Crash.ImpactModel.FatThickness_m(m, "Oberschenkel rechts", 29.9, false);
         Check(Math.Abs(fAbd24 - 0.0092) < 1e-6 && fAbd42 > 0.025 && NotfallSIM.Crash.ImpactModel.FatThickness_m(m, "Kopf", 40, true) == 0, $"Bauchfett BMI 24 {fAbd24 * 1000:0} mm, BMI 42 {fAbd42 * 1000:0} mm; Kopf ohne Fett");
-        Check(Math.Abs(fThigh * 1000 - (5.7 + 0.4 * 5.9 + 5.1)) < 0.01, "Oberschenkel Frau BMI 29,9 nach Gibney");
+        Check(Math.Abs(fThigh * 1000 - (14 + 0.6 * 5.9 + 15)) < 0.01, "Oberschenkel Frau BMI 29,9 (MRT Hassler 2021)");
         Check(NotfallSIM.Crash.ImpactModel.FatModulus_Pa(m, 1000) == 4.7e6 && Math.Abs(NotfallSIM.Crash.ImpactModel.FatModulus_Pa(m, 1900) - 7.3e6) < 1 && NotfallSIM.Crash.ImpactModel.FatModulus_Pa(m, 0.01) == 20000, "Fett-Modul nach Dehnrate (Seifert 2023), unten begrenzt");
         var thx = NotfallSIM.Crash.ImpactModel.Region(m, "Thorax");
         double noFat = NotfallSIM.Crash.ImpactModel.Force(m, thx, 0.03, 6, 100, 0, 20, 0, out double td0);

@@ -596,10 +596,13 @@ Kanülenlänge 3–8 cm. Beispiele: BMI 21 mit 5 cm erreicht die Pleura zu > 90 
 - Thorax: +1,93 mm je BMI (wie die Brustwand bei Inaba [109]); Dicke bei BMI 24 (8 mm) **Annahme**.
 - Abdomen: +1,05 mm je BMI — Bauchwand im CT bei BMI ~33,5 im Mittel ca. 35 mm (Mahawongkajit 2026 [112]) gegenüber
   25 mm beim Bezug (Näherung).
-- Becken/Gesäß, Oberschenkel, Arm: +0,4 mm je BMI, Dicken aus dem Ultraschall von Gibney 2010 (388 Erwachsene,
-  BMI 19–65; Mittel 15,5 / 10,4 / 10,8 mm bei BMI 29,9). Gibney misst an Insulin-Injektionsstellen; die Zunahme je BMI
-  ist dort deutlich kleiner als bei den CT-Studien am Rumpf — das Modell übernimmt beides, wie gemessen.
-- Unterschenkel: **Annahme**.
+- Becken/Gesäß, Arm: +0,4 mm je BMI, Dicken aus dem Ultraschall von Gibney 2010 (388 Erwachsene, BMI 19–65; Mittel
+  15,5 / 10,8 mm bei BMI 29,9).
+- Oberschenkel: aus dem MRT von Hassler 2021 [115] (Unterhautfett-Fläche in Oberschenkelmitte: Männer 69 cm² bei BMI 24,6,
+  Frauen 143 cm² bei BMI 22,9). Als Ring bei angenommenem Oberschenkelumfang von 52 bzw. 55 cm sind das ca. 15 bzw.
+  32 mm — deutlich mehr als Gibneys 10 mm an der Injektionsstelle (Ultraschall mit Andruck). Das Modell nimmt das MRT
+  (14 mm beim Mann mit BMI 24, Frauen +15 mm) und die relative Zunahme von Gibney (ca. 4 % je BMI-Punkt, also 0,6 mm).
+- Unterschenkel: **Annahme** (etwa 60 % des Oberschenkels).
 
 **Fett im Kontakt.** Das Fett liegt in Reihe vor dem Gewebe, Steifigkeit E·A/Dicke. E hängt stark von der Dehnrate ab:
 Seifert 2023 [113] maß an Schweinefett 4,7 MPa bei 1000/s und 7,3 MPa bei 1900/s; das Modell legt ein Potenzgesetz durch
@@ -613,13 +616,38 @@ ist er vor allem für den Bauch (Arbabi 2003 [114]), dessen stumpfe Verletzung d
 BMI 24 die Leber, bei BMI 42 bleibt er im Fett (Widerstand Fett 10 N, **Annahme**).
 
 **Darstellung.** Die Haut wird je Region um das Mehr an Fett entlang der Hautnormalen verschoben (Blendshape, im
-Schockraum und an der Ragdoll), über Nachbarecken geglättet; der Bauch wölbt vorn zusätzlich vor (viszerales Fett,
-Faktor bis 4, **Darstellungsannahme**). Ragdoll-Kollider werden um dieselbe Dicke breiter, die Segmentmassen folgen dem
+Schockraum und an der Ragdoll) und über Nachbarecken geglättet. Am Bauch kommt viszerales Fett hinzu: Der
+Taillenumfang wächst nach Bozeman 2012 [116] (NHANES) um 2,52 cm (Männer) bzw. 2,22 cm (Frauen) je BMI-Punkt; was davon
+über das Unterhautfett hinausgeht, wölbt den Bauch vor allem nach vorn (Verteilung 1 + 2·max(0, vorn),
+**Darstellungsannahme**). Geprüft am Modell (Mann, 35 Jahre): Taillenumfang BMI 24 87 cm (Bozeman 89 cm),
+BMI 34 110 cm (114 cm), BMI 42 128 cm (134 cm; Bozeman gilt bis BMI 40). Ragdoll-Kollider werden um dieselbe Dicke breiter, die Segmentmassen folgen dem
 Gesamtgewicht. Organe bleiben unverändert.
 
-**Grenzen.** Fettverteilung nur nach Region, BMI und Geschlecht (nicht nach Taille oder Muskelmasse); keine
-Unterschiede bei eFAST, Venenzugang oder Intubation; Fahrzeugunfälle nutzen den nachgiebigen Kontakt (und damit das Fett)
-noch nicht.
+**Intubation.** Erfolg im ersten Versuch nach BMI aus dem japanischen Notaufnahme-Register (Yakushiji 2018 [117],
+6889 Intubationen): unter 25 70,9 %, 25–29,9 66,4 %, ab 30 59,3 %. Bis zu drei Versuche (der dritte gelingt), je
+40 s Apnoe (**Annahme**). In der Apnoe fällt die Sättigung linear um 10 Punkte bis zur Zeit bis SpO2 90 % nach
+Präoxygenierung (Jense 1991 [118]: normalgewichtig 364 s, mäßig adipös 247 s, morbide adipös 163 s; hier BMI 24, 31
+und 45 zugeordnet), danach erholt sie sich in 30 s. Ohne vorherige Sauerstoffgabe nur ein Fünftel der Zeit (Farmery &
+Roe 1996: ca. 1 min). Mehrere Versuche stehen im Protokoll.
+
+**eFAST.** Die Chance (Odds) eines falschen eFAST-Befunds steigt um 5,65 % je BMI-Punkt (Armstrong 2023 [119],
+202 Patienten). Das Modell übersieht einen eFAST-Befund bei BMI 25 mit 10 % (**Annahme** für relevante Mengen freier
+Flüssigkeit; neu auch bei Normalgewicht), bei BMI 40 mit ca. 21 %; ab BMI 30 steht „eingeschränkte Schallbedingungen“
+im Befund. Falsch positive Befunde gibt es nicht.
+
+**Stumpfer Bauchanprall in der Gewalt-Sandbox.** Die Kontaktkraft am Bauch wird wie beim Fahrzeugunfall ausgewertet
+(gleichmäßig auf 10 kHz gebracht, CFC 600, Organmodell `organ_model.json`): Milz-, Leber- und Nierenverletzungen aus
+Schlag, Wurf oder Sturz auf eine Kante. Fett wirkt hier über die Kontaktkraft (in Reihe vor dem Gewebe).
+
+**Fahrzeugunfälle.** Der nachgiebige Kontakt (Gewebe, Fett) ist jetzt auch bei den Fahrzeugunfällen an (Knopf
+„Kontakt: nachgiebig/starr“). Die Kalibrierfaktoren in `calibration.json` stammen aus dem starren Kontakt — nach dem
+ersten Test in Unity neu kalibrieren.
+
+**Grenzen.** Fettverteilung nur nach Region, BMI und Geschlecht (nicht nach Taille oder Muskelmasse). Der
+Venenzugang ist im Simulator nicht modelliert (BMI ≥ 30 verdoppelt etwa die Chance, dass der erste Versuch misslingt,
+Sebbane [120] — wäre der Ansatz). Das Fett-Modul bei langsamer Belastung ist extrapoliert, die Streuung der
+Brustwand bei gleichem BMI geschätzt: Aus Schroeder 2013 (SD 14 mm bei BMI-SD 7) blieben bei 1,93 mm je BMI-Punkt nur
+ca. 4 mm, die Metaanalyse von Ahmad 2025 findet aber keinen engen Zusammenhang mit dem BMI — 9 mm liegt dazwischen.
 
 ## Offene Punkte zum Prüfen
 
@@ -810,3 +838,9 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 112. Mahawongkajit P, Rodsa P, Orrapin S. Association between anthropometric measures and abdominal wall thickness in patients with obesity: a cross-sectional CT study. *PLoS One*. 2026;21(7):e0354274. [DOI](https://doi.org/10.1371/journal.pone.0354274)
 113. Seifert J, Koser J, Shah AS, et al. Response of thoraco-abdominal tissue in high-rate compression. *J Biomech Eng*. 2023;145(3). [PubMed](https://pubmed.ncbi.nlm.nih.gov/36301262/)
 114. Arbabi S, Wahl WL, Hemmila MR, Kohoyda-Inglis C, Taheri PA, Wang SC. The cushion effect. *J Trauma*. 2003;54(6):1090-1093. [PubMed](https://pubmed.ncbi.nlm.nih.gov/12813327/)
+115. Hassler EM, Deutschmann H, Almer G, et al. Distribution of subcutaneous and intermuscular fatty tissue of the mid-thigh measured by MRI. *PLoS One*. 2021;16(11):e0259952. [DOI](https://doi.org/10.1371/journal.pone.0259952)
+116. Bozeman SR, Hoaglin DC, Burton TM, Pashos CL, Ben-Joseph RH, Hollenbeak CS. Predicting waist circumference from body mass index. *BMC Med Res Methodol*. 2012;12:115. [DOI](https://doi.org/10.1186/1471-2288-12-115)
+117. Yakushiji H, Goto T, Shirasaka W, et al. Associations of obesity with tracheal intubation success on first attempt and adverse events in the emergency department. *PLoS One*. 2018;13(4):e0195938. [DOI](https://doi.org/10.1371/journal.pone.0195938)
+118. Jense HG, et al. Effect of obesity on safe duration of apnea in anesthetized humans. *Anesth Analg*. 1991;72:89-93. [Link](https://synapsesocial.com/papers/W2052627998)
+119. Armstrong LR, Rutherford NR, Heidel RE, Smith LM, Butts C. The effect of BMI on eFAST accuracy in trauma by residents in the emergency room. *Am Surg*. 2023;89(7):3238-3240. [DOI](https://doi.org/10.1177/00031348231157851)
+120. Sebbane M, et al. Predicting peripheral venous access difficulty in the emergency department using body mass index and a clinical evaluation of venous accessibility. [Link](https://read.qxmd.com/read/22981661) (563 Patienten; BMI ≥ 30: OR 1,98 für Misserfolg beim ersten Versuch)
