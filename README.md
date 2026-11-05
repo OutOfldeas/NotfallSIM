@@ -8,6 +8,12 @@ medizinisches Wissen in versionierten JSON-Dateien mit Quellenangaben.
 
 > Experimentelles Lern- und Forschungsprojekt. Kein Medizinprodukt, nicht für klinische Entscheidungen.
 
+
+**Automatisch aktualisieren.** Der Editor holt neue Commits selbst (`Editor/AutoGitPull.cs`): beim Öffnen des Projekts,
+wenn Unity wieder in den Vordergrund kommt, und alle 10 Minuten — nur vorspulen (`git pull --ff-only`), nie im Play-Modus.
+Lokale Änderungen bleiben unangetastet; steht eine im Weg, meldet die Konsole die Datei. Menü: *NotfallSIM › Git*
+(„Jetzt aktualisieren“, „Automatisch aktualisieren“ an/aus). Benötigt git (Git für Windows oder GitHub Desktop).
+
 ## Architektur
 
 ```
