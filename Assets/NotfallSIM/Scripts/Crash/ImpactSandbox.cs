@@ -34,6 +34,7 @@ namespace NotfallSIM.Crash
         readonly List<BluntContact> _blunt = new List<BluntContact>();
         readonly List<CutResult> _cuts = new List<CutResult>();
         double _maxHic;
+        readonly Dictionary<string, double> _maxMeasure = new Dictionary<string, double>();   // höchster Wert je Messgröße über alle Einwirkungen
         readonly List<string> _actions = new List<string>();
         readonly List<Anatomy.CrashMark> _marks = new List<Anatomy.CrashMark>();
         int _run, _stabMarks;
@@ -95,7 +96,7 @@ namespace NotfallSIM.Crash
             Release(false);
             _p.Seed = UnityEngine.Random.Range(1, 100000);
             _rig.BuildGewalt(_p, _model);
-            _blunt.Clear(); _cuts.Clear(); _maxHic = 0; _actions.Clear(); _marks.Clear(); _allPenetrations.Clear(); _run = 0; _stabMarks = 0; _lastSummary = "";
+            _blunt.Clear(); _cuts.Clear(); _maxHic = 0; _maxMeasure.Clear(); _actions.Clear(); _marks.Clear(); _allPenetrations.Clear(); _run = 0; _stabMarks = 0; _lastSummary = "";
             _host.SetGewaltResult(null, null, "Körper liegt bereit.\n\n" + Help());
         }
 
@@ -418,6 +419,16 @@ namespace NotfallSIM.Crash
             _blunt.AddRange(rec.Blunt);
             _cuts.AddRange(rec.Cuts);
             _maxHic = Math.Max(_maxHic, rec.Hic15);
+            foreach (var m in rec.Measurements)
+            {
+                // seitliche Richtung: vom stärksten Bauchanprall; sonst Maximum
+                if (m.metric == "Abdomen.lateral") continue;
+                if (!_maxMeasure.TryGetValue(m.metric, out double old) || m.value > old)
+                {
+                    _maxMeasure[m.metric] = m.value;
+                    if (m.metric == "Abdomen.C") { var lat = rec.Measurements.FirstOrDefault(x => x.metric == "Abdomen.lateral"); if (lat != null) _maxMeasure["Abdomen.lateral"] = lat.value; }
+                }
+            }
             var rng = new System.Random(_p.Seed);
             var pens = _rig.Penetrations != null ? _rig.Penetrations.Results.ToList() : new List<PenetrationResult>();
             var direct = ImpactModel.Evaluate(_model, _blunt, _allPenetrations.Concat(pens), _cuts, () => rng.NextDouble());
@@ -449,8 +460,7 @@ namespace NotfallSIM.Crash
             string description = $"{(_p.Male ? "Mann" : "Frau")}, ca. 35 Jahre, nach Gewalteinwirkung liegend aufgefunden: " +
                                  string.Join("; ", _actions) + ".";
             // HIC aus dem stärksten Kopfanprall aller Einwirkungen → Schädel-Hirn-Verletzungen über die Risikokurven (injury_risk.json)
-            var measurements = new List<CrashMeasurement>();
-            if (_maxHic > 0) measurements.Add(new CrashMeasurement { metric = "HIC15", value = _maxHic });
+            var measurements = _maxMeasure.Select(kv => new CrashMeasurement { metric = kv.Key, value = kv.Value }).ToList();
             var result = InjuryRisk.BuildScenario(risk, mech, db.All, measurements, setup, (uint)_p.Seed, direct,
                                                   "Stumpfe/spitze Gewalt", description);
 
@@ -470,6 +480,12 @@ namespace NotfallSIM.Crash
                 foreach (var b in top)
                     sb.AppendLine($"{b.Segment}: {b.PeakForce_N / 1000:0.0} kN auf {b.Area_cm2:0} cm² ({Surface(b.Surface)})" +
                                   (b.MaxIndentation_m > 0.002 ? $", eingedrückt {b.MaxIndentation_m * 1000:0} mm" : ""));
+            }
+            if (rec.Abdomen != null && rec.Abdomen.PeakCompression > 0.01)
+            {
+                sb.AppendLine($"<b>Bauch</b> <size=80%>(um {rec.Abdomen.PeakDeflection_m * 1000:0} mm = {rec.Abdomen.PeakCompression:P0} eingedrückt, Dehnrate {rec.Abdomen.StrainRate_per_s:0.#}/s)</size>");
+                foreach (var o in rec.Abdomen.Organs.Where(x => x.Exposure > 0))
+                    sb.AppendLine($"{o.Organ.label}: Dehnung {o.Strain:P0} von {o.FailureStrain:P0} bis zum Riss → {o.Probability:P0}");
             }
             if (pens.Count > 0)
             {

@@ -13,6 +13,9 @@ namespace NotfallSIM.Crash
         public readonly List<CutResult> Cuts = new List<CutResult>();
         /// <summary>HIC15 aus der Kopfbeschleunigung (gleichmäßig auf 10 kHz umgerechnet, CFC 1000); 0 ohne Kopfbewegung.</summary>
         public double Hic15;
+        /// <summary>Bauchanprall: Organbelastung (Milz, Leber, Nieren) aus der Kontaktkraft am Abdomen, sonst null.</summary>
+        public AbdomenLoad Abdomen;
+        public readonly List<CrashMeasurement> Measurements = new List<CrashMeasurement>();
         public float Duration_s;
         public int FineSteps, CoarseSteps;
     }
@@ -31,6 +34,7 @@ namespace NotfallSIM.Crash
         [SerializeField] float impactCoarseStep_s = 0.001f;
 
         public ImpactModelFile Impact { get; private set; }
+        float _gewaltHeight_m = 1.8f;
         public PenetrationSystem Penetrations { get; private set; }
 
         /// <summary>Ground, liegender Körper (Rückenlage), Kontaktmodell für alle Segmente.</summary>
@@ -40,10 +44,21 @@ namespace NotfallSIM.Crash
             SoftContact.Clear();
             CrashSensor.ClearLookup();
             Impact = model;
+            _gewaltHeight_m = p.Height_m;
             Ground();
             float H = p.Height_m;
             // Rückenlage: aufrecht gebaut und um 90° nach hinten gekippt (Vorderseite nach oben); Hüftmitte etwa 12 cm über dem Boden
             Ragdoll = RagdollBuilder.Build(new Vector3(0, 0.12f * H / 1.75f, 0), Quaternion.Euler(-90, 0, 0), RagdollPose.Standing, H, p.Mass_kg, p.Male, invertKneeFlexion);
+            RegisterSoftBody(p, model);
+            Penetrations = new PenetrationSystem(model, p.Seed);
+            SoftContact.Enabled = false;   // zwischen den Würfen normale (starre) Kontakte: stabil beim Ziehen
+        }
+
+        /// <summary>Alle Körperkollider beim nachgiebigen Kontakt anmelden (Region, Unterhautfett nach BMI). false ohne Modell.</summary>
+        bool RegisterSoftBody(CrashParams p, ImpactModelFile model)
+        {
+            if (model == null || Ragdoll == null) return false;
+            SoftContact.Clear();
             SoftContact.Model = model;
             double bmi = Core.BodyComposition.Bmi(p.Mass_kg, p.Height_m * 100);
             foreach (var s in Ragdoll.Sensors)
@@ -55,12 +70,11 @@ namespace NotfallSIM.Crash
                 foreach (var c in s.GetComponentsInChildren<Collider>())
                 {
                     if (c.attachedRigidbody != rb || c.isTrigger) continue;
-                    c.contactOffset = 0.02f;   // Kontakte früh melden: rechtzeitig auf den feinen Schritt wechseln
+                    c.contactOffset = 0.02f;   // Kontakte früh melden
                     SoftContact.RegisterBody(c, region, s, fat, extra);
                 }
             }
-            Penetrations = new PenetrationSystem(model, p.Seed);
-            SoftContact.Enabled = false;   // zwischen den Würfen normale (starre) Kontakte: stabil beim Ziehen
+            return true;
         }
 
         /// <summary>
@@ -181,6 +195,8 @@ namespace NotfallSIM.Crash
             // Kopfgeschwindigkeit je Schritt für HIC (Schrittweite wechselt, daher später gleichmäßig umgerechnet)
             var head = Ragdoll.Head;
             var hT = new List<double>(); var hX = new List<double>(); var hY = new List<double>(); var hZ = new List<double>();
+            var abdSensors = Ragdoll.Sensors.Where(x => x.Region == "Abdomen").ToList();
+            var abdF = new List<double>();   // Kontaktkraft am Bauch je Schritt (N), gleiche Zeitpunkte wie hT
             float t = 0, fineUntil = -1, lastFrame = 0, rest = 0, nextRestCheck = 0;
             bool started = false;
             CrashStart = 0;
@@ -204,6 +220,12 @@ namespace NotfallSIM.Crash
                     perStep?.Invoke(t, dt);
                     if (head != null) { var hv = CrashPhysics.Velocity(head); hT.Add(t); hX.Add(hv.x); hY.Add(hv.y); hZ.Add(hv.z); }
                     foreach (var s in Ragdoll.Sensors) s.Step(dt);
+                    if (head != null)
+                    {
+                        double fa = 0;
+                        foreach (var s in abdSensors) if (s.Force_kN.Count > 0) fa += s.Force_kN[s.Force_kN.Count - 1] * 1000;
+                        abdF.Add(fa);
+                    }
                     Penetrations?.Step(dt);
                     Physics.Simulate(dt);
                     Penetrations?.ProcessRequests();
@@ -234,6 +256,20 @@ namespace NotfallSIM.Crash
             {
                 var acc = Biomechanics.ResampleAccel_g(hT, hX, hY, hZ, crashStep_s);
                 record.Hic15 = acc.Count > 10 ? Biomechanics.Hic(Biomechanics.Cfc(acc, crashStep_s, 1000), crashStep_s, 0.015) : 0;
+                if (record.Hic15 > 0) record.Measurements.Add(new CrashMeasurement { metric = "HIC15", value = record.Hic15 });
+                // Bauch: Kontaktkraft gleichmäßig auf 10 kHz, CFC 600, dann Organmodell wie beim Fahrzeugunfall
+                var organs = LoadOrganModel();
+                var tissues = Anatomy.AnatomyPatient.Tissues;
+                if (organs != null && tissues != null && abdF.Count == hT.Count && abdF.Max() > 200)
+                {
+                    var force = Biomechanics.Cfc(Biomechanics.Resample(hT, abdF, crashStep_s), crashStep_s, 600);
+                    double lat = 0, tot = 0;
+                    foreach (var s in Ragdoll.Sensors) if (s.Region == "Thorax" || s.Region == "Abdomen" || s.Region == "Becken") { lat += s.LateralImpulse; tot += s.TotalImpulse; }
+                    double lateral = tot > 0 ? lat / tot : 0;
+                    record.Abdomen = OrganMechanics.Evaluate(organs, tissues, force, crashStep_s, lateral, _gewaltHeight_m);
+                    record.Measurements.AddRange(OrganMechanics.Measurements(record.Abdomen));
+                    record.Measurements.Add(new CrashMeasurement { metric = "Abdomen.lateral", value = lateral });
+                }
             }
             Running = false;
             yield return Replay(slowMotion);

@@ -81,6 +81,35 @@ namespace NotfallSIM.Core
             return x >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf);
         }
 
+        /// <summary>
+        /// Erfolg beim ersten Intubationsversuch in der Notaufnahme nach BMI (Yakushiji 2018, JEAN-2-Register,
+        /// 6889 Intubationen): unter 25 70,9 %, 25–29,9 66,4 %, ab 30 59,3 %.
+        /// </summary>
+        public static double IntubationFirstPass(double bmi) => bmi < 25 ? 0.709 : bmi < 30 ? 0.664 : 0.593;
+
+        /// <summary>
+        /// Zeit bis SpO2 90 % in Apnoe nach Präoxygenierung (s) nach Jense 1991: normalgewichtig 364 s, mäßig adipös
+        /// 247 s, morbide adipös 163 s — den Gruppen hier BMI 24, 31 und 45 zugeordnet, dazwischen linear, außerhalb konstant.
+        /// </summary>
+        public static double ApneaTimeTo90_s(double bmi)
+        {
+            if (bmi <= 24) return 364;
+            if (bmi <= 31) return 364 + (247 - 364) * (bmi - 24) / 7;
+            if (bmi <= 45) return 247 + (163 - 247) * (bmi - 31) / 14;
+            return 163;
+        }
+
+        /// <summary>
+        /// Wahrscheinlichkeit, dass die eFAST einen vorhandenen Befund übersieht: 10 % bei BMI 25 (Annahme für relevante
+        /// Mengen freier Flüssigkeit), die Chance (Odds) eines falschen eFAST-Befunds steigt um 5,65 % je BMI-Punkt
+        /// (Armstrong 2023, 202 Patienten).
+        /// </summary>
+        public static double EfastMissProbability(double bmi)
+        {
+            double logit = Math.Log(0.10 / 0.90) + Math.Log(1.0565) * (bmi - 25);
+            return 1 / (1 + Math.Exp(-logit));
+        }
+
         /// <summary>Wählbare Körperbauten (BMI); 0 = wie im Fall.</summary>
         public static readonly (string label, double bmi)[] BodyTypes =
         {

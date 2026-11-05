@@ -58,6 +58,7 @@ namespace NotfallSIM.Crash
             _impact.Init(rig, this, cam);
             MakeGewaltButton();
             _bodyText = MakeBodyButton();
+            _contactText = MakeContactButton();
             SelectMechanism("pkw_frontal");
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
             resultText.text = "Mechanismus wählen und „Crash starten“ drücken.";
@@ -125,6 +126,39 @@ namespace NotfallSIM.Crash
             var label = go.GetComponentInChildren<TMP_Text>();
             ApplyBody(label);
             return label;
+        }
+
+        TMP_Text _contactText;
+
+        /// <summary>Knopf „Kontakt: nachgiebig/starr“ unter dem Körperbau (zur Laufzeit).</summary>
+        TMP_Text MakeContactButton()
+        {
+            var src = _bodyText != null ? _bodyText.GetComponentInParent<UnityEngine.UI.Button>() : null;
+            if (src == null) return null;
+            var go = Instantiate(src.gameObject, src.transform.parent);
+            go.name = "Kontaktmodell";
+            go.transform.SetSiblingIndex(src.transform.GetSiblingIndex() + 1);
+            var b = go.GetComponent<UnityEngine.UI.Button>();
+            for (int i = 0; i < b.onClick.GetPersistentEventCount(); i++)
+                b.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
+            b.onClick.AddListener(ToggleSoftContact);
+            var label = go.GetComponentInChildren<TMP_Text>();
+            ContactLabel(label);
+            return label;
+        }
+
+        /// <summary>Kontaktmodell beim Fahrzeugunfall: nachgiebig (Gewebe, Fett) oder starr (wie bis Version 0.9).</summary>
+        public void ToggleSoftContact()
+        {
+            if (Busy || Gewalt) return;
+            _p.SoftContact = !_p.SoftContact;
+            ContactLabel(_contactText);
+            ShowSettings();
+        }
+
+        void ContactLabel(TMP_Text t)
+        {
+            if (t != null) t.text = _p.SoftContact ? "Kontakt: nachgiebig (Gewebe, Fett)" : "Kontakt: starr (alt)";
         }
 
         /// <summary>Körperbau wechseln: Gewicht aus BMI und Größe (Ragdoll-Masse, Blutvolumen, Dosis, Brustwand im Schockraum).</summary>

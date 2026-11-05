@@ -10,8 +10,10 @@ namespace NotfallSIM.Anatomy
     /// Bezugs-BMI entlang der Hautnormalen verschoben (Blendshape „Koerperfett“). Dicken aus impact_model.json
     /// (<see cref="ImpactModel.FatExtra_m"/>, Gibney 2010, Inaba 2012, Mahawongkajit 2026). Organe bleiben, wo sie sind —
     /// im Röntgenblick liegt das Fett zwischen Haut und Muskel.
-    /// Darstellungsannahmen: Bauch vorn zusätzlich vorgewölbt (viszerales Fett, Faktor bis 4), Hände und Füße 30 %,
-    /// Kopf ohne Fett, Abnahme bei schlanken Patienten höchstens 3 mm.
+    /// Bauch: Der Taillenumfang wächst nach Bozeman 2012 (NHANES) um 2,52 cm (Männer) bzw. 2,22 cm (Frauen) je BMI-Punkt;
+    /// was über das Unterhautfett hinausgeht (viszerales Fett), wölbt den Bauch vor allem nach vorn (Gewicht 1 + 2·max(0, n_vorn),
+    /// im Mittel über den Umfang so verteilt, dass der Umfang stimmt — Verteilung ist Darstellungsannahme).
+    /// Weitere Darstellungsannahmen: Hände und Füße 30 %, Kopf ohne Fett, Abnahme bei schlanken Patienten höchstens 3 mm.
     /// </summary>
     public static class BodyFatShape
     {
@@ -55,6 +57,12 @@ namespace NotfallSIM.Anatomy
             }
             // Dicke je Ecke aus beiden Gelenkgewichten (weiche Übergänge), Bauch vorn verstärkt, dann über die Nachbarn geglättet
             var e = new float[n];
+            // Taillenumfang (Bozeman 2012): zusätzlicher Radius im Mittel ΔU/2π; Unterhautfett davon abziehen, Rest = viszeral
+            double refBmi = Model().fat.refBmi;
+            double dWaist_m = (male ? 0.025207 : 0.022180) * (Math.Min(bmi, 45) - refBmi);
+            double subAbd = Extra_m("Abdomen", bmi, male);
+            float visceral = (float)(Math.Max(0, dWaist_m / (2 * Math.PI) - Math.Max(0, subAbd)) * unitsPerMeter);
+            const float meanWeight = 1 + 2 / Mathf.PI;   // Mittel von 1 + 2·max(0, cos θ) über den Umfang
             for (int v = 0; v < n; v++)
             {
                 int b0 = skin.Bones[2 * v], b1 = skin.Bones[2 * v + 1];
@@ -62,7 +70,7 @@ namespace NotfallSIM.Anatomy
                 float x0 = b0 < segs.Length ? extra[b0] : 0, x1 = b1 < segs.Length ? extra[b1] : 0;
                 float abd = (b0 < segs.Length && segs[b0].region == "Abdomen" ? w0 : 0) + (b1 < segs.Length && segs[b1].region == "Abdomen" ? 1 - w0 : 0);
                 float ev = w0 * x0 + (1 - w0) * x1;
-                if (ev > 0) ev *= 1 + 3f * abd * Mathf.Max(0, normals[v].z);   // viszerales Fett wölbt nach vorn (Darstellungsannahme)
+                if (visceral > 0 && abd > 0) ev += abd * visceral * (1 + 2 * Mathf.Max(0, normals[v].z)) / meanWeight;
                 e[v] = ev;
             }
             var adj = SkinMarks.Adjacency(n, skin.Indices, skin.Indices.Length / 3);

@@ -156,6 +156,21 @@ namespace NotfallSIM.Crash
         /// Schrittweite (lineare Interpolation der Geschwindigkeit, dann Differenzen). Für HIC nach der Gewalt-Sandbox,
         /// deren Schritt zwischen 0,1 und 1 ms wechselt; CFC-Filter brauchen gleichmäßige Abtastung.
         /// </summary>
+        /// <summary>Messreihe mit wechselnder Schrittweite gleichmäßig im Abstand <paramref name="dt"/> (lineare Interpolation).</summary>
+        public static List<double> Resample(IList<double> t, IList<double> x, double dt)
+        {
+            var result = new List<double>();
+            if (t.Count < 2 || dt <= 0) return result;
+            int k = 0;
+            for (double tt = t[0]; tt <= t[t.Count - 1] + 1e-12; tt += dt)
+            {
+                while (k < t.Count - 2 && t[k + 1] < tt) k++;
+                double span = t[k + 1] - t[k], u = span > 0 ? Math.Max(0, Math.Min(1, (tt - t[k]) / span)) : 1;
+                result.Add(x[k] + (x[k + 1] - x[k]) * u);
+            }
+            return result;
+        }
+
         public static List<double> ResampleAccel_g(IList<double> t, IList<double> vx, IList<double> vy, IList<double> vz, double dt)
         {
             var result = new List<double>();
