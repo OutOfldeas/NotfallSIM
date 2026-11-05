@@ -44,15 +44,19 @@ namespace NotfallSIM.Crash
             float H = p.Height_m;
             // Rückenlage: aufrecht gebaut und um 90° nach hinten gekippt (Vorderseite nach oben); Hüftmitte etwa 12 cm über dem Boden
             Ragdoll = RagdollBuilder.Build(new Vector3(0, 0.12f * H / 1.75f, 0), Quaternion.Euler(-90, 0, 0), RagdollPose.Standing, H, p.Mass_kg, p.Male, invertKneeFlexion);
+            SoftContact.Model = model;
+            double bmi = Core.BodyComposition.Bmi(p.Mass_kg, p.Height_m * 100);
             foreach (var s in Ragdoll.Sensors)
             {
                 var region = ImpactModel.Region(model, s.Region);
                 var rb = s.GetComponent<Rigidbody>();
+                // Unterhautfett je Region nach BMI und Geschlecht: in Reihe im Kontakt, verlängert den Stichkanal
+                double fat = ImpactModel.FatThickness_m(model, s.Region, bmi, p.Male), extra = ImpactModel.FatExtra_m(model, s.Region, bmi, p.Male);
                 foreach (var c in s.GetComponentsInChildren<Collider>())
                 {
                     if (c.attachedRigidbody != rb || c.isTrigger) continue;
                     c.contactOffset = 0.02f;   // Kontakte früh melden: rechtzeitig auf den feinen Schritt wechseln
-                    SoftContact.RegisterBody(c, region, s);
+                    SoftContact.RegisterBody(c, region, s, fat, extra);
                 }
             }
             Penetrations = new PenetrationSystem(model, p.Seed);

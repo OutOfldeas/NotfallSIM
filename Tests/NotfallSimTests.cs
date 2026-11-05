@@ -51,6 +51,7 @@ static class Tests
         Run("BGA: metabolische Azidose im Schock, Hyperkapnie bei ungeschütztem Atemweg", BgaAcidBase);
         Run("Noradrenalin: hebt den MAD, erhöht aber den Blutverlust", VasopressorTradeOff);
         Run("Polytrauma: präklinischer Blutverlust und akutes SDH bei Ankunft", PolytraumaArrival);
+        Run("Körperbau: BMI, Fett, Magergewicht, Blutvolumen, Dosis, Auskühlung, Brustwand und Nadel", BodyCompositionChecks);
         Run("Zustandsereignis: MAD < 80 nur bei schwerem SHT", MapLowTbiState);
         Run("Laparotomie: stillt Milz- und Leberblutung (mehrere Ziele)", MultiTargetControl);
         Run("Generator: gleicher Seed gleiches Szenario, Ausschlussgruppen, nie leer", GeneratorConsistency);
@@ -256,10 +257,10 @@ static class Tests
         for (int seed = 0; seed < n; seed++)
         {
             var e = new MockPhysiologyEngine(seed);
-            e.Initialize(new PatientProfile());
+            e.Initialize(new PatientProfile { weight_kg = 85, height_cm = 180 });   // BMI 26 wie im Mittel der Metaanalyse
             e.ApplyInjury(Tension(1));
             e.Advance(300);
-            e.ApplyIntervention(new InterventionEvent { Type = InterventionType.NeedleDecompression, TargetCompartment = "LeftLung", SuccessProbability = 0.57 });
+            e.ApplyIntervention(new InterventionEvent { Type = InterventionType.NeedleDecompression, TargetCompartment = "LeftLung", SuccessProbability = 0.71 });
             e.Advance(0.1);
             if (e.Current.SpO2_percent < 90) fails++;
         }
@@ -576,11 +577,75 @@ static class Tests
         Check(with.Current.BloodLossFraction > without.Current.BloodLossFraction, $"Verlust mit {with.Current.BloodLossFraction:P1}, ohne {without.Current.BloodLossFraction:P1}");
     }
 
+    static void BodyCompositionChecks()
+    {
+        // Formeln
+        Check(Math.Abs(BodyComposition.Bmi(80, 180) - 24.69) < 0.01, "BMI");
+        Check(Math.Abs(BodyComposition.BodyFat_percent(24.69, 35, true) - 21.47) < 0.05, "Körperfett Deurenberg (Mann 35 J., BMI 24,7 → 21,5 %)");
+        Check(Math.Abs(BodyComposition.LeanBodyWeight_kg(70, 22.9, true) - 55.8) < 0.2, "Magergewicht Janmahasatian (70 kg, BMI 22,9 → 55,8 kg)");
+        Check(Math.Abs(BodyComposition.BodySurfaceArea_m2(75, 180) - 1.936) < 0.002, "Körperoberfläche Mosteller");
+        Check(Math.Abs(BodyComposition.BloodVolume_mL(70, 22, true) - 4900) < 1e-6 && BodyComposition.BloodVolume_mL(70, 20, true) == 4900, "Blutvolumen bis BMI 22 = 70 mL/kg");
+        Check(Math.Abs(BodyComposition.BloodVolume_mL(130, 40, true) / 130 - 70 * Math.Sqrt(22 / 40.0)) < 1e-9, "Lemmens: 130 kg, BMI 40 → 52 mL/kg");
+        Check(Math.Abs(BodyComposition.LeanDoseFactor(22, true) - 1) < 1e-12 && BodyComposition.LeanDoseFactor(40, true) > 1.3, "Dosiswirkung je kg Gesamtgewicht bei BMI 40 um > 30 % stärker");
+        Check(Math.Abs(BodyComposition.CoolingFactor(75, 180) - 1) < 1e-12 && BodyComposition.CoolingFactor(130, 175) < 0.8 && BodyComposition.CoolingFactor(50, 165) > 1.1, "Auskühlung: adipös langsamer, schlank schneller");
+        // Brustwand nach Inaba 2012 (Mittel je BMI-Quartil): Anpassung trifft die Quartile auf ±3 mm
+        var q = new[] { (21.4, 33.0, 20.5), (25.7, 40.8, 26.5), (29.1, 50.5, 33.2), (35.5, 59.6, 51.6) };
+        foreach (var x in q)
+        {
+            Check(Math.Abs(BodyComposition.ChestWall_mm(x.Item1, false) - x.Item2) < 3, $"Brustwand MCL bei BMI {x.Item1}: {BodyComposition.ChestWall_mm(x.Item1, false):0} mm (Inaba {x.Item2})");
+            Check(Math.Abs(BodyComposition.ChestWall_mm(x.Item1, true) - x.Item3) < 7, $"Brustwand AAL bei BMI {x.Item1}: {BodyComposition.ChestWall_mm(x.Item1, true):0} mm (Inaba {x.Item3})");
+        }
+        double slim5 = BodyComposition.NeedleReachProbability(21, false, 5), obese5 = BodyComposition.NeedleReachProbability(38, false, 5), obese8 = BodyComposition.NeedleReachProbability(38, false, 8);
+        Check(slim5 > 0.9 && obese5 < 0.15 && obese8 > 0.85, $"Nadel 5 cm: schlank {slim5:P0}, adipös {obese5:P0}; 8 cm adipös {obese8:P0}");
+        Check(BodyComposition.NeedleReachProbability(30, true, 5) > BodyComposition.NeedleReachProbability(30, false, 5), "vordere Axillarlinie dünner als 2. ICR MCL");
+        Check(Math.Abs(BodyComposition.NormalCdf(1.96) - 0.975) < 1e-4 && Math.Abs(BodyComposition.NormalCdf(0) - 0.5) < 1e-9, "Normalverteilung");
+
+        // Engine: Nadel bei Adipositas, Medikament, Auskühlung, Blutvolumen
+        Func<double, double, double, string, double> needleFail = (w, h, len, site) =>
+        {
+            int fails = 0;
+            for (int seed = 0; seed < 600; seed++)
+            {
+                var e = new MockPhysiologyEngine(seed);
+                e.Initialize(new PatientProfile { weight_kg = w, height_cm = h });
+                e.ApplyInjury(Tension(1)); e.Advance(300);
+                e.ApplyIntervention(new InterventionEvent { Type = InterventionType.NeedleDecompression, TargetCompartment = "LeftLung", SuccessProbability = 0.71, DoseValue = len, Site = site });
+                e.Advance(0.1);
+                if (e.Current.SpO2_percent < 90) fails++;
+            }
+            return fails / 600.0;
+        };
+        double fSlim = needleFail(65, 180, 5, null), fObese = needleFail(125, 175, 5, null), fObese8 = needleFail(125, 175, 8, null), fObeseAal = needleFail(125, 175, 5, "aal");
+        Check(fObese > fSlim + 0.4 && fObese8 < fObese - 0.4 && fObeseAal < fObese, $"Nadelversagen: schlank {fSlim:P0}, adipös 5 cm {fObese:P0}, 8 cm {fObese8:P0}, AAL 5 cm {fObeseAal:P0}");
+        Func<double, double> propofolSbp = w =>
+        {
+            var e = new MockPhysiologyEngine(1);
+            e.Initialize(new PatientProfile { weight_kg = w, height_cm = 175 });
+            e.Advance(1);
+            double before = e.Current.SystolicBP_mmHg;
+            e.ApplyIntervention(new InterventionEvent { Type = InterventionType.Medication, Compound = "Propofol", DoseFactor = 1 });
+            e.Advance(60);
+            return e.Current.SystolicBP_mmHg / before;
+        };
+        Check(propofolSbp(130) < propofolSbp(67), $"Propofol je kg Gesamtgewicht: adipös stärkerer RR-Abfall ({propofolSbp(130):P0} vs {propofolSbp(67):P0} des Ausgangswerts)");
+        Func<double, double, double> cool = (w, h) =>
+        {
+            var e = new MockPhysiologyEngine(1);
+            e.Initialize(new PatientProfile { weight_kg = w, height_cm = h });
+            Advance(e, 3600);
+            return 36.5 - e.Current.Temperature_C;
+        };
+        Check(cool(130, 175) < cool(75, 180) && cool(55, 170) > cool(75, 180), $"Auskühlung in 1 h: adipös {cool(130, 175):0.00} °C, Bezug {cool(75, 180):0.00} °C, schlank {cool(55, 170):0.00} °C");
+        var big = new PatientProfile { weight_kg = 130, height_cm = 175 };
+        Check(big.EstimatedBloodVolume_mL < 130 * 70 * 0.8, $"130 kg: Blutvolumen {big.EstimatedBloodVolume_mL:0} mL statt {130 * 70} mL");
+    }
+
     static void PolytraumaArrival()
     {
         var e = new MockPhysiologyEngine(1);
         e.Initialize(new PatientProfile { weight_kg = 85, age = 42, initialBloodLoss_mL = 1500 });
-        Check(e.Current.BloodLossFraction > 0.24 && e.Current.BloodLossFraction < 0.26, $"Verlust bei Ankunft {e.Current.BloodLossFraction:P0}");
+        // 85 kg bei 180 cm (BMI 26,2): Blutvolumen nach Lemmens 70 mL/kg · √(22/26,2) ≈ 5450 mL → 1500 mL ≈ 27,5 %
+        Check(e.Current.BloodLossFraction > 0.26 && e.Current.BloodLossFraction < 0.29, $"Verlust bei Ankunft {e.Current.BloodLossFraction:P0}");
         Check(Math.Abs(e.Current.Hb - 14.5) < 0.05 && e.Current.BaseExcess < -3, $"Hb {e.Current.Hb:F1}, BE {e.Current.BaseExcess:F1}");
         e.ApplyInjury(new InjuryEvent { Effect = InjuryEffectType.TraumaticBrainInjury, Compartment = "Brain", Severity = 1, ProgressionRate_per_min = 0.018, InitialLevel = 0.45 });
         e.Advance(0.1);
@@ -1553,6 +1618,23 @@ static class Tests
         Check(cutDeep.Count == 1 && cutDeep[0].InjuryId == "schnittverletzung_unterarm_rechts" && cutFlat.Count == 0, "tiefer Unterarmschnitt → Gefäßverletzung, oberflächlicher nicht");
         var cm = NotfallSIM.Anatomy.CrashMarks.Cut("Unterarm rechts", "Arm rechts", new[] { 0.3f, 1f, 0.05f }, new[] { 0.3f, 0.95f, 0.05f }, new[] { 0.3f, 0.97f, 0f }, "Messerstich", 0.05, 0.007, 1);
         Check(cm.Mark.kind == "schnitt" && Math.Abs(cm.Mark.radius_m - 0.025f) < 1e-6 && cm.Mark.stretch > 5 && cm.Finding.Contains("5 cm"), "Schnittmarke: " + cm.Finding);
+        // Fettgewebe: Dicke je Region nach BMI, Steifigkeit nach Dehnrate, Stichkanal länger
+        double fAbd24 = NotfallSIM.Crash.ImpactModel.FatThickness_m(m, "Abdomen", 24, true), fAbd42 = NotfallSIM.Crash.ImpactModel.FatThickness_m(m, "Abdomen", 42, true);
+        double fThigh = NotfallSIM.Crash.ImpactModel.FatThickness_m(m, "Oberschenkel rechts", 29.9, false);
+        Check(Math.Abs(fAbd24 - 0.0092) < 1e-6 && fAbd42 > 0.025 && NotfallSIM.Crash.ImpactModel.FatThickness_m(m, "Kopf", 40, true) == 0, $"Bauchfett BMI 24 {fAbd24 * 1000:0} mm, BMI 42 {fAbd42 * 1000:0} mm; Kopf ohne Fett");
+        Check(Math.Abs(fThigh * 1000 - (5.7 + 0.4 * 5.9 + 5.1)) < 0.01, "Oberschenkel Frau BMI 29,9 nach Gibney");
+        Check(NotfallSIM.Crash.ImpactModel.FatModulus_Pa(m, 1000) == 4.7e6 && Math.Abs(NotfallSIM.Crash.ImpactModel.FatModulus_Pa(m, 1900) - 7.3e6) < 1 && NotfallSIM.Crash.ImpactModel.FatModulus_Pa(m, 0.01) == 20000, "Fett-Modul nach Dehnrate (Seifert 2023), unten begrenzt");
+        var thx = NotfallSIM.Crash.ImpactModel.Region(m, "Thorax");
+        double noFat = NotfallSIM.Crash.ImpactModel.Force(m, thx, 0.03, 6, 100, 0, 20, 0, out double td0);
+        double withFat = NotfallSIM.Crash.ImpactModel.Force(m, thx, 0.03, 6, 100, 0, 20, 0.04, out double td1);
+        double slowFat = NotfallSIM.Crash.ImpactModel.Force(m, thx, 0.03, 0.05, 100, 0, 20, 0.04, out double td2);
+        Check(withFat < noFat && withFat > 0.8 * noFat && td1 < td0, $"Fett 4 cm beim Schlag (6 m/s): Kraft {withFat:0} statt {noFat:0} N, Thorax eingedrückt {td1 * 1000:0} statt {td0 * 1000:0} mm");
+        Check(td2 < 0.5 * td0, $"langsames Drücken: Fett weich, Gewebe nur {td2 * 1000:0} mm eingedrückt");
+        Func<double, int> stabFat = bmi => NotfallSIM.Crash.ImpactModel.Evaluate(m, null, new[] { new NotfallSIM.Crash.PenetrationResult { Region = "Abdomen", Side = 1, Depth_m = 0.04,
+            FatExtra_m = NotfallSIM.Crash.ImpactModel.FatExtra_m(m, "Abdomen", bmi, true) } }, zero).Count;
+        Check(stabFat(24) == 1 && stabFat(42) == 0, "Bauchstich 4 cm: bei BMI 24 Leber getroffen, bei BMI 42 im Fett geblieben");
+        Check(NotfallSIM.Crash.ImpactModel.ResistanceAt(m, "Abdomen", 0.01, false, 0.02) == 10 && NotfallSIM.Crash.ImpactModel.ResistanceAt(m, "Abdomen", 0.03, false, 0.02) == 25, "Stichkanal: zuerst Fett, dann Wand");
+
         // Tisch steht auf Beinen
         Check(objs.objects.First(o => o.id == "tischkante").supportHeight_m == 0.75, "Tischplatte in 75 cm Höhe");
         // HIC aus wechselnder Schrittweite: 50 g Halbsinus über 10 ms, grob und fein abgetastet → gleiche Größenordnung wie gleichmäßig

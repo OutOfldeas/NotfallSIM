@@ -57,6 +57,7 @@ namespace NotfallSIM.Crash
             if (_impact == null) _impact = gameObject.AddComponent<ImpactSandbox>();
             _impact.Init(rig, this, cam);
             MakeGewaltButton();
+            _bodyText = MakeBodyButton();
             SelectMechanism("pkw_frontal");
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
             resultText.text = "Mechanismus wählen und „Crash starten“ drücken.";
@@ -102,6 +103,44 @@ namespace NotfallSIM.Crash
                 b.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
             b.onClick.AddListener(() => SelectMechanism("gewalt"));
             go.GetComponentInChildren<TMP_Text>().text = "Stumpfe/spitze Gewalt";
+        }
+
+        TMP_Text _bodyText;
+        int _bodyIndex = 2;   // normal (BMI 24)
+
+        /// <summary>Knopf „Körperbau“ unter dem Insassen-Knopf (zur Laufzeit, auch in älteren Szenen).</summary>
+        TMP_Text MakeBodyButton()
+        {
+            var texts = FindObjectsByType<TMP_Text>();
+            var occ = texts.FirstOrDefault(t => t.text != null && t.text.StartsWith("Insasse"));
+            var src = occ != null ? occ.GetComponentInParent<UnityEngine.UI.Button>() : null;
+            if (src == null) return null;
+            var go = Instantiate(src.gameObject, src.transform.parent);
+            go.name = "Körperbau";
+            go.transform.SetSiblingIndex(src.transform.GetSiblingIndex() + 1);
+            var b = go.GetComponent<UnityEngine.UI.Button>();
+            for (int i = 0; i < b.onClick.GetPersistentEventCount(); i++)
+                b.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
+            b.onClick.AddListener(CycleBody);
+            var label = go.GetComponentInChildren<TMP_Text>();
+            ApplyBody(label);
+            return label;
+        }
+
+        /// <summary>Körperbau wechseln: Gewicht aus BMI und Größe (Ragdoll-Masse, Blutvolumen, Dosis, Brustwand im Schockraum).</summary>
+        public void CycleBody()
+        {
+            if (Busy) return;
+            _bodyIndex = _bodyIndex % (Core.BodyComposition.BodyTypes.Length - 1) + 1;   // ohne „wie im Fall“
+            ApplyBody(_bodyText);
+            if (Gewalt) _impact.ResetBody(); else Preview();
+        }
+
+        void ApplyBody(TMP_Text t)
+        {
+            var bt = Core.BodyComposition.BodyTypes[_bodyIndex];
+            _p.Mass_kg = (float)Core.BodyComposition.WeightForBmi(bt.bmi, _p.Height_m * 100);
+            if (t != null) t.text = $"Körperbau: {bt.label} · {_p.Mass_kg:0} kg";
         }
 
         /// <summary>Ergebnis der Gewalt-Sandbox übernehmen (Szenario und Zeichen für den Schockraum, Anzeige).</summary>

@@ -238,7 +238,39 @@
     const ca = Math.max(0.5, Math.min(1, 0.5 + 0.5 * (ica - 0.6) / 0.4));
     return Math.min(cf, cfib) * t * p * ca;
   }
-  function bloodVolume(p) { return p.weight_kg * (String(p.sex).toLowerCase() === "female" ? 65 : 70); }
+  // ---------------------------------------------------------------- Körperbau (Core/BodyComposition.cs)
+  const Body = {
+    bmi: (w, hcm) => { const h = hcm > 100 ? hcm / 100 : 1.8; return w / (h * h); },
+    bodyFat: (bmi, age, male) => Math.max(3, Math.min(65, 1.2 * bmi + 0.23 * age - 10.8 * (male ? 1 : 0) - 5.4)),
+    leanWeight: (w, bmi, male) => (male ? 9270 * w / (6680 + 216 * bmi) : 9270 * w / (8780 + 244 * bmi)),
+    idealWeight: (hcm, male) => Math.max(30, (male ? 50 : 45.5) + 0.91 * (hcm - 152.4)),
+    bsa: (w, hcm) => Math.sqrt(Math.max(1, hcm) * Math.max(1, w) / 3600),
+    bloodVolume: (w, bmi, male) => w * (male ? 70 : 65) * Math.sqrt(22 / Math.max(22, bmi)),
+    coolingFactor(w, hcm) {
+      w = w > 0 ? w : 75; hcm = hcm > 100 ? hcm : 180;
+      return Body.bsa(w, hcm) / Body.bsa(75, 180) * (75 / w);
+    },
+    leanDoseFactor: (bmi, male) => (male ? (6680 + 216 * bmi) / (6680 + 216 * 22) : (8780 + 244 * bmi) / (8780 + 244 * 22)),
+    chestWall: (bmi, aal) => Math.max(15, aal ? -29.35 + 2.231 * bmi : -7.8 + 1.926 * bmi),
+    chestWallSd: 9,
+    normalCdf(x) {
+      const z = Math.abs(x) / Math.sqrt(2), t = 1 / (1 + 0.3275911 * z);
+      const erf = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-z * z);
+      return x >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf);
+    },
+    needleReach: (bmi, aal, len) => Body.normalCdf((len * 10 - Body.chestWall(bmi, aal)) / Body.chestWallSd),
+    weightForBmi: (bmi, hcm) => { const h = hcm > 100 ? hcm / 100 : 1.8; return Math.round(bmi * h * h); },
+    describe(w, hcm, age, male) {
+      const bmi = Body.bmi(w, hcm);
+      const cls = bmi < 18.5 ? "Untergewicht" : bmi < 25 ? "Normalgewicht" : bmi < 30 ? "Übergewicht"
+        : bmi < 35 ? "Adipositas Grad I" : bmi < 40 ? "Adipositas Grad II" : "Adipositas Grad III";
+      return `BMI ${Math.round(bmi)} (${cls}), Körperfett ca. ${Math.round(Body.bodyFat(bmi, age, male))} %`;
+    },
+  };
+  const isMale = (p) => String(p.sex).toLowerCase() !== "female";
+  const LeanDosedDrugs = new Set(["Fentanyl", "Propofol", "Ketamin"]);
+  const NeedleDefaultLength = 5;
+  function bloodVolume(p) { return Body.bloodVolume(p.weight_kg, Body.bmi(p.weight_kg, p.height_cm), isMale(p)); }
 
   class MockEngine {
     constructor(seed, mode) {
@@ -259,6 +291,9 @@
       this.temp = patient.initialTemperature_C > 0 ? patient.initialTemperature_C : 36.5;
       this.factors = 1; this.fib = 1; this.calciumGiven = 0;
       this.height = patient.height_cm > 100 ? patient.height_cm / 100 : 1.8;
+      this.male = isMale(patient);
+      this.bmi = Body.bmi(this.weight, this.height * 100);
+      this.coolingFactor = Body.coolingFactor(this.weight, this.height * 100);
       this.hrBaseOffset = 0; this.hrResponse = 1; this.sbpOffset = 0;
       if (this.mode === "Registry") {
         this.hrBaseOffset = this.uniform(-12, 12);
@@ -317,7 +352,7 @@
           if (iv.compound === "TXA") { if (f >= 0.5) this.txa = true; }
           else if (iv.compound === "Fibrinogen") this.fib += C.FibConcentrate_g * f / (Math.max(500, this.volume - this.redCells) / 1000 * C.FibNormal);
           else if (iv.compound === "Calcium") this.calciumGiven += f;
-          else if (C.Drugs[iv.compound] && f > 0) this.drugs.push([iv.compound, this.time, f]);
+          else if (C.Drugs[iv.compound] && f > 0) this.drugs.push([iv.compound, this.time, f * (LeanDosedDrugs.has(iv.compound) ? Body.leanDoseFactor(this.bmi, this.male) : 1)]);
           this.updateVitals();
           break;
         }
@@ -328,7 +363,8 @@
         case "Oxygen": this.oxygen = true; break;
         case "NeedleDecompression": {
           const t = this.tension[iv.target];
-          if (t && !t.drained && this.random() < iv.successProbability) {
+          const reach = Body.needleReach(this.bmi, iv.site === "aal", iv.doseValue > 0 ? iv.doseValue : NeedleDefaultLength);
+          if (t && !t.drained && this.random() < iv.successProbability * reach) {
             t.level = Math.min(t.level, C.TpLevelAfterNeedle);
             t.rateFactor = Math.min(t.rateFactor, C.TpRateAfterNeedle);
           }
@@ -407,7 +443,7 @@
       const lossNow = Math.max(0, 1 - this.volume / this.baselineVolume);
       if (!this.txa && !this.arrest && lossNow > 0.15) this.fib = Math.max(0, this.fib - C.LysisPerMinAt40 * (lossNow / 0.4) * minutes);
       if (this.warming) this.temp = Math.min(37, this.temp + C.ActiveWarming * dt / 3600);
-      else this.temp -= C.ExposureCooling * (this.intubated ? C.AnesthesiaCoolingFactor : 1) * dt / 3600;
+      else this.temp -= C.ExposureCooling * (this.intubated ? C.AnesthesiaCoolingFactor : 1) * this.coolingFactor * dt / 3600;
       this.infusions = this.infusions.filter((i) => i.remaining > 0);
       this.redCells = Math.max(0, Math.min(this.redCells, this.volume));
       this.volume = Math.max(0, Math.min(this.volume, this.baselineVolume * 1.1));
@@ -731,7 +767,8 @@
       const dosed = def.dose && doseValue != null;
       const iv = { id: def.id, type: def.type, target: def.target || null, compound: def.compound || null, volume_mL: def.volume_mL,
         rate_mL_min: def.rate_mL_min, rateMultiplier: def.rateMultiplier, successProbability: def.successProbability,
-        doseFactor: dosed && def.dose.reference > 0 ? doseValue / def.dose.reference : 1 };
+        doseFactor: dosed && def.dose.reference > 0 ? doseValue / def.dose.reference : 1,
+        doseValue: dosed ? doseValue : 0, site: def.site || null };
       const tag = `intervention:${iv.type}:${iv.target || iv.compound || ""}:${iv.id}`;
       const weight = this.scenario.patient.weight_kg;
       const label = (def.logLabel || def.label) + (dosed ? " " + formatDose(def.dose, doseValue, weight) : "");
@@ -1005,7 +1042,7 @@
     };
   }
 
-  const api = { coachTip, coachStrategy, coachCautions, coachStatus, COACH_PHASE_NAMES, NibpCycle, monitorAlarms, perfusionIndex, spo2Valid, ALARM_LIMITS, formatDose, doseUsual, doseClamp, examFindings, evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
+  const api = { Body, LeanDosedDrugs, coachTip, coachStrategy, coachCautions, coachStatus, COACH_PHASE_NAMES, NibpCycle, monitorAlarms, perfusionIndex, spo2Valid, ALARM_LIMITS, formatDose, doseUsual, doseClamp, examFindings, evaluateDiagnoses, seededRandom, generateScenario, BloodGas, bloodGasReport, MockEngine, Simulation, StateWatcher, evaluate, Shock, LossPoints, clock, de1, shockClass };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.NotfallEngine = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -167,6 +167,7 @@ namespace NotfallSIM.Data
         [System.Runtime.Serialization.OptionalField] public string[] contraindicatedBy;   // Verletzungs-IDs, bei denen die Maßnahme schadet
         [System.Runtime.Serialization.OptionalField] public string contraindicationNote;  // Begründung für die Warnung
         [System.Runtime.Serialization.OptionalField] public DoseSpec dose;                // null = feste Dosis
+        [System.Runtime.Serialization.OptionalField] public string site;                  // Punktionsort ("aal"); leer = Standard
         public SourceRef[] sources;
         public string evidenceStatus;
         public string reviewNotes;
@@ -175,7 +176,7 @@ namespace NotfallSIM.Data
         public InterventionEvent ToEvent(double doseValue)
         {
             var ev = ToEvent();
-            if (ev != null && dose != null && dose.reference > 0) ev.DoseFactor = doseValue / dose.reference;
+            if (ev != null && dose != null && dose.reference > 0) { ev.DoseFactor = doseValue / dose.reference; ev.DoseValue = doseValue; }
             return ev;
         }
 
@@ -192,7 +193,8 @@ namespace NotfallSIM.Data
                 Volume_mL = volume_mL,
                 Rate_mL_min = rate_mL_min,
                 RateMultiplier = rateMultiplier,
-                SuccessProbability = successProbability
+                SuccessProbability = successProbability,
+                Site = string.IsNullOrEmpty(site) ? null : site
             };
         }
     }

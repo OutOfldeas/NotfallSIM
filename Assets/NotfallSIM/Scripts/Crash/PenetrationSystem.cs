@@ -88,7 +88,7 @@ namespace NotfallSIM.Crash
             a.Result = new PenetrationResult
             {
                 Region = sensor != null ? sensor.Region : "", Segment = sensor != null ? sensor.ModelSegment ?? sensor.name : "",
-                Side = Side(sensor, point), ObjectId = obj.Def.id, HitBone = false
+                Side = Side(sensor, point), ObjectId = obj.Def.id, HitBone = false, FatExtra_m = body.FatExtra_m
             };
             if (sensor != null && sensor.HasModelFrame && sensor.ToModel(point, out var mp, out var inside))
             { a.Result.ModelPoint = new[] { mp.x, mp.y, mp.z }; a.Result.ModelInside = new[] { inside.x, inside.y, inside.z }; }
@@ -137,13 +137,14 @@ namespace NotfallSIM.Crash
 
                 string region = a.Result.Region;
                 float resistance = a.Depth >= a.Length ? 20000f   // Heft am Einstich: stoppt
-                                 : (float)ImpactModel.ResistanceAt(_model, region, a.Depth, a.BoneHit);
+                                 : (float)ImpactModel.ResistanceAt(_model, region, a.Depth, a.BoneHit, a.Result.FatExtra_m);
                 var rule = ImpactModel.PenetrationRule(_model, region);
                 if (a.BoneHit && rule != null)
                 {
-                    float boneStart = (float)(rule.wall_m - ImpactModel.BoneThickness(rule));
+                    float fat = (float)System.Math.Max(0, a.Result.FatExtra_m);
+                    float boneStart = (float)(rule.wall_m - ImpactModel.BoneThickness(rule)) + fat;
                     if (a.Depth >= boneStart) a.Result.HitBone = true;
-                    if (a.Depth >= rule.wall_m) a.Result.BonePierced = true;   // Knochen durchstoßen (Rippe: ab ca. 11 J, Bolliger 2016)
+                    if (a.Depth >= rule.wall_m + fat) a.Result.BonePierced = true;   // Knochen durchstoßen (Rippe: ab ca. 11 J, Bolliger 2016)
                 }
 
                 if (vRel > 0.02f)

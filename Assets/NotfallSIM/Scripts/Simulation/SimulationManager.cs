@@ -89,7 +89,8 @@ namespace NotfallSIM.Simulation
                 mode = SessionSetup.Mode;
                 ctInTraumaRoom = SessionSetup.CtInTraumaRoom;
             }
-            if (Crash.CrashHandoff.Pending != null)
+            bool fromCrash = Crash.CrashHandoff.Pending != null;
+            if (fromCrash)
             {
                 // Fall aus der Unfall-Sandbox
                 Scenario = Crash.CrashHandoff.Pending;
@@ -105,6 +106,11 @@ namespace NotfallSIM.Simulation
                 Debug.Log($"[Sim] Zufallsszenario {Scenario.id}: {Scenario.expectedCourse}");
             }
             if (Scenario.defaultTimeScale > 0) timeScale = (float)Scenario.defaultTimeScale;
+            if (SessionSetup.Active && SessionSetup.BodyBmi > 0 && Scenario.patient != null && !fromCrash)
+            {
+                // Körperbau aus dem Hauptmenü: gleiche Größe, Gewicht nach BMI (Blutvolumen, Dosis, Brustwand, Auskühlung folgen)
+                Scenario.patient.weight_kg = BodyComposition.WeightForBmi(SessionSetup.BodyBmi, Scenario.patient.height_cm);
+            }
 
             Engine = CreateEngine();
             if (!Engine.Initialize(Scenario.patient))

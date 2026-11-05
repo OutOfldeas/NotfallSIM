@@ -50,8 +50,9 @@ namespace NotfallSIM.Anatomy
 
         /// <param name="height_m">Körpergröße; das Modell wird gleichmäßig skaliert.</param>
         /// <param name="withAnatomy">Innere Strukturen mit aufbauen (Röntgenblick).</param>
+        /// <param name="bmi">Körperbau: &gt; 0 verschiebt die Haut um das Unterhautfett (<see cref="BodyFatShape"/>).</param>
         public static AnatomyRig Build(Transform parent, float height_m, bool withAnatomy, Material skin, Material shorts,
-                                       System.Func<AnatomyMeshInfo, Material> anatomyMaterial = null)
+                                       System.Func<AnatomyMeshInfo, Material> anatomyMaterial = null, double bmi = 0, bool male = true)
         {
             var data = Load();
             var h = data.Header;
@@ -74,7 +75,11 @@ namespace NotfallSIM.Anatomy
 
             foreach (var md in data.Meshes)
             {
-                if (md.Info.layer == "skin") rig.Skin = BuildSkin(rig, md, skin, shorts);
+                if (md.Info.layer == "skin")
+                {
+                    rig.Skin = BuildSkin(rig, md, skin, shorts);
+                    BodyFatShape.Apply(rig.Skin, data, md, bmi, male, 1f / rig.Scale);   // Mesh in Modelleinheiten
+                }
                 else if (withAnatomy && md.Info.weights && md.Bones != null)
                 {
                     var smr = BuildWeighted(rig, md, md.Info.label, anatomyMaterial != null ? anatomyMaterial(md.Info) : null);
@@ -187,7 +192,8 @@ namespace NotfallSIM.Anatomy
         /// Haut für fremde Knochen (z. B. die Ragdoll-Segmente): Ecken auf Körpergröße skaliert, Bindposen = Ruhelage
         /// (Segmentursprung am Gelenk, Körperachsen). Die Knochen müssen in der Reihenfolge von Header.segments vorliegen.
         /// </summary>
-        public static SkinnedMeshRenderer BuildSkinForBones(Transform parent, Transform[] bones, float scale, Material skin, Material shorts)
+        public static SkinnedMeshRenderer BuildSkinForBones(Transform parent, Transform[] bones, float scale, Material skin, Material shorts,
+                                                            double bmi = 0, bool male = true)
         {
             var data = Load();
             var md = data.Meshes.Find(m => m.Info.layer == "skin");
@@ -217,6 +223,7 @@ namespace NotfallSIM.Anatomy
             smr.rootBone = bones[0];
             smr.sharedMaterials = mesh.subMeshCount > 1 ? new[] { skin, shorts } : new[] { skin };
             smr.updateWhenOffscreen = true;
+            BodyFatShape.Apply(smr, data, md, bmi, male, 1f);   // Mesh bereits in Metern
             return smr;
         }
 

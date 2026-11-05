@@ -555,6 +555,72 @@ Die Tischkante steht als Platte in 75 cm Höhe auf vier Beinen.
 geschätzt; Schädel- und Organwiderstand im Stichkanal geschätzt; Schweinegewebe statt menschlichem in [102–104].
 Qualitativ, nicht forensisch.
 
+## Körperbau und Fettgewebe (`BodyComposition.cs`, `impact_model.json` › `fat`)
+
+Der Körperbau folgt aus Gewicht, Größe, Alter und Geschlecht des Patienten. Im Hauptmenü, im Browser-Prototyp und in
+der Unfall-Sandbox ist er wählbar (schlank BMI 20 … stark adipös BMI 42; das Gewicht wird bei gleicher Größe nach dem BMI
+gesetzt).
+
+| Größe | Formel | Quelle |
+|---|---|---|
+| Körperfett | 1,2·BMI + 0,23·Alter − 10,8·(Mann) − 5,4 % | Deurenberg 1991 [105] |
+| Magergewicht | Mann 9270·G/(6680 + 216·BMI), Frau 9270·G/(8780 + 244·BMI) | Janmahasatian 2005 [106] |
+| Idealgewicht | 50 bzw. 45,5 kg + 0,91 kg/cm über 152,4 cm | Devine |
+| Körperoberfläche | √(Größe·Gewicht/3600) | Mosteller 1987 [107] |
+| Blutvolumen | 70 bzw. 65 mL/kg · √(22/BMI) ab BMI 22 | Lemmens 2006 [108] |
+| Brustwanddicke | 2. ICR MCL −7,8 + 1,93·BMI mm, 5. ICR AAL −29,4 + 2,23·BMI mm | Anpassung an Inaba 2012 [109] |
+
+**Blutvolumen.** Fettgewebe ist kaum durchblutet, das Blutvolumen wächst nicht mit dem Gesamtgewicht. Derselbe
+Blutverlust wiegt bei Adipositas schwerer (130 kg, BMI 42: ca. 51 statt 70 mL/kg). Auch die Szenarien mit BMI 24–27
+haben dadurch 3–10 % weniger Blutvolumen als vorher (pkw_polytrauma: 1500 mL präklinisch sind jetzt ca. 27 % statt 25 %).
+
+**Dosierung.** Fentanyl, Propofol und Ketamin wirken im Modell nach Magergewicht: Wird je kg Gesamtgewicht dosiert,
+steigt die Wirkung um das Verhältnis Gesamt-/Magergewicht bezogen auf BMI 22 (BMI 40: ca. +34 %). Der Dosisdialog
+zeigt Gesamt-, Mager- und Idealgewicht und die Dosis je kg Magergewicht.
+
+**Auskühlung.** Die Wärmeabgabe wächst mit der Oberfläche, der Wärmespeicher mit der Masse: Abkühlrate ∝ Oberfläche/Masse
+(bezogen auf 75 kg/180 cm). 130 kg kühlen etwa ein Viertel langsamer aus, 55 kg etwa ein Fünftel schneller. Die
+zusätzliche Isolation durch Unterhautfett ist nicht eingerechnet — Mekjavic 1987 [110] zeigt, dass die Fettschicht
+allein die Abkühlrate nicht erklärt (Wärmeproduktion, Durchblutung, Speicher spielen mit).
+
+**Entlastungspunktion.** Die Kanüle erreicht die Pleura mit der Wahrscheinlichkeit Φ((Länge − Brustwand)/9 mm). Die
+Brustwand wächst mit dem BMI (Inaba 2012: 2. ICR MCL 33 → 60 mm, 5. ICR AAL 21 → 52 mm über die BMI-Quartile); die
+Streuung von 9 mm bei gleichem BMI ist aus der Gesamtstreuung (SD 14 mm) abgeschätzt (**Annahme**). Übrige
+Fehlerursachen (Abknicken, Dislokation) 29 %, so dass bei BMI 26 und 5 cm die Versagerrate der Metaanalyse von
+ca. 43 % herauskommt [Ahmad 2025]. Wählbar: Ort (2. ICR Medioklavikularlinie oder 4./5. ICR vordere Axillarlinie) und
+Kanülenlänge 3–8 cm. Beispiele: BMI 21 mit 5 cm erreicht die Pleura zu > 90 %, BMI 38 mit 5 cm zu < 15 %, mit 8 cm zu
+> 85 %. Die Metaanalyse findet je cm Länge ca. 7,8 Prozentpunkte weniger Versagen; im Modell sind es bei BMI 26 etwa 5.
+
+**Unterhautfett je Region** (Gewalt-Sandbox, Ragdoll, Haut): Dicke = Wert bei BMI 24 + Zunahme je BMI-Punkt
+(+ 5,1 mm bei Frauen, Gibney 2010 [111]).
+- Thorax: +1,93 mm je BMI (wie die Brustwand bei Inaba [109]); Dicke bei BMI 24 (8 mm) **Annahme**.
+- Abdomen: +1,05 mm je BMI — Bauchwand im CT bei BMI ~33,5 im Mittel ca. 35 mm (Mahawongkajit 2026 [112]) gegenüber
+  25 mm beim Bezug (Näherung).
+- Becken/Gesäß, Oberschenkel, Arm: +0,4 mm je BMI, Dicken aus dem Ultraschall von Gibney 2010 (388 Erwachsene,
+  BMI 19–65; Mittel 15,5 / 10,4 / 10,8 mm bei BMI 29,9). Gibney misst an Insulin-Injektionsstellen; die Zunahme je BMI
+  ist dort deutlich kleiner als bei den CT-Studien am Rumpf — das Modell übernimmt beides, wie gemessen.
+- Unterschenkel: **Annahme**.
+
+**Fett im Kontakt.** Das Fett liegt in Reihe vor dem Gewebe, Steifigkeit E·A/Dicke. E hängt stark von der Dehnrate ab:
+Seifert 2023 [113] maß an Schweinefett 4,7 MPa bei 1000/s und 7,3 MPa bei 1900/s; das Modell legt ein Potenzgesetz durch
+beide Punkte und extrapoliert nach unten (bis 20 kPa, **Annahme**). Folge: Bei einem Schlag (6 m/s) ist Fett fast so steif
+wie das Gewebe darunter und dämpft nur wenig (4 cm Fett am Thorax: Kraft wenige Prozent kleiner); bei langsamem Druck ist
+es weich und nimmt den größten Teil der Eindrückung auf. Für die Thoraxkompression (Rippen) zählt nur die Eindrückung
+des Gewebes unter dem Fett. Ein „Polster-Effekt“ für stumpfe Gewalt ergibt sich so nur schwach — klinisch beschrieben
+ist er vor allem für den Bauch (Arbabi 2003 [114]), dessen stumpfe Verletzung die Gewalt-Sandbox noch nicht auswertet.
+
+**Fett im Stichkanal.** Das Mehr an Fett gegenüber BMI 24 verlängert die Wand: Ein 4-cm-Stich in den Bauch erreicht bei
+BMI 24 die Leber, bei BMI 42 bleibt er im Fett (Widerstand Fett 10 N, **Annahme**).
+
+**Darstellung.** Die Haut wird je Region um das Mehr an Fett entlang der Hautnormalen verschoben (Blendshape, im
+Schockraum und an der Ragdoll), über Nachbarecken geglättet; der Bauch wölbt vorn zusätzlich vor (viszerales Fett,
+Faktor bis 4, **Darstellungsannahme**). Ragdoll-Kollider werden um dieselbe Dicke breiter, die Segmentmassen folgen dem
+Gesamtgewicht. Organe bleiben unverändert.
+
+**Grenzen.** Fettverteilung nur nach Region, BMI und Geschlecht (nicht nach Taille oder Muskelmasse); keine
+Unterschiede bei eFAST, Venenzugang oder Intubation; Fahrzeugunfälle nutzen den nachgiebigen Kontakt (und damit das Fett)
+noch nicht.
+
 ## Offene Punkte zum Prüfen
 
 - Lagerung in Unity prüfen: Klickflächen nach Umlagerung, Rinnsale neu verlegt, Lache auf der richtigen Fläche; Luftwiderstand der Partikel (limitVelocityOverLifetime mit Geschwindigkeitsfaktor). Außerhalb von Unity geprüft: Drehrichtungen und Auflage auf Rücken-/Beinteil und Keil. Bekannt: Unterkante des Rückenteils taucht am Gelenk etwas ins Sitzteil; bei senkrechtem Arm dehnt sich die Haut an der Achsel (lineares Skinning mit zwei Knochen); Arm ohne Auflage.
@@ -595,6 +661,7 @@ Qualitativ, nicht forensisch.
 - [ ] Sandbox gegen NHTSA-Crashtestdaten kalibrieren (Kalibrierlauf in Unity ausführen, weitere Referenzen ergänzen)
 - [ ] Thoraxmodell: Parameter von Lobdell 1973 bzw. Kroell 1974 prüfen
 - [ ] Gewalt-Sandbox in Unity: Vorzeichen der Kontaktnormale, Faustschlag 3–4 kN, Ziegel auf den Kopf, Messer stoppt an Rippe
+- [ ] Körperbau: Brustwand-Streuung bei gleichem BMI, Fettdicke am Unterschenkel, Fett-Modul bei niedrigen Dehnraten belegen
 - [ ] Schädel- und Organwiderstand im Stichkanal, Kantenbreite und Schnitttiefe je N mit Messungen belegen; Steifigkeit von Becken und Extremitäten
 - [ ] Vorzeichen von Halskraft/-moment und Femurkraft aus Joint.currentForce/currentTorque in Unity prüfen
 - [ ] Halsverletzung (HWS) mit Physiologie in die Datenbank aufnehmen, dann Nij zuordnen
@@ -733,3 +800,13 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 102. Nolan G, Hainsworth SV, Rutty GN. Forces generated in stabbing attacks: an evaluation of the utility of the mild, moderate and severe scale. *Int J Legal Med*. 2017. [DOI](https://doi.org/10.1007/s00414-017-1702-7)
 103. Bolliger SA, Kneubuehl BP, Thali MJ, Eggert S, Siegenthaler L. Stabbing energy and force required for pocket-knives to pierce ribs. *Forensic Sci Med Pathol*. 2016;12(4). [DOI](https://doi.org/10.1007/s12024-016-9803-z)
 104. Bolliger SA, Wallace E, Dobay A, Froehlich Knaute D, Thali MJ, Barrera V. The cutting edge: an investigation into the pressure necessary for cutting skin with different knife blade types. *Int J Legal Med*. 2020;134(3):1133-1140. [DOI](https://doi.org/10.1007/s00414-020-02270-8)
+105. Deurenberg P, Weststrate JA, Seidell JC. Body mass index as a measure of body fatness: age- and sex-specific prediction formulas. *Br J Nutr*. 1991;65(2):105-114. [PubMed](https://pubmed.ncbi.nlm.nih.gov/2043597/)
+106. Janmahasatian S, Duffull SB, Ash S, Ward LC, Byrne NM, Green B. Quantification of lean bodyweight. *Clin Pharmacokinet*. 2005;44(10):1051-1065.
+107. Mosteller RD. Simplified calculation of body-surface area. *N Engl J Med*. 1987;317(17):1098.
+108. Lemmens HJ, Bernstein DP, Brodsky JB. Estimating blood volume in obese and morbidly obese patients. *Obes Surg*. 2006;16(6):773-776. [DOI](https://doi.org/10.1381/096089206777346673)
+109. Inaba K, Ives C, McClure K, et al. Radiologic evaluation of alternative sites for needle decompression of tension pneumothorax. *Arch Surg*. 2012;147(9):813-818. [DOI](https://doi.org/10.1001/archsurg.2012.751)
+110. Mekjavic IB, Mittleman KD, Kakitsuba N. The role of shivering thermogenesis and total body insulation in core cooling rate. *Ann Physiol Anthropol*. 1987;6(2):61-68. [DOI](https://doi.org/10.2114/ahs1983.6.61)
+111. Gibney MA, Arce CH, Byron KJ, Hirsch LJ. Skin and subcutaneous adipose layer thickness in adults with diabetes at sites used for insulin injections: implications for needle length recommendations. *Curr Med Res Opin*. 2010;26(6):1519-1530. [DOI](https://doi.org/10.1185/03007995.2010.481203)
+112. Mahawongkajit P, Rodsa P, Orrapin S. Association between anthropometric measures and abdominal wall thickness in patients with obesity: a cross-sectional CT study. *PLoS One*. 2026;21(7):e0354274. [DOI](https://doi.org/10.1371/journal.pone.0354274)
+113. Seifert J, Koser J, Shah AS, et al. Response of thoraco-abdominal tissue in high-rate compression. *J Biomech Eng*. 2023;145(3). [PubMed](https://pubmed.ncbi.nlm.nih.gov/36301262/)
+114. Arbabi S, Wahl WL, Hemmila MR, Kohoyda-Inglis C, Taheri PA, Wang SC. The cushion effect. *J Trauma*. 2003;54(6):1090-1093. [PubMed](https://pubmed.ncbi.nlm.nih.gov/12813327/)

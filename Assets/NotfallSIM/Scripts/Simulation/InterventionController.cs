@@ -36,7 +36,7 @@ namespace NotfallSIM.Simulation
             }
             if (def.once && _used.Contains(def.id)) return;
             if (sim.Ended || sim.IsAway || sim.Vitals.CardiacArrest) { sim.Note($"Nicht möglich: {def.label}"); return; }
-            if (def.dose != null) { NotfallSIM.UI.DoseDialog.Show(def, Weight, d => ApplyDose(interventionId, d)); return; }
+            if (def.dose != null) { NotfallSIM.UI.DoseDialog.Show(def, sim.Scenario?.patient, d => ApplyDose(interventionId, d)); return; }
             Execute(def, def.ToEvent(), null);
         }
 

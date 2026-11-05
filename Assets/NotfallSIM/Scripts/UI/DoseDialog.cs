@@ -21,6 +21,16 @@ namespace NotfallSIM.UI
 
         static DoseDialog _instance;
 
+        Core.PatientProfile _patient;
+
+        /// <summary>Mit Patient: zeigt Mager- und Idealgewicht (Adipositas: Fentanyl, Propofol, Ketamin nach Magergewicht dosieren).</summary>
+        public static void Show(InterventionDefinition def, Core.PatientProfile patient, Action<double> give)
+        {
+            Show(def, patient != null ? patient.weight_kg : 0, give);
+            _instance._patient = patient;
+            _instance.Refresh();
+        }
+
         public static void Show(InterventionDefinition def, double weight_kg, Action<double> give)
         {
             if (_instance == null)
@@ -79,7 +89,7 @@ namespace NotfallSIM.UI
 
         void Open(InterventionDefinition def, double weight_kg, Action<double> give)
         {
-            _def = def; _weight = weight_kg; _give = give;
+            _def = def; _weight = weight_kg; _give = give; _patient = null;
             _dose = def.dose.reference;
             _title.text = $"<b>{def.label}</b>";
             Refresh();
@@ -95,7 +105,22 @@ namespace NotfallSIM.UI
             _value.text = d.Format(_dose, _weight);
             _value.color = usual ? new Color(0.45f, 0.88f, 0.55f) : new Color(1f, 0.55f, 0.35f);
             _hint.text = $"Üblich {d.Format(d.usualMin, 0).Replace(" " + d.unit, "")}–{d.Format(d.usualMax, 0)}" +
-                         (usual ? "" : "  · <color=#FF8A5C>außerhalb des üblichen Bereichs</color>");
+                         (usual ? "" : "  · <color=#FF8A5C>außerhalb des üblichen Bereichs</color>") + BodyHint();
+        }
+
+        string BodyHint()
+        {
+            var p = _patient;
+            if (p == null || _def.dose == null || !_def.dose.perKg || p.weight_kg <= 0) return "";
+            double bmi = p.Bmi, lbw = Core.BodyComposition.LeanBodyWeight_kg(p.weight_kg, bmi, p.IsMale), ibw = Core.BodyComposition.IdealBodyWeight_kg(p.height_cm, p.IsMale);
+            string s = $"\n<size=85%>Gesamtgewicht {p.weight_kg:0} kg · Magergewicht ca. {lbw:0} kg · Idealgewicht ca. {ibw:0} kg (BMI {bmi:0})";
+            if (_def.compound != null && Engines.MockPhysiologyEngine.LeanDosedDrugs.Contains(_def.compound))
+            {
+                string unitBase = _def.dose.unit.Replace("/kg", "");
+                s += $"\nentspricht {(_dose * p.weight_kg / lbw).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture).Replace('.', ',')} {unitBase} je kg Magergewicht";
+                if (bmi >= 30) s += " — <color=#FFC14D>bei Adipositas nach Magergewicht dosieren</color>";
+            }
+            return s + "</size>";
         }
 
         void Give() { _overlay.SetActive(false); _give?.Invoke(_dose); }

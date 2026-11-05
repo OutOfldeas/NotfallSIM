@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "note": "Nachgiebiger Kontakt und Verletzungsschwellen für Aufpralle in der Unfall-Sandbox (stumpfe und spitze Gewalt). Kontakt: Kraft F = k(δ)·δ + c·δ̇ (Kelvin-Voigt, nur Druck), δ = Eindrücktiefe in den Körperkollider, c aus der Restitution e (ζ = −ln e / √(π² + ln² e), c = 2ζ√(k·m_eff)). k(δ) stückweise linear: k1 bis knee1, dann linear auf k2 bis knee2, darüber k2 (Durchschlag auf Knochen/Wirbelsäule). Kopf: k hängt von der Kontaktfläche ab (log-linear zwischen den Stützstellen). Werte ohne Quelle sind als Annahme gekennzeichnet (evidence).",
   "regions": [
     {
@@ -80,6 +80,7 @@
     "skin": { "intercept_N": -15.45, "perTipRadius_um": 0.016, "perTipAngle_deg": 0.69, "perCuttingAngle_deg": 0.16, "minimum_N": 5, "clothingFactor": 1.5, "sourceId": "niannaidh2015",
       "note": "Kraft zum Durchstechen der Haut aus der Klingengeometrie (Regression, R² 0,97, quasistatisch). Kleidung (eine Lage Jeansstoff) etwa +50 %." },
     "tissues": [
+      { "id": "fett", "resistance_N": 10, "evidence": "annahme", "note": "Unterhautfett über dem Bezugs-BMI: geringer als Weichteil/Muskel (O'Callaghan 1999, Nolan 2017: Haut leistet den Großteil, Fett und Muskel deutlich weniger; Wert geschätzt)." },
       { "id": "weichteil", "resistance_N": 25, "evidence": "literatur-naeherung", "note": "Fett und Muskel nach dem Hautdurchstich: deutlich geringer als die Haut (O'Callaghan 1999: Haut im Mittel 49,5 N, darunter 'erhebliche Sekundärwiderstände'; Nolan 2017: Schweinekeule je nach Messer 11–40 N)." },
       { "id": "rippe", "resistance_N": 1000, "evidence": "literatur", "note": "Rippe auf 1 cm Weg: ca. 10 J. Bolliger 2016 (Schweinerippen, Taschenmesser): vollständiges Durchstechen ab ca. 11 J bzw. über 906 N (längs) und 1198 N (quer)." },
       { "id": "knochen", "resistance_N": 1000, "evidence": "literatur-naeherung", "note": "Sonstige Knochen (Beckenschaufel): wie Rippe angesetzt. Knorpel 140 N, Sternum 200 N (O'Callaghan 1999) zum Vergleich." },
@@ -105,6 +106,19 @@
     "sourceId": "bolliger2020",
     "note": "Schnittschwelle: Andruck, ab dem eine gezogene Klinge Schweinehaut durchtrennt — glatte Klinge mind. 1900 g (18,6 N), Wellenschliff 700 g (6,9 N) (Bolliger 2020). Tiefe je N darüber (0,3 mm/N) und Gefäßtiefen sind Annahmen."
   },
+  "fat": {
+    "refBmi": 24, "rate1_per_s": 1000, "modulus1_Pa": 4700000, "rate2_per_s": 1900, "modulus2_Pa": 7300000, "minModulus_Pa": 20000, "maxModulus_Pa": 7300000,
+    "regions": [
+      { "region": "Thorax", "ref_mm": 8, "perBmi_mm": 1.93, "female_mm": 5.1, "sourceId": "inaba2012", "note": "Zunahme je BMI-Punkt wie die Brustwanddicke im CT (Inaba 2012, 2. ICR MCL); Dicke bei BMI 24 Annahme; Frauen +5,1 mm wie bei Gibney 2010." },
+      { "region": "Abdomen", "ref_mm": 9.2, "perBmi_mm": 1.05, "female_mm": 5.1, "sourceId": "mahawongkajit2026", "note": "Bauchwand bei BMI ~33,5 im CT im Mittel ca. 35 mm (Mahawongkajit 2026) gegenüber 25 mm Wand beim Bezug: ca. 1 mm je BMI-Punkt (Näherung). Dicke bei BMI 24 nach Gibney 2010 (Mann)." },
+      { "region": "Becken", "ref_mm": 10.8, "perBmi_mm": 0.4, "female_mm": 5.1, "sourceId": "gibney2010", "note": "Gesäß: Gibney 2010 (Ultraschall, 388 Erwachsene, BMI 19–65): Mittel 15,5 mm bei BMI 29,9; +4 mm je 10 BMI-Punkte; Frauen +5,1 mm." },
+      { "region": "Oberschenkel", "ref_mm": 5.7, "perBmi_mm": 0.4, "female_mm": 5.1, "sourceId": "gibney2010", "note": "Oberschenkel: Gibney 2010, Mittel 10,4 mm bei BMI 29,9 (auf BMI 24 und Mann umgerechnet)." },
+      { "region": "Unterschenkel", "ref_mm": 4, "perBmi_mm": 0.3, "female_mm": 3, "sourceId": "", "note": "Annahme (keine Messung): etwas dünner als am Oberschenkel." },
+      { "region": "Arm", "ref_mm": 6.1, "perBmi_mm": 0.4, "female_mm": 5.1, "sourceId": "gibney2010", "note": "Oberarm: Gibney 2010, Mittel 10,8 mm bei BMI 29,9 (auf BMI 24 und Mann umgerechnet)." }
+    ],
+    "modulusSourceId": "seifert2022",
+    "note": "Unterhautfett je Region: Dicke = ref_mm + perBmi_mm·(BMI − 24) (+ female_mm bei Frauen). Im Kontakt in Reihe vor dem Gewebe, Steifigkeit E·A/Dicke; E nach Dehnrate (Dehnrate = Schließgeschwindigkeit/Dicke) als Potenzgesetz durch die Messpunkte 4,7 MPa (1000/s) und 7,3 MPa (1900/s) von Seifert 2023 (Schweinefett), nach unten bis 20 kPa extrapoliert (Annahme). Im Stichkanal verlängert das Mehr an Fett gegenüber BMI 24 die Wand."
+  },
   "sources": [
     { "id": "allsop1991", "citation": "Allsop DL, Perl TR, Warner CY. Force/deflection and fracture characteristics of the temporo-parietal region of the human head. SAE Technical Paper 912907. Stapp Car Crash Conference 1991.", "url": "https://doi.org/10.4271/912907", "note": "Steifigkeit 1800 bzw. 4200 N/mm, Fraktur 5,0 bzw. 12,5 kN (5 bzw. 52 cm²)" },
     { "id": "melvin1988", "citation": "Melvin JW, et al. Thoracic impact response (zitiert in: Thorax Injury Biomechanics, in: Accidental Injury, Springer).", "url": "https://musculoskeletalkey.com/thorax-injury-biomechanics/", "note": "Bis 41 mm ca. 26,2 N/mm, ab 76 mm ca. 120 N/mm; Kroell: AIS = −3,78 + 19,56·C" },
@@ -115,6 +129,10 @@
     { "id": "ocallaghan1999", "citation": "O'Callaghan PT, Jones MD, James DS, Leadbeatter S, Holt CA, Nokes LDM. Dynamics of stab wounds: force required for penetration of various cadaveric human tissues. Forensic Sci Int. 1999;104(2-3):173-178.", "url": "https://doi.org/10.1016/S0379-0738(99)00115-2", "note": "Haut im Mittel 49,5 N; Knorpel ca. 140 N, Sternum ca. 200 N (zitiert nach Nolan 2017)" },
     { "id": "nolan2017", "citation": "Nolan G, Hainsworth SV, Rutty GN. Forces generated in stabbing attacks: an evaluation of the utility of the mild, moderate and severe scale. Int J Legal Med. 2017.", "url": "https://doi.org/10.1007/s00414-017-1702-7", "note": "Schweinekeule 11-40 N je Messer; Stichkraft unbewaffneter Männer im Mittel ca. 150 N" },
     { "id": "bolliger2016", "citation": "Bolliger SA, Kneubuehl BP, Thali MJ, Eggert S, Siegenthaler L. Stabbing energy and force required for pocket-knives to pierce ribs. Forensic Sci Med Pathol. 2016;12(4).", "url": "https://doi.org/10.1007/s12024-016-9803-z", "note": "Rippen vollständig durchstochen ab ca. 11 J bzw. > 906 N (längs), 11-16 J bzw. > 1198 N (quer)" },
-    { "id": "bolliger2020", "citation": "Bolliger SA, Wallace E, Dobay A, Froehlich Knaute D, Thali MJ, Barrera V. The cutting edge: an investigation into the pressure necessary for cutting skin with different knife blade types. Int J Legal Med. 2020;134(3):1133-1140.", "url": "https://doi.org/10.1007/s00414-020-02270-8", "note": "Glatte Klinge mind. 1900 g, Wellenschliff 700 g Andruck zum Durchtrennen von Schweinehaut" }
+    { "id": "bolliger2020", "citation": "Bolliger SA, Wallace E, Dobay A, Froehlich Knaute D, Thali MJ, Barrera V. The cutting edge: an investigation into the pressure necessary for cutting skin with different knife blade types. Int J Legal Med. 2020;134(3):1133-1140.", "url": "https://doi.org/10.1007/s00414-020-02270-8", "note": "Glatte Klinge mind. 1900 g, Wellenschliff 700 g Andruck zum Durchtrennen von Schweinehaut" },
+    { "id": "gibney2010", "citation": "Gibney MA, Arce CH, Byron KJ, Hirsch LJ. Skin and subcutaneous adipose layer thickness in adults with diabetes at sites used for insulin injections: implications for needle length recommendations. Curr Med Res Opin. 2010;26(6):1519-1530.", "url": "https://doi.org/10.1185/03007995.2010.481203", "note": "Unterhautfett (Ultraschall): Arm 10,8, Oberschenkel 10,4, Bauch 13,9, Gesäß 15,5 mm bei BMI 29,9; +4 mm je 10 BMI; Frauen +5,1 mm" },
+    { "id": "inaba2012", "citation": "Inaba K, Ives C, McClure K, et al. Radiologic evaluation of alternative sites for needle decompression of tension pneumothorax. Arch Surg. 2012;147(9):813-818.", "url": "https://doi.org/10.1001/archsurg.2012.751", "note": "Brustwanddicke je BMI-Quartil: 2. ICR MCL 33-60 mm, 5. ICR AAL 21-52 mm" },
+    { "id": "mahawongkajit2026", "citation": "Mahawongkajit P, Rodsa P, Orrapin S. Association between anthropometric measures and abdominal wall thickness in patients with obesity: a cross-sectional CT study. PLoS One. 2026;21(7):e0354274.", "url": "https://doi.org/10.1371/journal.pone.0354274", "note": "Bauchwanddicke im CT bei BMI ~33,5: je nach Ort ca. 23-44 mm" },
+    { "id": "seifert2022", "citation": "Seifert J, Koser J, Shah AS, et al. Response of thoraco-abdominal tissue in high-rate compression. J Biomech Eng. 2023;145(3).", "url": "https://pubmed.ncbi.nlm.nih.gov/36301262/", "note": "Fettgewebe (Schwein) E = 4,7 MPa bei 1000/s, 7,3 MPa bei 1900/s" }
   ]
 }

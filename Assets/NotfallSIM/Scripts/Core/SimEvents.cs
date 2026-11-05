@@ -16,8 +16,10 @@ namespace NotfallSIM.Core
 
         public bool IsMale => !string.Equals(sex, "female", StringComparison.OrdinalIgnoreCase);
 
-        /// <summary>Grobe Schätzung des Blutvolumens (~70 mL/kg Mann, ~65 mL/kg Frau).</summary>
-        public double EstimatedBloodVolume_mL => weight_kg * (IsMale ? 70 : 65);
+        public double Bmi => BodyComposition.Bmi(weight_kg, height_cm);
+
+        /// <summary>Blutvolumen: ~70 mL/kg Mann, ~65 mL/kg Frau, bei BMI über 22 nach Lemmens 2006 verringert (<see cref="BodyComposition.BloodVolume_mL"/>).</summary>
+        public double EstimatedBloodVolume_mL => BodyComposition.BloodVolume_mL(weight_kg, Bmi, IsMale);
     }
 
     public enum InjuryEffectType
@@ -77,5 +79,7 @@ namespace NotfallSIM.Core
         public double Volume_mL;
         public double Rate_mL_min;
         public double DoseFactor = 1;     // gewählte Dosis / Referenzdosis (Medikamente, Noradrenalin); 1 = Standarddosis
+        public double DoseValue;          // gewählter Wert in der Einheit der Dosis (z. B. Kanülenlänge in cm); 0 = Standard
+        public string Site;               // Punktionsort, z. B. "aal" (4./5. ICR vordere Axillarlinie); leer = Standard
     }
 }

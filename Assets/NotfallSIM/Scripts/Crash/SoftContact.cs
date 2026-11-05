@@ -25,6 +25,7 @@ namespace NotfallSIM.Crash
             public RegionContact Region;
             public Collider Collider;
             public CrashSensor Sensor;
+            public double Fat_m, FatExtra_m;   // Unterhautfett (Dicke; Mehr gegenüber dem Bezugs-BMI)
         }
 
         public class ObjectInfo
@@ -90,13 +91,16 @@ namespace NotfallSIM.Crash
             while (PenetrationRequests.TryDequeue(out _)) { }
         }
 
-        public static void RegisterBody(Collider c, RegionContact region, CrashSensor sensor)
+        public static void RegisterBody(Collider c, RegionContact region, CrashSensor sensor, double fat_m = 0, double fatExtra_m = 0)
         {
             if (c == null || region == null) return;
             Hook();
             c.hasModifiableContacts = true;
-            Bodies[c.GetInstanceID()] = new BodyInfo { Region = region, Collider = c, Sensor = sensor };
+            Bodies[c.GetInstanceID()] = new BodyInfo { Region = region, Collider = c, Sensor = sensor, Fat_m = fat_m, FatExtra_m = fatExtra_m };
         }
+
+        /// <summary>Aufprallmodell für die Fettschicht (Elastizitätsmodul); ohne Modell kein Fett im Kontakt.</summary>
+        public static ImpactModelFile Model;
 
         public static void RegisterObject(Collider c, SandboxObject def, Rigidbody body, double skinForce_N, Vector3 size, double cutLoad_N)
         {
@@ -204,9 +208,9 @@ namespace NotfallSIM.Crash
                     }
                     else if (obj != null && obj.Area_cm2 > 0) area = obj.Area_cm2;
                     area = System.Math.Min(area, region.maxArea_cm2);
-                    double f = ImpactModel.Force(region, delta, closing, area, kObj, mObj);
+                    double f = ImpactModel.Force(Model, region, delta, closing, area, kObj, mObj, body.Fat_m, out double tissueDelta);
                     pair.SetMaxImpulse(i, (float)(f * dt / n));
-                    maxDelta = Mathf.Max(maxDelta, delta);
+                    maxDelta = Mathf.Max(maxDelta, (float)tissueDelta);   // Gewebe unter dem Fett (Thoraxkompression)
                     if (obj != null)
                     {
                         float ff = (float)f, aa = (float)area;

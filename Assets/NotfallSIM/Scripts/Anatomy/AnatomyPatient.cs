@@ -72,7 +72,9 @@ namespace NotfallSIM.Anatomy
             _highlight.EnableKeyword("_EMISSION");
             if (_highlight.HasProperty("_EmissionColor")) _highlight.SetColor("_EmissionColor", new Color(1.2f, 0.05f, 0.05f));
 
-            _rig = AnatomyBuilder.Build(transform, height, true, _skin, _shorts, LayerMaterial);
+            var pp = sim != null && sim.Scenario != null ? sim.Scenario.patient : null;
+            double bmi = pp != null && pp.weight_kg > 0 ? pp.Bmi : 0;
+            _rig = AnatomyBuilder.Build(transform, height, true, _skin, _shorts, LayerMaterial, bmi, pp == null || pp.IsMale);
             Pose();
             foreach (var p in _rig.Parts) p.Renderer.enabled = false;
             // Verstellbare Trage: Gelenke an denselben Punkten wie der Körper (Becken–LWS, Hüften)
