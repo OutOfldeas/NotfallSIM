@@ -67,7 +67,7 @@ namespace NotfallSIM.Crash
                 Length = (float)obj.Def.bladeLength_m,
                 BoneHit = rule != null && _rng.NextDouble() < rule.boneHitProbability,
             };
-            SoftContact.SetIgnored(body.Collider.GetInstanceID(), obj.Collider.GetInstanceID(), true);
+            SoftContact.SetIgnored(body.Collider.GetEntityId(), obj.Collider.GetEntityId(), true);
             Physics.IgnoreCollision(obj.Collider, body.Collider, true);
 
             // Führung im Stichkanal: nur längs der Klinge beweglich, keine Drehung (Gelenk am Gegenstand bzw. am Körper, wenn er statisch ist)
@@ -182,7 +182,7 @@ namespace NotfallSIM.Crash
             if (a.Obj.Collider != null && a.Body.Collider != null)
             {
                 Physics.IgnoreCollision(a.Obj.Collider, a.Body.Collider, false);
-                SoftContact.SetIgnored(a.Body.Collider.GetInstanceID(), a.Obj.Collider.GetInstanceID(), false);
+                SoftContact.SetIgnored(a.Body.Collider.GetEntityId(), a.Obj.Collider.GetEntityId(), false);
             }
             a.Result.Embedded = embedded;
         }
