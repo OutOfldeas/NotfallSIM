@@ -26,8 +26,25 @@ namespace NotfallSIM.Crash
 
     [Serializable] public class SkinPenetration { public double intercept_N, perTipRadius_um, perTipAngle_deg, perCuttingAngle_deg, minimum_N, clothingFactor; public string sourceId, note; }
     [Serializable] public class TissueResistance { public string id; public double resistance_N; public string evidence, note; }
-    [Serializable] public class PenetrationRegion { public string region; public double wall_m, boneHitProbability; public string deep, deepRight, deepLeft; public double probability; public string note; }
+    [Serializable] public class PenetrationRegion
+    {
+        public string region; public double wall_m, boneHitProbability; public string deep, deepRight, deepLeft; public double probability; public string note;
+        public string boneTissue;        // Gewebe der knöchernen Wand ("rippe", "schaedel"); leer = "knochen"
+        public double boneThickness_m;   // Dicke der knöchernen Schicht vor dem Ende der Wand (0 = 1 cm)
+    }
     [Serializable] public class PenetrationModel { public SkinPenetration skin; public TissueResistance[] tissues; public PenetrationRegion[] regions; }
+
+    /// <summary>Schnitt: Klinge gleitet unter Andruck über die Haut.</summary>
+    [Serializable] public class CutRule { public string segmentPrefix; public double vesselDepth_m, minLength_m; public string injuryRight, injuryLeft, note; }
+    [Serializable]
+    public class CuttingModel
+    {
+        public double smoothLoad_N, serratedLoad_N;   // Andruck, ab dem die Haut beim Ziehen durchtrennt wird
+        public double depthPerN_m, maxDepth_m;       // Schnitttiefe je N über der Schwelle (Annahme), Obergrenze
+        public double minSlide_m_s;                  // Mindestgleiten der Klinge
+        public CutRule[] rules;
+        public string sourceId, note;
+    }
 
     [Serializable] public class ImpactSource { public string id, citation, url, note; }
 
@@ -38,6 +55,7 @@ namespace NotfallSIM.Crash
         public RegionContact[] regions;
         public FractureModel fractures;
         public PenetrationModel penetration;
+        public CuttingModel cutting;
         public ImpactSource[] sources;
     }
 
@@ -51,7 +69,10 @@ namespace NotfallSIM.Crash
         public double defaultSpeed_m_s, minSpeed_m_s, maxSpeed_m_s;
         public float[] color;
         public string evidence, sourceId, note;
+        public string edge;               // Schneide: "glatt", "wellen" oder leer (keine)
+        public double supportHeight_m;    // statisch: Höhe der Oberseite über dem Boden, mit Beinen (Tisch); 0 = liegt auf
         public bool Sharp => kind == "spitz";
+        public bool HasEdge => !string.IsNullOrEmpty(edge);
     }
 
     [Serializable] public class SandboxObjectFile { public string version, note; public SandboxObject[] objects; public ImpactSource[] sources; }
@@ -84,7 +105,17 @@ namespace NotfallSIM.Crash
         public bool HitBone;
         public string ObjectId;
         public bool Embedded;          // steckt noch (Pfählung, Messer nicht zurückgezogen)
+        public bool BonePierced;       // Knochen getroffen und durchstoßen (z. B. Rippe)
         public float[] ModelPoint, ModelInside;   // Einstich im Modellraum (für die Wundmarke), sonst null
+    }
+
+    /// <summary>Schnitt einer Klinge über die Haut (Länge des Gleitwegs unter Andruck, geschätzte Tiefe).</summary>
+    public class CutResult
+    {
+        public string Region, Segment, ObjectId;
+        public int Side;
+        public double Length_m, Depth_m, PeakLoad_N;
+        public float[] ModelStart, ModelEnd, ModelInside;   // Anfang/Ende im Modellraum (für die Wundmarke), sonst null
     }
 
     /// <summary>
@@ -202,6 +233,72 @@ namespace NotfallSIM.Crash
         // ---------- Spitze Gewalt
 
         /// <summary>Kraft zum Durchstechen der Haut aus der Klingengeometrie (Ní Annaidh 2015), mit Kleidung höher.</summary>
+        public static double BoneThickness(PenetrationRegion rule) => rule != null && rule.boneThickness_m > 0 ? rule.boneThickness_m : 0.01;
+        public static string BoneTissue(PenetrationRegion rule) => rule != null && !string.IsNullOrEmpty(rule.boneTissue) ? rule.boneTissue : "knochen";
+
+        /// <summary>
+        /// Kontaktfläche aus der Geometrie des Gegenstands (cm²), statt einer festen Fläche je Gegenstand.
+        /// <paramref name="localNormal"/>: Kontaktnormale im Koordinatensystem des Gegenstands (Längsachse z), Betrag egal.
+        /// Kugel und Kapselende: Kugelkappe A = 2πrδ. Quader: Fläche, Kante (Länge × Breite) oder Ecke je nach Lage.
+        /// Kapsel quer: Linienkontakt (Länge × Sehne 2√(2rδ)). Die Breite einer Kante wächst mit der Eindrücktiefe (Annahme).
+        /// </summary>
+        public static double GeometricArea(string shape, double sx, double sy, double sz, double nx, double ny, double nz, double delta_m)
+        {
+            double len = Math.Sqrt(nx * nx + ny * ny + nz * nz);
+            if (len < 1e-9) { nx = 0; ny = 0; nz = 1; len = 1; }
+            double ax = Math.Abs(nx / len), ay = Math.Abs(ny / len), az = Math.Abs(nz / len);
+            double d = Math.Max(0.002, delta_m);
+            const double maxLine = 0.15;   // tragende Länge höchstens etwa eine Segmentbreite
+            double a;
+            switch (shape)
+            {
+                case "sphere":
+                {
+                    double r = sx / 2;
+                    a = Math.Min(Math.PI * r * r, 2 * Math.PI * r * d);
+                    break;
+                }
+                case "capsule":
+                {
+                    double r = Math.Max(sx, sy) / 2, h = Math.Max(sz - 2 * r, 0);
+                    double chord = 2 * Math.Sqrt(Math.Max(0, 2 * r * d - d * d));
+                    if (az < 0.3 && h > 0) a = Math.Min(h, maxLine) * Math.Max(chord, 0.003);
+                    else a = Math.Min(Math.PI * r * r, 2 * Math.PI * r * d);
+                    break;
+                }
+                default: // box
+                {
+                    double w = 0.003 + 2 * d;   // Kante: Breite wächst mit der Eindrückung (Annahme)
+                    var dims = new[] { sx, sy, sz }; var al = new[] { ax, ay, az };
+                    int iMax = al[0] >= al[1] && al[0] >= al[2] ? 0 : al[1] >= al[2] ? 1 : 2;
+                    int iMin = al[0] <= al[1] && al[0] <= al[2] ? 0 : al[1] <= al[2] ? 1 : 2;
+                    if (al[iMax] > 0.95)
+                    {
+                        double f1 = dims[(iMax + 1) % 3], f2 = dims[(iMax + 2) % 3];
+                        a = Math.Min(f1, maxLine) * Math.Min(f2, maxLine);       // Fläche
+                    }
+                    else if (al[iMin] < 0.2) a = Math.Min(dims[iMin], maxLine) * w;   // Kante entlang der Achse iMin
+                    else a = w * w;                                                    // Ecke
+                    break;
+                }
+            }
+            return Math.Max(0.1, a * 1e4);
+        }
+
+        /// <summary>Andruck, ab dem eine Schneide beim Ziehen die Haut durchtrennt (N); 0 = keine Schneide.</summary>
+        public static double CutLoad(ImpactModelFile m, SandboxObject o)
+        {
+            if (m.cutting == null || o == null || !o.HasEdge) return 0;
+            return o.edge == "wellen" ? m.cutting.serratedLoad_N : m.cutting.smoothLoad_N;
+        }
+
+        /// <summary>Schnitttiefe aus dem größten Andruck über der Schwelle (Annahme: linear, begrenzt).</summary>
+        public static double CutDepth(ImpactModelFile m, double peakLoad_N, double threshold_N)
+        {
+            if (m.cutting == null || peakLoad_N < threshold_N) return 0;
+            return Math.Min(m.cutting.maxDepth_m, 0.001 + (peakLoad_N - threshold_N) * m.cutting.depthPerN_m);
+        }
+
         public static double SkinPenetrationForce(ImpactModelFile m, SandboxObject o, bool clothed)
         {
             var s = m.penetration.skin;
@@ -227,8 +324,9 @@ namespace NotfallSIM.Crash
         {
             var rule = PenetrationRule(m, region);
             double wall = rule != null ? rule.wall_m : 0.03;
-            if (depth_m < wall - 0.005) return TissueResistance(m, "weichteil");
-            if (depth_m < wall && boneHit) return TissueResistance(m, "knochen");
+            double bone = BoneThickness(rule);
+            if (depth_m < wall - bone) return TissueResistance(m, "weichteil");
+            if (depth_m < wall && boneHit) return TissueResistance(m, BoneTissue(rule));
             return depth_m < wall ? TissueResistance(m, "weichteil") : TissueResistance(m, "organ");
         }
 
@@ -239,6 +337,10 @@ namespace NotfallSIM.Crash
         /// Stichkanäle (Tiefe hinter der Körperwand). <paramref name="draw"/> liefert Zufallszahlen 0..1 (reproduzierbar).
         /// </summary>
         public static List<DirectInjury> Evaluate(ImpactModelFile m, IEnumerable<BluntContact> blunt, IEnumerable<PenetrationResult> penetrations, Func<double> draw)
+            => Evaluate(m, blunt, penetrations, null, draw);
+
+        public static List<DirectInjury> Evaluate(ImpactModelFile m, IEnumerable<BluntContact> blunt, IEnumerable<PenetrationResult> penetrations,
+                                                  IEnumerable<CutResult> cuts, Func<double> draw)
         {
             var result = new List<DirectInjury>();
             Action<string, double, double, string> add = (id, p, sev, why) =>
@@ -274,12 +376,19 @@ namespace NotfallSIM.Crash
             foreach (var pen in penetrations ?? new PenetrationResult[0])
             {
                 var rule = PenetrationRule(m, pen.Region);
-                if (rule == null || pen.HitBone || pen.Depth_m < rule.wall_m) continue;
+                if (rule == null || pen.Depth_m < rule.wall_m) continue;   // in der Wand geblieben (auch: an der Rippe gestoppt)
                 if (ContactRegion(pen.Region) == "Arm" && (pen.Segment == null || !pen.Segment.StartsWith("Unterarm"))) continue;
                 string id = !string.IsNullOrEmpty(rule.deep) ? rule.deep : pen.Side > 0 ? rule.deepRight : rule.deepLeft;
                 double p = draw() < rule.probability ? 1 : 0;
                 double extra = Math.Min(1, (pen.Depth_m - rule.wall_m) / 0.08);
-                add(id, p, 0.5 + 0.4 * extra, $"Stichkanal {pen.Region} {pen.Depth_m * 100:0} cm tief" + (pen.Embedded ? " (Fremdkörper steckt)" : ""));
+                add(id, p, 0.5 + 0.4 * extra, $"Stichkanal {pen.Region} {pen.Depth_m * 100:0} cm tief" + (pen.BonePierced ? " durch die Rippe" : "") + (pen.Embedded ? " (Fremdkörper steckt)" : ""));
+            }
+            foreach (var c in cuts ?? new CutResult[0])
+            {
+                var rule = m.cutting?.rules?.FirstOrDefault(r => c.Segment != null && c.Segment.StartsWith(r.segmentPrefix));
+                if (rule == null || c.Length_m < rule.minLength_m || c.Depth_m < rule.vesselDepth_m) continue;
+                string id = c.Side > 0 ? rule.injuryRight : rule.injuryLeft;
+                add(id, 1, 0.5 + 0.4 * Math.Min(1, (c.Depth_m - rule.vesselDepth_m) / 0.01), $"Schnitt {c.Segment} {c.Length_m * 100:0} cm lang, ca. {c.Depth_m * 1000:0} mm tief");
             }
             return result;
         }

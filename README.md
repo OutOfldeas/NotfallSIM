@@ -200,12 +200,14 @@ den Schockraum (Schockraum-Szene muss erzeugt sein).
   „Körper ziehen“: ein Körperteil mit der linken Maus packen, ziehen, schwungvoll loslassen (oder aus der Höhe fallen
   lassen). Gegenstand wählen und auf ein Körperteil klicken: Stein und Ziegel werden geworfen, Faust, Hammer,
   Baseballschläger, Messer, Schraubendreher und Glasscherbe schlagen bzw. stechen aus 35 cm mit der wirksamen Masse
-  von Arm und Gegenstand (–/+ ändert die Geschwindigkeit). Wand, Tischkante, Bordstein und Bewehrungsstab werden
+  von Arm und Gegenstand (–/+ ändert die Geschwindigkeit). Messer und Glasscherbe mit Umschalt+Klick: Schnitt
+  (Klinge wird mit Andruck über die Haut gezogen). Wand, Tischkante, Bordstein und Bewehrungsstab werden
   durch Klick auf den Boden aufgestellt; dann den Körper dagegen schleudern. Ziehen läuft live; der Aufprall wird mit
   nachgiebigem Kontakt berechnet (0,1 ms während jedes Kontakts, sonst 1 ms) und abgespielt. Verletzungen sammeln sich
   über alle Einwirkungen und gehen samt Prellmarken und Stichwunden in den Schockraum. „Neuer Körper“ beginnt von vorn
   - Kontakt — `SoftContact.cs`: Kontaktmodifikation von PhysX; je Kontaktpunkt höchstens F·dt mit
-    F = k(δ)·δ + c·δ̇ aus `impact_model.json` (Kopf nach Fläche, Thorax nach Melvin/Kroell, Bauch nach Hardy)
+    F = k(δ)·δ + c·δ̇ aus `impact_model.json` (Kopf nach Fläche, Thorax nach Melvin/Kroell, Bauch nach Hardy); Kontaktfläche aus der Geometrie
+    (Fläche, Kante, Ecke, Kugelkappe); Schnittweg einer Schneide unter Andruck; HIC15 aus der Kopfbewegung
   - Frakturen und Stichkanäle — `ImpactModel.cs` (ohne Unity, getestet), `PenetrationSystem.cs`: Durchstich ab der
     Kraft nach Ní Annaidh 2015 (Kleidung +50 %), danach Gelenk im Stichkanal, Widerstand je Gewebeschicht,
     Rippe oder Schädel stoppen die Klinge, eine stecken gebliebene Klinge bleibt im Körper

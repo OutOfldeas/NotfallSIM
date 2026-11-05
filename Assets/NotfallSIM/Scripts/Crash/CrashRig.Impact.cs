@@ -10,6 +10,9 @@ namespace NotfallSIM.Crash
     public class ImpactRecord
     {
         public readonly List<BluntContact> Blunt = new List<BluntContact>();
+        public readonly List<CutResult> Cuts = new List<CutResult>();
+        /// <summary>HIC15 aus der Kopfbeschleunigung (gleichmäßig auf 10 kHz umgerechnet, CFC 1000); 0 ohne Kopfbewegung.</summary>
+        public double Hic15;
         public float Duration_s;
         public int FineSteps, CoarseSteps;
     }
@@ -93,6 +96,7 @@ namespace NotfallSIM.Crash
             vis.transform.localScale = visualScale;
             vis.GetComponent<Renderer>().material = CrashPhysics.Mat(color);
             go.AddComponent<CrashSurface>().kind = "object:" + def.id;
+            if (def.mode == "statisch" && def.supportHeight_m > 0) Legs(go.transform, size, pos.y - size.y / 2, color);
 
             Rigidbody rb = null;
             if (def.mode != "statisch")
@@ -106,8 +110,25 @@ namespace NotfallSIM.Crash
                 CrashPhysics.SetVelocity(rb, velocity);
             }
             _spawned.Add(go);
-            SoftContact.RegisterObject(col, def, rb, skinForce_N);
+            SoftContact.RegisterObject(col, def, rb, skinForce_N, size, Impact != null ? ImpactModel.CutLoad(Impact, def) : 0);
             return SoftContact.Object(col.GetInstanceID());
+        }
+
+        /// <summary>Vier Beine unter einer Platte (Tisch), vom Plattenboden bis zum Boden; Kontakt starr, zählt als derselbe Gegenstand.</summary>
+        static void Legs(Transform top, Vector3 size, float height, Color color)
+        {
+            if (height <= 0.02f) return;
+            const float leg = 0.045f, inset = 0.06f;
+            for (int i = 0; i < 4; i++)
+            {
+                float x = (i % 2 == 0 ? -1 : 1) * (size.x / 2 - inset), z = (i < 2 ? -1 : 1) * (size.z / 2 - inset);
+                var l = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                l.name = "Bein";
+                l.transform.SetParent(top, false);
+                l.transform.localPosition = new Vector3(x, -size.y / 2 - height / 2, z);
+                l.transform.localScale = new Vector3(leg, height, leg);
+                l.GetComponent<Renderer>().material = CrashPhysics.Mat(color * 0.8f);
+            }
         }
 
         /// <summary>Einen Gegenstand wieder entfernen (z. B. Faust nach dem Schlag).</summary>
@@ -153,6 +174,9 @@ namespace NotfallSIM.Crash
             var bodies = _trackedBodies.Where(rb => rb != null && !rb.isKinematic).ToList();
             var watch = new System.Diagnostics.Stopwatch();
 
+            // Kopfgeschwindigkeit je Schritt für HIC (Schrittweite wechselt, daher später gleichmäßig umgerechnet)
+            var head = Ragdoll.Head;
+            var hT = new List<double>(); var hX = new List<double>(); var hY = new List<double>(); var hZ = new List<double>();
             float t = 0, fineUntil = -1, lastFrame = 0, rest = 0, nextRestCheck = 0;
             bool started = false;
             CrashStart = 0;
@@ -174,6 +198,7 @@ namespace NotfallSIM.Crash
                     SoftContact.StepDt = dt;
                     _simTime = t;
                     perStep?.Invoke(t, dt);
+                    if (head != null) { var hv = CrashPhysics.Velocity(head); hT.Add(t); hX.Add(hv.x); hY.Add(hv.y); hZ.Add(hv.z); }
                     foreach (var s in Ragdoll.Sensors) s.Step(dt);
                     Penetrations?.Step(dt);
                     Physics.Simulate(dt);
@@ -200,6 +225,12 @@ namespace NotfallSIM.Crash
             SoftContact.Enabled = false;
             record.Duration_s = t;
             CollectBlunt(record);
+            CollectCuts(record);
+            if (hT.Count > 10)
+            {
+                var acc = Biomechanics.ResampleAccel_g(hT, hX, hY, hZ, crashStep_s);
+                record.Hic15 = acc.Count > 10 ? Biomechanics.Hic(Biomechanics.Cfc(acc, crashStep_s, 1000), crashStep_s, 0.015) : 0;
+            }
             Running = false;
             yield return Replay(slowMotion);
             done?.Invoke(record);
@@ -223,8 +254,15 @@ namespace NotfallSIM.Crash
                     double area = region.maxArea_cm2;
                     if (kv.Key.StartsWith("object:"))
                     {
-                        var def = SoftContact.ObjectDef(kv.Key.Substring(7));
-                        if (def != null && def.contactArea_cm2 > 0) area = Math.Min(def.contactArea_cm2, region.maxArea_cm2);
+                        // Fläche im Moment der größten Kraft (aus der Geometrie, siehe SoftContact)
+                        string id = kv.Key.Substring(7);
+                        var peak = colliders.Select(cc => SoftContact.PeakWith(cc, id)).OrderByDescending(x => x.Force_N).FirstOrDefault();
+                        if (peak.Area_cm2 > 0) area = Math.Min(peak.Area_cm2, region.maxArea_cm2);
+                        else
+                        {
+                            var def = SoftContact.ObjectDef(id);
+                            if (def != null && def.contactArea_cm2 > 0) area = Math.Min(def.contactArea_cm2, region.maxArea_cm2);
+                        }
                     }
                     int side = seg.EndsWith("rechts") ? 1 : seg.EndsWith("links") ? -1 : 0;
                     if (side == 0 && s.HasModelFrame && s.ToModel(s.transform.TransformPoint(c.BestPointLocal), out var mp, out _))
@@ -235,6 +273,33 @@ namespace NotfallSIM.Crash
                         MaxIndentation_m = indent, SegmentLength_m = length, Side = side, Surface = kv.Key
                     });
                 }
+            }
+        }
+
+        /// <summary>Schnitte aus dem Kontaktmodell: Segment, Seite, Länge, Tiefe aus dem Andruck, Anfang/Ende im Modellraum.</summary>
+        void CollectCuts(ImpactRecord record)
+        {
+            foreach (var ct in SoftContact.TakeCuts())
+            {
+                var body = SoftContact.Body(ct.BodyCollider);
+                var obj = SoftContact.Object(ct.ObjectCollider);
+                if (body == null || obj == null || ct.Length_m < 0.005) continue;
+                var s = body.Sensor;
+                string seg = s != null ? (s.ModelSegment ?? s.name) : "";
+                var cut = new CutResult
+                {
+                    Region = s != null ? s.Region : "", Segment = seg, ObjectId = obj.Def.id, Length_m = ct.Length_m, PeakLoad_N = ct.PeakLoad_N,
+                    Depth_m = ImpactModel.CutDepth(Impact, ct.PeakLoad_N, obj.CutLoad_N),
+                    Side = seg.EndsWith("rechts") ? 1 : seg.EndsWith("links") ? -1 : 0
+                };
+                var brb = body.Collider.attachedRigidbody;
+                Vector3 w0 = brb != null ? brb.position + brb.rotation * ct.Start : ct.Start, w1 = brb != null ? brb.position + brb.rotation * ct.End : ct.End;
+                if (s != null && s.HasModelFrame && s.ToModel(w0, out var a, out var inA) && s.ToModel(w1, out var b, out _))
+                {
+                    cut.ModelStart = new[] { a.x, a.y, a.z }; cut.ModelEnd = new[] { b.x, b.y, b.z }; cut.ModelInside = new[] { inA.x, inA.y, inA.z };
+                    if (cut.Side == 0) cut.Side = a.x > 0.02f ? 1 : a.x < -0.02f ? -1 : 0;
+                }
+                record.Cuts.Add(cut);
             }
         }
 

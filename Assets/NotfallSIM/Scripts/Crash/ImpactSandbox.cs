@@ -32,6 +32,8 @@ namespace NotfallSIM.Crash
         SandboxObject _tool;                       // null = Körper ziehen
         readonly Dictionary<string, float> _speed = new Dictionary<string, float>();
         readonly List<BluntContact> _blunt = new List<BluntContact>();
+        readonly List<CutResult> _cuts = new List<CutResult>();
+        double _maxHic;
         readonly List<string> _actions = new List<string>();
         readonly List<Anatomy.CrashMark> _marks = new List<Anatomy.CrashMark>();
         int _run, _stabMarks;
@@ -93,7 +95,7 @@ namespace NotfallSIM.Crash
             Release(false);
             _p.Seed = UnityEngine.Random.Range(1, 100000);
             _rig.BuildGewalt(_p, _model);
-            _blunt.Clear(); _actions.Clear(); _marks.Clear(); _allPenetrations.Clear(); _run = 0; _stabMarks = 0; _lastSummary = "";
+            _blunt.Clear(); _cuts.Clear(); _maxHic = 0; _actions.Clear(); _marks.Clear(); _allPenetrations.Clear(); _run = 0; _stabMarks = 0; _lastSummary = "";
             _host.SetGewaltResult(null, null, "Körper liegt bereit.\n\n" + Help());
         }
 
@@ -109,6 +111,7 @@ namespace NotfallSIM.Crash
             "<size=85%><b>Bedienung</b>\n" +
             "· Werkzeug „Körper ziehen“: Körperteil mit der linken Maus packen, ziehen, schwungvoll loslassen.\n" +
             "· Gegenstand wählen, dann auf ein Körperteil klicken: werfen, schlagen oder stechen (Geschwindigkeit mit –/+).\n" +
+            "· Messer, Glasscherbe: mit gedrückter Umschalttaste klicken = Schnitt (Klinge wird mit Andruck über die Haut gezogen).\n" +
             "· Wand, Tischkante, Bordstein, Bewehrungsstab: auf den Boden klicken zum Aufstellen, dann den Körper dagegen schleudern.\n" +
             "· Verletzungen sammeln sich über alle Würfe. „Neuer Körper“ beginnt von vorn.</size>";
 
@@ -193,13 +196,16 @@ namespace NotfallSIM.Crash
         {
             if (!Active || _rig == null || _rig.Ragdoll == null || _cam == null) return;
             if (_rig.Running || _rig.Playing) return;
-            bool down, held, up; Vector2 mouse;
+            bool down, held, up, shift; Vector2 mouse;
 #if ENABLE_INPUT_SYSTEM
             var m = UnityEngine.InputSystem.Mouse.current;
+            var kb = UnityEngine.InputSystem.Keyboard.current;
             if (m == null) return;
             down = m.leftButton.wasPressedThisFrame; held = m.leftButton.isPressed; up = !held && _grabbed != null; mouse = m.position.ReadValue();
+            shift = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
 #else
             down = Input.GetMouseButtonDown(0); held = Input.GetMouseButton(0); up = !held && _grabbed != null; mouse = Input.mousePosition;
+            shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 #endif
             var ray = _cam.ScreenPointToRay(mouse);
             if (_grabbed != null)
@@ -211,7 +217,46 @@ namespace NotfallSIM.Crash
             if (!down || OverUi()) return;
             if (!Physics.Raycast(ray, out var hit, 200f, ~0)) return;
             if (_tool == null) Grab(hit, ray);
+            else if (shift && _tool.HasEdge) Slash(_tool, hit);
             else Use(_tool, hit, ray);
+        }
+
+        /// <summary>
+        /// Schnitt: Die Klinge liegt mit der Schneide auf der Haut (lokale x-Achse in den Körper) und wird mit
+        /// Andruck entlang ihrer Länge 20 cm über den Klickpunkt gezogen. Andruck 40 N (Annahme: deutlich über der
+        /// Schnittschwelle glatter Klingen von ca. 19 N, Bolliger 2020).
+        /// </summary>
+        void Slash(SandboxObject o, RaycastHit hit)
+        {
+            const float press_N = 40f, stroke_m = 0.2f;
+            float s = Mathf.Clamp(_speed[o.id], 0.5f, 3f);   // Schnitte sind langsamer als Stiche
+            var seg = Segment(hit.collider);
+            string where = seg != null ? SegmentName(seg) : "Boden";
+            Vector3 dir = -(_cam.transform.position - hit.point).normalized;   // in den Körper
+            Vector3 tan = Vector3.Cross(dir, Vector3.up);
+            if (tan.sqrMagnitude < 1e-4f) tan = Vector3.Cross(dir, Vector3.forward);
+            tan = tan.normalized;
+            var rot = Quaternion.LookRotation(tan, Vector3.Cross(tan, dir));   // z = Zugrichtung, x = Schneide in den Körper
+            Vector3 start = hit.point - tan * (stroke_m / 2) - dir * 0.01f;
+            var info = _rig.SpawnObject(o, start, rot, tan * s + dir * 0.3f, false, 1e9);   // 1e9: beim Schneiden kein Durchstich
+            bool released = false;
+            Action<float, float> perStep = (t, dt) =>
+            {
+                if (released || info == null || info.Collider == null || info.Body == null) return;
+                if (t * s >= stroke_m || t > 1.5f)
+                {
+                    released = true;
+                    info.Collider.enabled = false;
+                    CrashPhysics.SetVelocity(info.Body, -dir * 1.5f);
+                    _retracted.Add(info);
+                    return;
+                }
+                info.Body.AddForce(dir * press_N, ForceMode.Force);                        // Andruck
+                var v = CrashPhysics.Velocity(info.Body);
+                CrashPhysics.SetVelocity(info.Body, v - Vector3.Dot(v, tan) * tan + tan * s); // Zuggeschwindigkeit halten (Hand führt)
+                info.Body.angularVelocity = Vector3.zero;
+            };
+            StartImpact($"Schnitt mit {o.label} über {where}", perStep);
         }
 
         static bool OverUi()
@@ -300,7 +345,7 @@ namespace NotfallSIM.Crash
                     if (seg != null) p += Vector3.ProjectOnPlane(toCam, Vector3.up).normalized * 0.6f;
                     var size = new Vector3(o.size_m[0], o.size_m[1], o.size_m[2]);
                     Quaternion yaw = Quaternion.LookRotation(Vector3.ProjectOnPlane(-toCam, Vector3.up).normalized + new Vector3(0, 0, 1e-4f));
-                    if (o.id == "tischkante") p.y = 0.75f;   // Tischplatte in Hüfthöhe (frei schwebend, vereinfacht)
+                    if (o.supportHeight_m > 0) p.y = (float)o.supportHeight_m - size.y / 2;   // Platte auf Beinen (Tisch)
                     else if (size.y > size.z && size.y >= size.x) { p.y = size.y / 2; yaw = Quaternion.LookRotation(Vector3.up, Vector3.forward); }   // Pfahl: Spitze nach oben
                     else p.y = size.y / 2;
                     _rig.SpawnObject(o, p, yaw, Vector3.zero, false, skin);
@@ -371,9 +416,11 @@ namespace NotfallSIM.Crash
             foreach (var r in _retracted) _rig.RemoveObject(r);
             _retracted.Clear();
             _blunt.AddRange(rec.Blunt);
+            _cuts.AddRange(rec.Cuts);
+            _maxHic = Math.Max(_maxHic, rec.Hic15);
             var rng = new System.Random(_p.Seed);
             var pens = _rig.Penetrations != null ? _rig.Penetrations.Results.ToList() : new List<PenetrationResult>();
-            var direct = ImpactModel.Evaluate(_model, _blunt, _allPenetrations.Concat(pens), () => rng.NextDouble());
+            var direct = ImpactModel.Evaluate(_model, _blunt, _allPenetrations.Concat(pens), _cuts, () => rng.NextDouble());
 
             // sichtbare Zeichen: Prellmarken/Platzwunden aus den Kontakten dieses Wurfs, Stichwunden aus neuen Stichkanälen
             var marks = _host.GenerateContactMarks();
@@ -387,6 +434,13 @@ namespace NotfallSIM.Crash
                 if (sm != null) _marks.Add(sm);
             }
             _stabMarks = pens.Count;
+            int ci = 0;
+            foreach (var c in rec.Cuts)
+            {
+                var label = _objects.objects.FirstOrDefault(x => x.id == c.ObjectId)?.label ?? "Klinge";
+                var cm = Anatomy.CrashMarks.Cut(c.Segment, c.Region, c.ModelStart, c.ModelEnd, c.ModelInside, label, c.Length_m, c.Depth_m, _run * 100 + ci++);
+                if (cm != null) _marks.Add(cm);
+            }
 
             var db = InjuryDatabase.Load();
             var mech = InjuryDatabase.LoadMechanisms();
@@ -394,12 +448,20 @@ namespace NotfallSIM.Crash
             var setup = new CrashSetup { MechanismId = "gewalt", Male = _p.Male, Age = 35, Weight_kg = _p.Mass_kg, Height_cm = _p.Height_m * 100, Rescue_min = 15 };
             string description = $"{(_p.Male ? "Mann" : "Frau")}, ca. 35 Jahre, nach Gewalteinwirkung liegend aufgefunden: " +
                                  string.Join("; ", _actions) + ".";
-            var result = InjuryRisk.BuildScenario(risk, mech, db.All, new List<CrashMeasurement>(), setup, (uint)_p.Seed, direct,
+            // HIC aus dem stärksten Kopfanprall aller Einwirkungen → Schädel-Hirn-Verletzungen über die Risikokurven (injury_risk.json)
+            var measurements = new List<CrashMeasurement>();
+            if (_maxHic > 0) measurements.Add(new CrashMeasurement { metric = "HIC15", value = _maxHic });
+            var result = InjuryRisk.BuildScenario(risk, mech, db.All, measurements, setup, (uint)_p.Seed, direct,
                                                   "Stumpfe/spitze Gewalt", description);
 
             var sb = new StringBuilder();
             sb.AppendLine($"<b>Einwirkung {_run}</b>: {action}");
             sb.AppendLine($"<size=80%>{rec.Duration_s:0.00} s berechnet ({rec.FineSteps} feine, {rec.CoarseSteps} grobe Schritte)</size>");
+            if (rec.Hic15 >= 1 || _maxHic >= 1)
+            {
+                var hicRisk = result.Risks.FirstOrDefault(r => r.Metric.id == "HIC15");
+                sb.AppendLine($"Kopf: HIC15 {rec.Hic15:0} (höchster bisher {_maxHic:0})" + (hicRisk != null ? $" → {hicRisk.Metric.ais} {hicRisk.Probability:P0}" : ""));
+            }
             var top = rec.Blunt.GroupBy(b => b.Segment).Select(g => g.OrderByDescending(x => x.PeakForce_N).First())
                                .OrderByDescending(b => b.PeakForce_N).Take(6).ToList();
             if (top.Count > 0)
@@ -413,7 +475,13 @@ namespace NotfallSIM.Crash
             {
                 sb.AppendLine("<b>Stichkanäle</b>");
                 foreach (var pr in pens)
-                    sb.AppendLine($"{pr.Segment}: {pr.Depth_m * 100:0.#} cm tief" + (pr.HitBone ? ", auf Knochen gestoppt" : "") + (pr.Embedded ? ", steckt" : ""));
+                    sb.AppendLine($"{pr.Segment}: {pr.Depth_m * 100:0.#} cm tief" + (pr.BonePierced ? ", durch den Knochen" : pr.HitBone ? ", auf Knochen gestoppt" : "") + (pr.Embedded ? ", steckt" : ""));
+            }
+            if (rec.Cuts.Count > 0)
+            {
+                sb.AppendLine("<b>Schnitte</b>");
+                foreach (var c in rec.Cuts)
+                    sb.AppendLine($"{c.Segment}: {c.Length_m * 100:0.#} cm lang, ca. {c.Depth_m * 1000:0} mm tief (Andruck bis {c.PeakLoad_N:0} N)");
             }
             sb.AppendLine();
             sb.AppendLine("<b>Direkte Verletzungen (alle Einwirkungen)</b>");
@@ -428,7 +496,7 @@ namespace NotfallSIM.Crash
                 if (_marks.Count > 8) sb.AppendLine($"… und {_marks.Count - 8} weitere");
             }
             sb.AppendLine();
-            sb.AppendLine("<size=80%>Kontaktkraft aus nachgiebigem Gewebe (Allsop, Melvin, Hardy); Frakturen nach Kraft/Fläche bzw. Biegemoment, Stiche nach Ní Annaidh. Qualitativ — siehe docs/LITERATUR.md.</size>");
+            sb.AppendLine("<size=80%>Kontaktkraft aus nachgiebigem Gewebe (Allsop, Melvin, Hardy); Kontaktfläche aus der Geometrie; Frakturen nach Kraft/Fläche bzw. Biegemoment; Stiche nach Ní Annaidh, O'Callaghan, Bolliger; Schnitte nach Bolliger 2020; HIC nach SAE J211. Qualitativ — siehe docs/LITERATUR.md.</size>");
             _lastSummary = sb.ToString();
             _host.SetGewaltResult(result, _marks.ToList(), _lastSummary);
         }

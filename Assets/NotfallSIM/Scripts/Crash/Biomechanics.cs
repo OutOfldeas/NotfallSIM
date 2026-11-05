@@ -150,5 +150,29 @@ namespace NotfallSIM.Crash
             double erf = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.Exp(-z * z);
             return x >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf);
         }
-    }
+    
+        /// <summary>
+        /// Resultierende Beschleunigung (g) gleichmäßig im Abstand <paramref name="dt"/> aus Geschwindigkeiten mit wechselnder
+        /// Schrittweite (lineare Interpolation der Geschwindigkeit, dann Differenzen). Für HIC nach der Gewalt-Sandbox,
+        /// deren Schritt zwischen 0,1 und 1 ms wechselt; CFC-Filter brauchen gleichmäßige Abtastung.
+        /// </summary>
+        public static List<double> ResampleAccel_g(IList<double> t, IList<double> vx, IList<double> vy, IList<double> vz, double dt)
+        {
+            var result = new List<double>();
+            if (t.Count < 2 || dt <= 0) return result;
+            int k = 0;
+            double t0 = t[0], tEnd = t[t.Count - 1];
+            double px = vx[0], py = vy[0], pz = vz[0];
+            for (double tt = t0 + dt; tt <= tEnd + 1e-12; tt += dt)
+            {
+                while (k < t.Count - 2 && t[k + 1] < tt) k++;
+                double span = t[k + 1] - t[k], u = span > 0 ? Math.Max(0, Math.Min(1, (tt - t[k]) / span)) : 1;
+                double x = vx[k] + (vx[k + 1] - vx[k]) * u, y = vy[k] + (vy[k + 1] - vy[k]) * u, z = vz[k] + (vz[k + 1] - vz[k]) * u;
+                double ax = (x - px) / dt, ay = (y - py) / dt, az = (z - pz) / dt;
+                result.Add(Math.Sqrt(ax * ax + ay * ay + az * az) / 9.81);
+                px = x; py = y; pz = z;
+            }
+            return result;
+        }
+}
 }
