@@ -14,6 +14,7 @@ namespace NotfallSIM.EditorTools
     /// Vordergrund kommt, und alle 10 Minuten — nicht im Play-Modus und nicht während des Kompilierens.
     /// Sicher: Es wird nur vorgespult (fast-forward). Lokale Änderungen bleiben unangetastet; berührt ein neuer Commit
     /// eine lokal geänderte Datei, verweigert git den Pull und die Konsole sagt, welche Datei es ist.
+    /// Dateien, die bereits den neuen Inhalt haben (von Hand kopiert), werden dabei erkannt und stehen nicht im Weg.
     /// Menü: NotfallSIM › Git › Jetzt aktualisieren / Automatisch aktualisieren (an/aus).
     /// </summary>
     [InitializeOnLoad]
@@ -21,7 +22,6 @@ namespace NotfallSIM.EditorTools
     {
         const string PrefKey = "NotfallSIM.AutoGitPull";
         const double Interval_s = 600;
-        const string Self = "Assets/NotfallSIM/Editor/AutoGitPull.cs";
         static double _next;
         static bool _busy;
         static string _lastWarning;
@@ -88,15 +88,19 @@ namespace NotfallSIM.EditorTools
             if (behind.Out.Trim() == "0") { r.To = r.From; return r; }
 
             var pull = Run(git, "pull --ff-only --quiet", root);
-            if (pull.Code != 0 && pull.Err.Contains("untracked working tree files would be overwritten"))
+            // Stehen Dateien im Weg, die schon genau den neuen Stand haben (von Hand kopiert, z. B. dieses Skript),
+            // werden sie zurückgesetzt bzw. entfernt und der Pull wiederholt — ihr Inhalt kommt identisch zurück.
+            for (int attempt = 0; attempt < 4 && pull.Code != 0 && pull.Err.Contains("would be overwritten"); attempt++)
             {
-                // Erste Installation: dieses Skript wurde von Hand in den Ordner gelegt und kommt jetzt auch per git.
                 var files = pull.Err.Split('\n').Where(l => l.StartsWith("\t")).Select(l => l.Trim().Replace('\\', '/')).ToList();
-                if (files.Count > 0 && files.All(f => f == Self || f == Self + ".meta"))
+                if (files.Count == 0 || !files.All(f => SameAsUpstream(git, root, f))) break;
+                foreach (var f in files)
                 {
-                    foreach (var f in files) File.Delete(Path.Combine(root, f));
-                    pull = Run(git, "pull --ff-only --quiet", root);
+                    bool tracked = Run(git, $"ls-files --error-unmatch -- \"{f}\"", root).Code == 0;
+                    if (tracked) Run(git, $"checkout -- \"{f}\"", root);   // lokal geändert, aber schon neuer Stand
+                    else File.Delete(Path.Combine(root, f));                 // neu, von Hand hineinkopiert
                 }
+                pull = Run(git, "pull --ff-only --quiet", root);
             }
             if (pull.Code != 0)
             {
@@ -110,6 +114,15 @@ namespace NotfallSIM.EditorTools
             r.Log = Run(git, $"log --oneline --no-merges {r.From}..{r.To}", root).Out.Trim();
             r.Updated = r.To != r.From;
             return r;
+        }
+
+        /// <summary>Hat die Datei im Arbeitsordner schon den Inhalt des neuen Stands? (hash-object wendet die Zeilenende-Umwandlung an.)</summary>
+        static bool SameAsUpstream(string git, string root, string file)
+        {
+            var up = Run(git, $"rev-parse \"@{{u}}:{file}\"", root);
+            if (up.Code != 0 || !File.Exists(Path.Combine(root, file))) return false;
+            var wt = Run(git, $"hash-object \"{file}\"", root);
+            return wt.Code == 0 && wt.Out.Trim() == up.Out.Trim();
         }
 
         static void Finish(Result r, bool manual)
