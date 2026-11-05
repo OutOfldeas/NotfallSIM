@@ -110,6 +110,7 @@ namespace NotfallSIM.UI
             var db = _sim.Database;
             return new CoachContext
             {
+                NoAccess = _sim != null && !_sim.HasAccess,
                 Scenario = _sim.Scenario,
                 Injury = id => db.All.FirstOrDefault(d => d.id == id),
                 Interventions = _interventions ?? (_interventions = InjuryDatabase.LoadInterventions().interventions),

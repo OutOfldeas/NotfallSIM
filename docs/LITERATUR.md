@@ -643,9 +643,15 @@ Schlag, Wurf oder Sturz auf eine Kante. Fett wirkt hier über die Kontaktkraft (
 „Kontakt: nachgiebig/starr“). Die Kalibrierfaktoren in `calibration.json` stammen aus dem starren Kontakt — nach dem
 ersten Test in Unity neu kalibrieren.
 
-**Grenzen.** Fettverteilung nur nach Region, BMI und Geschlecht (nicht nach Taille oder Muskelmasse). Der
-Venenzugang ist im Simulator nicht modelliert (BMI ≥ 30 verdoppelt etwa die Chance, dass der erste Versuch misslingt,
-Sebbane [120] — wäre der Ansatz). Das Fett-Modul bei langsamer Belastung ist extrapoliert, die Streuung der
+**Gefäßzugang.** Infusionen, Blutprodukte, Medikamente und Katecholamine brauchen einen Zugang. Standardmäßig liegt
+präklinisch einer (bestehende Fälle unverändert); im Hauptmenü bzw. Prototyp lässt sich „ohne präklinischen Zugang“
+wählen, dann gibt der Coach „Gefäßzugang legen“ als C-Schritt vor. Venenzugang: bis zu 2 Versuche à 60 s
+(**Annahme**), Misserfolg je Versuch 18 % bei Normalgewicht; die Chance des Misserfolgs ist ab BMI 30 1,98-fach, unter
+BMI 18,5 2,24-fach (Sebbane [120], 563 Patienten, insgesamt 21 % Misserfolg im ersten Versuch) — also ca. 30 bzw. 33 %.
+Danach steht „i.o.-Zugang erwägen“ im Protokoll. Intraossär (Tibia): 91 % Erfolg je Versuch (Reanimationsstudie [121]:
+tibial 91 %, humeral 51 %, periphervenös 43 % im ersten Versuch), unabhängig vom BMI angesetzt.
+
+**Grenzen.** Fettverteilung nur nach Region, BMI und Geschlecht (nicht nach Taille oder Muskelmasse). Das Fett-Modul bei langsamer Belastung ist extrapoliert, die Streuung der
 Brustwand bei gleichem BMI geschätzt: Aus Schroeder 2013 (SD 14 mm bei BMI-SD 7) blieben bei 1,93 mm je BMI-Punkt nur
 ca. 4 mm, die Metaanalyse von Ahmad 2025 findet aber keinen engen Zusammenhang mit dem BMI — 9 mm liegt dazwischen.
 
@@ -844,3 +850,4 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 118. Jense HG, et al. Effect of obesity on safe duration of apnea in anesthetized humans. *Anesth Analg*. 1991;72:89-93. [Link](https://synapsesocial.com/papers/W2052627998)
 119. Armstrong LR, Rutherford NR, Heidel RE, Smith LM, Butts C. The effect of BMI on eFAST accuracy in trauma by residents in the emergency room. *Am Surg*. 2023;89(7):3238-3240. [DOI](https://doi.org/10.1177/00031348231157851)
 120. Sebbane M, et al. Predicting peripheral venous access difficulty in the emergency department using body mass index and a clinical evaluation of venous accessibility. [Link](https://read.qxmd.com/read/22981661) (563 Patienten; BMI ≥ 30: OR 1,98 für Misserfolg beim ersten Versuch)
+121. Intraosseous versus intravenous vascular access during out-of-hospital cardiac arrest: a randomized controlled trial. *Ann Emerg Med*. 2011 (Mecklenburg EMS, 182 Patienten). [Link](https://www.thedoctorschannel.com/view/tibial-intraosseous-vascular-access-most-reliable-in-out-of-hospital-resuscitation/)

@@ -58,8 +58,9 @@ namespace NotfallSIM.Simulation
                 Debug.LogWarning($"[Maßnahmen] Unbekannter Typ '{def.type}' bei '{def.id}'");
                 return;
             }
-            _used.Add(def.id);
             string label = string.IsNullOrEmpty(def.logLabel) ? def.label : def.logLabel;
+            if (!sim.HasAccess && SimulationManager.NeedsAccess(ev.Type)) { sim.Note($"Nicht möglich: kein Gefäßzugang ({label})", "warning:no-access"); return; }
+            _used.Add(def.id);
             if (doseValue.HasValue) label += " " + def.dose.Format(doseValue.Value, Weight);
             sim.ApplyIntervention(ev, label, def.effectDelay_s);
             if (doseValue.HasValue && !def.dose.Usual(doseValue.Value))

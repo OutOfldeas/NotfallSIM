@@ -10,7 +10,8 @@ namespace NotfallSIM.Simulation
         public static string RandomMechanism; // Zufallsfall aus diesem Mechanismus oder null
         public static PhysiologyMode Mode = PhysiologyMode.Textbook;
         public static bool CtInTraumaRoom;
-        public static double BodyBmi;         // Körperbau: Gewicht aus diesem BMI und der Größe des Falls; 0 = wie im Fall
+        public static double BodyBmi;
+        public static bool NoPrehospitalAccess; // ohne liegenden Gefäßzugang starten         // Körperbau: Gewicht aus diesem BMI und der Größe des Falls; 0 = wie im Fall
 
         public const string MainMenuScene = "Hauptmenue";
         public const string TraumaRoomScene = "Schockraum";
