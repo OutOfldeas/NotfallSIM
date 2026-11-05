@@ -502,6 +502,13 @@ wirksamen Masse. Die Steifigkeit des Gegenstands liegt in Reihe (Faust 100 kN/m)
 
 Die zweite Thoraxsteifigkeit ist auf 60 kN/m gesenkt (statt ~120 N/mm): Mit Melvins Wert ergibt das Pendel von Kroell
 (23,4 kg, 6,7 m/s) nur etwa 25 % Kompression statt der gemessenen ca. 40 %; mit 60 kN/m sind es 32 % bei 4,7 kN.
+**Kontaktfläche aus der Geometrie.** Die Fläche folgt je Kontaktpunkt aus Form, Lage und Eindrücktiefe des
+Gegenstands: Kugel und Kapselende als Kugelkappe (A = 2πrδ), Kapsel quer als Linie (Länge × Sehne 2√(2rδ)),
+Quader je nach Lage als Fläche, Kante (Länge × Breite, Breite 3 mm + 2δ, **Annahme**) oder Ecke. Die tragende Länge
+ist auf 15 cm begrenzt (Segmentbreite). Ein Ziegel trifft so mit der Kante auf etwa 10 cm², flach auf über 100 cm² —
+bei gleicher Kraft bricht die Kante den Schädel eher (Allsop: Frakturkraft wächst mit der Fläche). Ausgewertet wird
+die Fläche im Moment der größten Kraft.
+
 Geprüft (Tests): Faustschlag 2,9 kg mit 9,1 m/s gegen den Kopf → 3,1 kN (Walilko 2005 [98]: 3,4 ± 0,8 kN);
 starrer Stab 48 kg mit 6,3 m/s gegen den Bauch → ca. 34 % Kompression (Hardy 2001).
 
@@ -515,19 +522,37 @@ starrer Stab 48 kg mit 6,3 m/s gegen den Bauch → ca. 34 % Kompression (Hardy 2
 
 **Spitze Gewalt.** Die Haut wird durchstochen, wenn die Kontaktkraft der Spitze die Durchstichkraft übersteigt:
 F = −15,45 + 0,016·Spitzenradius (µm) + 0,69·Spitzenwinkel (°) + 0,16·Schneidwinkel (°) N (Ní Annaidh 2015 [100],
-quasistatisch, R² 0,97), mit Kleidung (Jeans) etwa +50 %. Danach führt ein Gelenk die Klinge im Stichkanal; der
-Widerstand je Schicht ist eine **Annahme** (Weichteil 25 N, Organ 15 N, Knochen 1500 N — die Haut leistet den
-Großteil). Ob eine Rippe getroffen wird, wird gewürfelt (Thorax 50 %, Annahme: etwa die Hälfte der Brustwand ist Rippe);
-dann stoppt die Klinge meist. Erreicht der Kanal die Körperwand (Thorax 3 cm, Abdomen 2,5 cm), folgt die innere
+quasistatisch, R² 0,97), mit Kleidung (Jeans) etwa +50 %. Danach führt ein Gelenk die Klinge im Stichkanal, und jede Schicht bremst:
+- Weichteil 25 N: deutlich weniger als die Haut (O'Callaghan 1999 [101]: Haut im Mittel 49,5 N, darunter erhebliche
+  Sekundärwiderstände; Nolan 2017 [102]: Schweinekeule 11–40 N je Messer) — Näherung.
+- Rippe 1000 N auf 1 cm, also etwa 10 J: Bolliger 2016 [103] fand vollständiges Durchstechen von Schweinerippen mit
+  Taschenmessern ab etwa 11 J bzw. über 906 N (längs) und 1198 N (quer). Ein kräftiger Stich (2 kg wirksame Masse,
+  6 m/s = 36 J) kommt durch, ein schwacher (2 m/s = 4 J) bleibt an der Rippe hängen. Knorpel 140 N, Sternum 200 N [101].
+- Schädelkalotte 3000 N auf 6 mm, Organ 15 N: **Annahmen** (keine Messung gefunden).
+Ob eine Rippe im Weg liegt, wird gewürfelt (Thorax 50 %, Annahme: etwa die Hälfte der Brustwand ist Rippe). Erreicht der Kanal die Körperwand (Thorax 3 cm, Abdomen 2,5 cm), folgt die innere
 Verletzung der Seite (Hämatopneumothorax, Leber, Oberschenkelarterie, Unterarmgefäße). Kommt die Klinge zur Ruhe,
 steckt sie und bleibt nach dem Loslassen im Körper.
+
+**Schnitt.** Gleitet eine Schneide unter Andruck über die Haut (mindestens 0,2 m/s), wird der Weg als Schnitt
+gezählt, sobald der Andruck die Schwelle überschreitet: glatte Klinge 18,6 N (1900 g), Wellenschliff 6,9 N (700 g)
+(Bolliger 2020 [104], gezogene Klinge auf Schweinehaut). Die Tiefe wächst mit dem Andruck darüber (1 mm + 0,3 mm/N,
+höchstens 3 cm — **Annahme**). Am Unterarm erreicht ein Schnitt ab 5 mm Tiefe die A. radialis/ulnaris, am
+Oberschenkel ab 2,5 cm die A. femoralis (Gefäßtiefen **Annahme**). In der Sandbox: Messer oder Glasscherbe wählen und
+mit Umschalt klicken; die Klinge wird mit 40 N Andruck 20 cm über die Stelle gezogen.
+
+**HIC.** Die Schrittweite wechselt zwischen 0,1 und 1 ms. Die Kopfgeschwindigkeit wird je Schritt aufgezeichnet,
+danach gleichmäßig auf 10 kHz umgerechnet (lineare Interpolation), differenziert, mit CFC 1000 gefiltert (SAE J211) und
+als HIC15 ausgewertet. Geprüft an einem 50-g-Halbsinus über 10 ms (analytisch HIC ≈ 57). Der höchste HIC aller
+Einwirkungen geht über die Risikokurven von `injury_risk.json` in das Szenario ein (Schädel-Hirn-Verletzungen).
 
 **Gegenstände** (`objects.json`): Masse, Form, Kontaktfläche und Geschwindigkeit. Geführte Schläge und Stiche
 nutzen die wirksame Masse von Arm und Gegenstand (Faust 2,9 kg nach Walilko [98]; Messer, Hammer: 2 kg, Annahme);
 Wurfgeschwindigkeiten sind Größenordnungen.
 
-**Grenzen.** Kontaktfläche je Gegenstand konstant (nicht aus der Geometrie); Becken und Extremitätensteifigkeiten
-geschätzt; Stichwiderstände geschätzt; keine Schnittverletzungen durch Ziehen der Klinge; kein HIC (variable Schrittweite).
+Die Tischkante steht als Platte in 75 cm Höhe auf vier Beinen.
+
+**Grenzen.** Kantenbreite, Schnitttiefe je N und Gefäßtiefen geschätzt; Steifigkeit von Becken und Extremitäten
+geschätzt; Schädel- und Organwiderstand im Stichkanal geschätzt; Schweinegewebe statt menschlichem in [102–104].
 Qualitativ, nicht forensisch.
 
 ## Offene Punkte zum Prüfen
@@ -570,7 +595,7 @@ Qualitativ, nicht forensisch.
 - [ ] Sandbox gegen NHTSA-Crashtestdaten kalibrieren (Kalibrierlauf in Unity ausführen, weitere Referenzen ergänzen)
 - [ ] Thoraxmodell: Parameter von Lobdell 1973 bzw. Kroell 1974 prüfen
 - [ ] Gewalt-Sandbox in Unity: Vorzeichen der Kontaktnormale, Faustschlag 3–4 kN, Ziegel auf den Kopf, Messer stoppt an Rippe
-- [ ] Stichwiderstände (Weichteil, Organ, Knochen) mit Messungen belegen; Steifigkeit von Becken und Extremitäten
+- [ ] Schädel- und Organwiderstand im Stichkanal, Kantenbreite und Schnitttiefe je N mit Messungen belegen; Steifigkeit von Becken und Extremitäten
 - [ ] Vorzeichen von Halskraft/-moment und Femurkraft aus Joint.currentForce/currentTorque in Unity prüfen
 - [ ] Halsverletzung (HWS) mit Physiologie in die Datenbank aufnehmen, dann Nij zuordnen
 - [ ] Fehlende typische Verletzungen ergänzen: Wirbelsäule, Kalkaneus (Sturz), Aortenverletzung (Dezeleration), Rippenserie rechts
@@ -704,3 +729,7 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 98. Walilko TJ, Viano DC, Bir CA. Biomechanics of the head for Olympic boxer punches to the face. *Br J Sports Med*. 2005;39(10):710-719. [DOI](https://doi.org/10.1136/bjsm.2004.014126)
 99. Kerrigan JR, Drinkwater DC, Kam CY, et al. Tolerance of the human leg and thigh in dynamic latero-medial bending. *Int J Crashworthiness*. 2004;9(6):607-623. [DOI](https://doi.org/10.1533/ijcr.2004.0315)
 100. Ní Annaidh A, Cassidy M, Curtis M, Destrade M, Gilchrist MD. Toward a predictive assessment of stab-penetration forces. *Am J Forensic Med Pathol*. 2015;36(3):162-166. [DOI](https://doi.org/10.1097/PAF.0000000000000075)
+101. O'Callaghan PT, Jones MD, James DS, Leadbeatter S, Holt CA, Nokes LDM. Dynamics of stab wounds: force required for penetration of various cadaveric human tissues. *Forensic Sci Int*. 1999;104(2-3):173-178. [DOI](https://doi.org/10.1016/S0379-0738(99)00115-2)
+102. Nolan G, Hainsworth SV, Rutty GN. Forces generated in stabbing attacks: an evaluation of the utility of the mild, moderate and severe scale. *Int J Legal Med*. 2017. [DOI](https://doi.org/10.1007/s00414-017-1702-7)
+103. Bolliger SA, Kneubuehl BP, Thali MJ, Eggert S, Siegenthaler L. Stabbing energy and force required for pocket-knives to pierce ribs. *Forensic Sci Med Pathol*. 2016;12(4). [DOI](https://doi.org/10.1007/s12024-016-9803-z)
+104. Bolliger SA, Wallace E, Dobay A, Froehlich Knaute D, Thali MJ, Barrera V. The cutting edge: an investigation into the pressure necessary for cutting skin with different knife blade types. *Int J Legal Med*. 2020;134(3):1133-1140. [DOI](https://doi.org/10.1007/s00414-020-02270-8)

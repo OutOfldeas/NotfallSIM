@@ -1528,7 +1528,47 @@ static class Tests
         Func<double> zero = () => 0.0;
         var deep = NotfallSIM.Crash.ImpactModel.Evaluate(m, null, new[] { new NotfallSIM.Crash.PenetrationResult { Region = "Thorax", Side = -1, Depth_m = 0.06 } }, zero);
         Check(deep.Count == 1 && deep[0].InjuryId == "stichverletzung_thorax_links" && deep[0].Probability == 1, "tiefer Stich links → Hämatopneumothorax links");
-        Check(NotfallSIM.Crash.ImpactModel.Evaluate(m, null, new[] { new NotfallSIM.Crash.PenetrationResult { Region = "Thorax", Side = -1, Depth_m = 0.06, HitBone = true } }, zero).Count == 0, "Klinge an der Rippe gestoppt → keine innere Verletzung");
+        Check(NotfallSIM.Crash.ImpactModel.Evaluate(m, null, new[] { new NotfallSIM.Crash.PenetrationResult { Region = "Thorax", Side = -1, Depth_m = 0.026, HitBone = true } }, zero).Count == 0, "Klinge an der Rippe gestoppt → keine innere Verletzung");
+        Check(NotfallSIM.Crash.ImpactModel.Evaluate(m, null, new[] { new NotfallSIM.Crash.PenetrationResult { Region = "Thorax", Side = -1, Depth_m = 0.06, HitBone = true, BonePierced = true } }, zero).Count == 1, "Rippe durchstoßen → Hämatopneumothorax");
+        // Rippe: Arbeit über die Knochenschicht ≈ 11 J (Bolliger 2016), Messerstich (2 kg, 6 m/s = 36 J) kommt durch, langsamer Stich (2 kg, 2 m/s = 4 J) nicht
+        var thRule = NotfallSIM.Crash.ImpactModel.PenetrationRule(m, "Thorax");
+        double ribWork = NotfallSIM.Crash.ImpactModel.TissueResistance(m, NotfallSIM.Crash.ImpactModel.BoneTissue(thRule)) * NotfallSIM.Crash.ImpactModel.BoneThickness(thRule);
+        Check(ribWork > 7 && ribWork < 16, $"Arbeit durch die Rippe {ribWork:0.#} J (Bolliger: ca. 11 J)");
+        Check(0.5 * 2 * 6 * 6 > ribWork && 0.5 * 2 * 2 * 2 < ribWork, "kräftiger Stich durch die Rippe, schwacher nicht");
+        Check(NotfallSIM.Crash.ImpactModel.ResistanceAt(m, "Thorax", 0.025, true) == 1000 && NotfallSIM.Crash.ImpactModel.ResistanceAt(m, "Thorax", 0.025, false) == 25, "Rippenschicht nur bei Knochentreffer");
+        // Kontaktfläche aus der Geometrie
+        Func<string, double, double, double, double, double, double, double, double> A = NotfallSIM.Crash.ImpactModel.GeometricArea;
+        var ziegel = objs.objects.First(o => o.id == "ziegel");   // 11,5 × 7,1 × 24 cm, Längsachse z
+        double flat = A("box", 0.115, 0.071, 0.24, 0, 1, 0, 0.005), edgeA = A("box", 0.115, 0.071, 0.24, 0.7, 0.7, 0, 0.005), corner = A("box", 0.115, 0.071, 0.24, 0.6, 0.6, 0.53, 0.005);
+        Check(flat > 100 && edgeA < 30 && corner < 3 && corner < edgeA, $"Ziegel flach {flat:0} cm², Kante {edgeA:0.#} cm², Ecke {corner:0.##} cm²");
+        Check(A("sphere", 0.1, 0.1, 0.1, 0, 0, 1, 0.01) > A("sphere", 0.1, 0.1, 0.1, 0, 0, 1, 0.002), "Kugel: Fläche wächst mit der Eindrückung");
+        Check(A("capsule", 0.065, 0.065, 0.84, 1, 0, 0, 0.01) > 5 * A("capsule", 0.065, 0.065, 0.84, 0, 0, 1, 0.002), "Schläger quer trifft breiter als mit dem Ende");
+        double edgeForceRatio = NotfallSIM.Crash.ImpactModel.SkullFractureProbability(m, 8000, edgeA) - NotfallSIM.Crash.ImpactModel.SkullFractureProbability(m, 8000, flat);
+        Check(edgeForceRatio > 0.3, "Ziegelkante bricht den Schädel bei 8 kN eher als die flache Seite");
+        // Schnitt (Bolliger 2020): glatte Klinge ab 18,6 N, Wellenschliff ab 6,9 N
+        Check(NotfallSIM.Crash.ImpactModel.CutLoad(m, objs.objects.First(o => o.id == "messer")) == 18.6 && NotfallSIM.Crash.ImpactModel.CutLoad(m, objs.objects.First(o => o.id == "hammer")) == 0, "Schnittschwelle nur für Schneiden");
+        Check(NotfallSIM.Crash.ImpactModel.CutDepth(m, 10, 18.6) == 0 && NotfallSIM.Crash.ImpactModel.CutDepth(m, 40, 18.6) > 0.005, "Schnitttiefe aus dem Andruck");
+        var cutDeep = NotfallSIM.Crash.ImpactModel.Evaluate(m, null, null, new[] { new NotfallSIM.Crash.CutResult { Region = "Arm rechts", Segment = "Unterarm rechts", Side = 1, Length_m = 0.05, Depth_m = 0.007 } }, zero);
+        var cutFlat = NotfallSIM.Crash.ImpactModel.Evaluate(m, null, null, new[] { new NotfallSIM.Crash.CutResult { Region = "Arm rechts", Segment = "Unterarm rechts", Side = 1, Length_m = 0.05, Depth_m = 0.002 } }, zero);
+        Check(cutDeep.Count == 1 && cutDeep[0].InjuryId == "schnittverletzung_unterarm_rechts" && cutFlat.Count == 0, "tiefer Unterarmschnitt → Gefäßverletzung, oberflächlicher nicht");
+        var cm = NotfallSIM.Anatomy.CrashMarks.Cut("Unterarm rechts", "Arm rechts", new[] { 0.3f, 1f, 0.05f }, new[] { 0.3f, 0.95f, 0.05f }, new[] { 0.3f, 0.97f, 0f }, "Messerstich", 0.05, 0.007, 1);
+        Check(cm.Mark.kind == "schnitt" && Math.Abs(cm.Mark.radius_m - 0.025f) < 1e-6 && cm.Mark.stretch > 5 && cm.Finding.Contains("5 cm"), "Schnittmarke: " + cm.Finding);
+        // Tisch steht auf Beinen
+        Check(objs.objects.First(o => o.id == "tischkante").supportHeight_m == 0.75, "Tischplatte in 75 cm Höhe");
+        // HIC aus wechselnder Schrittweite: 50 g Halbsinus über 10 ms, grob und fein abgetastet → gleiche Größenordnung wie gleichmäßig
+        var tt = new List<double>(); var vx = new List<double>(); var vy = new List<double>(); var vz = new List<double>();
+        double v = 0, tnow = 0;
+        while (tnow < 0.05)
+        {
+            double h = tnow > 0.01 && tnow < 0.025 ? 1e-4 : 1e-3;
+            tt.Add(tnow); vx.Add(v); vy.Add(0); vz.Add(0);
+            double acc = tnow > 0.012 && tnow < 0.022 ? 9.81 * 50 * Math.Sin(Math.PI * (tnow - 0.012) / 0.01) : 0;
+            v += acc * h; tnow += h;
+        }
+        var res = NotfallSIM.Crash.Biomechanics.ResampleAccel_g(tt, vx, vy, vz, 1e-4);
+        double hic = NotfallSIM.Crash.Biomechanics.Hic(res, 1e-4, 0.015);
+        // analytisch: Halbsinus 50 g, 10 ms → HIC ≈ (0,637·50)^2,5 · 0,01 ≈ 57
+        Check(res.Max() > 40 && res.Max() < 60 && hic > 35 && hic < 80, $"HIC aus wechselnder Schrittweite {hic:0} (analytisch ca. 57), Spitze {res.Max():0} g");
         Check(NotfallSIM.Crash.ImpactModel.Evaluate(m, null, new[] { new NotfallSIM.Crash.PenetrationResult { Region = "Thorax", Side = 1, Depth_m = 0.02 } }, zero).Count == 0, "flacher Stich → nur Weichteil");
         Check(NotfallSIM.Crash.ImpactModel.Evaluate(m, null, new[] { new NotfallSIM.Crash.PenetrationResult { Region = "Arm rechts", Segment = "Oberarm rechts", Side = 1, Depth_m = 0.05 } }, zero).Count == 0, "Oberarm: kein Unterarmgefäß");
         var blunt = NotfallSIM.Crash.ImpactModel.Evaluate(m, new[] {

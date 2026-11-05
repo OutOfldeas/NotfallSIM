@@ -133,6 +133,29 @@ namespace NotfallSIM.Anatomy
             };
         }
 
+        /// <summary>Schnittwunde von Anfang bis Ende des Gleitwegs (Modellraum): länglich, glattrandig, in Schnittrichtung gestreckt.</summary>
+        public static CrashMark Cut(string segment, string region, float[] start, float[] end, float[] inside, string objectLabel,
+                                    double length_m, double depth_m, int k)
+        {
+            if (start == null || end == null || inside == null) return null;
+            var mid = new[] { (start[0] + end[0]) / 2, (start[1] + end[1]) / 2, (start[2] + end[2]) / 2 };
+            var outward = new[] { mid[0] - inside[0], mid[1] - inside[1], mid[2] - inside[2] };
+            var axis = new[] { end[0] - start[0], end[1] - start[1], end[2] - start[2] };
+            float half = (float)Math.Max(0.004, length_m / 2);
+            string finding = $"Etwa {length_m * 100:0} cm lange, glattrandige Schnittwunde {segment} {FaceLabel(outward)} ({objectLabel}" +
+                             (depth_m >= 0.004 ? $", klaffend, ca. {depth_m * 1000:0} mm tief)" : ", oberflächlich)");
+            return new CrashMark
+            {
+                Region = region, Finding = finding,
+                Mark = new SkinMark
+                {
+                    id = $"crash_schnitt_{k}", injuryId = "", kind = "schnitt", region = region,
+                    anchor = new MarkAnchor { meshes = new string[0], point = (float[])inside.Clone(), offset = new float[0], direction = outward },
+                    segments = new[] { segment }, radius_m = half, stretch = Math.Max(2f, half / 0.003f), stretchAxis = axis, when = Always
+                }
+            };
+        }
+
         static CrashMark Belt(BeltTemplate t) => new CrashMark
         {
             Region = t.segments != null && t.segments.Length > 0 ? t.segments[0] : "",

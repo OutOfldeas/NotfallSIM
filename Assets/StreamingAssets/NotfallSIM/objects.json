@@ -30,6 +30,8 @@
       ],
       "evidence": "human",
       "sourceId": "walilko2005",
+      "edge": "",
+      "supportHeight_m": 0,
       "note": "Olympia-Boxer mit Handschuh: Faust 9,14 ± 2,06 m/s, wirksame Masse 2,9 ± 2,0 kg, Kraft im Mittel 3427 ± 811 N. Faust-Steifigkeit 100 kN/m so gewählt, dass ein Schlag mit diesen Werten gegen den Kopf etwa diese Kraft ergibt (Handschuh-Faust; ohne Handschuh eher steifer). Kontaktfläche Annahme."
     },
     {
@@ -60,6 +62,8 @@
       ],
       "evidence": "annahme",
       "sourceId": "",
+      "edge": "",
+      "supportHeight_m": 0,
       "note": "Faustgroßer Stein, Wurfgeschwindigkeit Annahme."
     },
     {
@@ -90,6 +94,8 @@
       ],
       "evidence": "annahme",
       "sourceId": "",
+      "edge": "",
+      "supportHeight_m": 0,
       "note": "Normalformat 240 × 115 × 71 mm; Kante als Kontakt. Annahme."
     },
     {
@@ -120,6 +126,8 @@
       ],
       "evidence": "annahme",
       "sourceId": "",
+      "edge": "",
+      "supportHeight_m": 0,
       "note": "Bahn ca. 5 cm²; wirksame Masse aus Kopf und Arm, Geschwindigkeit Annahme."
     },
     {
@@ -150,6 +158,8 @@
       ],
       "evidence": "annahme",
       "sourceId": "",
+      "edge": "",
+      "supportHeight_m": 0,
       "note": "Holzschläger ca. 0,9 kg; Geschwindigkeit am Treffpunkt Annahme."
     },
     {
@@ -180,6 +190,8 @@
       ],
       "evidence": "annahme",
       "sourceId": "niannaidh2015",
+      "edge": "glatt",
+      "supportHeight_m": 0,
       "note": "Küchenmesser 15 cm. Durchstichkraft aus der Geometrie (ca. 15 N); wirksame Masse von Hand und Arm und Stichgeschwindigkeit Annahme."
     },
     {
@@ -210,6 +222,8 @@
       ],
       "evidence": "annahme",
       "sourceId": "niannaidh2015",
+      "edge": "",
+      "supportHeight_m": 0,
       "note": "Stumpfe Spitze: Durchstichkraft ca. 48 N (Regression am Rand ihres Gültigkeitsbereichs)."
     },
     {
@@ -240,7 +254,9 @@
       ],
       "evidence": "annahme",
       "sourceId": "niannaidh2015",
-      "note": "Sehr scharf: Durchstich schon bei wenigen Newton (Untergrenze 5 N)."
+      "edge": "glatt",
+      "supportHeight_m": 0,
+      "note": "Sehr scharf: Durchstich schon bei wenigen Newton (Untergrenze 5 N). Schneide wie glatte Klinge angesetzt (Annahme)."
     },
     {
       "id": "bewehrungsstab",
@@ -270,6 +286,8 @@
       ],
       "evidence": "annahme",
       "sourceId": "niannaidh2015",
+      "edge": "",
+      "supportHeight_m": 0,
       "note": "Senkrecht stehender Stab (16 mm, abgeschnitten): Pfählung, wenn der Körper darauf fällt. Durchstichkraft ca. 69 N."
     },
     {
@@ -300,6 +318,8 @@
       ],
       "evidence": "annahme",
       "sourceId": "",
+      "edge": "",
+      "supportHeight_m": 0,
       "note": "Flach: Kontaktfläche begrenzt die Körperregion."
     },
     {
@@ -330,7 +350,9 @@
       ],
       "evidence": "annahme",
       "sourceId": "",
-      "note": "Platte in 75 cm Höhe; Kante als schmale Kontaktfläche (Annahme)."
+      "edge": "",
+      "supportHeight_m": 0.75,
+      "note": "Platte in 75 cm Höhe; Kante als schmale Kontaktfläche (Annahme). Tischplatte 75 cm hoch auf vier Beinen."
     },
     {
       "id": "bordstein",
@@ -360,6 +382,8 @@
       ],
       "evidence": "annahme",
       "sourceId": "",
+      "edge": "",
+      "supportHeight_m": 0,
       "note": "Kante als Kontakt (Annahme)."
     }
   ],

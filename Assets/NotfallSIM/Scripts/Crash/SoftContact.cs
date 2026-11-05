@@ -34,7 +34,21 @@ namespace NotfallSIM.Crash
             public Rigidbody Body;          // null bei statischen Gegenständen
             public double SkinForce_N;      // Durchstichkraft (nur spitz)
             public double Area_cm2, Stiffness_N_m, Mass_kg;
+            public string Shape;            // "sphere" | "box" | "capsule" — Kontaktfläche aus der Geometrie
+            public Vector3 Size;            // Maße mit Längsachse z (m)
+            public double CutLoad_N;        // Andruck, ab dem die Schneide beim Ziehen schneidet (0 = keine Schneide)
         }
+
+        /// <summary>Gleitweg einer Schneide über ein Segment unter Andruck (für Schnittwunden).</summary>
+        public class CutTrack
+        {
+            public int BodyCollider, ObjectCollider;
+            public double Length_m, PeakLoad_N;
+            public Vector3 Start, End;   // relativ zum Körpersegment (Lage des Rigidbody im Moment des Kontakts)
+        }
+
+        /// <summary>Größte Kontaktkraft je Paar (Körperkollider, Gegenstand) und die Fläche in diesem Moment.</summary>
+        public struct PeakContact { public float Force_N, Area_cm2; }
 
         public struct PenetrationRequest
         {
@@ -47,6 +61,8 @@ namespace NotfallSIM.Crash
         static readonly Dictionary<int, ObjectInfo> Objects = new Dictionary<int, ObjectInfo>();
         static readonly HashSet<long> Ignored = new HashSet<long>();     // laufende Durchstiche (Klinge ↔ Segment)
         static readonly ConcurrentDictionary<int, float> MaxIndent = new ConcurrentDictionary<int, float>();
+        static readonly ConcurrentDictionary<long, PeakContact> Peaks = new ConcurrentDictionary<long, PeakContact>();
+        static readonly Dictionary<long, CutTrack> Cuts = new Dictionary<long, CutTrack>();   // Zugriff nur unter lock(Cuts)
         public static readonly ConcurrentQueue<PenetrationRequest> PenetrationRequests = new ConcurrentQueue<PenetrationRequest>();
 
         /// <summary>Physikschritt (s), vor jedem Physics.Simulate bzw. beim Wechsel der festen Schrittweite setzen.</summary>
@@ -69,7 +85,8 @@ namespace NotfallSIM.Crash
 
         public static void Clear()
         {
-            Bodies.Clear(); Objects.Clear(); Ignored.Clear(); MaxIndent.Clear();
+            Bodies.Clear(); Objects.Clear(); Ignored.Clear(); MaxIndent.Clear(); Peaks.Clear();
+            lock (Cuts) Cuts.Clear();
             while (PenetrationRequests.TryDequeue(out _)) { }
         }
 
@@ -81,7 +98,7 @@ namespace NotfallSIM.Crash
             Bodies[c.GetInstanceID()] = new BodyInfo { Region = region, Collider = c, Sensor = sensor };
         }
 
-        public static void RegisterObject(Collider c, SandboxObject def, Rigidbody body, double skinForce_N)
+        public static void RegisterObject(Collider c, SandboxObject def, Rigidbody body, double skinForce_N, Vector3 size, double cutLoad_N)
         {
             if (c == null || def == null) return;
             Hook();
@@ -89,7 +106,8 @@ namespace NotfallSIM.Crash
             Objects[c.GetInstanceID()] = new ObjectInfo
             {
                 Def = def, Collider = c, Body = body, SkinForce_N = skinForce_N,
-                Area_cm2 = def.contactArea_cm2, Stiffness_N_m = def.stiffness_N_m, Mass_kg = body != null ? body.mass : 0
+                Area_cm2 = def.contactArea_cm2, Stiffness_N_m = def.stiffness_N_m, Mass_kg = body != null ? body.mass : 0,
+                Shape = def.shape, Size = size, CutLoad_N = cutLoad_N
             };
         }
 
@@ -114,7 +132,27 @@ namespace NotfallSIM.Crash
 
         /// <summary>Größte Eindrücktiefe an einem Kollider seit dem letzten <see cref="ResetIndentation"/>.</summary>
         public static float MaxIndentation(Collider c) => c != null && MaxIndent.TryGetValue(c.GetInstanceID(), out float d) ? d : 0;
-        public static void ResetIndentation() => MaxIndent.Clear();
+        public static void ResetIndentation() { MaxIndent.Clear(); Peaks.Clear(); lock (Cuts) Cuts.Clear(); }
+
+        /// <summary>Fläche im Moment der größten Kraft zwischen einem Körperkollider und Gegenständen mit dieser Id (cm²; 0 = kein Kontakt).</summary>
+        public static PeakContact PeakWith(Collider body, string objectDefId)
+        {
+            var best = new PeakContact();
+            if (body == null) return best;
+            int bid = body.GetInstanceID();
+            foreach (var o in Objects)
+            {
+                if (o.Value.Def == null || o.Value.Def.id != objectDefId) continue;
+                if (Peaks.TryGetValue(PairKey(bid, o.Key), out var pc) && pc.Force_N > best.Force_N) best = pc;
+            }
+            return best;
+        }
+
+        /// <summary>Alle Schnitte seit dem letzten <see cref="ResetIndentation"/> (Kopie).</summary>
+        public static List<CutTrack> TakeCuts()
+        {
+            lock (Cuts) { var l = new List<CutTrack>(Cuts.Values); Cuts.Clear(); return l; }
+        }
 
         static void Modify(PhysicsScene scene, NativeArray<ModifiableContactPair> pairs)
         {
@@ -142,7 +180,9 @@ namespace NotfallSIM.Crash
                 Vector3 pB = bodyFirst ? pair.position : pair.otherPosition, pO = bodyFirst ? pair.otherPosition : pair.position;
 
                 var region = body.Region;
-                double area = obj != null && obj.Area_cm2 > 0 ? System.Math.Min(obj.Area_cm2, region.maxArea_cm2) : region.maxArea_cm2;
+                Quaternion rotObj = bodyFirst ? pair.otherRotation : pair.rotation;
+                Quaternion invObj = Quaternion.Inverse(rotObj);
+                long key = PairKey(bodyId, otherId);
                 double kObj = obj != null ? obj.Stiffness_N_m : 0, mObj = obj != null ? obj.Mass_kg : 0;
                 int n = pair.contactCount;
                 float maxDelta = 0;
@@ -155,15 +195,47 @@ namespace NotfallSIM.Crash
                     Vector3 velB = vB + Vector3.Cross(wB, point - pB), velO = vO + Vector3.Cross(wO, point - pO);
                     float closing = bodyFirst ? Vector3.Dot(velO - velB, normal) : Vector3.Dot(velB - velO, normal);
                     if (closing > 0.5f && sep < 0.02f) _activity = 1;
+                    // Kontaktfläche: aus der Geometrie des Gegenstands (Lage zur Normale, Eindrücktiefe), sonst flach (Boden, Wand)
+                    double area = region.maxArea_cm2;
+                    if (obj != null && !string.IsNullOrEmpty(obj.Shape) && obj.Size.sqrMagnitude > 0)
+                    {
+                        Vector3 ln = invObj * normal;
+                        area = ImpactModel.GeometricArea(obj.Shape, obj.Size.x, obj.Size.y, obj.Size.z, ln.x, ln.y, ln.z, delta);
+                    }
+                    else if (obj != null && obj.Area_cm2 > 0) area = obj.Area_cm2;
+                    area = System.Math.Min(area, region.maxArea_cm2);
                     double f = ImpactModel.Force(region, delta, closing, area, kObj, mObj);
                     pair.SetMaxImpulse(i, (float)(f * dt / n));
                     maxDelta = Mathf.Max(maxDelta, delta);
+                    if (obj != null)
+                    {
+                        float ff = (float)f, aa = (float)area;
+                        Peaks.AddOrUpdate(key, new PeakContact { Force_N = ff, Area_cm2 = aa }, (_, old) => ff > old.Force_N ? new PeakContact { Force_N = ff, Area_cm2 = aa } : old);
+                    }
+
+                    // Schneide gleitet unter Andruck über die Haut: Schnittweg sammeln
+                    if (obj != null && obj.CutLoad_N > 0 && f >= obj.CutLoad_N)
+                    {
+                        Vector3 rel = bodyFirst ? velO - velB : velB - velO;
+                        float slide = (rel - Vector3.Dot(rel, normal) * normal).magnitude;
+                        if (slide >= 0.2f)
+                        {
+                            lock (Cuts)
+                            {
+                                Quaternion rotB = bodyFirst ? pair.rotation : pair.otherRotation;
+                                Vector3 local = Quaternion.Inverse(rotB) * (point - pB);   // Körper bewegt sich weiter: im Segment merken
+                                if (!Cuts.TryGetValue(key, out var ct)) Cuts[key] = ct = new CutTrack { BodyCollider = bodyId, ObjectCollider = otherId, Start = local };
+                                ct.Length_m += slide * dt / n;
+                                ct.PeakLoad_N = System.Math.Max(ct.PeakLoad_N, f);
+                                ct.End = local;
+                            }
+                        }
+                    }
 
                     // Spitze trifft auf: Normale längs der Klinge (lokale z-Achse des Gegenstands) und Kraft über der Durchstichkraft
                     if (obj != null && obj.Def.Sharp && f >= obj.SkinForce_N && closing > 0.3f)
                     {
-                        Quaternion rotO = bodyFirst ? pair.otherRotation : pair.rotation;
-                        Vector3 axis = rotO * Vector3.forward;
+                        Vector3 axis = rotObj * Vector3.forward;
                         if (Mathf.Abs(Vector3.Dot(axis, normal)) > 0.8f)
                             PenetrationRequests.Enqueue(new PenetrationRequest { BodyCollider = bodyId, ObjectCollider = otherId, Point = point, Normal = normal, Force_N = (float)f });
                     }

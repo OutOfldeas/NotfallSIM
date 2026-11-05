@@ -139,7 +139,12 @@ namespace NotfallSIM.Crash
                 float resistance = a.Depth >= a.Length ? 20000f   // Heft am Einstich: stoppt
                                  : (float)ImpactModel.ResistanceAt(_model, region, a.Depth, a.BoneHit);
                 var rule = ImpactModel.PenetrationRule(_model, region);
-                if (a.BoneHit && rule != null && a.Depth >= rule.wall_m - 0.005f) a.Result.HitBone = true;
+                if (a.BoneHit && rule != null)
+                {
+                    float boneStart = (float)(rule.wall_m - ImpactModel.BoneThickness(rule));
+                    if (a.Depth >= boneStart) a.Result.HitBone = true;
+                    if (a.Depth >= rule.wall_m) a.Result.BonePierced = true;   // Knochen durchstoßen (Rippe: ab ca. 11 J, Bolliger 2016)
+                }
 
                 if (vRel > 0.02f)
                 {
