@@ -57,11 +57,12 @@ namespace NotfallSIM.Crash
         /// <summary>Alle Körperkollider beim nachgiebigen Kontakt anmelden (Region, Unterhautfett nach BMI). false ohne Modell.</summary>
         bool RegisterSoftBody(CrashParams p, ImpactModelFile model)
         {
-            if (model == null || Ragdoll == null) return false;
+            if (model == null || !AllRagdolls().Any()) return false;
             SoftContact.Clear();
             SoftContact.Model = model;
             double bmi = Core.BodyComposition.Bmi(p.Mass_kg, p.Height_m * 100);
-            foreach (var s in Ragdoll.Sensors)
+            foreach (var rd in AllRagdolls())
+            foreach (var s in rd.Sensors)
             {
                 var region = ImpactModel.Region(model, s.Region);
                 var rb = s.GetComponent<Rigidbody>();

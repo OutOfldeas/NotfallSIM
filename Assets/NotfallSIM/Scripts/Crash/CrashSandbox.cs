@@ -16,7 +16,7 @@ namespace NotfallSIM.Crash
     /// Messwerte und Verletzungsrisiken anzeigen, Körperteile nach Risiko einfärben und den Fall
     /// (verdeckt) in den Schockraum übergeben.
     /// </summary>
-    public class CrashSandbox : MonoBehaviour
+    public partial class CrashSandbox : MonoBehaviour
     {
         [SerializeField] CrashRig rig;
         [SerializeField] TMP_Text settingsText;
@@ -40,6 +40,7 @@ namespace NotfallSIM.Crash
                 { "fussgaenger", ("Fußgänger", 40, 10, 90, 10, "km/h") },
                 { "sturz_hoehe", ("Sturz aus der Höhe", 6, 1, 30, 1, "m") },
                 { "gewalt",      ("Stumpfe/spitze Gewalt", 0, 0, 0, 0, "m/s") },
+                { "szenario",    ("Szenario: mehrere Fahrzeuge/Personen", 50, 0, 150, 10, "km/h") },
             };
 
         ImpactSandbox _impact;
@@ -57,8 +58,10 @@ namespace NotfallSIM.Crash
             if (_impact == null) _impact = gameObject.AddComponent<ImpactSandbox>();
             _impact.Init(rig, this, cam);
             MakeGewaltButton();
+            MakeScenarioButton();
             _bodyText = MakeBodyButton();
             _contactText = MakeContactButton();
+            BuildScenarioPanel();
             SelectMechanism("pkw_frontal");
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
             resultText.text = "Mechanismus wählen und „Crash starten“ drücken.";
@@ -188,7 +191,7 @@ namespace NotfallSIM.Crash
         }
 
         /// <summary>Zeichen aus den Kontakten des letzten berechneten Aufpralls (für die Gewalt-Sandbox).</summary>
-        public List<Anatomy.CrashMark> GenerateContactMarks() => GenerateMarks();
+        public List<Anatomy.CrashMark> GenerateContactMarks() => GenerateMarks(_p.Belted);
 
         // ---------------------------------------------------------------- UI-Aktionen (im SceneBuilder verdrahtet)
 
@@ -198,6 +201,8 @@ namespace NotfallSIM.Crash
             bool wasGewalt = Gewalt;
             _p.MechanismId = id;
             _p.Speed_kmh = Mechanisms[id].speed;
+            ShowScenarioPanel(id == "szenario");
+            if (id == "szenario") EnsureScenario();
             ApplyCameraPreset();
             RelabelSpeedButtons();
             _result = null;
@@ -224,6 +229,7 @@ namespace NotfallSIM.Crash
         public void ChangeSpeed(float direction)
         {
             if (Busy) return;
+            if (Scenario) { ScenarioSpeed(direction); return; }
             if (Gewalt) { _impact.ChangeSpeed(direction); ShowSettings(); return; }
             var m = Mechanisms[_p.MechanismId];
             if (_p.MechanismId == "sturz_hoehe")
@@ -253,7 +259,7 @@ namespace NotfallSIM.Crash
             return go != null ? go.GetComponentInChildren<TMP_Text>() : null;
         }
 
-        public void ToggleBelt() { if (Busy) return; _p.Belted = !_p.Belted; Preview(); }
+        public void ToggleBelt() { if (Busy) return; if (Scenario) { ScenarioBelt(); return; } _p.Belted = !_p.Belted; Preview(); }
 
         public void ToggleAirbag() { if (Busy) return; _p.Airbag = !_p.Airbag; Preview(); }
 
@@ -369,8 +375,9 @@ namespace NotfallSIM.Crash
 
         void Preview()
         {
+            if (Scenario) _p.Traffic = _sc;
             rig.Build(_p, out _); // Ausgangslage zeigen, Physik ruht bis zum Start
-            foreach (var rb in rig.Ragdoll.Segments.Values) rb.isKinematic = true;
+            if (rig.Ragdoll != null) foreach (var rb in rig.Ragdoll.Segments.Values) rb.isKinematic = true;
             ShowSettings();
         }
 
@@ -379,6 +386,7 @@ namespace NotfallSIM.Crash
         string SettingsText()
         {
             if (Gewalt && _impact != null) return _impact.SettingsText() + $"\nZeitlupe: {(_slowMo >= 1 ? "aus" : $"×{_slowMo:0.##}")}";
+            if (Scenario) return ScenarioSettingsText() + $"\nInsassen: {MuscleTone.Label(_p.Occupant)} · Airbag: {(_p.Airbag ? "ja" : "nein")}\nZeitlupe: {(_slowMo >= 1 ? "aus" : $"×{_slowMo:0.##}")}";
             var m = Mechanisms[_p.MechanismId];
             bool car = _p.MechanismId.StartsWith("pkw");
             bool fall = _p.MechanismId == "sturz_hoehe";
@@ -393,6 +401,7 @@ namespace NotfallSIM.Crash
 
         void OnMeasured(List<CrashMeasurement> raw)
         {
+            if (Scenario) { ShowScenarioResult(); return; }
             var cal = LoadCalibration();
             bool calibrated = cal != null && !string.IsNullOrEmpty(cal.calibratedAt) && cal.factors != null && cal.factors.Length > 0;
             var measurements = InjuryRisk.Calibrate(raw, calibrated ? cal : null);
@@ -428,7 +437,7 @@ namespace NotfallSIM.Crash
                 foreach (var o in organLoad.Organs.Where(x => x.Exposure > 0))
                     sb.AppendLine($"{o.Organ.label}: Dehnung {o.Strain:P0} von {o.FailureStrain:P0} bis zum Riss → {o.Probability:P0}");
             }
-            _crashMarks = GenerateMarks();
+            _crashMarks = GenerateMarks(_p.Belted);
             if (_crashMarks.Count > 0)
             {
                 sb.AppendLine();
@@ -450,7 +459,7 @@ namespace NotfallSIM.Crash
         List<Anatomy.CrashMark> _crashMarks = new List<Anatomy.CrashMark>();
 
         /// <summary>Zeichen aus den Kontakten der Messaufnehmer (crash_marks.json); leer ohne Daten oder ohne Anatomiemodell.</summary>
-        List<Anatomy.CrashMark> GenerateMarks()
+        List<Anatomy.CrashMark> GenerateMarks(bool belted)
         {
             string path = Path.Combine(InjuryDatabase.Root, "crash_marks.json");
             if (!File.Exists(path) || rig.Ragdoll == null) return new List<Anatomy.CrashMark>();
@@ -480,7 +489,7 @@ namespace NotfallSIM.Crash
                 best.Impulse_Ns = g.Sum(x => x.Impulse_Ns); best.PeakForce_N = g.Max(x => x.PeakForce_N); best.MaxSlide_m_s = g.Max(x => x.MaxSlide_m_s);
                 return best;
             });
-            return Anatomy.CrashMarks.Generate(rules, merged, _p.Belted ? rig.ShoulderBeltImpulse_Ns : 0, _p.Belted ? rig.LapBeltImpulse_Ns : 0);
+            return Anatomy.CrashMarks.Generate(rules, merged, belted ? rig.ShoulderBeltImpulse_Ns : 0, belted ? rig.LapBeltImpulse_Ns : 0);
         }
 
         static string Unit(RiskMetric m) => string.IsNullOrEmpty(m.unit) ? "" : " " + m.unit;
@@ -523,7 +532,8 @@ namespace NotfallSIM.Crash
         {
             var o = Orbit();
             if (o == null) return;
-            Vector3 offset = _p.MechanismId == "pkw_seite" ? new Vector3(0.4f, 1.4f, 3.2f)
+            Vector3 offset = Scenario ? new Vector3(-6f, 7f, -6f)
+                           : _p.MechanismId == "pkw_seite" ? new Vector3(0.4f, 1.4f, 3.2f)
                            : Gewalt ? new Vector3(2.0f, 1.8f, 0.3f) : new Vector3(3.4f, 1.1f, 0.6f);
             o.ConfigureFromOffset(new Vector3(0, 0.2f, 0), offset);
         }

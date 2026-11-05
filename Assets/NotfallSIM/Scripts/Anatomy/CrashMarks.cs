@@ -68,7 +68,7 @@ namespace NotfallSIM.Anatomy
         }
 
         static string SurfaceLabel(string s) =>
-            s == "ground" ? "Bodenkontakt" : s == "airbag" ? "Airbag" : s == "vehicle" ? "Fahrzeug"
+            s == "ground" ? "Bodenkontakt" : s == "airbag" ? "Airbag" : s == "vehicle" ? "Fahrzeug" : s == "insasse" ? "andere Person" : s == "hindernis" ? "Hindernis"
             : s != null && s.StartsWith("object:") ? "Gegenstand" : "Aufprall";
 
         public static List<CrashMark> Generate(CrashMarkRules r, IEnumerable<ContactSummary> contacts,
