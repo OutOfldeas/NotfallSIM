@@ -769,6 +769,29 @@ Anprallfläche steht quer zur Fahrtrichtung); keine Rückwirkung des Fahrers auf
 Nicken (dort nur Draufsicht). Das Nicken steigt ohne Bodenkontakt des Lenkers weiter (bis über 100° nach 0,8 s).
 Test: `MotorcycleChecks`, `TrafficChecks`.
 
+## Scheibenbruch (`GlassBreak`, `GlassCrack`, `CrashRig.Glass.cs`)
+
+**Zwei Glasarten.** Die Frontscheibe ist Verbundsicherheitsglas (VSG, zwei Glasschichten mit Folie): Sie reißt beim
+Anprall spinnennetzartig (radiale und ringförmige Risse, Bruchkern im Zentrum), bleibt im Rahmen und wölbt sich. Seiten-
+und Heckscheiben sind meist Einscheibensicherheitsglas (ESG): Sie zerfallen auf einmal in Würfel von ca. 1 cm Kantenlänge.
+Typische Folge sind viele kleine, oberflächliche Schnitte an Gesicht, Hals und Arm auf der Anprallseite („dicing
+injuries“). Ein Spinnennetz in der Frontscheibe gilt präklinisch als Hinweis auf einen Kopfanprall (SHT, HWS).
+
+**Wann.** Während der Rechnung prüft jedes aufgezeichnete Bild (2 ms), ob ein Körperteil die Frontscheibe berührt. Ab
+3 m/s senkrecht zur Scheibe reißt sie; der Radius des Rissbilds wächst mit der Geschwindigkeit (7 cm an der Schwelle,
++3 cm je m/s, höchstens 35 cm). Die Scheibe wölbt sich in Bewegungsrichtung so tief, wie der Körper einsinkt, und bleibt
+danach halb so tief durchgebogen (höchstens 12 cm). ESG zerfällt, sobald der Rahmen an der Scheibe 3 cm eindrückt
+(Seite) bzw. das Heck 25 cm knautscht; bei mehr als 75 cm Front-Knautschweg reißt die Frontscheibe von den unteren Ecken.
+Alle Schwellen und Größen sind **Annahmen** für die Darstellung, keine Messwerte.
+
+**Darstellung.** Risse sind an Dreiecke der Scheibe verankert und folgen jeder Verformung. Die Glaswürfel fliegen ohne
+Physik (Wurfparabel, dann Rutschen mit µ 0,6), als Funktion der Zeit — Wiedergabe und Spulen zeigen immer dasselbe.
+Sitzt jemand neben der zerfallenen Scheibe (Kopf höchstens 75 cm vor oder hinter ihrer Mitte), bekommt er an Kopf,
+Ober- und Unterarm dieser Seite das Zeichen „Glassplitterverletzungen“.
+
+**Grenzen.** Würfel kollidieren nicht (fliegen durch Sitze und Personen); die gerissene Frontscheibe wird in der Physik
+nicht weicher; Seitenscheiben brechen nicht durch direkten Kopfanprall. Test: `GlassChecks`.
+
 ## MANV-Vorsichtung (`triage.json`, `Data/Triage.cs`)
 
 Vorsichtung Erwachsener nach mSTaRT [128]: gehfähig → grün (T3); keine Atmung nach Freimachen der Atemwege → schwarz;

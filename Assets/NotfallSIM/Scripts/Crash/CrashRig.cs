@@ -592,6 +592,7 @@ namespace NotfallSIM.Crash
             var measured = Measure(p, gauges, Ragdoll, out abdomen);
             LastAbdomenLoad = abdomen;
             Destroy(gauges);
+            PrepareGlass();
             Running = false;
 
             if (playback) yield return Replay(slowMotion, () => done(measured));
@@ -638,6 +639,7 @@ namespace NotfallSIM.Crash
             _tracked.Clear(); _trackedBodies.Clear(); _savedInterp.Clear();
             _frameTimes.Clear(); _framePos.Clear(); _frameRot.Clear();
             foreach (var v in _visuals) v.Frames.Clear();
+            BeginGlass();
             var bodies = new List<Rigidbody>();
             foreach (var rd in AllRagdolls()) bodies.AddRange(rd.Root.GetComponentsInChildren<Rigidbody>(true));
             foreach (var go in _spawned) if (go) bodies.AddRange(go.GetComponentsInChildren<Rigidbody>(true));
@@ -658,6 +660,7 @@ namespace NotfallSIM.Crash
                 pos[i] = _tracked[i].position; rot[i] = _tracked[i].rotation;
             }
             _frameTimes.Add(time); _framePos.Add(pos); _frameRot.Add(rot);
+            StepGlass(time);
             foreach (var v in _visuals) v.Record();
         }
 
@@ -675,7 +678,7 @@ namespace NotfallSIM.Crash
             var p0 = _framePos[lo]; var p1 = _framePos[hi]; var r0 = _frameRot[lo]; var r1 = _frameRot[hi];
             for (int i = 0; i < _tracked.Count; i++)
                 if (_tracked[i]) _tracked[i].SetPositionAndRotation(Vector3.LerpUnclamped(p0[i], p1[i], u), Quaternion.SlerpUnclamped(r0[i], r1[i], u));
-            foreach (var v in _visuals) v.Show(lo, hi, u);
+            foreach (var v in _visuals) { v.Show(lo, hi, u); v.ShowEffects(t); }
             PlaybackTime = t;
         }
 

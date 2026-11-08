@@ -375,6 +375,8 @@ namespace NotfallSIM.Crash
                     sb.AppendLine($"{o.Organ.label}: Dehnung {o.Strain:P0} von {o.FailureStrain:P0} → {o.Probability:P0}");
             if (_crashMarks.Count > 0) sb.AppendLine("Zeichen: " + string.Join("; ", _crashMarks.Take(4).Select(c => c.Finding)));
             if (patientRescue.Length > 0) sb.AppendLine(patientRescue);
+            string glass = rig.GlassReport();
+            if (glass.Length > 0) sb.AppendLine("<b>Scheiben</b>\n" + glass.TrimEnd());
             sb.AppendLine();
             sb.AppendLine("<size=80%>„Patient“ wechselt die Person. Fahrzeugbewegung aus einem Draufsicht-Modell (kein Überschlag); Werte qualitativ.</size>");
             resultText.text = sb.ToString();

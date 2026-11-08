@@ -507,6 +507,13 @@ namespace NotfallSIM.Crash
                 foreach (var cm in _crashMarks.Take(8)) sb.AppendLine(cm.Finding);
                 if (_crashMarks.Count > 8) sb.AppendLine($"… und {_crashMarks.Count - 8} weitere");
             }
+            string glass = rig.GlassReport();
+            if (glass.Length > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("<b>Scheiben</b> <size=80%>(Frontscheibe Verbundglas, sonst Einscheibensicherheitsglas)</size>");
+                sb.Append(glass);
+            }
             sb.AppendLine();
             sb.AppendLine("<b>Wahrscheinlichkeit je Verletzung</b>");
             foreach (var kv in _result.InjuryProbability.OrderByDescending(x => x.Value).Where(x => x.Value >= 0.01))
@@ -551,7 +558,9 @@ namespace NotfallSIM.Crash
                 best.Impulse_Ns = g.Sum(x => x.Impulse_Ns); best.PeakForce_N = g.Max(x => x.PeakForce_N); best.MaxSlide_m_s = g.Max(x => x.MaxSlide_m_s);
                 return best;
             });
-            return Anatomy.CrashMarks.Generate(rules, merged, belted ? rig.ShoulderBeltImpulse_Ns : 0, belted ? rig.LapBeltImpulse_Ns : 0);
+            var marks = Anatomy.CrashMarks.Generate(rules, merged, belted ? rig.ShoulderBeltImpulse_Ns : 0, belted ? rig.LapBeltImpulse_Ns : 0);
+            marks.AddRange(rig.GlassMarks(rig.Ragdoll));   // Glaswürfel einer zerfallenen Seitenscheibe
+            return marks;
         }
 
         static string Unit(RiskMetric m) => string.IsNullOrEmpty(m.unit) ? "" : " " + m.unit;

@@ -156,6 +156,27 @@ namespace NotfallSIM.Anatomy
             };
         }
 
+        /// <summary>
+        /// Viele kleine, oberflächliche Schnittwunden durch Glaswürfel einer zerfallenen Seitenscheibe (ESG) — typisch an Gesicht,
+        /// Hals und Arm auf der Anprallseite. Fläche: Kopf 4 cm, Arm 5 cm Radius (Annahme, Darstellung).
+        /// </summary>
+        public static CrashMark GlassDicing(string segment, string region, float[] modelPoint, float[] modelInside, string paneLabel, int k)
+        {
+            if (modelPoint == null || modelInside == null) return null;
+            var outward = new[] { modelPoint[0] - modelInside[0], modelPoint[1] - modelInside[1], modelPoint[2] - modelInside[2] };
+            return new CrashMark
+            {
+                Region = region,
+                Finding = $"Viele kleine, oberflächliche Schnittwunden mit Glassplittern {segment} {FaceLabel(outward)} ({paneLabel} zerfallen)",
+                Mark = new SkinMark
+                {
+                    id = $"crash_glas_{k}", injuryId = "", kind = "glassplitter", region = region,
+                    anchor = new MarkAnchor { meshes = new string[0], point = (float[])modelInside.Clone(), offset = new float[0], direction = outward },
+                    segments = new[] { segment }, radius_m = segment == "Kopf" ? 0.04f : 0.05f, stretch = 1.3f, stretchAxis = new float[0], when = Always
+                }
+            };
+        }
+
         static CrashMark Belt(BeltTemplate t) => new CrashMark
         {
             Region = t.segments != null && t.segments.Length > 0 ? t.segments[0] : "",
