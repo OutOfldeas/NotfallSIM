@@ -279,7 +279,7 @@ namespace NotfallSIM.Crash
                         {
                             float u = Mathf.Clamp01((time - t0) / T);
                             float vel = v - v * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
-                            if (time >= t0) crush += (v - vel) * dt;   // Knautschweg der Front
+                            if (time >= t0) crush += vel * dt;   // Knautschweg = Weg des Fahrzeugs nach dem Kontakt (endet bei v·T/2)
                             sledFront = crush;
                             var carPos = rbCar.position + new Vector3(0, 0, vel * dt);
                             rbCar.MovePosition(carPos);

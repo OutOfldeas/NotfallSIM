@@ -260,21 +260,22 @@ namespace NotfallSIM.Crash
                 float x = m.Rest[3 * i], y = m.Rest[3 * i + 1], z = m.Rest[3 * i + 2];
                 if (m.Rigid[i]) { m.V[3 * i] = x; m.V[3 * i + 1] = y; m.V[3 * i + 2] = z; continue; }
                 // Front: Bereich [z0, L/2] auf [z0, L/2 − c] stauchen, seitlich zum Kontaktort hin stärker; Haube wölbt sich
-                float cf = d.Front * Lateral(x, d.FrontPos, hw);
+                // Knautschweg höchstens bis kurz vor die Hinterachse (schützt vor unsinnigen Eingaben)
+                float cf = Math.Min(d.Front, L / 2 - 0.6f) * Lateral(x, d.FrontPos, hw);
                 if (cf > 1e-4f)
                 {
-                    float z0 = L / 2 - Math.Max(1.2f, 1.6f * cf);
+                    float z0 = Math.Max(-L / 2 + 0.3f, L / 2 - Math.Max(1.2f, 1.6f * cf));
                     if (z > z0)
                     {
                         float u = (z - z0) / (L / 2 - z0);
                         z = z0 + u * (L / 2 - cf - z0);
-                        if (y > p.Belt - 0.25f) y += 0.12f * cf * (float)Math.Sin(Math.PI * u);
+                        if (y > p.Belt - 0.25f) y += 0.12f * Math.Min(cf, 0.8f) * (float)Math.Sin(Math.PI * u);
                     }
                 }
-                float cr = d.Rear * Lateral(x, d.RearPos, hw);
+                float cr = Math.Min(d.Rear, L / 2 - 0.6f) * Lateral(x, d.RearPos, hw);
                 if (cr > 1e-4f)
                 {
-                    float z0 = -L / 2 + Math.Max(1.0f, 1.6f * cr);
+                    float z0 = Math.Min(L / 2 - 0.3f, -L / 2 + Math.Max(1.0f, 1.6f * cr));
                     if (z < z0)
                     {
                         float u = (z0 - z) / (z0 + L / 2);

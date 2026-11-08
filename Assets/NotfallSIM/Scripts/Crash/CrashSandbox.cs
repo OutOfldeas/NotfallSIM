@@ -62,6 +62,7 @@ namespace NotfallSIM.Crash
             _bodyText = MakeBodyButton();
             _contactText = MakeContactButton();
             _configText = MakeConfigButton();
+            SandboxLayout.Attach(settingsText, resultText);
             BuildScenarioPanel();
             SelectMechanism("pkw_frontal");
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
