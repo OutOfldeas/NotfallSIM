@@ -31,7 +31,14 @@
       "rear": { "deflection_m": [0, 0.2, 0.6, 0.8], "force_N": [0, 250000, 380000, 1100000] },
       "unloadFactor": 30, "minContactWidth_m": 0.6, "intrusionStart_m": 0.6, "intrusionPerCrush": 0.6, "maxFrontIntrusion_m": 0.3, "maxSideIntrusion_m": 0.4, "doorLag_s": 0.003,
       "color": [0.25, 0.45, 0.3], "sourceId": "digges2001", "evidence": "annahme",
-      "note": "Steifere, höhere Front als der PKW (Größenordnung der IIHS-Barriere, die einen SUV nachbildet); Zahlen sind Annahmen." }
+      "note": "Steifere, höhere Front als der PKW (Größenordnung der IIHS-Barriere, die einen SUV nachbildet); Zahlen sind Annahmen." },
+    { "id": "motorrad", "label": "Motorrad (mit Fahrer)", "mass_kg": 280, "length_m": 2.1, "width_m": 0.8, "wheelbase_m": 1.45, "yawInertia_kgm2": 120, "corneringStiffness_N_rad": 20000,
+      "front": { "deflection_m": [0, 0.1, 0.4, 0.5], "force_N": [0, 25000, 45000, 300000] },
+      "side": { "deflection_m": [0, 0.3], "force_N": [0, 60000], "refWidth_m": 1.5 },
+      "rear": { "deflection_m": [0, 0.2], "force_N": [0, 40000] },
+      "unloadFactor": 20, "minContactWidth_m": 0.2, "intrusionStart_m": 10, "intrusionPerCrush": 0, "maxFrontIntrusion_m": 0, "maxSideIntrusion_m": 0, "doorLag_s": 0,
+      "color": [0.1, 0.25, 0.55], "sourceId": "iso13232", "evidence": "annahme",
+      "note": "Front = Gabel-Kennlinie wie motorcycle.fork; Masse mit Fahrer. Im Verkehrsszenario eben (kein Nicken, kein Kippen) — der Fahrer fliegt als Ragdoll frei. Seite/Heck: Annahmen." }
   ],
   "motorcycle": {
     "mass_kg": 200, "pitchInertia_kgm2": 60, "wheelbase_m": 1.45, "wheelRadius_m": 0.31, "comForward_m": 0.0, "comHeight_m": 0.55,

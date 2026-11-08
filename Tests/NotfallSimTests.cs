@@ -1831,6 +1831,14 @@ static class Tests
         Check(laneSim.FirstContact < 0, "Spurwechsel rechtzeitig: kein Aufprall");
         Check(Math.Abs(lb.Psi) * 180 / Math.PI < 6, $"Spurwechsel: wieder geradeaus ({lb.Psi * 180 / Math.PI:0.0}°)");
         Check(lb.X < -2.5 && lb.X > -5, $"Spurwechsel: Versatz {-lb.X:0.0} m (≈ a·T²/2π = 3,5 m)");
+        // Motorrad (Linksabbieger): Gabel staucht, PKW-Seite mit Delle, Motorrad fast gestoppt
+        var lm = RunTraffic(get("linksabbieger_motorrad"), types, 5);
+        var lmCar = lm.Bodies[0]; var lmBike = lm.Bodies[1];
+        double fork = lmBike.Faces[NotfallSIM.Crash.TrafficSim.Front].MaxCrush, dent = lmCar.Faces[NotfallSIM.Crash.TrafficSim.Right].MaxCrush;
+        Check(fork > 0.25 && fork < 0.55, $"Motorrad: Gabel {fork * 100:0} cm gestaucht");
+        Check(dent > 0.03 && dent < 0.3, $"Motorrad: PKW-Beifahrerseite {dent * 100:0} cm eingedrückt");
+        Check(lmBike.MaxDeltaV * 3.6 > 35, $"Motorrad: Δv {lmBike.MaxDeltaV * 3.6:0} km/h");
+        Console.WriteLine($"        Linksabbieger/Motorrad: Gabel {fork * 100:0} cm, PKW-Seite {dent * 100:0} cm, Δv Motorrad {lmBike.MaxDeltaV * 3.6:0} / PKW {lmCar.MaxDeltaV * 3.6:0} km/h, Kontakt {lm.FirstContact:0.00} s");
         var late = JsonRoundTrip(lane);
         late.vehicles[1].maneuver.reaction = "ueberrascht";
         var lateSim = RunTraffic(late, types, 6);
