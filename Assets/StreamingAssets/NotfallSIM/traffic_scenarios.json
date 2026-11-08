@@ -14,6 +14,12 @@
         { "id": "a", "label": "PKW A (getroffen)", "type": "pkw", "speed_kmh": 40, "heading_deg": 0, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true }, { "seat": "hinten_links", "belted": true } ] },
         { "id": "b", "label": "PKW B", "type": "pkw", "speed_kmh": 50, "heading_deg": 120, "target": "a", "targetFace": "left", "targetOffset_m": 0.8, "occupants": [ { "seat": "fahrer", "belted": true } ] }
       ] },
+    { "id": "linksabbieger_motorrad", "label": "Linksabbieger übersieht Motorrad", "description": "Ein entgegenkommender PKW biegt links ab und übersieht das Motorrad: Anprall mit 60 km/h in die Beifahrerseite.",
+      "friction": 0.8, "approach_s": 3,
+      "vehicles": [
+        { "id": "a", "label": "PKW (Linksabbieger)", "type": "pkw", "speed_kmh": 20, "heading_deg": 120, "x": 0, "z": 0, "occupants": [ { "seat": "fahrer", "belted": true } ] },
+        { "id": "m", "label": "Motorrad", "type": "motorrad", "speed_kmh": 60, "heading_deg": 0, "target": "a", "targetFace": "right", "targetOffset_m": 0.3, "occupants": [ { "seat": "fahrer", "belted": false } ] }
+      ] },
     { "id": "gegenverkehr", "label": "Gegenverkehr: frontal versetzt (≈ 40 %)", "description": "Frontalzusammenstoß auf der Landstraße, Überdeckung auf der Fahrerseite.",
       "friction": 0.8, "approach_s": 3,
       "vehicles": [

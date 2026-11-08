@@ -31,12 +31,38 @@
       "rear": { "deflection_m": [0, 0.2, 0.6, 0.8], "force_N": [0, 250000, 380000, 1100000] },
       "unloadFactor": 30, "minContactWidth_m": 0.6, "intrusionStart_m": 0.6, "intrusionPerCrush": 0.6, "maxFrontIntrusion_m": 0.3, "maxSideIntrusion_m": 0.4, "doorLag_s": 0.003,
       "color": [0.25, 0.45, 0.3], "sourceId": "digges2001", "evidence": "annahme",
-      "note": "Steifere, höhere Front als der PKW (Größenordnung der IIHS-Barriere, die einen SUV nachbildet); Zahlen sind Annahmen." }
+      "note": "Steifere, höhere Front als der PKW (Größenordnung der IIHS-Barriere, die einen SUV nachbildet); Zahlen sind Annahmen." },
+    { "id": "motorrad", "label": "Motorrad (mit Fahrer)", "mass_kg": 280, "length_m": 2.1, "width_m": 0.8, "wheelbase_m": 1.45, "yawInertia_kgm2": 120, "corneringStiffness_N_rad": 20000,
+      "front": { "deflection_m": [0, 0.1, 0.4, 0.5], "force_N": [0, 25000, 45000, 300000] },
+      "side": { "deflection_m": [0, 0.3], "force_N": [0, 60000], "refWidth_m": 1.5 },
+      "rear": { "deflection_m": [0, 0.2], "force_N": [0, 40000] },
+      "unloadFactor": 20, "minContactWidth_m": 0.2, "intrusionStart_m": 10, "intrusionPerCrush": 0, "maxFrontIntrusion_m": 0, "maxSideIntrusion_m": 0, "doorLag_s": 0,
+      "color": [0.1, 0.25, 0.55], "sourceId": "iso13232", "evidence": "annahme",
+      "note": "Front = Gabel-Kennlinie wie motorcycle.fork; Masse mit Fahrer. Im Verkehrsszenario eben (kein Nicken, kein Kippen) — der Fahrer fliegt als Ragdoll frei. Seite/Heck: Annahmen." }
+  ],
+  "motorcycle": {
+    "mass_kg": 200, "pitchInertia_kgm2": 60, "wheelbase_m": 1.45, "wheelRadius_m": 0.31, "comForward_m": 0.0, "comHeight_m": 0.55,
+    "fork": { "deflection_m": [0, 0.1, 0.4, 0.5], "force_N": [0, 25000, 45000, 300000] },
+    "unloadFactor": 20, "tyreStiffness_N_m": 200000, "tyreDamping_Ns_m": 3000, "slideFriction": 0.45,
+    "sourceId": "iso13232", "evidence": "annahme",
+    "note": "Ebenes Modell in der Seitenansicht (vor, hoch, Nicken). Gabel und Vorderrad: Anstieg auf 25 kN bei 10 cm, Plateau bis 45 kN bei 40 cm, dann Rahmen/Motor (steil) — so gewählt, dass 200 kg bei 48 km/h den Radstand um ca. 40 cm verkürzen (Annahme; Messreihen zur Radstandverkürzung siehe Lucernoni 2026). Masse, Nickträgheit, Reifensteifigkeit: typische Werte (Annahme). Rutschen auf der Seite: µ 0,45 (Annahme)."
+  },
+  "motorcycleConfigs": [
+    { "id": "413-6,7/13,4", "label": "Motorrad in die Seite eines fahrenden PKW (90°)", "carSpeed_m_s": 6.7, "bikeSpeed_m_s": 13.4, "heading_deg": 90, "contact": "side", "offset_m": 0 },
+    { "id": "413-0/13,4", "label": "Motorrad in die Seite eines stehenden PKW (90°)", "carSpeed_m_s": 0, "bikeSpeed_m_s": 13.4, "heading_deg": 90, "contact": "side", "offset_m": 0 },
+    { "id": "412-6,7/13,4", "label": "Motorrad schräg in die PKW-Seite (45°, gleiche Richtung)", "carSpeed_m_s": 6.7, "bikeSpeed_m_s": 13.4, "heading_deg": 45, "contact": "side", "offset_m": 0 },
+    { "id": "414-6,7/13,4", "label": "Motorrad schräg in die PKW-Seite (135°, entgegen)", "carSpeed_m_s": 6.7, "bikeSpeed_m_s": 13.4, "heading_deg": 135, "contact": "side", "offset_m": 0 },
+    { "id": "114-6,7/13,4", "label": "Front gegen Front, schräg (135°)", "carSpeed_m_s": 6.7, "bikeSpeed_m_s": 13.4, "heading_deg": 135, "contact": "front", "offset_m": 0 },
+    { "id": "225-0/13,4", "label": "Motorrad frontal gegen die Ecke eines stehenden PKW (180°)", "carSpeed_m_s": 0, "bikeSpeed_m_s": 13.4, "heading_deg": 180, "contact": "front", "offset_m": 0.6 },
+    { "id": "143-9,8/0", "label": "PKW-Front in die Seite des stehenden Motorrads (90°)", "carSpeed_m_s": 9.8, "bikeSpeed_m_s": 0, "heading_deg": -90, "contact": "bikeside", "offset_m": 0 },
+    { "id": "alleinsturz", "label": "Alleinsturz: wegrutschen und über den Boden schlittern", "carSpeed_m_s": 0, "bikeSpeed_m_s": 13.4, "heading_deg": 0, "contact": "none", "offset_m": 0 }
   ],
   "sources": [
     { "id": "digges2001", "citation": "Digges K, Eigen A. Measurements of vehicle compatibility in front-to-side crashes. IRCOBI 2001.", "url": "https://www.ircobi.org/wordpress/downloads/irc0111/2001/Session1/1.4.pdf", "note": "Front: 50 kN bei 94–116 mm Knautschweg (23 PKW); Seite statisch 250–350 N/mm; Türeindrückung 420 mm bei 53 km/h (Lumina gegen Accord)" },
     { "id": "reichert2018", "citation": "Reichert R, Kan S, Arnold-Keifer S, Mueller B. IIHS side impact parametric study using LS-DYNA. 15th International LS-DYNA Users Conference, 2018.", "url": "https://lsdyna.ansys.com/wp-content/uploads/2022/11/iihs-side-impact-parametric-study-using-ls-dyna-r.pdf", "note": "IIHS-Barriere 1500 kg, 50 km/h gegen Camry 1530 kg: B-Säule 9,5 m/s, Restabstand zur Sitzmitte 13,2 cm" },
     { "id": "stammen2001", "citation": "Stammen JA, Saul RA, Ko B. Pedestrian head impact testing and PCDS reconstructions. ESV 2001, Paper 326.", "url": "https://www.nhtsa.gov/sites/nhtsa.dot.gov/files/pedestrianimpacts2001esv.pdf.pdf", "note": "Kopfaufprall Windschutzscheibe (Ford Taurus): HIC 257 (Simulation und Labor)" },
+    { "id": "iso13232", "citation": "ISO 13232-2:2005 Motorcycles — Test and analysis procedures for research evaluation of rider crash protective devices fitted to motorcycles — Part 2: Definition of impact conditions in relation to accident data. Tabelle 1: sieben Anprallkonfigurationen.", "url": "https://cdn.standards.iteh.ai/samples/37422/a9e3c5fe4b44401cab6f40e8a9431ff8/ISO-13232-2-2005.pdf", "note": "Code: Kontaktpunkt PKW, Kontaktpunkt Motorrad, Winkel – Geschwindigkeit PKW/Motorrad in m/s (z. B. 413-6,7/13,4)" },
+    { "id": "lucernoni2026", "citation": "Lucernoni A, Boyd D, Wahba R, Taeuber A, Stoner J, Law T. Fifteen Instrumented Motorcycle Crash Tests into a Barrier and Stiffness Comparison of Standard and Upside-Down Forks. SAE Technical Paper 2026-01-5059.", "url": "https://trid.trb.org/View/2742626", "note": "8–37 km/h gegen Betonblock, Radstandverkürzung über der Geschwindigkeit (Zahlen im Volltext, hier nicht übernommen)" },
     { "id": "nhtsa8545", "citation": "NHTSA Vehicle Crash Test Database, Test 8545: 2014.5 Toyota Camry, NCAP frontal gegen starre Wand, 56,7 km/h (Calspan, 2014).", "url": "https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v08500/v08545R001.pdf", "note": "Bleibende Front-Verformung 554 mm (Mitte), Wand mit 36 Kraftmessdosen" },
     { "id": "nhtsa8560", "citation": "NHTSA Vehicle Crash Test Database, Test 8560: 2014.5 Toyota Camry, NCAP Seitenaufprall mit fahrender Barriere, 61,9 km/h (Calspan, 2014).", "url": "https://nrd-static.nhtsa.dot.gov/reports/vehdb/v00000/v08500/v08560R001.pdf", "note": "Bleibende Seitenverformung außen höchstens 258 mm (Türmitte)" }
   ]

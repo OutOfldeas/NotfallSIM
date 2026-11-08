@@ -12,6 +12,8 @@ namespace NotfallSIM.Crash
     {
         public string Label, VehicleId, Seat;
         public bool Pedestrian, Belted;
+        /// <summary>Auf dem Motorrad (Fahrer oder Sozius): kein Gurt, nicht eingeklemmt, Mechanismus motorrad.</summary>
+        public bool Rider;
         public Ragdoll Rd;
         public int Vehicle = -1, Walker = -1;           // Index in TrafficSim.Bodies bzw. Walkers
         public Dictionary<string, ConfigurableJoint> Belts = new Dictionary<string, ConfigurableJoint>();
@@ -159,6 +161,7 @@ namespace NotfallSIM.Crash
         {
             var b = _traffic.Bodies[index];
             var t = b.Type;
+            if (IsMotorcycle(t)) { BuildTrafficMotorcycle(p, index); return; }
             float L = (float)b.L, W = (float)b.W, H = p.Height_m;
             var d = RagdollBuilder.Dims(H);
             const float floorY = 0.30f;
@@ -259,8 +262,68 @@ namespace NotfallSIM.Crash
             }
         }
 
+        public static bool IsMotorcycle(VehicleType t) => t != null && t.id == "motorrad";
+
+        /// <summary>
+        /// Motorrad im Verkehrsszenario: Fahrer (und Sozius) sitzen rittlings, prallen gegen Tank und Lenker. Die Fahrdynamik
+        /// kommt aus TrafficSim (eben: Gabel staucht als Front-Kennlinie, kein Nicken/Kippen) — die Personen lösen sich und fliegen frei.
+        /// </summary>
+        void BuildTrafficMotorcycle(CrashParams p, int index)
+        {
+            var b = _traffic.Bodies[index];
+            var t = b.Type;
+            float H = p.Height_m;
+            var dm = RagdollBuilder.Dims(H);
+            const float seatY = 0.85f;
+            float seatTop = seatY - dm.ThighRadius;
+            var pos = V3(b.X, b.Z); var rot = Yaw(b.Psi);
+            var color = t.color != null && t.color.Length >= 3 ? new Color(t.color[0], t.color[1], t.color[2]) : new Color(0.1f, 0.25f, 0.55f);
+            var vr = new TrafficVehicleRig { Index = index };
+            var bike = Vehicle(b.Label ?? b.Id, pos);
+            bike.transform.rotation = rot;
+            vr.Root = bike.GetComponent<Rigidbody>();
+            var tr = bike.transform;
+            _trafficVehicles.Add(vr);
+            Part(tr, "Rumpf", new Vector3(0, 0.45f, BikeWheelZ), new Vector3(0.2f, 0.46f, 1.4f), color, visible: false);
+            Part(tr, "Sitzbank", new Vector3(0, seatTop - 0.04f, -0.15f), new Vector3(0.24f, 0.08f, 0.7f), color, counts: false, visible: false);
+            var tank = Part(tr, "Tank", new Vector3(0, seatTop + 0.09f, 0.32f), new Vector3(0.12f, 0.18f, 0.3f), color, visible: false).GetComponent<Collider>();
+            var faces = b.Faces;
+            var occupants = b.Def.occupants ?? new TrafficOccupant[0];
+            Vector3 bar = new Vector3(0, 1.0f, 0.55f);
+            float barW = 0.7f;
+            bool first = true;
+            foreach (var o in occupants)
+            {
+                bool pillion = o.seat != "fahrer";
+                float sz = pillion ? -0.42f : 0, sy = seatY + (pillion ? 0.06f : 0);
+                var rd = RagdollBuilder.Build(pos + rot * new Vector3(0, sy, sz), rot, RagdollPose.Straddling, H, p.Mass_kg, p.Male, invertKneeFlexion, headScale: 1.25f);
+                foreach (var kv in rd.Segments)
+                    if (kv.Key.StartsWith("Oberschenkel") || kv.Key.StartsWith("Unterschenkel") || kv.Key.StartsWith("Fuß"))
+                        foreach (var c in kv.Value.GetComponentsInChildren<Collider>()) Physics.IgnoreCollision(tank, c);
+                if (!pillion && first)
+                {
+                    Vector3 hr = tr.InverseTransformPoint(rd.HandTipRight), hl = tr.InverseTransformPoint(rd.HandTipLeft);
+                    bar = new Vector3(0, (hr.y + hl.y) / 2 - 0.03f, Mathf.Max(hr.z, hl.z) + 0.03f);
+                    barW = Mathf.Abs(hr.x - hl.x) + 0.15f;
+                    Part(tr, "Lenker", bar, new Vector3(barW, 0.04f, 0.04f), Color.gray, visible: false);
+                    first = false;
+                }
+                var h = new ScenarioHuman
+                {
+                    Label = $"{b.Label}: {SeatLabel(o.seat)}", VehicleId = b.Id, Seat = o.seat, Belted = false, Rider = true, Rd = rd, Vehicle = index,
+                    MechanismId = "motorrad"
+                };
+                Hold(h, pos, rot);
+                Humans.Add(h);
+            }
+            var moto = VehicleVisual.Moto(tr, new VehicleShape.MotoProfile { SeatTop = seatTop, SeatZ = -0.05f, BarY = bar.y, BarZ = bar.z - BikeWheelZ, BarWidth = barW },
+                                          color, new Vector3(0, 0, BikeWheelZ));
+            moto.Source = () => new DeformState { Front = (float)faces[TrafficSim.Front].MaxCrush };
+            _visuals.Add(moto);
+        }
+
         static string SeatLabel(string seat) =>
-            seat == "fahrer" ? "Fahrer/in" : seat == "beifahrer" ? "Beifahrer/in" : seat == "hinten_links" ? "hinten links" : seat == "hinten_rechts" ? "hinten rechts" : seat;
+            seat == "sozius" ? "Sozius" : seat == "fahrer" ? "Fahrer/in" : seat == "beifahrer" ? "Beifahrer/in" : seat == "hinten_links" ? "hinten links" : seat == "hinten_rechts" ? "hinten rechts" : seat;
 
         GameObject MovingBody(TrafficVehicleRig vr, string name, Vector3 pos, Quaternion rot, int face, float center, float share = 1)
         {
@@ -530,7 +593,7 @@ namespace NotfallSIM.Crash
                 h.Abdomen = ab;
                 Destroy(h.Gauges);
                 h.Gauges = null;
-                if (!h.Pedestrian) h.MechanismId = MechanismFor(_traffic.Bodies[h.Vehicle]);
+                if (!h.Pedestrian && !h.Rider) h.MechanismId = MechanismFor(_traffic.Bodies[h.Vehicle]);
             }
             Running = false;
             SelectHuman(Mathf.Clamp(p.Patient, 0, Humans.Count - 1));
@@ -547,7 +610,7 @@ namespace NotfallSIM.Crash
         public void SeatDeformation(ScenarioHuman h, out double side_m, out double footwell_m, out double door_m)
         {
             side_m = footwell_m = door_m = 0;
-            if (_traffic == null || h.Pedestrian || h.Vehicle < 0) return;
+            if (_traffic == null || h.Pedestrian || h.Rider || h.Vehicle < 0) return;
             var b = _traffic.Bodies[h.Vehicle];
             Data.Rescue.SeatDeformation(b.Faces[h.SeatX < 0 ? TrafficSim.Left : TrafficSim.Right], b.Faces[TrafficSim.Front],
                                         h.Seat == "fahrer" || h.Seat == "beifahrer", h.SeatX, h.SeatZ, h.DoorZ, out side_m, out footwell_m, out door_m);

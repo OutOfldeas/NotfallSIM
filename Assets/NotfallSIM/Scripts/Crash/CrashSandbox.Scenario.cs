@@ -170,7 +170,16 @@ namespace NotfallSIM.Crash
         {
             var types = CrashRig.LoadVehicleModel()?.vehicleTypes;
             if (types == null || types.Length == 0) return;
-            Edit(v => { int i = Array.FindIndex(types, t => t.id == v.type); v.type = types[(i + 1) % types.Length].id; });
+            Edit(v =>
+            {
+                int i = Array.FindIndex(types, t => t.id == v.type);
+                bool wasBike = v.type == "motorrad";
+                v.type = types[(i + 1) % types.Length].id;
+                // Motorrad: nur Fahrer (Sozius über „Insassen“), ohne Gurt; zurück zum PKW wieder angegurtet
+                if (v.type == "motorrad") v.occupants = new[] { new TrafficOccupant { seat = "fahrer", belted = false } };
+                else if (wasBike) v.occupants = new[] { new TrafficOccupant { seat = "fahrer", belted = true } };
+                _p.Patient = 0;
+            });
         }
         /// <summary>Manöver auf „Gefahr erkennbar + Reaktionszeit“ umstellen (Vorgaben: 2 s vorher, normale Reaktion).</summary>
         static TrafficManeuver Man(TrafficVehicle v)
@@ -219,6 +228,13 @@ namespace NotfallSIM.Crash
         void CycleSeats() => Edit(v =>
         {
             var cur = (v.occupants ?? new TrafficOccupant[0]).Select(o => o.seat).ToArray();
+            if (v.type == "motorrad")
+            {
+                // Motorrad: Fahrer allein oder mit Sozius, nie angegurtet
+                v.occupants = (cur.Length == 1 ? new[] { "fahrer", "sozius" } : new[] { "fahrer" }).Select(s => new TrafficOccupant { seat = s, belted = false }).ToArray();
+                _p.Patient = 0;
+                return;
+            }
             int i = Array.FindIndex(SeatSets, s => s.SequenceEqual(cur));
             bool belted = v.occupants == null || v.occupants.Length == 0 || v.occupants[0].belted;
             v.occupants = SeatSets[(i + 1) % SeatSets.Length].Select(s => new TrafficOccupant { seat = s, belted = belted }).ToArray();
@@ -226,6 +242,7 @@ namespace NotfallSIM.Crash
         });
         void ScenarioBelt() => Edit(v =>
         {
+            if (v.type == "motorrad") return;   // kein Gurt auf dem Motorrad
             bool on = !(v.occupants != null && v.occupants.Length > 0 && v.occupants[0].belted);
             foreach (var o in v.occupants ?? new TrafficOccupant[0]) o.belted = on;
         });
@@ -402,11 +419,11 @@ namespace NotfallSIM.Crash
             var setup = new CrashSetup
             {
                 MechanismId = h.MechanismId, Male = _p.Male, Age = 35, Weight_kg = _p.Mass_kg, Height_cm = _p.Height_m * 100,
-                Unrestrained = !h.Pedestrian && !h.Belted, Speed_kmh = (int)Math.Round(speed), FallHeight_m = 0,
+                Unrestrained = !h.Pedestrian && !h.Rider && !h.Belted, Speed_kmh = (int)Math.Round(speed), FallHeight_m = 0,
                 Rescue_min = mechDef != null ? (int)(Mathf.Round((float)(mechDef.rescueMin + mechDef.rescueMax) / 10f) * 5) : 30
             };
             string title = $"Unfall: {_sc?.label} — {h.Label}";
-            string desc = $"{_sc?.description} Patient/in: {h.Label}" + (h.Pedestrian ? "." : $", {(h.Belted ? "angegurtet" : "nicht angegurtet")}, Δv ca. {speed:0} km/h.");
+            string desc = $"{_sc?.description} Patient/in: {h.Label}" + (h.Pedestrian ? "." : h.Rider ? $", Helm getragen, Δv ca. {speed:0} km/h." : $", {(h.Belted ? "angegurtet" : "nicht angegurtet")}, Δv ca. {speed:0} km/h.");
             uint seed = (uint)(_p.Seed + 7919 * index);
             if (rescue != null) setup.Rescue_min = (int)Math.Round(rescue.arrival_min);
             var atScene = InjuryRisk.BuildScenario(risk, mech, db.All, meas, setup, seed, null, title, desc);
@@ -415,6 +432,7 @@ namespace NotfallSIM.Crash
 
             bool walks = card != null && card.Walks;
             if (h.Pedestrian) sit = Rescue.PedestrianSituation();
+            else if (h.Rider) sit = Rescue.RiderSituation();
             else
             {
                 double side, foot, door;
@@ -425,7 +443,7 @@ namespace NotfallSIM.Crash
             if (!_rescueModes.TryGetValue(index, out mode) || mode == "auto") mode = Rescue.AutoMethod(sit, walks, card != null && card.Category == "T1");
             plan = Rescue.Plan(rescue, sit, mode, walks);
             setup.Rescue_min = (int)Math.Round(plan.Total_min);
-            string rescueText = h.Pedestrian ? "" : $" {char.ToUpper(sit.Text[0]) + sit.Text.Substring(1)}; {plan.Label}.";
+            string rescueText = h.Pedestrian || h.Rider ? "" : $" {char.ToUpper(sit.Text[0]) + sit.Text.Substring(1)}; {plan.Label}.";
             return InjuryRisk.BuildScenario(risk, mech, db.All, meas, setup, seed, null, title, desc + rescueText + $" Ankunft im Schockraum nach ca. {plan.Total_min:0} min.");
         }
     }

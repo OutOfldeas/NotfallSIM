@@ -90,6 +90,7 @@ static class Tests
         Run("MANV: Vorsichtung nach mSTaRT aus den Befunden beim Eintreffen", TriageChecks);
         Run("Rettung: eingeklemmt/eingeschlossen aus der Verformung am Sitz, Rettungsart und Zeit bis zum Schockraum", RescueChecks);
         Run("Fahrzeugmodelle aus Code: Flächen nach außen, Knautschen, Seitendelle, Gabel", VehicleShapeChecks);
+        Run("Motorrad: Gabel, Nicken über das Vorderrad, PKW-Delle in Reihe; ISO-13232-Konfigurationen", MotorcycleChecks);
         Run("Verkehrsunfall: Fahrdynamik, Bremsen, Ausweichen, Fahrzeug-Kollision mit Kennlinien (TrafficSim)", TrafficChecks);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
@@ -1666,6 +1667,24 @@ static class Tests
         Check(front - front2 > 0.25f, $"Motorrad: Gabel staucht ({(front - front2) * 100:0} cm)");
     }
 
+    static void MotorcycleChecks()
+    {
+        var vm = Load<NotfallSIM.Crash.VehicleModelFile>("vehicle_model.json");
+        Check(vm.motorcycle != null && vm.motorcycleConfigs != null && vm.motorcycleConfigs.Length >= 7, "Motorraddaten und Konfigurationen vorhanden");
+        var kinds = new[] { "side", "front", "bikeside", "none" };
+        Check(vm.motorcycleConfigs.All(c => kinds.Contains(c.contact) && !string.IsNullOrEmpty(c.label)), "Konfigurationen: Kontaktart und Bezeichnung gültig");
+        Check(vm.motorcycleConfigs.Any(c => c.id == "413-6,7/13,4") && vm.motorcycleConfigs.Any(c => c.contact == "none"), "ISO 413-6,7/13,4 und Alleinsturz enthalten");
+        var sim = new NotfallSIM.Crash.MotorcycleSim(vm.motorcycle, 0, 13.4, 0.1) { CarStiffness = 4.4e5 };
+        double zFace = 0.1 + vm.motorcycle.wheelbase_m / 2 + vm.motorcycle.wheelRadius_m + 0.01;
+        double maxPitch = 0;
+        for (int i = 0; i < 400; i++) { sim.Step(0.001, zFace); maxPitch = Math.Max(maxPitch, sim.Theta); }
+        Check(sim.MaxCrush > 0.3 && sim.MaxCrush < 0.5, $"48 km/h: Gabel staucht {sim.MaxCrush * 100:0} cm (ISO-Prüfungen: Gabel meist am Anschlag)");
+        Check(sim.CarCrush > 0.05 && sim.CarCrush < 0.3, $"PKW-Seite gibt {sim.CarCrush * 100:0} cm nach");
+        Check(maxPitch > 0.2, $"Heck hebt ab: Nicken {maxPitch * 180 / Math.PI:0}° nach 0,4 s");
+        Check(sim.MaxForkForce > 2e4 && sim.MaxForkForce < 2e5, $"Gabelkraft max. {sim.MaxForkForce / 1000:0} kN");
+        Check(sim.Vz < 13.4 * 0.6, $"Motorrad gebremst auf {sim.Vz:0.0} m/s");
+    }
+
     static void TriageChecks()
     {
         var tf = Load<TriageFile>("triage.json");
@@ -1812,6 +1831,14 @@ static class Tests
         Check(laneSim.FirstContact < 0, "Spurwechsel rechtzeitig: kein Aufprall");
         Check(Math.Abs(lb.Psi) * 180 / Math.PI < 6, $"Spurwechsel: wieder geradeaus ({lb.Psi * 180 / Math.PI:0.0}°)");
         Check(lb.X < -2.5 && lb.X > -5, $"Spurwechsel: Versatz {-lb.X:0.0} m (≈ a·T²/2π = 3,5 m)");
+        // Motorrad (Linksabbieger): Gabel staucht, PKW-Seite mit Delle, Motorrad fast gestoppt
+        var lm = RunTraffic(get("linksabbieger_motorrad"), types, 5);
+        var lmCar = lm.Bodies[0]; var lmBike = lm.Bodies[1];
+        double fork = lmBike.Faces[NotfallSIM.Crash.TrafficSim.Front].MaxCrush, dent = lmCar.Faces[NotfallSIM.Crash.TrafficSim.Right].MaxCrush;
+        Check(fork > 0.25 && fork < 0.55, $"Motorrad: Gabel {fork * 100:0} cm gestaucht");
+        Check(dent > 0.03 && dent < 0.3, $"Motorrad: PKW-Beifahrerseite {dent * 100:0} cm eingedrückt");
+        Check(lmBike.MaxDeltaV * 3.6 > 35, $"Motorrad: Δv {lmBike.MaxDeltaV * 3.6:0} km/h");
+        Console.WriteLine($"        Linksabbieger/Motorrad: Gabel {fork * 100:0} cm, PKW-Seite {dent * 100:0} cm, Δv Motorrad {lmBike.MaxDeltaV * 3.6:0} / PKW {lmCar.MaxDeltaV * 3.6:0} km/h, Kontakt {lm.FirstContact:0.00} s");
         var late = JsonRoundTrip(lane);
         late.vehicles[1].maneuver.reaction = "ueberrascht";
         var lateSim = RunTraffic(late, types, 6);

@@ -61,6 +61,7 @@ namespace NotfallSIM.Crash
             MakeScenarioButton();
             _bodyText = MakeBodyButton();
             _contactText = MakeContactButton();
+            _configText = MakeConfigButton();
             BuildScenarioPanel();
             SelectMechanism("pkw_frontal");
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
@@ -159,6 +160,48 @@ namespace NotfallSIM.Crash
             ShowSettings();
         }
 
+        TMP_Text _configText;
+
+        /// <summary>Knopf „Konfiguration: …“ (ISO 13232 bzw. Alleinsturz), nur beim Motorrad sichtbar (zur Laufzeit).</summary>
+        TMP_Text MakeConfigButton()
+        {
+            var src = _contactText != null ? _contactText.GetComponentInParent<UnityEngine.UI.Button>() : null;
+            if (src == null) return null;
+            var go = Instantiate(src.gameObject, src.transform.parent);
+            go.name = "Motorrad-Konfiguration";
+            go.transform.SetSiblingIndex(src.transform.GetSiblingIndex() + 1);
+            var b = go.GetComponent<UnityEngine.UI.Button>();
+            for (int i = 0; i < b.onClick.GetPersistentEventCount(); i++)
+                b.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
+            b.onClick.AddListener(CycleMotoConfig);
+            var label = go.GetComponentInChildren<TMP_Text>();
+            ConfigLabel(label);
+            go.SetActive(false);
+            return label;
+        }
+
+        /// <summary>Nächste Anprallkonfiguration; setzt die dazu passende Geschwindigkeit (bei „PKW trifft Motorrad“ die des PKW).</summary>
+        public void CycleMotoConfig()
+        {
+            if (Busy) return;
+            var list = CrashRig.LoadVehicleModel()?.motorcycleConfigs;
+            if (list == null || list.Length == 0) return;
+            int i = System.Array.FindIndex(list, c => c.id == _p.MotoConfig);
+            var cfg = list[(i + 1) % list.Length];
+            _p.MotoConfig = cfg.id;
+            double v = cfg.contact == "bikeside" ? cfg.carSpeed_m_s : cfg.bikeSpeed_m_s;
+            if (v > 0) _p.Speed_kmh = Mathf.Round((float)v * 3.6f);
+            ConfigLabel(_configText);
+            ShowSettings();
+            Preview();
+        }
+
+        void ConfigLabel(TMP_Text t)
+        {
+            var cfg = CrashRig.MotorcycleConfigFor(_p.MotoConfig);
+            if (t != null) t.text = "Konfiguration: " + (cfg?.label ?? _p.MotoConfig);
+        }
+
         void ContactLabel(TMP_Text t)
         {
             if (t != null) t.text = _p.SoftContact ? "Kontakt: nachgiebig (Gewebe, Fett)" : "Kontakt: starr (alt)";
@@ -205,6 +248,11 @@ namespace NotfallSIM.Crash
             _p.MechanismId = id;
             _p.Speed_kmh = Mechanisms[id].speed;
             ShowScenarioPanel(id == "szenario");
+            if (_configText != null)
+            {
+                _configText.GetComponentInParent<UnityEngine.UI.Button>(true).gameObject.SetActive(id == "motorrad");
+                if (id == "motorrad") { var cfg = CrashRig.MotorcycleConfigFor(_p.MotoConfig); double v0 = cfg == null ? 0 : cfg.contact == "bikeside" ? cfg.carSpeed_m_s : cfg.bikeSpeed_m_s; if (v0 > 0) _p.Speed_kmh = Mathf.Round((float)v0 * 3.6f); }
+            }
             if (id == "szenario") EnsureScenario();
             ApplyCameraPreset();
             RelabelSpeedButtons();
@@ -395,7 +443,17 @@ namespace NotfallSIM.Crash
             bool fall = _p.MechanismId == "sturz_hoehe";
             float h = _p.Speed_kmh;
             string fallInfo = fall ? $" <size=80%>(Fallzeit {Mathf.Sqrt(2 * h / 9.81f):0.0} s · Aufprall {Mathf.Sqrt(2 * 9.81f * h) * 3.6f:0} km/h)</size>" : "";
-            return $"<b>{m.label}</b>\n{(fall ? "Höhe" : "Geschwindigkeit")}: {_p.Speed_kmh:0.#} {m.unit}{fallInfo}" +
+            string moto = "";
+            if (_p.MechanismId == "motorrad")
+            {
+                var cfg = CrashRig.MotorcycleConfigFor(_p.MotoConfig);
+                if (cfg != null)
+                    moto = $"\nKonfiguration: {cfg.label} <size=80%>({cfg.id})</size>" +
+                           (cfg.contact == "bikeside" ? "\n<size=80%>Geschwindigkeit = PKW; Motorrad steht</size>"
+                            : cfg.contact == "none" ? "\n<size=80%>kein Unfallgegner</size>"
+                            : $"\nPKW: {cfg.carSpeed_m_s * 3.6:0} km/h");
+            }
+            return $"<b>{m.label}</b>{moto}\n{(fall ? "Höhe" : "Geschwindigkeit")}: {_p.Speed_kmh:0.#} {m.unit}{fallInfo}" +
                                 (car ? $"\nGurt: {(_p.Belted ? "angelegt" : "nicht angelegt")}" : "") +
                                 (_p.MechanismId == "pkw_frontal" ? $"\nAirbag: {(_p.Airbag ? "ja" : "nein")}" : "") +
                                 $"\nInsasse: {MuscleTone.Label(_p.Occupant)}" +

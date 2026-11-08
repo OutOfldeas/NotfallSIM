@@ -729,6 +729,46 @@ wie beim Einzelunfall gemessen (HIC, Thorax, Organe, Zeichen), Text und Rettungs
 Armaturenbrett); Schwerpunkt fest; schleudernde Fahrzeuge gleiten bis zum Aufprall mit fester Geschwindigkeit
 (Vorgeschichte nicht gerechnet). Test: `TrafficChecks`.
 
+## Fahrzeugmodelle aus Code (`VehicleShape.cs`, `VehicleVisual.cs`)
+
+PKW und Motorrad werden als Netz im Code erzeugt (keine importierten Modelle): Karosserie als Loft über Längsschnitte
+(Schweller, Gürtellinie, Dach, Haube, Heck), Scheiben, Räder, Scheinwerfer, Rückleuchten; Motorrad aus Rahmen, Tank,
+Sitzbank, Gabel, Lenker, Rädern. Die sichtbare Verformung folgt den gerechneten Werten (Front/Heck verkürzt bis zum
+Knautschweg, Seite als Delle am Kontaktort, die nach 1 m ausläuft, Gabel staucht, Räder bleiben starr). Die Netze sind
+**nur Darstellung** — die Physik nutzt weiter die unsichtbaren Kollider und Kennlinien. Form und Abmessungen: typische
+Werte (**Annahme**), kein bestimmtes Fahrzeug. Test: `VehicleShapeChecks` (Flächen nach außen, Knautschen, Delle, Gabel).
+
+## Motorrad (`MotorcycleSim.cs`, `vehicle_model.json › motorcycle`, `motorcycleConfigs`)
+
+**Dynamik.** Das Motorrad ist ein ebenes Modell in der Seitenansicht (vor, hoch, Nicken): 200 kg, Nickträgheit
+60 kg·m², Radstand 1,45 m, Schwerpunkt 0,55 m hoch, Reifen als Feder-Dämpfer (200 kN/m, 3 kNs/m) — typische Werte
+(**Annahme**). Gabel und Vorderrad tragen gegen die Anprallfläche eine plastische Kennlinie (25 kN bei 10 cm, Plateau bis
+45 kN bei 40 cm, dann Rahmen/Motor), in Reihe mit der Steifigkeit des PKW (Seite 440 N/mm, Front 300 N/mm, beide
+**Annahme**). Weil die Kraft auf Achshöhe unter dem Schwerpunkt angreift, hebt das Heck ab und das Motorrad kippt über
+das Vorderrad. Ergebnis bei 48 km/h gegen die PKW-Seite: Gabel ca. 40 cm, Delle ca. 13 cm, Gabelkraft max. ca. 58 kN,
+Nicken 45° nach 0,3 s. Lucernoni [133] misst die Radstandverkürzung in 15 Barrierentests (8–37 km/h); die Zahlen
+stehen im Volltext und sind hier noch nicht übernommen — Kennlinie damit prüfen.
+
+**Anprallkonfigurationen.** Die sieben Konfigurationen der ISO 13232-2 [132] (Tabelle 1, aus Unfalldaten abgeleitet)
+plus Alleinsturz sind in der Sandbox unter „Konfiguration“ wählbar. Code: Kontaktpunkt PKW, Kontaktpunkt Motorrad,
+Winkel – Geschwindigkeit PKW/Motorrad in m/s (z. B. 413-6,7/13,4: Motorrad mit 13,4 m/s = 48 km/h in die Seite eines
+PKW mit 6,7 m/s, 90°). Der PKW fährt kinematisch und behält seine Geschwindigkeit; seine Seite bzw. Front gibt als Delle
+nach. Beim Anprall PKW-Front in die Motorradseite (143-9,8/0) wird das stehende Motorrad mitgerissen und kippt um.
+Alleinsturz: das Motorrad rutscht weg, kippt in 0,35 s auf die Seite und schlittert mit µ 0,45 aus (**Annahme**).
+
+**Fahrer.** Ragdoll rittlings mit Helm (Kopf 1,25-fach), prallt gegen Tank (Becken, Bauch — die Beine streifen ihn
+ohne Kollision), Lenker und den PKW. Gurt und Airbag gibt es nicht; im Verkehrsszenario gilt der Fahrer nicht als
+eingeklemmt.
+
+**Im Verkehrsszenario** ist das Motorrad ein Fahrzeugtyp (280 kg mit Fahrer, 2,1 × 0,8 m, Front = Gabel-Kennlinie).
+Vorlage „Linksabbieger übersieht Motorrad“ (60 km/h in die Beifahrerseite eines abbiegenden PKW mit 20 km/h): Gabel
+44 cm, PKW-Seite 18 cm, Δv Motorrad 58 km/h.
+
+**Grenzen.** Kein Rollen und Gieren beim Anprall (schräge Konfigurationen wirken nur über die Bewegung des PKW, die
+Anprallfläche steht quer zur Fahrtrichtung); keine Rückwirkung des Fahrers auf das Motorrad; im Verkehrsszenario kein
+Nicken (dort nur Draufsicht). Das Nicken steigt ohne Bodenkontakt des Lenkers weiter (bis über 100° nach 0,8 s).
+Test: `MotorcycleChecks`, `TrafficChecks`.
+
 ## MANV-Vorsichtung (`triage.json`, `Data/Triage.cs`)
 
 Vorsichtung Erwachsener nach mSTaRT [128]: gehfähig → grün (T3); keine Atmung nach Freimachen der Atemwege → schwarz;
@@ -965,3 +1005,5 @@ Angaben ohne Link (4, 8, 9, 23, 24, 25, 27, 29, 35) sind aus Referenzlisten übe
 129. Neidel T, Salvador N, Heller AR. Impact of systolic blood pressure limits on the diagnostic value of triage algorithms. Scand J Trauma Resusc Emerg Med 2017;25:118. [Link](https://doi.org/10.1186/s13049-017-0461-2)
 130. Nutbeam T, Fenwick R, Hobson C, Holland V, Palmer M. The stages of extrication: a prospective study. Emerg Med J 2014;31(12):1006. [Link](https://emj.bmj.com/content/31/12/1006) (Befreiung Median 30 min, IQR 24–38; 8 min bis zur ersten Untersuchung)
 131. Nutbeam T, Fenwick R, Smith J, Bouamra O, Wallis L, Stassen W. A comparison of the demographics, injury patterns and outcome data for patients injured in motor vehicle collisions who are trapped compared to those patients who are not trapped. Scand J Trauma Resusc Emerg Med 2021;29:17. [Link](https://doi.org/10.1186/s13049-020-00818-6)
+132. ISO 13232-2:2005. Motorcycles — Test and analysis procedures for research evaluation of rider crash protective devices fitted to motorcycles — Part 2: Definition of impact conditions in relation to accident data. [Link](https://cdn.standards.iteh.ai/samples/37422/a9e3c5fe4b44401cab6f40e8a9431ff8/ISO-13232-2-2005.pdf) (Tabelle 1: sieben Anprallkonfigurationen)
+133. Lucernoni A, Boyd D, Wahba R, Taeuber A, Stoner J, Law T. Fifteen Instrumented Motorcycle Crash Tests into a Barrier and Stiffness Comparison of Standard and Upside-Down Forks. SAE Technical Paper 2026-01-5059. [Link](https://trid.trb.org/View/2742626)

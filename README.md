@@ -188,7 +188,7 @@ verteilt auf Frames, mit Fortschrittsanzeige — und dann flüssig abgespielt, i
 Wiedergabe: Leertaste Pause, `,` / `.` spulen (mit Umschalt in größeren Schritten), R oder „Crash wiederholen“ spielt ihn
 erneut ab (auch mit anderer Zeitlupe), ohne neu zu rechnen.
 Vor dem Aufprall fahren die Fahrzeuge 3 s auf den Aufprallort zu (PKW frontal gegen eine Betonbarriere, PKW seitlich
-wird an der Kreuzung vom Unfallgegner getroffen, Motorrad gegen PKW-Seite, PKW auf stehenden Fußgänger); beim Sturz
+wird an der Kreuzung vom Unfallgegner getroffen, Motorrad nach ISO 13232 bzw. Alleinsturz — Knopf „Konfiguration“ —, PKW auf stehenden Fußgänger); beim Sturz
 fällt der Körper frei aus der eingestellten Höhe (1–30 m, Fallzeit √(2h/g), mit Luftwiderstand). Der Vorlauf läuft
 in Echtzeit, die Zeitlupe setzt kurz vor dem Aufprall ein. Gerechnet wird der Vorlauf mit 1-ms-Schritt ohne Messung;
 Insasse und Fußgänger werden bis zum Aufprall in ihrer Haltung gehalten, damit der Ausgangszustand der Messung
@@ -200,8 +200,8 @@ eigener Steifigkeit bis zum Anschlag nach (nur mit nachgiebigem Kontakt).
 
 **Szenario (mehrere Fahrzeuge/Personen).** Unter „Szenario“ stehen Vorlagen aus `traffic_scenarios.json` (Kreuzung 90°
 und schräg, Gegenverkehr versetzt, Ausweichen, Auffahrunfall, Baum seitlich, Wand, Fußgänger mit und ohne Bremsung,
-SUV gegen PKW, drei Fahrzeuge). Im Feld daneben lassen sich je Fahrzeug Geschwindigkeit (−/+), Winkel, getroffene Seite
-und Versatz, Typ (PKW/SUV), Sitzplätze, Gurt, Bremsen und Ausweichen (abwenden oder Spurwechsel) einstellen, dazu wann
+SUV gegen PKW, drei Fahrzeuge, Linksabbieger übersieht Motorrad). Im Feld daneben lassen sich je Fahrzeug Geschwindigkeit (−/+), Winkel, getroffene Seite
+und Versatz, Typ (PKW/SUV/Motorrad), Sitzplätze, Gurt, Bremsen und Ausweichen (abwenden oder Spurwechsel) einstellen, dazu wann
 die Gefahr erkennbar wird und wie schnell der Fahrer reagiert (aufmerksam 0,75 s, normal 1,25 s, überrascht 1,5 s nach
 Green 2000) und die Fahrbahn (trocken/nass/Schnee). Reagiert der Fahrer, spannen sich die Insassen an. Jedes Fahrzeug startet so, dass es ungebremst zum geplanten Zeitpunkt trifft;
 Manöver können den Unfall mildern oder verhindern. Die Fahrdynamik (Einspurmodell, ABS, Kammscher Kreis) und der Stoß

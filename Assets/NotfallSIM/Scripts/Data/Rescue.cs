@@ -73,6 +73,7 @@ namespace NotfallSIM.Data
         }
 
         public static RescueSituation PedestrianSituation() => new RescueSituation { Pedestrian = true, Text = "Fußgänger: liegt frei zugänglich" };
+        public static RescueSituation RiderSituation() => new RescueSituation { Pedestrian = true, Text = "Motorradfahrer/in: liegt frei zugänglich, Helm noch auf" };
 
         /// <summary>Übliche Wahl: eingeklemmt → schonend; sonst gehfähig → selbst, kritisch (rot) → sofort, sonst schnell.</summary>
         public static string AutoMethod(RescueSituation s, bool walks, bool critical)
