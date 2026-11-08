@@ -593,6 +593,7 @@ namespace NotfallSIM.Crash
             LastAbdomenLoad = abdomen;
             Destroy(gauges);
             PrepareGlass();
+            PrepareFractures(Ragdoll, measured);
             Running = false;
 
             if (playback) yield return Replay(slowMotion, () => done(measured));

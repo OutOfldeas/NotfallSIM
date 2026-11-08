@@ -91,6 +91,7 @@ static class Tests
         Run("Rettung: eingeklemmt/eingeschlossen aus der Verformung am Sitz, Rettungsart und Zeit bis zum Schockraum", RescueChecks);
         Run("Fahrzeugmodelle aus Code: Flächen nach außen, Knautschen, Seitendelle, Gabel", VehicleShapeChecks);
         Run("Scheiben: Flächen je Scheibe, Bruchkriterien, Rissbild, Wölbung, Glassplitter-Zeichen", GlassChecks);
+        Run("Sichtbare Frakturen: Zuordnung, Reihenfolge, Hautübergang, Knick über die Zeit", FractureChecks);
         Run("Motorrad: Gabel, Nicken über das Vorderrad, PKW-Delle in Reihe; ISO-13232-Konfigurationen", MotorcycleChecks);
         Run("Verkehrsunfall: Fahrdynamik, Bremsen, Ausweichen, Fahrzeug-Kollision mit Kennlinien (TrafficSim)", TrafficChecks);
 
@@ -1717,6 +1718,19 @@ static class Tests
         Check(mark.Mark.kind == "glassplitter" && mark.Finding.Contains("links seitlich"), $"Glassplitter-Zeichen: {mark.Finding}");
         var visuals = File.ReadAllText(Path.Combine(DataRoot, "injury_visuals.json"));
         Check(visuals.Contains("\"id\": \"glassplitter\""), "Darstellung „glassplitter“ in injury_visuals.json");
+    }
+
+    static void FractureChecks()
+    {
+        var specs = NotfallSIM.Crash.FractureSpecs.For(new[] { "unterschenkelfraktur_rechts", "femur_schaft_rechts", "rippenserienfraktur_links" });
+        Check(specs.Count == 2 && specs[0].Segment == "Oberschenkel rechts" && specs[1].Segment == "Unterschenkel rechts", "Femur vor Unterschenkel, Rippen ohne Fehlstellung");
+        Check(specs[0].Distal.Contains("Unterschenkel rechts"), "Femurbruch nimmt den Unterschenkel mit");
+        var both = NotfallSIM.Crash.FractureSpecs.For(new[] { "unterschenkelfraktur_rechts", "unterschenkel_offen_rechts" });
+        Check(both.Count == 1 && both[0].InjuryId == "unterschenkel_offen_rechts", "geschlossen + offen am selben Segment: eine (stärkere) Fehlstellung");
+        var defs = Injuries.injuries.Select(d => d.id).ToList();
+        Check(NotfallSIM.Crash.FractureSpecs.All.All(s => defs.Contains(s.InjuryId)), "alle Frakturen gibt es in injuries.json");
+        Check(NotfallSIM.Crash.FractureSpecs.DistalShare(-0.1f) == 0 && NotfallSIM.Crash.FractureSpecs.DistalShare(0.1f) == 1 && Math.Abs(NotfallSIM.Crash.FractureSpecs.DistalShare(0) - 0.5f) < 1e-6, "Haut: proximal 0, distal 1, an der Bruchstelle halb");
+        Check(NotfallSIM.Crash.FractureSpecs.AngleAt(0.1f, 0.2f, 22) == 0 && NotfallSIM.Crash.FractureSpecs.AngleAt(0.3f, 0.2f, 22) == 22, "Knick erst ab dem Bruch, dann voll");
     }
 
     static void MotorcycleChecks()

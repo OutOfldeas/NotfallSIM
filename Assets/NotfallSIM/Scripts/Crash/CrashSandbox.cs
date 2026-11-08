@@ -63,6 +63,7 @@ namespace NotfallSIM.Crash
             _contactText = MakeContactButton();
             _configText = MakeConfigButton();
             SandboxLayout.Attach(settingsText, resultText);
+            rig.InjuryOracle = RolledInjuries;
             BuildScenarioPanel();
             SelectMechanism("pkw_frontal");
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
@@ -461,6 +462,33 @@ namespace NotfallSIM.Crash
                                 $"\nZeitlupe: {(_slowMo >= 1 ? "aus" : $"×{_slowMo:0.##}")}";
         }
 
+        /// <summary>
+        /// Welche Verletzungen für diese Person gewürfelt werden — wie in <see cref="OnMeasured"/> bzw. im Szenario (gleiche
+        /// Kalibrierung, gleicher Startwert), damit die sichtbaren Frakturen beim Abspielen zum Schockraum passen.
+        /// </summary>
+        ICollection<string> RolledInjuries(Ragdoll rd, List<CrashMeasurement> raw)
+        {
+            var cal = LoadCalibration();
+            bool calibrated = cal != null && !string.IsNullOrEmpty(cal.calibratedAt) && cal.factors != null && cal.factors.Length > 0;
+            var measurements = InjuryRisk.Calibrate(raw, calibrated ? cal : null);
+            string root = InjuryDatabase.Root;
+            var risk = JsonUtility.FromJson<InjuryRiskDatabaseFile>(File.ReadAllText(Path.Combine(root, "injury_risk.json")));
+            var mech = InjuryDatabase.LoadMechanisms();
+            var db = InjuryDatabase.Load();
+            uint seed = (uint)_p.Seed;
+            string mechanism = _p.MechanismId;
+            if (Scenario)
+            {
+                int i = rig.Humans.FindIndex(x => x.Rd == rd);
+                if (i < 0) return new string[0];
+                seed = (uint)(_p.Seed + 7919 * i);
+                mechanism = rig.Humans[i].MechanismId;
+            }
+            var setup = new CrashSetup { MechanismId = mechanism, Male = _p.Male, Age = 35, Weight_kg = _p.Mass_kg, Height_cm = _p.Height_m * 100 };
+            var res = InjuryRisk.BuildScenario(risk, mech, db.All, measurements, setup, seed);
+            return res.Scenario.injuries.Select(x => x.injuryId).ToList();
+        }
+
         void OnMeasured(List<CrashMeasurement> raw)
         {
             if (Scenario) { ShowScenarioResult(); return; }
@@ -511,7 +539,7 @@ namespace NotfallSIM.Crash
             if (glass.Length > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine("<b>Scheiben</b> <size=80%>(Frontscheibe Verbundglas, sonst Einscheibensicherheitsglas)</size>");
+                sb.AppendLine("<b>Ereignisse</b> <size=80%>(Scheiben: vorn Verbundglas, sonst Einscheibensicherheitsglas; sichtbare Frakturen)</size>");
                 sb.Append(glass);
             }
             sb.AppendLine();
