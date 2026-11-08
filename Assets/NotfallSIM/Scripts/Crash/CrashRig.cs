@@ -100,6 +100,7 @@ namespace NotfallSIM.Crash
         public void Clear()
         {
             _softParts.Clear();
+            _visuals.Clear();
             // Sofort deaktivieren: Destroy greift erst am Ende des Frames, die neuen Teile entstehen am selben Ort.
             foreach (var go in _spawned) if (go) { go.SetActive(false); Destroy(go); }
             _spawned.Clear();
@@ -139,6 +140,34 @@ namespace NotfallSIM.Crash
         [SerializeField] float approachTime_s = 3f;
         [Tooltip("Physikschritt im Vorlauf (s) — grob, ohne Messung.")]
         [SerializeField] float approachStep_s = 0.001f;
+
+        /// <summary>Erzeugte Fahrzeugmodelle (sichtbar, verformbar; Verformung wird mit aufgezeichnet).</summary>
+        readonly List<VehicleVisual> _visuals = new List<VehicleVisual>();
+
+        VehicleVisual CarModel(Transform parent, CarProfile p, Color paint, Vector3 localPos, float yaw, Func<DeformState> source = null)
+        {
+            var v = VehicleVisual.Car(parent, p, paint, localPos, Quaternion.Euler(0, yaw, 0));
+            v.Source = source;
+            _visuals.Add(v);
+            return v;
+        }
+
+        /// <summary>Normaler PKW-Umriss (Fußgänger-Front, Unfallgegner), Länge L, Front bei z = L/2.</summary>
+        static CarProfile SedanProfile(float L = 4.4f, float W = 1.75f, bool wheels = true) =>
+            CarProfile.Make(L, W, 2.65f, 0.25f, 0.95f, 0.95f, -L / 2 + 0.7f, 1.0f, -1.0f, 0.15f, 1.38f, L / 2 - 1.45f, 0.92f, 0.84f, wheels);
+
+        /// <summary>
+        /// PKW-Umriss um den Innenraum eines Insassen (Sitzhöhe des Ragdolls), Koordinaten wie das Fahrzeug:
+        /// vordere Hüfte bei zFront, Boden bei floorY, Armaturenbrett bei dashZ. Die Mitte der Länge liegt bei <paramref name="centerZ"/>.
+        /// </summary>
+        static CarProfile CabinProfile(float L, float W, float wheelbase, float floorY, float hipY, float zFront, float dashZ, float centerZ, bool rearRow, bool wheels)
+        {
+            float belt = hipY + 0.15f, roof = hipY + 1.05f;
+            Func<float, float> z = v => v - centerZ;   // Fahrzeug- → Modellkoordinaten
+            return CarProfile.Make(L, W, wheelbase, Mathf.Max(0.02f, floorY - 0.03f), belt, belt - 0.05f,
+                z(rearRow ? zFront - 1.6f : zFront - 1.05f), belt + 0.05f, z(rearRow ? zFront - 1.05f : zFront - 0.5f), z(zFront + 0.36f), roof,
+                z(dashZ + 0.14f), hipY + 0.42f, Mathf.Min(0.95f, hipY + 0.05f), wheels);
+        }
 
         /// <summary>Nur sichtbares Teil (ohne Kollider), z. B. Fahrzeugfront, Barriere, Unfallgegner.</summary>
         GameObject Visual(Transform parent, string name, Vector3 localPos, Vector3 size, Color color)
@@ -215,7 +244,13 @@ namespace NotfallSIM.Crash
                     Part(t, "Windschutzscheibe", new Vector3(0, hipY + 0.82f, 0.62f), new Vector3(1.4f, 0.04f, 0.9f), Color.clear, visible: false, tiltX: -55);
                     Part(t, "Dach", new Vector3(0, hipY + 1.0f, -0.1f), new Vector3(1.4f, 0.05f, 1.4f), Color.clear, visible: false);
                     var door = Vehicle("Fahrertür", Vector3.zero);
-                    Part(door.transform, "Fahrertür", new Vector3(-0.42f, hipY + 0.15f, 0.1f), new Vector3(0.06f, 0.9f, 1.3f), new Color(0.55f, 0.1f, 0.1f), visible: !frontal);
+                    Part(door.transform, "Fahrertür", new Vector3(-0.42f, hipY + 0.15f, 0.1f), new Vector3(0.06f, 0.9f, 1.3f), new Color(0.55f, 0.1f, 0.1f), visible: false);
+                    // Karosserie um den Innenraum (Front bei z = 2,1 wie bisher, linke Seite an der Fahrertür); Verformung siehe unten
+                    const float sledL = 4.6f, sledW = 1.8f, sledCenterZ = 2.1f - sledL / 2, sledCenterX = -0.45f + sledW / 2;
+                    var sledProfile = CabinProfile(sledL, sledW, 2.75f, 0f, hipY, 0f, d.HipToKnee + 0.2f, sledCenterZ, false, false);
+                    float sledFront = 0, sledLeft = 0;
+                    CarModel(t, sledProfile, new Color(0.2f, 0.32f, 0.55f), new Vector3(sledCenterX, 0, sledCenterZ), 0,
+                             () => new DeformState { Front = sledFront, FrontPos = 0, Left = sledLeft, LeftPos = 0.1f - sledCenterZ });
                     Part(t, "Mittelkonsole", new Vector3(0.38f, hipY - 0.05f, 0.2f), new Vector3(0.12f, 0.3f, 0.8f), new Color(0.2f, 0.2f, 0.22f), visible: false);
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, hipY, 0), Quaternion.identity, RagdollPose.Seated, H, p.Mass_kg, p.Male, invertKneeFlexion);
                     // Lenkrad dort, wo die Hände sind
@@ -236,8 +271,7 @@ namespace NotfallSIM.Crash
                         float T = vm != null ? (float)FrontalImpact.Pulse_s(vm.frontal) : 0.1f;
                         float crush = 0;
                         Action<float> airbag = p.Airbag ? Airbag(car, wheel, t0 + 0.015f) : null;
-                        // Sichtbare Fahrzeugfront und Betonbarriere (ohne Kollider: der Puls ersetzt die Verformung)
-                        Visual(t, "Fahrzeugfront", new Vector3(0, 0.35f, 1.65f), new Vector3(1.6f, 0.6f, 0.9f), new Color(0.2f, 0.32f, 0.55f));
+                        // Betonbarriere (ohne Kollider: der Puls ersetzt die Verformung); die Front knautscht sichtbar mit
                         Visual(null, "Barriere", new Vector3(0, 0.75f, 2.1f + v * t0 + 1f), new Vector3(3.5f, 1.5f, 2f), new Color(0.55f, 0.55f, 0.52f));
                         Drive(approach, new Vector3(0, 0, v), true);
                         drive = (time, dt) =>
@@ -245,6 +279,7 @@ namespace NotfallSIM.Crash
                             float u = Mathf.Clamp01((time - t0) / T);
                             float vel = v - v * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
                             if (time >= t0) crush += (v - vel) * dt;   // Knautschweg der Front
+                            sledFront = crush;
                             var carPos = rbCar.position + new Vector3(0, 0, vel * dt);
                             rbCar.MovePosition(carPos);
                             // Über die Knautschzone hinaus drücken Armaturenbrett/Fußraum und Lenkrad nach hinten (−z)
@@ -265,7 +300,10 @@ namespace NotfallSIM.Crash
                         float dv = v / 2;
                         const float doorX = -0.45f, bulletLen = 4.4f;
                         var bullet = Vehicle("Unfallgegner", new Vector3(doorX - v * t0 - bulletLen / 2, 0, 0.1f));
-                        Visual(bullet.transform, "Karosserie", new Vector3(0, 0.7f, 0), new Vector3(bulletLen, 1.3f, 1.8f), new Color(0.25f, 0.45f, 0.3f));
+                        float bulletCrush = 0;
+                        // Unfallgegner als PKW, fährt nach +x (Modell um 90° gedreht); seine Front knautscht um ihren Anteil
+                        CarModel(bullet.transform, SedanProfile(bulletLen), new Color(0.25f, 0.45f, 0.3f), Vector3.zero, 90,
+                                 () => new DeformState { Front = bulletCrush });
                         var rbBullet = bullet.GetComponent<Rigidbody>();
                         approach.Carry.Add((rbBullet, new Vector3(v, 0, 0)));
                         approach.RagdollVelocity = Vector3.zero;   // Fahrzeug steht (Kreuzung)
@@ -279,6 +317,8 @@ namespace NotfallSIM.Crash
                             {
                                 if (time >= t0) side.Step(dt);
                                 double vS = side.StruckVelocity, vB = side.BulletVelocity, doorIn = side.Door;
+                                sledLeft = (float)doorIn;
+                                bulletCrush = (float)(side.MaxCrush * (1 - side.SideShare));
                                 var carPos = rbCar.position + new Vector3((float)(vS * dt), 0, 0);
                                 rbCar.MovePosition(carPos);
                                 rbBullet.MovePosition(rbBullet.position + new Vector3((float)((time < t0 ? v : vB) * dt), 0, 0));
@@ -306,16 +346,31 @@ namespace NotfallSIM.Crash
                     float seatY = 0.85f;
                     var bike = Vehicle("Motorrad", Vector3.zero);
                     var t = bike.transform;
-                    Part(t, "Rumpf", new Vector3(0, 0.45f, 0.1f), new Vector3(0.2f, 0.46f, 1.4f), new Color(0.1f, 0.25f, 0.55f));
+                    Part(t, "Rumpf", new Vector3(0, 0.45f, 0.1f), new Vector3(0.2f, 0.46f, 1.4f), new Color(0.1f, 0.25f, 0.55f), visible: false);
                     var dm = RagdollBuilder.Dims(H);
-                    Part(t, "Sitzbank", new Vector3(0, seatY - dm.ThighRadius - 0.04f, -0.05f), new Vector3(0.24f, 0.08f, 0.5f), new Color(0.1f, 0.1f, 0.1f), counts: false);
-                    // Hindernis: Seite eines querenden PKW
+                    Part(t, "Sitzbank", new Vector3(0, seatY - dm.ThighRadius - 0.04f, -0.05f), new Vector3(0.24f, 0.08f, 0.5f), new Color(0.1f, 0.1f, 0.1f), counts: false, visible: false);
+                    // Hindernis: Seite eines querenden PKW (Kollider), sichtbar als PKW-Modell, das nach +x fährt
                     float gap = 0.4f;
-                    var obstacle = Part(null, "Hindernis (PKW-Seite)", new Vector3(0, 0.6f, 0.8f + gap + 0.25f), new Vector3(3f, 1.2f, 0.5f), new Color(0.55f, 0.1f, 0.1f));
+                    var obstacle = Part(null, "Hindernis (PKW-Seite)", new Vector3(0, 0.6f, 0.8f + gap + 0.25f), new Vector3(3f, 1.2f, 0.5f), new Color(0.55f, 0.1f, 0.1f), visible: false);
                     _spawned.Add(obstacle);
+                    var upper = Part(null, "Hindernis (PKW-Dach)", new Vector3(0, 1.3f, 0.8f + gap + 0.9f), new Vector3(2.2f, 0.16f, 1.6f), new Color(0.55f, 0.1f, 0.1f), visible: false);
+                    _spawned.Add(upper);
+                    var oppCar = new GameObject("Unfallgegner (PKW)");
+                    _spawned.Add(oppCar);
+                    oppCar.transform.position = new Vector3(0, 0, 0.8f + gap + 0.875f);
+                    CarModel(oppCar.transform, SedanProfile(), new Color(0.55f, 0.1f, 0.1f), Vector3.zero, 90);
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, seatY, 0), Quaternion.identity, RagdollPose.Straddling, H, p.Mass_kg, p.Male, invertKneeFlexion, headScale: 1.25f);
                     Vector3 mr = Ragdoll.HandTipRight, ml = Ragdoll.HandTipLeft;
-                    Part(t, "Lenker", new Vector3(0, (mr.y + ml.y) / 2 - 0.03f, Mathf.Max(mr.z, ml.z) + 0.03f), new Vector3(Mathf.Abs(mr.x - ml.x) + 0.15f, 0.04f, 0.04f), new Color(0.6f, 0.6f, 0.6f));
+                    var bar = new Vector3(0, (mr.y + ml.y) / 2 - 0.03f, Mathf.Max(mr.z, ml.z) + 0.03f);
+                    float barW = Mathf.Abs(mr.x - ml.x) + 0.15f;
+                    Part(t, "Lenker", bar, new Vector3(barW, 0.04f, 0.04f), new Color(0.6f, 0.6f, 0.6f), visible: false);
+                    float bikeCrush = 0;
+                    var moto = VehicleVisual.Moto(t, new VehicleShape.MotoProfile
+                    {
+                        SeatTop = seatY - dm.ThighRadius, SeatZ = -0.05f, BarY = bar.y, BarZ = bar.z - 0.1f, BarWidth = barW
+                    }, new Color(0.1f, 0.25f, 0.55f), new Vector3(0, 0, 0.1f));
+                    moto.Source = () => new DeformState { Front = bikeCrush };
+                    _visuals.Add(moto);
                     var rbBike = bike.GetComponent<Rigidbody>();
                     Drive(approach, new Vector3(0, 0, v), true);
                     float tHit = gap / Mathf.Max(0.1f, v);
@@ -324,6 +379,7 @@ namespace NotfallSIM.Crash
                     {
                         float u = Mathf.Clamp01((time - tHit) / T);
                         float vel = v - v * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
+                        if (time >= tHit) bikeCrush = Mathf.Min(0.45f, bikeCrush + (v - vel) * dt);   // sichtbar: Gabel staucht
                         rbBike.MovePosition(rbBike.position + new Vector3(0, 0, vel * dt));
                     };
                     return 1.2f;
@@ -338,11 +394,13 @@ namespace NotfallSIM.Crash
                     var t = car.transform;
                     var c = new Color(0.55f, 0.1f, 0.1f);
                     // Nachgiebige Front (vehicle_model.json › pedestrianFront): beim nachgiebigen Kontakt mit Steifigkeit und Federweg
-                    _softParts.Add(Part(t, "Stoßfänger", new Vector3(0.1f, 0.48f, 0), new Vector3(0.2f, 0.22f, 1.7f), c));
-                    _softParts.Add(Part(t, "Haubenvorderkante", new Vector3(0.3f, 0.72f, 0), new Vector3(0.5f, 0.2f, 1.7f), c));
-                    _softParts.Add(Part(t, "Motorhaube", new Vector3(1.0f, 0.82f, 0), new Vector3(1.1f, 0.08f, 1.7f), c, tiltZ: 6));
-                    _softParts.Add(Part(t, "Windschutzscheibe", new Vector3(1.75f, 1.08f, 0), new Vector3(0.7f, 0.05f, 1.5f), new Color(0.6f, 0.75f, 0.85f), tiltZ: 32));
-                    Part(t, "Dach", new Vector3(2.6f, 1.35f, 0), new Vector3(1.2f, 0.05f, 1.5f), c);
+                    _softParts.Add(Part(t, "Stoßfänger", new Vector3(0.1f, 0.48f, 0), new Vector3(0.2f, 0.22f, 1.7f), c, visible: false));
+                    _softParts.Add(Part(t, "Haubenvorderkante", new Vector3(0.3f, 0.72f, 0), new Vector3(0.5f, 0.2f, 1.7f), c, visible: false));
+                    _softParts.Add(Part(t, "Motorhaube", new Vector3(1.0f, 0.82f, 0), new Vector3(1.1f, 0.08f, 1.7f), c, tiltZ: 6, visible: false));
+                    _softParts.Add(Part(t, "Windschutzscheibe", new Vector3(1.75f, 1.08f, 0), new Vector3(0.7f, 0.05f, 1.5f), new Color(0.6f, 0.75f, 0.85f), tiltZ: 32, visible: false));
+                    Part(t, "Dach", new Vector3(2.6f, 1.35f, 0), new Vector3(1.2f, 0.05f, 1.5f), c, visible: false);
+                    // Sichtbares Modell: fährt nach −x (um −90° gedreht), Front bei x = 0
+                    CarModel(t, SedanProfile(), c, new Vector3(2.2f, 0, 0), -90);
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, hipY, 0), Quaternion.identity, RagdollPose.Standing, H, p.Mass_kg, p.Male, invertKneeFlexion);
                     var rbCar = car.GetComponent<Rigidbody>();
                     // Fahrzeug fährt einige Sekunden auf den stehenden Fußgänger zu (der bis kurz vorher gehalten wird)
@@ -619,6 +677,7 @@ namespace NotfallSIM.Crash
         {
             _tracked.Clear(); _trackedBodies.Clear(); _savedInterp.Clear();
             _frameTimes.Clear(); _framePos.Clear(); _frameRot.Clear();
+            foreach (var v in _visuals) v.Frames.Clear();
             var bodies = new List<Rigidbody>();
             foreach (var rd in AllRagdolls()) bodies.AddRange(rd.Root.GetComponentsInChildren<Rigidbody>(true));
             foreach (var go in _spawned) if (go) bodies.AddRange(go.GetComponentsInChildren<Rigidbody>(true));
@@ -639,6 +698,7 @@ namespace NotfallSIM.Crash
                 pos[i] = _tracked[i].position; rot[i] = _tracked[i].rotation;
             }
             _frameTimes.Add(time); _framePos.Add(pos); _frameRot.Add(rot);
+            foreach (var v in _visuals) v.Record();
         }
 
         /// <summary>Pose zum Zeitpunkt t (s) aus den Aufzeichnungen, linear bzw. sphärisch interpoliert.</summary>
@@ -655,6 +715,7 @@ namespace NotfallSIM.Crash
             var p0 = _framePos[lo]; var p1 = _framePos[hi]; var r0 = _frameRot[lo]; var r1 = _frameRot[hi];
             for (int i = 0; i < _tracked.Count; i++)
                 if (_tracked[i]) _tracked[i].SetPositionAndRotation(Vector3.LerpUnclamped(p0[i], p1[i], u), Quaternion.SlerpUnclamped(r0[i], r1[i], u));
+            foreach (var v in _visuals) v.Show(lo, hi, u);
             PlaybackTime = t;
         }
 

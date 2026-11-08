@@ -175,18 +175,18 @@ namespace NotfallSIM.Crash
             var tr = car.transform;
             _trafficVehicles.Add(vr);
 
-            // Karosserie (nur sichtbar): Seitenwände bis zur Gürtellinie, Motorraum, Kofferraum, Räder
-            float belt = hipY + 0.15f;
-            Visual(tr, "Seitenwand links", new Vector3(-W / 2 + 0.02f, (floorY - 0.1f + belt) / 2, 0), new Vector3(0.04f, belt - floorY + 0.1f, L - 0.3f), color);
-            Visual(tr, "Seitenwand rechts", new Vector3(W / 2 - 0.02f, (floorY - 0.1f + belt) / 2, 0), new Vector3(0.04f, belt - floorY + 0.1f, L - 0.3f), color);
+            // Karosserie (nur sichtbar, aus Code erzeugt): Umriss um den Innenraum, verformt sich mit Front, Heck und Seiten
+            const bool rearRow = true;   // Innenraum hat immer zwei Sitzreihen
+            var profile = CabinProfile(L, W, (float)t.wheelbase_m, floorY, hipY, zFront, dashZ, 0, rearRow, true);
+            var faces = b.Faces;
+            CarModel(tr, profile, color, Vector3.zero, 0, () => new DeformState
+            {
+                Front = (float)faces[TrafficSim.Front].MaxCrush, FrontPos = (float)faces[TrafficSim.Front].Position,
+                Rear = (float)faces[TrafficSim.Rear].MaxCrush, RearPos = (float)faces[TrafficSim.Rear].Position,
+                Left = (float)faces[TrafficSim.Left].MaxCrush, LeftPos = (float)faces[TrafficSim.Left].Position,
+                Right = (float)faces[TrafficSim.Right].MaxCrush, RightPos = (float)faces[TrafficSim.Right].Position
+            });
             float engineFrom = dashZ + 0.1f;
-            Visual(tr, "Motorraum", new Vector3(0, 0.55f, (engineFrom + L / 2) / 2), new Vector3(W - 0.1f, 0.5f, L / 2 - engineFrom), color);
-            float trunkTo = zRear - 0.35f;
-            Visual(tr, "Kofferraum", new Vector3(0, (floorY + belt) / 2, (trunkTo - L / 2) / 2), new Vector3(W - 0.1f, belt - floorY, trunkTo + L / 2), color);
-            float wb = (float)t.wheelbase_m / 2;
-            foreach (var wx in new[] { -W / 2 + 0.15f, W / 2 - 0.15f })
-                foreach (var wz in new[] { wb, -wb })
-                    Visual(tr, "Rad", new Vector3(wx, 0.32f, wz), new Vector3(0.22f, 0.64f, 0.64f), new Color(0.08f, 0.08f, 0.08f));
 
             // Innenraum (Kollider)
             Part(tr, "Boden", new Vector3(0, floorY - 0.025f, (zFront + zRear) / 2), new Vector3(W - 0.2f, 0.05f, 2.4f), dark);
@@ -194,10 +194,10 @@ namespace NotfallSIM.Crash
             var shield = Part(tr, "Windschutzscheibe", new Vector3(0, hipY + 0.82f, zFront + 0.62f), new Vector3(W - 0.3f, 0.04f, 0.9f), Color.clear, visible: false, tiltX: -55);
             Part(tr, "Mittelkonsole", new Vector3(0, hipY - 0.05f, zFront + 0.2f), new Vector3(0.12f, 0.3f, 0.8f), dark, visible: false);
             // Front für Fußgänger (beim nachgiebigen Kontakt mit Steifigkeit und Federweg, vehicle_model.json › pedestrianFront)
-            _softParts.Add(Part(tr, "Stoßfänger", new Vector3(0, 0.48f, L / 2 - 0.1f), new Vector3(W, 0.22f, 0.2f), color));
-            _softParts.Add(Part(tr, "Haubenvorderkante", new Vector3(0, 0.72f, L / 2 - 0.25f), new Vector3(W - 0.1f, 0.2f, 0.5f), color));
+            _softParts.Add(Part(tr, "Stoßfänger", new Vector3(0, 0.48f, L / 2 - 0.1f), new Vector3(W, 0.22f, 0.2f), color, visible: false));
+            _softParts.Add(Part(tr, "Haubenvorderkante", new Vector3(0, 0.72f, L / 2 - 0.25f), new Vector3(W - 0.1f, 0.2f, 0.5f), color, visible: false));
             float hoodLen = L / 2 - 0.3f - engineFrom;
-            _softParts.Add(Part(tr, "Motorhaube", new Vector3(0, 0.82f, engineFrom + hoodLen / 2), new Vector3(W - 0.1f, 0.08f, hoodLen), color));
+            _softParts.Add(Part(tr, "Motorhaube", new Vector3(0, 0.82f, engineFrom + hoodLen / 2), new Vector3(W - 0.1f, 0.08f, hoodLen), color, visible: false));
             _softParts.Add(shield);   // eine Scheibe für Insassen (innen) und Fußgänger (außen)
 
             // Eindrückbare Teile: Armaturenbrett (links/rechts), Türen
@@ -217,7 +217,7 @@ namespace NotfallSIM.Crash
             foreach (var dd in doors)
             {
                 var door = MovingBody(vr, dd.name, pos, rot, dd.face, dd.z);
-                Part(door.transform, dd.name, new Vector3(dd.x, doorY, dd.z), new Vector3(0.06f, 0.9f, dd.len), color);
+                Part(door.transform, dd.name, new Vector3(dd.x, doorY, dd.z), new Vector3(0.06f, 0.9f, dd.len), color, visible: false);   // Delle zeigt das Modell
             }
 
             // Sitze und Insassen

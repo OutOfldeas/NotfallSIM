@@ -89,6 +89,7 @@ static class Tests
         Run("Fahrzeugmodelle: Seitenaufprall mit Türeindrückung, Frontpuls, nachgiebige Fußgängerfront (Kopftest)", VehicleModelChecks);
         Run("MANV: Vorsichtung nach mSTaRT aus den Befunden beim Eintreffen", TriageChecks);
         Run("Rettung: eingeklemmt/eingeschlossen aus der Verformung am Sitz, Rettungsart und Zeit bis zum Schockraum", RescueChecks);
+        Run("Fahrzeugmodelle aus Code: Flächen nach außen, Knautschen, Seitendelle, Gabel", VehicleShapeChecks);
         Run("Verkehrsunfall: Fahrdynamik, Bremsen, Ausweichen, Fahrzeug-Kollision mit Kennlinien (TrafficSim)", TrafficChecks);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
@@ -1630,6 +1631,39 @@ static class Tests
         Rescue.SeatDeformation(w.Faces[NotfallSIM.Crash.TrafficSim.Left], w.Faces[0], true, -0.37, 0.21, 0.31, out sd, out fw, out dr);
         Check(!Rescue.Situation(rf, sd, fw, dr, true).Trapped, $"Wand 56 km/h: nicht eingeklemmt (Fußraum {fw * 100:0} cm)");
         Console.WriteLine($"        Kreuzung: {ks.Text}; Gegenverkehr: {gs.Text}; eingeklemmt schonend {p2.Total_min:0} min, selbst {p3.Total_min:0} min");
+    }
+
+    static void VehicleShapeChecks()
+    {
+        var p = NotfallSIM.Crash.CarProfile.Make(4.6f, 1.8f, 2.75f, 0.25f, 0.95f, 0.95f, -1.35f, 1.0f, -0.85f, 0.35f, 1.45f, 1.15f, 1.0f, 0.85f, true);
+        var m = NotfallSIM.Crash.VehicleShape.Car(p);
+        // Flächen zeigen nach außen (Unity: Normale (b−a)×(c−a) zur Kamera), gemessen gegen die Längsachse
+        int outward = 0, all = 0;
+        var body = m.Tri[(int)NotfallSIM.Crash.ShapePart.Lack].Concat(m.Tri[(int)NotfallSIM.Crash.ShapePart.Glas]).ToList();
+        for (int i = 0; i < body.Count; i += 3)
+        {
+            Func<int, int, float> c = (k, ax) => m.V[3 * body[i + k] + ax];
+            float ux = c(1, 0) - c(0, 0), uy = c(1, 1) - c(0, 1), uz = c(1, 2) - c(0, 2), vx = c(2, 0) - c(0, 0), vy = c(2, 1) - c(0, 1), vz = c(2, 2) - c(0, 2);
+            float nx = uy * vz - uz * vy, ny = uz * vx - ux * vz;
+            float gx = (c(0, 0) + c(1, 0) + c(2, 0)) / 3, gy = (c(0, 1) + c(1, 1) + c(2, 1)) / 3 - 0.8f;
+            float d = nx * gx + ny * gy;
+            if (Math.Abs(d) < 1e-9) continue;
+            all++; if (d > 0) outward++;
+        }
+        Check(outward > 0.95 * all, $"PKW: {outward} von {all} Flächen nach außen");
+        Func<int, float> maxZ = part => m.Tri[part].Where(i => Math.Abs(m.Rest[3 * i]) < 0.3f).Select(i => m.V[3 * i + 2]).Max();   // Mitte der Front
+        float z0 = maxZ(0);
+        var wheel = m.Tri[(int)NotfallSIM.Crash.ShapePart.Reifen].Select(i => m.V[3 * i + 2]).Max();
+        NotfallSIM.Crash.VehicleShape.DeformCar(m, p, new NotfallSIM.Crash.DeformState { Front = 0.5f, Left = 0.3f, LeftPos = 0.2f });
+        Check(Math.Abs((z0 - maxZ(0)) - 0.5f) < 0.03f, $"Front knautscht um {z0 - maxZ(0):0.00} m (0,5)");
+        var leftAtDent = m.Tri[0].Where(i => Math.Abs(m.Rest[3 * i + 2] - 0.2f) < 0.06f && m.Rest[3 * i] < -0.85f && m.Rest[3 * i + 1] > 0.3f && m.Rest[3 * i + 1] < 1.0f).Select(i => m.V[3 * i] - m.Rest[3 * i]).DefaultIfEmpty(0).Max();
+        Check(leftAtDent > 0.25f, $"Seite: Tür am Kontaktort {leftAtDent * 100:0} cm eingedrückt");
+        Check(m.Tri[(int)NotfallSIM.Crash.ShapePart.Reifen].Where(i => m.Rigid[i]).All(i => m.V[3 * i + 2] == m.Rest[3 * i + 2]), "Räder bleiben starr");
+        var moto = NotfallSIM.Crash.VehicleShape.Motorcycle(new NotfallSIM.Crash.VehicleShape.MotoProfile());
+        float front = moto.Rest.Where((v, i) => i % 3 == 2).Max();
+        NotfallSIM.Crash.VehicleShape.DeformMotorcycle(moto, 0.3f);
+        float front2 = moto.V.Where((v, i) => i % 3 == 2).Max();
+        Check(front - front2 > 0.25f, $"Motorrad: Gabel staucht ({(front - front2) * 100:0} cm)");
     }
 
     static void TriageChecks()

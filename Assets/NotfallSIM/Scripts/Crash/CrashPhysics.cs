@@ -31,6 +31,32 @@ namespace NotfallSIM.Crash
             m.color = c;
             return m;
         }
+
+        /// <summary>Durchsichtiges Material (Fensterglas), Alpha aus der Farbe.</summary>
+        public static Material GlassMat(Color c)
+        {
+            var m = Mat(c);
+            if (m.shader != null && m.shader.name.Contains("Universal"))
+            {
+                m.SetFloat("_Surface", 1);   // durchsichtig
+                m.SetFloat("_Blend", 0);     // Alpha
+                m.SetOverrideTag("RenderType", "Transparent");
+                m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m.SetFloat("_ZWrite", 0);
+                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            }
+            else
+            {
+                m.SetFloat("_Mode", 3);
+                m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m.SetFloat("_ZWrite", 0);
+                m.EnableKeyword("_ALPHABLEND_ON");
+            }
+            m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            return m;
+        }
     }
 
     /// <summary>Markiert Umgebungsteile. Sitzpolster und Lehne zählen nicht als verletzende Kontakte.</summary>

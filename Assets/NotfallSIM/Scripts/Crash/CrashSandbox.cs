@@ -191,7 +191,10 @@ namespace NotfallSIM.Crash
         }
 
         /// <summary>Zeichen aus den Kontakten des letzten berechneten Aufpralls (für die Gewalt-Sandbox).</summary>
-        public List<Anatomy.CrashMark> GenerateContactMarks() => GenerateMarks(_p.Belted);
+        public List<Anatomy.CrashMark> GenerateContactMarks() => GenerateMarks(BeltApplies && _p.Belted);
+
+        /// <summary>Gurt (und Airbag) gibt es nur im PKW — beim Motorrad, Fußgänger, Sturz bleibt die Einstellung ohne Wirkung.</summary>
+        bool BeltApplies => _p.MechanismId.StartsWith("pkw");
 
         // ---------------------------------------------------------------- UI-Aktionen (im SceneBuilder verdrahtet)
 
@@ -413,7 +416,7 @@ namespace NotfallSIM.Crash
             var setup = new CrashSetup
             {
                 MechanismId = _p.MechanismId, Male = _p.Male, Age = 35, Weight_kg = _p.Mass_kg, Height_cm = _p.Height_m * 100,
-                Unrestrained = !_p.Belted, Speed_kmh = (int)_p.Speed_kmh, FallHeight_m = (int)_p.Speed_kmh,
+                Unrestrained = BeltApplies && !_p.Belted, Speed_kmh = (int)_p.Speed_kmh, FallHeight_m = (int)_p.Speed_kmh,
                 Rescue_min = mechDef != null ? (int)(Mathf.Round((float)(mechDef.rescueMin + mechDef.rescueMax) / 10f) * 5) : 30
             };
             _result = InjuryRisk.BuildScenario(risk, mech, db.All, measurements, setup, (uint)_p.Seed);
@@ -437,7 +440,7 @@ namespace NotfallSIM.Crash
                 foreach (var o in organLoad.Organs.Where(x => x.Exposure > 0))
                     sb.AppendLine($"{o.Organ.label}: Dehnung {o.Strain:P0} von {o.FailureStrain:P0} bis zum Riss → {o.Probability:P0}");
             }
-            _crashMarks = GenerateMarks(_p.Belted);
+            _crashMarks = GenerateMarks(BeltApplies && _p.Belted);
             if (_crashMarks.Count > 0)
             {
                 sb.AppendLine();
