@@ -792,6 +792,21 @@ Ober- und Unterarm dieser Seite das Zeichen „Glassplitterverletzungen“.
 **Grenzen.** Würfel kollidieren nicht (fliegen durch Sitze und Personen); die gerissene Frontscheibe wird in der Physik
 nicht weicher; Seitenscheiben brechen nicht durch direkten Kopfanprall. Test: `GlassChecks`.
 
+## Sichtbare Frakturen (`FractureSpecs`, `FractureDisplay`, `CrashRig.Fractures.cs`)
+
+**Welche.** Nach der Rechnung würfelt die Sandbox die Verletzungen mit demselben Startwert und derselben Kalibrierung wie
+für den Schockraum — die Fehlstellung beim Abspielen passt also genau zu den Frakturen, die der Fall später hat.
+Sichtbar werden Femurschaft- und Unterschenkelfrakturen (geschlossen und offen).
+
+**Wann und wohin.** Zeitpunkt: Spitze der Kontaktkraft am Segment (beim Femur notfalls am Unterschenkel, Knie gegen
+Armaturenbrett). Richtung: Das distale Fragment weicht zur Anprallseite aus, wie beim Biegebruch durch einen seitlichen
+Stoß (Stoßstange gegen Unterschenkel). Bruchstelle: Schaftmitte (Femur 50 %, Unterschenkel 55 % vom Knie);
+Achsenknick 18° (Femur), 22° (Unterschenkel), 28° (offen), aufgebaut in 15 ms. Alles **Annahmen** (Darstellung).
+
+**Wie.** Die Haut bekommt an der Bruchstelle einen zusätzlichen Knochen (±3 cm weicher Übergang); Segmente distal davon
+zeichnet sie über Anzeige-Kopien, die der Physik folgen und mitgedreht werden. Die Physik selbst bleibt unverändert: Das
+Ragdoll bewegt sich nach dem Bruch wie mit intaktem Knochen weiter (Grenze). Test: `FractureChecks`.
+
 ## MANV-Vorsichtung (`triage.json`, `Data/Triage.cs`)
 
 Vorsichtung Erwachsener nach mSTaRT [128]: gehfähig → grün (T3); keine Atmung nach Freimachen der Atemwege → schwarz;
