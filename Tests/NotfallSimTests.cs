@@ -90,6 +90,7 @@ static class Tests
         Run("MANV: Vorsichtung nach mSTaRT aus den Befunden beim Eintreffen", TriageChecks);
         Run("Rettung: eingeklemmt/eingeschlossen aus der Verformung am Sitz, Rettungsart und Zeit bis zum Schockraum", RescueChecks);
         Run("Fahrzeugmodelle aus Code: Flächen nach außen, Knautschen, Seitendelle, Gabel", VehicleShapeChecks);
+        Run("Scheiben: Flächen je Scheibe, Bruchkriterien, Rissbild, Wölbung, Glassplitter-Zeichen", GlassChecks);
         Run("Motorrad: Gabel, Nicken über das Vorderrad, PKW-Delle in Reihe; ISO-13232-Konfigurationen", MotorcycleChecks);
         Run("Verkehrsunfall: Fahrdynamik, Bremsen, Ausweichen, Fahrzeug-Kollision mit Kennlinien (TrafficSim)", TrafficChecks);
 
@@ -1665,6 +1666,57 @@ static class Tests
         NotfallSIM.Crash.VehicleShape.DeformMotorcycle(moto, 0.3f);
         float front2 = moto.V.Where((v, i) => i % 3 == 2).Max();
         Check(front - front2 > 0.25f, $"Motorrad: Gabel staucht ({(front - front2) * 100:0} cm)");
+    }
+
+    static void GlassChecks()
+    {
+        var p = NotfallSIM.Crash.CarProfile.Make(4.6f, 1.8f, 2.75f, 0.25f, 0.95f, 0.95f, -1.35f, 1.0f, -0.85f, 0.35f, 1.45f, 1.15f, 1.0f, 0.85f, true);
+        var m = NotfallSIM.Crash.VehicleShape.Car(p);
+        var panes = (NotfallSIM.Crash.Pane[])Enum.GetValues(typeof(NotfallSIM.Crash.Pane));
+        Check(m.GlassPane.Count * 3 == m.Tri[(int)NotfallSIM.Crash.ShapePart.Glas].Count, "jedes Glas-Dreieck gehört zu einer Scheibe");
+        Check(panes.All(x => NotfallSIM.Crash.VehicleShape.PaneTriangles(m, x).Count > 0), "alle sechs Scheiben vorhanden");
+        int all = m.Tri[(int)NotfallSIM.Crash.ShapePart.Glas].Count, lf = NotfallSIM.Crash.VehicleShape.PaneTriangles(m, NotfallSIM.Crash.Pane.LeftFront).Count;
+        Check(NotfallSIM.Crash.VehicleShape.GlassWithout(m, 1 << (int)NotfallSIM.Crash.Pane.LeftFront).Count == all - lf, "zerfallene Scheibe fehlt im Glas");
+        Check(NotfallSIM.Crash.VehicleShape.PaneTriangles(m, NotfallSIM.Crash.Pane.LeftFront).All(i => m.Rest[3 * i] < 0), "Seitenscheibe vorn links liegt links");
+
+        // ESG: bricht bei Türeindrückung am Fenster, nicht auf der anderen Seite; Heck ab 25 cm
+        float zc = NotfallSIM.Crash.GlassBreak.PaneCenterZ(p, NotfallSIM.Crash.Pane.LeftFront);
+        var side = new NotfallSIM.Crash.DeformState { Left = 0.29f, LeftPos = zc };
+        Check(NotfallSIM.Crash.GlassBreak.Breaks(side, p, NotfallSIM.Crash.Pane.LeftFront) && !NotfallSIM.Crash.GlassBreak.Breaks(side, p, NotfallSIM.Crash.Pane.RightFront), "Seitenaufprall links: linke Scheibe zerfällt, rechte nicht");
+        Check(!NotfallSIM.Crash.GlassBreak.Breaks(new NotfallSIM.Crash.DeformState { Left = 0.02f, LeftPos = zc }, p, NotfallSIM.Crash.Pane.LeftFront), "2 cm Eindrückung: Scheibe hält");
+        Check(NotfallSIM.Crash.GlassBreak.Breaks(new NotfallSIM.Crash.DeformState { Rear = 0.3f }, p, NotfallSIM.Crash.Pane.Rear), "Heck 30 cm: Heckscheibe zerfällt");
+        Check(!NotfallSIM.Crash.GlassBreak.Breaks(new NotfallSIM.Crash.DeformState { Front = 1f }, p, NotfallSIM.Crash.Pane.Front), "Frontscheibe (VSG) zerfällt nie");
+        Check(Math.Abs(NotfallSIM.Crash.GlassBreak.CrackRadius(3) - 0.07f) < 1e-4 && NotfallSIM.Crash.GlassBreak.CrackRadius(40) <= 0.35f, "Rissradius 7 cm an der Schwelle, höchstens 35 cm");
+
+        // Rissbild: deterministisch, im Radius
+        var c1 = NotfallSIM.Crash.GlassCrack.Pattern(42, 0.25f); var c2 = NotfallSIM.Crash.GlassCrack.Pattern(42, 0.25f);
+        Check(c1.Count > 40 && c1.Count == c2.Count && c1.Zip(c2, (a, b) => a.A1 == b.A1 && a.B1 == b.B1).All(x => x), $"Rissbild: {c1.Count} Stücke, gleich bei gleichem Startwert");
+        Check(c1.All(g => Math.Sqrt(g.A1 * g.A1 + g.B1 * g.B1) < 0.25 * 1.3), "Rissbild bleibt im Radius");
+
+        // Punkt auf der Frontscheibe verankern; folgt der Wölbung
+        float sx, sy, sz;
+        NotfallSIM.Crash.VehicleShape.ShieldPoint(p, -0.3f, (p.CowlZ + p.RoofFrontZ) / 2, 0, 0, out sx, out sy, out sz);
+        var shieldTris = NotfallSIM.Crash.VehicleShape.PaneTriangles(m, NotfallSIM.Crash.Pane.Front);
+        NotfallSIM.Crash.VehicleShape.Anchor an, off;
+        Check(NotfallSIM.Crash.VehicleShape.Attach(m, shieldTris, sx, sy, sz, out an), "Punkt auf der Frontscheibe verankert");
+        Check(!NotfallSIM.Crash.VehicleShape.Attach(m, shieldTris, sx, sy, p.Length, out off), "Punkt vor dem Auto: nicht auf der Scheibe");
+        float ex, ey, ez, nx, ny, nz;
+        NotfallSIM.Crash.VehicleShape.Evaluate(m, an, out ex, out ey, out ez, out nx, out ny, out nz);
+        Check(Math.Abs(ex - sx) < 0.01 && Math.Abs(ey - sy) < 0.02 && Math.Abs(ez - sz) < 0.02, "Ruhelage: verankerter Punkt liegt am Ort");
+        NotfallSIM.Crash.VehicleShape.DeformCar(m, p, new NotfallSIM.Crash.DeformState());
+        NotfallSIM.Crash.VehicleShape.BulgeShield(m, p, -0.3f, sz, -0.08f, 0.25f);
+        float bx, by, bz;
+        NotfallSIM.Crash.VehicleShape.Evaluate(m, an, out bx, out by, out bz, out nx, out ny, out nz);
+        float moved = (float)Math.Sqrt((bx - ex) * (bx - ex) + (by - ey) * (by - ey) + (bz - ez) * (bz - ez));
+        Check(moved > 0.04f && by < ey, $"Wölbung nach innen: Anprallort {moved * 100:0} cm eingedrückt");
+        var frame = shieldTris.Where(i => Math.Abs(m.Rest[3 * i + 2] - p.CowlZ) < 0.03f).ToList();
+        Check(frame.Count > 0 && frame.All(i => Math.Abs(m.V[3 * i + 1] - m.Rest[3 * i + 1]) < 1e-4), "Rahmen (Spritzwand) bleibt fest");
+
+        // Verletzungszeichen
+        var mark = NotfallSIM.Anatomy.CrashMarks.GlassDicing("Kopf", "Kopf", new[] { -0.1f, 1.6f, 0f }, new[] { -0.05f, 1.6f, 0f }, "Seitenscheibe vorn links", 0);
+        Check(mark.Mark.kind == "glassplitter" && mark.Finding.Contains("links seitlich"), $"Glassplitter-Zeichen: {mark.Finding}");
+        var visuals = File.ReadAllText(Path.Combine(DataRoot, "injury_visuals.json"));
+        Check(visuals.Contains("\"id\": \"glassplitter\""), "Darstellung „glassplitter“ in injury_visuals.json");
     }
 
     static void MotorcycleChecks()

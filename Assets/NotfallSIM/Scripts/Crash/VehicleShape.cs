@@ -6,6 +6,9 @@ namespace NotfallSIM.Crash
     /// <summary>Teile eines erzeugten Fahrzeugmodells (je ein Material).</summary>
     public enum ShapePart { Lack = 0, Glas = 1, Reifen = 2, Scheinwerfer = 3, Ruecklicht = 4, Metall = 5, Sitz = 6 }
 
+    /// <summary>Scheiben eines PKW: Frontscheibe (Verbundglas, VSG), alle anderen Einscheibensicherheitsglas (ESG).</summary>
+    public enum Pane { Front = 0, Rear = 1, LeftFront = 2, LeftRear = 3, RightFront = 4, RightRear = 5 }
+
     /// <summary>Dreiecksnetz ohne Unity-Typen: Ecken (x, y, z hintereinander), Dreiecke je Teil, Ecken-Merkmale für die Verformung.</summary>
     public class ShapeMesh
     {
@@ -15,6 +18,8 @@ namespace NotfallSIM.Crash
         public readonly List<bool> Rigid = new List<bool>();
         /// <summary>Je Ecke: Anteil an der Gabel (Motorrad, 0–1) — staucht beim Frontaufprall mit.</summary>
         public readonly List<float> Fork = new List<float>();
+        /// <summary>Je Dreieck des Glas-Teils: welche Scheibe (<see cref="Pane"/>), für Bruch und Risse.</summary>
+        public readonly List<int> GlassPane = new List<int>();
         public float[] Rest;
         public ShapeMesh() { for (int i = 0; i < Tri.Length; i++) Tri[i] = new List<int>(); }
         public int Count => V.Count / 3;
@@ -112,11 +117,14 @@ namespace NotfallSIM.Crash
     public struct DeformState
     {
         public float Front, FrontPos, Rear, RearPos, Left, LeftPos, Right, RightPos;
+        /// <summary>Wölbung der Frontscheibe am Anprallort (m, Betrag; Richtung und Ort stehen im Fahrzeugmodell).</summary>
+        public float Shield;
         public static DeformState Lerp(DeformState a, DeformState b, float u)
         {
             Func<float, float, float> l = (x, y) => x + (y - x) * u;
             return new DeformState
             {
+                Shield = l(a.Shield, b.Shield),
                 Front = l(a.Front, b.Front), FrontPos = l(a.FrontPos, b.FrontPos), Rear = l(a.Rear, b.Rear), RearPos = l(a.RearPos, b.RearPos),
                 Left = l(a.Left, b.Left), LeftPos = l(a.LeftPos, b.LeftPos), Right = l(a.Right, b.Right), RightPos = l(a.RightPos, b.RightPos)
             };
@@ -141,7 +149,8 @@ namespace NotfallSIM.Crash
             zs.Add(L / 2);
             foreach (var t in p.Top) if (!zs.Exists(z => Math.Abs(z - t[0]) < 0.02f)) zs.Add(t[0]);
             zs.Sort();
-            const int K = 10;
+            const int TopMid = 8, K = 10 + TopMid;
+            const int SideL = 2, SideR = 6 + TopMid, Under = 9 + TopMid;   // Seitenfenster links/rechts, Unterboden
             var rings = new List<int[]>();
             foreach (var z in zs)
             {
@@ -152,11 +161,14 @@ namespace NotfallSIM.Crash
                 float upper = Math.Max(0.1f, p.RoofY - belt);
                 float hwTop = hw * (1 - 0.16f * Clamp01((top - belt) / upper));
                 float sill = p.Sill;
-                var pts = new[]
+                // Querschnitt: Flanke links, Dach mit Zwischenpunkten (für Dellen und die Wölbung der Frontscheibe), Flanke rechts
+                var pts = new List<float[]>
                 {
-                    new[] { -hw + 0.05f, sill }, new[] { -hw, sill + 0.07f }, new[] { -hw, belt }, new[] { -hwTop, top - 0.06f }, new[] { -hwTop + 0.08f, top },
-                    new[] { hwTop - 0.08f, top }, new[] { hwTop, top - 0.06f }, new[] { hw, belt }, new[] { hw, sill + 0.07f }, new[] { hw - 0.05f, sill }
+                    new[] { -hw + 0.05f, sill }, new[] { -hw, sill + 0.07f }, new[] { -hw, belt }, new[] { -hwTop, top - 0.06f }, new[] { -hwTop + 0.08f, top }
                 };
+                for (int j = 1; j <= TopMid; j++) pts.Add(new[] { -hwTop + 0.08f + (2 * hwTop - 0.16f) * j / (TopMid + 1), top });
+                pts.Add(new[] { hwTop - 0.08f, top }); pts.Add(new[] { hwTop, top - 0.06f }); pts.Add(new[] { hw, belt });
+                pts.Add(new[] { hw, sill + 0.07f }); pts.Add(new[] { hw - 0.05f, sill });
                 var ring = new int[K];
                 for (int k = 0; k < K; k++) ring[k] = m.Add(pts[k][0], pts[k][1], z);
                 rings.Add(ring);
@@ -172,11 +184,16 @@ namespace NotfallSIM.Crash
                 {
                     int k2 = (k + 1) % K;
                     ShapePart part = ShapePart.Lack;
-                    if ((k == 2 || k == 6) && sideGlass) part = ShapePart.Glas;                      // Seitenfenster
-                    if ((k == 3 || k == 4 || k == 5) && (shield || rearGlass)) part = ShapePart.Glas;   // Front- und Heckscheibe
-                    if (k == 9) part = ShapePart.Reifen;                                                // Unterboden dunkel
+                    int pane = -1;
+                    if (k == SideL && sideGlass) pane = (int)(zm > bPillar ? Pane.LeftFront : Pane.LeftRear);
+                    if (k == SideR && sideGlass) pane = (int)(zm > bPillar ? Pane.RightFront : Pane.RightRear);
+                    if (k >= 3 && k <= SideR - 1 && shield) pane = (int)Pane.Front;
+                    if (k >= 3 && k <= SideR - 1 && rearGlass) pane = (int)Pane.Rear;
+                    if (pane >= 0) part = ShapePart.Glas;
+                    if (k == Under) part = ShapePart.Reifen;                                            // Unterboden dunkel
                     // Umlauf links unten → oben → rechts → unten; Reihenfolge so, dass die Flächen nach außen zeigen (Unity: im Uhrzeigersinn)
                     m.Quad(part, rings[s][k], rings[s + 1][k], rings[s + 1][k2], rings[s][k2]);
+                    if (pane >= 0) { m.GlassPane.Add(pane); m.GlassPane.Add(pane); }
                 }
             }
             // Deckel vorn und hinten
@@ -258,7 +275,14 @@ namespace NotfallSIM.Crash
             for (int i = 0; i < m.Count; i++)
             {
                 float x = m.Rest[3 * i], y = m.Rest[3 * i + 1], z = m.Rest[3 * i + 2];
-                if (m.Rigid[i]) { m.V[3 * i] = x; m.V[3 * i + 1] = y; m.V[3 * i + 2] = z; continue; }
+                if (m.Rigid[i])
+                {
+                    // Räder bleiben starr, werden aber zurückgeschoben, sobald die Knautschzone vor der Achse aufgebraucht ist
+                    float over = L / 2 - p.Wheelbase / 2 - p.WheelRadius;
+                    if (z > 0) z -= Math.Max(0, Math.Min(d.Front, L / 2 - 0.6f) - over);
+                    else z += Math.Max(0, Math.Min(d.Rear, L / 2 - 0.6f) - over);
+                    m.V[3 * i] = x; m.V[3 * i + 1] = y; m.V[3 * i + 2] = z; continue;
+                }
                 // Front: Bereich [z0, L/2] auf [z0, L/2 − c] stauchen, seitlich zum Kontaktort hin stärker; Haube wölbt sich
                 // Knautschweg höchstens bis kurz vor die Hinterachse (schützt vor unsinnigen Eingaben)
                 float cf = Math.Min(d.Front, L / 2 - 0.6f) * Lateral(x, d.FrontPos, hw);
@@ -301,9 +325,251 @@ namespace NotfallSIM.Crash
             }
         }
 
+
+        // ---------------------------------------------------------------- Scheiben
+
+        /// <summary>Dreiecke (je drei Ecken-Indizes) einer Scheibe.</summary>
+        public static List<int> PaneTriangles(ShapeMesh m, Pane pane)
+        {
+            var t = m.Tri[(int)ShapePart.Glas];
+            var list = new List<int>();
+            for (int i = 0; i < m.GlassPane.Count; i++)
+                if (m.GlassPane[i] == (int)pane) { list.Add(t[3 * i]); list.Add(t[3 * i + 1]); list.Add(t[3 * i + 2]); }
+            return list;
+        }
+
+        /// <summary>Glas-Dreiecke ohne die zerfallenen Scheiben (Bit je <see cref="Pane"/> in <paramref name="brokenMask"/>).</summary>
+        public static List<int> GlassWithout(ShapeMesh m, int brokenMask)
+        {
+            var t = m.Tri[(int)ShapePart.Glas];
+            var list = new List<int>(t.Count);
+            for (int i = 0; i < m.GlassPane.Count; i++)
+                if ((brokenMask & (1 << m.GlassPane[i])) == 0) { list.Add(t[3 * i]); list.Add(t[3 * i + 1]); list.Add(t[3 * i + 2]); }
+            return list;
+        }
+
+        /// <summary>Außennormale der Frontscheibe (Seitenansicht: von der Spritzwand zur Dachvorderkante), Fahrzeugkoordinaten.</summary>
+        public static void ShieldNormal(CarProfile p, out float ny, out float nz)
+        {
+            float dz = p.RoofFrontZ - p.CowlZ, dy = p.RoofY - p.TopAt(p.CowlZ);
+            float len = (float)Math.Sqrt(dz * dz + dy * dy);
+            ny = -dz / len; nz = dy / len;
+        }
+
+        /// <summary>Punkt auf der Frontscheibe: Ort (x, z) + Versatz a quer und b entlang der Neigung (nach oben positiv).</summary>
+        public static void ShieldPoint(CarProfile p, float x, float z, float a, float b, out float px, out float py, out float pz)
+        {
+            float dz = p.RoofFrontZ - p.CowlZ, dy = p.RoofY - p.TopAt(p.CowlZ);
+            float len = (float)Math.Sqrt(dz * dz + dy * dy);
+            pz = z + b * dz / len;
+            px = x + a;
+            py = p.TopAt(pz);
+        }
+
+        /// <summary>Anprallort auf die Frontscheibe begrenzen (mit Abstand zum Rahmen).</summary>
+        public static void ClampToShield(CarProfile p, ref float x, ref float z)
+        {
+            float lo = Math.Min(p.RoofFrontZ, p.CowlZ) + 0.12f, hi = Math.Max(p.RoofFrontZ, p.CowlZ) - 0.12f;
+            z = Math.Max(lo, Math.Min(hi, z));
+            float half = p.Width / 2 * 0.84f - 0.2f;
+            x = Math.Max(-half, Math.Min(half, x));
+        }
+
+        /// <summary>
+        /// Frontscheibe wölbt sich am Anprallort (cx, cz) um <paramref name="depth"/> (m, + nach außen) mit Kosinusglocke
+        /// über <paramref name="radius"/>; am Rahmen (Spritzwand, Dach, A-Säulen) bleibt sie fest. Wirkt auf die schon verformten Ecken.
+        /// </summary>
+        public static void BulgeShield(ShapeMesh m, CarProfile p, float cx, float cz, float depth, float radius)
+        {
+            if (Math.Abs(depth) < 1e-4f || radius <= 0) return;
+            float ny, nz;
+            ShieldNormal(p, out ny, out nz);
+            float cy = p.TopAt(cz);
+            float zLo = Math.Min(p.RoofFrontZ, p.CowlZ), zHi = Math.Max(p.RoofFrontZ, p.CowlZ);
+            var done = new HashSet<int>();
+            foreach (var i in PaneTriangles(m, Pane.Front))
+            {
+                if (!done.Add(i)) continue;
+                float x = m.Rest[3 * i], y = m.Rest[3 * i + 1], z = m.Rest[3 * i + 2];
+                float d = (float)Math.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy) + (z - cz) * (z - cz));
+                if (d >= radius) continue;
+                float w = 0.5f * (1 + (float)Math.Cos(Math.PI * d / radius));
+                float edgeZ = Math.Min(z - zLo, zHi - z), edgeX = p.Width / 2 * 0.84f - Math.Abs(x);
+                w *= Clamp01(edgeZ / 0.1f) * Clamp01(edgeX / 0.12f);
+                m.V[3 * i + 1] += depth * w * ny;
+                m.V[3 * i + 2] += depth * w * nz;
+            }
+        }
+
+        /// <summary>Lage eines Punkts auf einem Dreieck (Ecken a, b, c und baryzentrische Gewichte) — folgt der Verformung.</summary>
+        public struct Anchor { public int A, B, C; public float U, V, W; }
+
+        /// <summary>Punkt (Ruhelage) auf die nächste der Dreiecke projizieren; false, wenn er außerhalb liegt.</summary>
+        public static bool Attach(ShapeMesh m, List<int> tris, float px, float py, float pz, out Anchor anchor)
+        {
+            anchor = default(Anchor);
+            float best = 0.05f;
+            bool found = false;
+            var r = m.Rest;
+            for (int t = 0; t + 2 < tris.Count; t += 3)
+            {
+                int a = tris[t], b = tris[t + 1], c = tris[t + 2];
+                float ax = r[3 * a], ay = r[3 * a + 1], az = r[3 * a + 2];
+                float e1x = r[3 * b] - ax, e1y = r[3 * b + 1] - ay, e1z = r[3 * b + 2] - az;
+                float e2x = r[3 * c] - ax, e2y = r[3 * c + 1] - ay, e2z = r[3 * c + 2] - az;
+                float nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
+                float nl = (float)Math.Sqrt(nx * nx + ny * ny + nz * nz);
+                if (nl < 1e-9f) continue;
+                nx /= nl; ny /= nl; nz /= nl;
+                float wx = px - ax, wy = py - ay, wz = pz - az;
+                float dist = wx * nx + wy * ny + wz * nz;
+                if (Math.Abs(dist) >= best) continue;
+                wx -= dist * nx; wy -= dist * ny; wz -= dist * nz;
+                float d00 = e1x * e1x + e1y * e1y + e1z * e1z, d01 = e1x * e2x + e1y * e2y + e1z * e2z, d11 = e2x * e2x + e2y * e2y + e2z * e2z;
+                float d20 = wx * e1x + wy * e1y + wz * e1z, d21 = wx * e2x + wy * e2y + wz * e2z;
+                float den = d00 * d11 - d01 * d01;
+                if (Math.Abs(den) < 1e-12f) continue;
+                float v = (d11 * d20 - d01 * d21) / den, w = (d00 * d21 - d01 * d20) / den, u = 1 - v - w;
+                const float tol = -0.02f;
+                if (u < tol || v < tol || w < tol) continue;
+                best = Math.Abs(dist); found = true;
+                anchor = new Anchor { A = a, B = b, C = c, U = u, V = v, W = w };
+            }
+            return found;
+        }
+
+        /// <summary>Lage eines verankerten Punkts auf den aktuellen (verformten) Ecken, dazu die Flächennormale.</summary>
+        public static void Evaluate(ShapeMesh m, Anchor k, out float x, out float y, out float z, out float nx, out float ny, out float nz)
+        {
+            var V = m.V;
+            x = k.U * V[3 * k.A] + k.V * V[3 * k.B] + k.W * V[3 * k.C];
+            y = k.U * V[3 * k.A + 1] + k.V * V[3 * k.B + 1] + k.W * V[3 * k.C + 1];
+            z = k.U * V[3 * k.A + 2] + k.V * V[3 * k.B + 2] + k.W * V[3 * k.C + 2];
+            float e1x = V[3 * k.B] - V[3 * k.A], e1y = V[3 * k.B + 1] - V[3 * k.A + 1], e1z = V[3 * k.B + 2] - V[3 * k.A + 2];
+            float e2x = V[3 * k.C] - V[3 * k.A], e2y = V[3 * k.C + 1] - V[3 * k.A + 1], e2z = V[3 * k.C + 2] - V[3 * k.A + 2];
+            nx = e1y * e2z - e1z * e2y; ny = e1z * e2x - e1x * e2z; nz = e1x * e2y - e1y * e2x;
+            float l = (float)Math.Sqrt(nx * nx + ny * ny + nz * nz);
+            if (l > 1e-9f) { nx /= l; ny /= l; nz /= l; }
+        }
+
         /// <summary>Anteil der Frontverformung quer zur Fahrzeugachse: um den Kontaktort ±0,5 m voll, zum anderen Rand hin weniger (≥ 35 %).</summary>
         static float Lateral(float x, float pos, float hw) => Math.Max(0.35f, 1 - Math.Max(0, Math.Abs(x - pos) - 0.5f) / (2 * hw));
-        static float Fall(float z, float pos) => Math.Max(0, 1 - Math.Abs(z - pos) / 1.0f);
-        static float Clamp01(float v) => v < 0 ? 0 : v > 1 ? 1 : v;
+        internal static float Fall(float z, float pos) => Math.Max(0, 1 - Math.Abs(z - pos) / 1.0f);
+        internal static float Clamp01(float v) => v < 0 ? 0 : v > 1 ? 1 : v;
+    }
+
+    /// <summary>
+    /// Wann eine Scheibe bricht. Frontscheibe: Verbundsicherheitsglas (VSG) — reißt beim Anprall von Kopf/Körper
+    /// spinnennetzartig, bleibt im Rahmen und wölbt sich. Seiten- und Heckscheiben: Einscheibensicherheitsglas (ESG) —
+    /// zerfallen auf einmal in kleine Würfel, sobald sich der Rahmen verformt. Schwellen: **Annahmen** (Darstellung),
+    /// siehe docs/LITERATUR.md.
+    /// </summary>
+    public static class GlassBreak
+    {
+        /// <summary>ESG zerfällt, wenn die Tür/der Rahmen an der Scheibe so weit eindrückt (m).</summary>
+        public const float SideIntrusion_m = 0.03f;
+        /// <summary>Heckscheibe zerfällt ab diesem Heck-Knautschweg (m).</summary>
+        public const float RearCrush_m = 0.25f;
+        /// <summary>Frontscheibe reißt an den unteren Ecken ab diesem Front-Knautschweg (A-Säulen verformen sich, m).</summary>
+        public const float FrontCrush_m = 0.75f;
+        /// <summary>Anprall eines Körperteils auf die Frontscheibe ab dieser Geschwindigkeit senkrecht zur Scheibe: Spinnennetz (m/s).</summary>
+        public const float CrackSpeed_m_s = 3.0f;
+
+        /// <summary>Radius des Rissbilds (m) aus der Anprallgeschwindigkeit: 7 cm an der Schwelle, +3 cm je m/s, höchstens 35 cm.</summary>
+        public static float CrackRadius(float speed_m_s) => Math.Max(0.07f, Math.Min(0.35f, 0.07f + 0.03f * (speed_m_s - CrackSpeed_m_s)));
+
+        public static bool IsSide(Pane p) => p != Pane.Front && p != Pane.Rear;
+        public static bool IsLeft(Pane p) => p == Pane.LeftFront || p == Pane.LeftRear;
+
+        /// <summary>Mitte einer Seitenscheibe entlang der Länge (m).</summary>
+        public static float PaneCenterZ(CarProfile p, Pane pane)
+        {
+            float b = (p.RoofFrontZ + p.RoofRearZ) / 2;
+            return pane == Pane.LeftFront || pane == Pane.RightFront ? (b + p.CowlZ) / 2 : (p.DeckZ + b) / 2;
+        }
+
+        /// <summary>Verformung des Rahmens an einer ESG-Scheibe (m); Seite wie die Delle (voll am Kontaktort, 1 m daneben nicht mehr).</summary>
+        public static float Load(DeformState d, CarProfile p, Pane pane)
+        {
+            switch (pane)
+            {
+                case Pane.Rear: return d.Rear;
+                case Pane.Front: return d.Front;
+                case Pane.LeftFront: case Pane.LeftRear: return d.Left * VehicleShape.Fall(PaneCenterZ(p, pane), d.LeftPos);
+                default: return d.Right * VehicleShape.Fall(PaneCenterZ(p, pane), d.RightPos);
+            }
+        }
+
+        public static bool Breaks(DeformState d, CarProfile p, Pane pane) =>
+            pane == Pane.Rear ? d.Rear >= RearCrush_m : pane != Pane.Front && Load(d, p, pane) >= SideIntrusion_m;
+
+        public static string Label(Pane p) =>
+            p == Pane.Front ? "Frontscheibe" : p == Pane.Rear ? "Heckscheibe" : p == Pane.LeftFront ? "Seitenscheibe vorn links"
+            : p == Pane.LeftRear ? "Seitenscheibe hinten links" : p == Pane.RightFront ? "Seitenscheibe vorn rechts" : "Seitenscheibe hinten rechts";
+    }
+
+    /// <summary>
+    /// Rissbild im Verbundglas um einen Anprallort (2D, Meter, a quer, b entlang der Scheibe): radiale Risse vom Zentrum,
+    /// dazu ringförmige Risse zwischen benachbarten Radialen, im Zentrum ein dichter Bruchkern. Deterministisch über den Startwert.
+    /// </summary>
+    public static class GlassCrack
+    {
+        /// <summary>Ein Riss-Stück von (A0, B0) nach (A1, B1); <see cref="Reach"/> = Anteil des Radius (wann es beim Wachsen erscheint).</summary>
+        public struct Segment { public float A0, B0, A1, B1, Reach; }
+
+        public static List<Segment> Pattern(int seed, float radius)
+        {
+            var rng = new Random(seed);
+            var list = new List<Segment>();
+            int n = Math.Max(7, Math.Min(16, 6 + (int)(radius * 30)));
+            const int steps = 7;
+            var radial = new float[n][];   // je Radiale: Punkte (a, b) bei Bruchteil k/steps
+            double start = rng.NextDouble() * Math.PI * 2;
+            for (int i = 0; i < n; i++)
+            {
+                double ang = start + 2 * Math.PI * i / n + (rng.NextDouble() - 0.5) * 0.5;
+                float len = radius * (0.7f + 0.45f * (float)rng.NextDouble());
+                var pts = new float[2 * (steps + 1)];
+                float a = 0, b = 0;
+                for (int k = 1; k <= steps; k++)
+                {
+                    ang += (rng.NextDouble() - 0.5) * 0.35;
+                    float l = len / steps;
+                    a += l * (float)Math.Cos(ang); b += l * (float)Math.Sin(ang);
+                    pts[2 * k] = a; pts[2 * k + 1] = b;
+                }
+                radial[i] = pts;
+                for (int k = 0; k < steps; k++)
+                    list.Add(new Segment { A0 = pts[2 * k], B0 = pts[2 * k + 1], A1 = pts[2 * k + 2], B1 = pts[2 * k + 3], Reach = (k + 1) / (float)steps * len / radius });
+            }
+            // Ringe: zwischen benachbarten Radialen, mit leichter Zacke
+            int rings = radius > 0.2f ? 3 : 2;
+            for (int r = 1; r <= rings; r++)
+            {
+                int k = Math.Max(1, (int)Math.Round(steps * (r / (rings + 1.0))));
+                for (int i = 0; i < n; i++)
+                {
+                    if (rng.NextDouble() < 0.2) continue;
+                    var p0 = radial[i]; var p1 = radial[(i + 1) % n];
+                    float ma = (p0[2 * k] + p1[2 * k]) / 2 * (0.9f + 0.15f * (float)rng.NextDouble());
+                    float mb = (p0[2 * k + 1] + p1[2 * k + 1]) / 2 * (0.9f + 0.15f * (float)rng.NextDouble());
+                    float reach = k / (float)steps;
+                    list.Add(new Segment { A0 = p0[2 * k], B0 = p0[2 * k + 1], A1 = ma, B1 = mb, Reach = reach });
+                    list.Add(new Segment { A0 = ma, B0 = mb, A1 = p1[2 * k], B1 = p1[2 * k + 1], Reach = reach });
+                }
+            }
+            // Bruchkern: kurze, dichte Risse
+            float core = radius * 0.12f;
+            for (int i = 0; i < 14; i++)
+            {
+                double ang = rng.NextDouble() * Math.PI * 2, ang2 = ang + (rng.NextDouble() - 0.5) * 2;
+                float r0 = core * (float)rng.NextDouble(), r1 = core * (float)rng.NextDouble();
+                list.Add(new Segment
+                {
+                    A0 = r0 * (float)Math.Cos(ang), B0 = r0 * (float)Math.Sin(ang), A1 = r1 * (float)Math.Cos(ang2), B1 = r1 * (float)Math.Sin(ang2), Reach = 0.05f
+                });
+            }
+            return list;
+        }
     }
 }

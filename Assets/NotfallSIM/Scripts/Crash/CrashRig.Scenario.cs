@@ -595,6 +595,7 @@ namespace NotfallSIM.Crash
                 h.Gauges = null;
                 if (!h.Pedestrian && !h.Rider) h.MechanismId = MechanismFor(_traffic.Bodies[h.Vehicle]);
             }
+            PrepareGlass();
             Running = false;
             SelectHuman(Mathf.Clamp(p.Patient, 0, Humans.Count - 1));
             var measured = Humans[Mathf.Clamp(p.Patient, 0, Humans.Count - 1)].Measurements;
