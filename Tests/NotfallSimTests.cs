@@ -90,6 +90,7 @@ static class Tests
         Run("MANV: Vorsichtung nach mSTaRT aus den Befunden beim Eintreffen", TriageChecks);
         Run("Rettung: eingeklemmt/eingeschlossen aus der Verformung am Sitz, Rettungsart und Zeit bis zum Schockraum", RescueChecks);
         Run("Fahrzeugmodelle aus Code: Flächen nach außen, Knautschen, Seitendelle, Gabel", VehicleShapeChecks);
+        Run("Motorrad: Gabel, Nicken über das Vorderrad, PKW-Delle in Reihe; ISO-13232-Konfigurationen", MotorcycleChecks);
         Run("Verkehrsunfall: Fahrdynamik, Bremsen, Ausweichen, Fahrzeug-Kollision mit Kennlinien (TrafficSim)", TrafficChecks);
 
         Console.WriteLine($"\n{_passed} bestanden, {_failed} fehlgeschlagen");
@@ -1664,6 +1665,24 @@ static class Tests
         NotfallSIM.Crash.VehicleShape.DeformMotorcycle(moto, 0.3f);
         float front2 = moto.V.Where((v, i) => i % 3 == 2).Max();
         Check(front - front2 > 0.25f, $"Motorrad: Gabel staucht ({(front - front2) * 100:0} cm)");
+    }
+
+    static void MotorcycleChecks()
+    {
+        var vm = Load<NotfallSIM.Crash.VehicleModelFile>("vehicle_model.json");
+        Check(vm.motorcycle != null && vm.motorcycleConfigs != null && vm.motorcycleConfigs.Length >= 7, "Motorraddaten und Konfigurationen vorhanden");
+        var kinds = new[] { "side", "front", "bikeside", "none" };
+        Check(vm.motorcycleConfigs.All(c => kinds.Contains(c.contact) && !string.IsNullOrEmpty(c.label)), "Konfigurationen: Kontaktart und Bezeichnung gültig");
+        Check(vm.motorcycleConfigs.Any(c => c.id == "413-6,7/13,4") && vm.motorcycleConfigs.Any(c => c.contact == "none"), "ISO 413-6,7/13,4 und Alleinsturz enthalten");
+        var sim = new NotfallSIM.Crash.MotorcycleSim(vm.motorcycle, 0, 13.4, 0.1) { CarStiffness = 4.4e5 };
+        double zFace = 0.1 + vm.motorcycle.wheelbase_m / 2 + vm.motorcycle.wheelRadius_m + 0.01;
+        double maxPitch = 0;
+        for (int i = 0; i < 400; i++) { sim.Step(0.001, zFace); maxPitch = Math.Max(maxPitch, sim.Theta); }
+        Check(sim.MaxCrush > 0.3 && sim.MaxCrush < 0.5, $"48 km/h: Gabel staucht {sim.MaxCrush * 100:0} cm (ISO-Prüfungen: Gabel meist am Anschlag)");
+        Check(sim.CarCrush > 0.05 && sim.CarCrush < 0.3, $"PKW-Seite gibt {sim.CarCrush * 100:0} cm nach");
+        Check(maxPitch > 0.2, $"Heck hebt ab: Nicken {maxPitch * 180 / Math.PI:0}° nach 0,4 s");
+        Check(sim.MaxForkForce > 2e4 && sim.MaxForkForce < 2e5, $"Gabelkraft max. {sim.MaxForkForce / 1000:0} kN");
+        Check(sim.Vz < 13.4 * 0.6, $"Motorrad gebremst auf {sim.Vz:0.0} m/s");
     }
 
     static void TriageChecks()

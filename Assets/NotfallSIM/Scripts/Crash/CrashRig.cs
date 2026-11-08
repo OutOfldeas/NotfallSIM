@@ -15,6 +15,7 @@ namespace NotfallSIM.Crash
         public bool Airbag = true;                // nur PKW frontal
         public float Height_m = 1.80f, Mass_kg = 80;
         public bool Male = true;
+        public string MotoConfig = "413-6,7/13,4";  // ISO-13232-Anprallkonfiguration bzw. "alleinsturz" (vehicle_model.json › motorcycleConfigs)
         public int Seed = 1;
         public OccupantState Occupant = OccupantState.Entspannt;   // Muskeltonus (muscle_tone.json)
         public bool SoftContact = true;           // nachgiebiger Kontakt am Körper (SoftContact, impact_model.json) statt starrer Kollision
@@ -342,48 +343,7 @@ namespace NotfallSIM.Crash
                 }
 
                 case "motorrad":
-                {
-                    float seatY = 0.85f;
-                    var bike = Vehicle("Motorrad", Vector3.zero);
-                    var t = bike.transform;
-                    Part(t, "Rumpf", new Vector3(0, 0.45f, 0.1f), new Vector3(0.2f, 0.46f, 1.4f), new Color(0.1f, 0.25f, 0.55f), visible: false);
-                    var dm = RagdollBuilder.Dims(H);
-                    Part(t, "Sitzbank", new Vector3(0, seatY - dm.ThighRadius - 0.04f, -0.05f), new Vector3(0.24f, 0.08f, 0.5f), new Color(0.1f, 0.1f, 0.1f), counts: false, visible: false);
-                    // Hindernis: Seite eines querenden PKW (Kollider), sichtbar als PKW-Modell, das nach +x fährt
-                    float gap = 0.4f;
-                    var obstacle = Part(null, "Hindernis (PKW-Seite)", new Vector3(0, 0.6f, 0.8f + gap + 0.25f), new Vector3(3f, 1.2f, 0.5f), new Color(0.55f, 0.1f, 0.1f), visible: false);
-                    _spawned.Add(obstacle);
-                    var upper = Part(null, "Hindernis (PKW-Dach)", new Vector3(0, 1.3f, 0.8f + gap + 0.9f), new Vector3(2.2f, 0.16f, 1.6f), new Color(0.55f, 0.1f, 0.1f), visible: false);
-                    _spawned.Add(upper);
-                    var oppCar = new GameObject("Unfallgegner (PKW)");
-                    _spawned.Add(oppCar);
-                    oppCar.transform.position = new Vector3(0, 0, 0.8f + gap + 0.875f);
-                    CarModel(oppCar.transform, SedanProfile(), new Color(0.55f, 0.1f, 0.1f), Vector3.zero, 90);
-                    Ragdoll = RagdollBuilder.Build(new Vector3(0, seatY, 0), Quaternion.identity, RagdollPose.Straddling, H, p.Mass_kg, p.Male, invertKneeFlexion, headScale: 1.25f);
-                    Vector3 mr = Ragdoll.HandTipRight, ml = Ragdoll.HandTipLeft;
-                    var bar = new Vector3(0, (mr.y + ml.y) / 2 - 0.03f, Mathf.Max(mr.z, ml.z) + 0.03f);
-                    float barW = Mathf.Abs(mr.x - ml.x) + 0.15f;
-                    Part(t, "Lenker", bar, new Vector3(barW, 0.04f, 0.04f), new Color(0.6f, 0.6f, 0.6f), visible: false);
-                    float bikeCrush = 0;
-                    var moto = VehicleVisual.Moto(t, new VehicleShape.MotoProfile
-                    {
-                        SeatTop = seatY - dm.ThighRadius, SeatZ = -0.05f, BarY = bar.y, BarZ = bar.z - 0.1f, BarWidth = barW
-                    }, new Color(0.1f, 0.25f, 0.55f), new Vector3(0, 0, 0.1f));
-                    moto.Source = () => new DeformState { Front = bikeCrush };
-                    _visuals.Add(moto);
-                    var rbBike = bike.GetComponent<Rigidbody>();
-                    Drive(approach, new Vector3(0, 0, v), true);
-                    float tHit = gap / Mathf.Max(0.1f, v);
-                    const float T = 0.04f;
-                    drive = (time, dt) =>
-                    {
-                        float u = Mathf.Clamp01((time - tHit) / T);
-                        float vel = v - v * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
-                        if (time >= tHit) bikeCrush = Mathf.Min(0.45f, bikeCrush + (v - vel) * dt);   // sichtbar: Gabel staucht
-                        rbBike.MovePosition(rbBike.position + new Vector3(0, 0, vel * dt));
-                    };
-                    return 1.2f;
-                }
+                    return BuildMotorcycle(p, approach, out drive);
 
                 case "fussgaenger":
                 {

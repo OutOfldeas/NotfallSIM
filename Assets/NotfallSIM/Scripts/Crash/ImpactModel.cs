@@ -117,6 +117,25 @@ namespace NotfallSIM.Crash
     }
 
     [Serializable]
+    public class MotorcycleModel
+    {
+        public double mass_kg, pitchInertia_kgm2, wheelbase_m, wheelRadius_m, comForward_m, comHeight_m;
+        public FaceCurve fork;
+        public double unloadFactor, tyreStiffness_N_m, tyreDamping_Ns_m, slideFriction;
+        public string sourceId, evidence, note;
+    }
+
+    /// <summary>Anprallkonfiguration (ISO 13232-2, Tabelle 1, bzw. Alleinsturz).</summary>
+    [Serializable]
+    public class MotorcycleConfig
+    {
+        public string id, label;
+        public double carSpeed_m_s, bikeSpeed_m_s, heading_deg, offset_m;
+        /// <summary>side: Motorrad trifft PKW-Seite; front: PKW-Front; bikeside: PKW-Front trifft Motorradseite; none: Alleinsturz.</summary>
+        public string contact;
+    }
+
+    [Serializable]
     public class VehicleModelFile
     {
         public string version, note;
@@ -125,6 +144,8 @@ namespace NotfallSIM.Crash
         public VehiclePart[] pedestrianFront;
         /// <summary>Fahrzeugtypen für frei gestellte Unfälle (<see cref="TrafficSim"/>).</summary>
         [System.Runtime.Serialization.OptionalField] public VehicleType[] vehicleTypes;
+        [System.Runtime.Serialization.OptionalField] public MotorcycleModel motorcycle;
+        [System.Runtime.Serialization.OptionalField] public MotorcycleConfig[] motorcycleConfigs;
         public ImpactSource[] sources;
     }
 
