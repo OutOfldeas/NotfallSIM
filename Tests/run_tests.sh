@@ -33,6 +33,7 @@ mcs -nologo -warnaserror- \
     $SCRIPTS/Crash/MuscleTone.cs \
     $SCRIPTS/Crash/ImpactModel.cs \
     $SCRIPTS/Crash/TrafficSim.cs \
+    $SCRIPTS/Crash/VehicleShape.cs \
     Tests/NotfallSimTests.cs
 
 mono "$OUT/tests.exe" Assets/StreamingAssets/NotfallSIM

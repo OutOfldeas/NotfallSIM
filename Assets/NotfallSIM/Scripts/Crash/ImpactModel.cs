@@ -87,6 +87,8 @@ namespace NotfallSIM.Crash
         readonly SideImpactModel _m;
         readonly double _k, _share;
         public double BulletVelocity, StruckVelocity, Crush, MaxCrush, Force, Door, DoorVelocity, MaxDoorVelocity;
+        /// <summary>Anteil der Seitenstruktur am Knautschweg (Rest: Front des Gegners).</summary>
+        public double SideShare => _share;
         double _fMax;
         public SideImpactState(SideImpactModel m, double impactSpeed_m_s)
         {
