@@ -83,7 +83,10 @@ namespace NotfallSIM.Crash
                 .FirstOrDefault(b => { var l = b.GetComponentInChildren<TMP_Text>(true); return l != null && l.text.StartsWith("Gurt"); });
             if (belt != null) _beltRow = belt.transform.parent != settingsText.transform.parent ? belt.transform.parent.gameObject : belt.gameObject;
             BuildScenarioPanel();
-            SelectMechanism("pkw_frontal");
+            // Auswahl aus dem Hauptmenü übernehmen (Zufallsfall „Fußgänger von PKW erfasst“ → Fußgänger)
+            string start = Simulation.SessionSetup.SandboxMechanism;
+            Simulation.SessionSetup.SandboxMechanism = null;
+            SelectMechanism(start != null && Mechanisms.ContainsKey(start) ? start : "pkw_frontal");
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
             resultText.text = "Mechanismus wählen und „Crash starten“ drücken.";
             _replayButton = MakeReplayButton();
