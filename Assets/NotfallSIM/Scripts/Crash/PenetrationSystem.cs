@@ -59,6 +59,12 @@ namespace NotfallSIM.Crash
             Vector3 axis = obj.Collider.transform.forward;
             if (Vector3.Dot(axis, body.Collider.bounds.center - point) < 0) axis = -axis;
             var rule = ImpactModel.PenetrationRule(_model, body.Sensor != null ? body.Sensor.Region : "");
+            // Einstich an der Spitze, nicht vor ihr: der gemeldete Kontaktpunkt kann vor der Spitze liegen (Seite der Klinge),
+            // dann wäre die Tiefe gleich zu Beginn negativ und der Kanal würde sofort wieder geschlossen
+            var ot0 = obj.Collider.transform;
+            Vector3 tipDir0 = Vector3.Dot(ot0.forward, axis) >= 0 ? ot0.forward : -ot0.forward;
+            Vector3 tip0 = obj.Collider.bounds.center + tipDir0 * HalfLength(obj.Collider);
+            if (Vector3.Dot(tip0 - point, axis) < 0) point = tip0;
             var a = new Active
             {
                 Obj = obj, Body = body, BodyRb = bodyRb,
@@ -126,7 +132,7 @@ namespace NotfallSIM.Crash
                 Vector3 vBody = a.BodyRb.GetPointVelocity(entry);
                 float vRel = Vector3.Dot(vObj - vBody, axis);   // > 0: tiefer
 
-                if (a.Depth <= -0.002f)
+                if (a.Depth <= -0.002f && vRel <= 0)
                 {
                     // herausgezogen: Kanal schließen, Kollision wieder zulassen
                     End(a, embedded: false);

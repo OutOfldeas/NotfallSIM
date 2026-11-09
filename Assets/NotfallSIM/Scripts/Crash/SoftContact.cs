@@ -251,7 +251,7 @@ namespace NotfallSIM.Crash
                     if (obj != null && obj.Def.Sharp && f >= obj.SkinForce_N && closing > 0.3f)
                     {
                         Vector3 axis = rotObj * Vector3.forward;
-                        if (Mathf.Abs(Vector3.Dot(axis, normal)) > 0.8f)
+                        if (Mathf.Abs(Vector3.Dot(axis, normal)) > 0.7f)   // Spitze voran (bis ca. 45° schräg)
                             PenetrationRequests.Enqueue(new PenetrationRequest { BodyCollider = bodyId, ObjectCollider = otherId, Point = point, Normal = normal, Force_N = (float)f });
                     }
                 }
