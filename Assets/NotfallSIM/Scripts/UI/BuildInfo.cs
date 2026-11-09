@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using UnityEngine;
 
-namespace NotfallSIM.Core
+namespace NotfallSIM.UI
 {
     /// <summary>
     /// Welcher Stand läuft (git-Commit, im Editor aus .git gelesen). Damit ist auf jedem Screenshot zu sehen, ob der
