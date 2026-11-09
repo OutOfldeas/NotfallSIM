@@ -82,7 +82,7 @@ namespace NotfallSIM.Crash
             v.childControlWidth = true; v.childControlHeight = true; v.childForceExpandWidth = true; v.childForceExpandHeight = false;
             _scPanel.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            Row(src, B("◀ Vorlage", () => CyclePreset(-1)), B("Vorlage ▶", () => CyclePreset(1)));
+            Row(src, B("< Vorlage", () => CyclePreset(-1)), B("Vorlage >", () => CyclePreset(1)));
             Row(src, B("vehicle:Fahrzeug wählen", () => { _vehSel = (_vehSel + 1) % Math.Max(1, _sc.vehicles.Length); RefreshScenario(false); }),
                      B("type:Typ", () => CycleType()));
             Row(src, B("Winkel −15°", () => Turn(-15)), B("Winkel +15°", () => Turn(15)));
@@ -305,7 +305,7 @@ namespace NotfallSIM.Crash
                 int belted = (v.occupants ?? new TrafficOccupant[0]).Count(o => o.belted), n = (v.occupants ?? new TrafficOccupant[0]).Length;
                 string man = ManeuverText(m);
                 string aim = string.IsNullOrEmpty(v.target) ? "" : $" → {v.target.ToUpper()} {FaceLabel(v.targetFace)}{(Math.Abs(v.targetOffset_m) > 0.01 ? $" {v.targetOffset_m:+0.0;-0.0} m" : "")}";
-                sb.AppendLine($"{(i == _vehSel ? "▶ " : "")}<b>{v.id.ToUpper()}</b> {v.speed_kmh:0} km/h, {v.heading_deg:0}°{aim}, {n} Insass{(n == 1 ? "e" : "en")} ({belted} angegurtet){man}");
+                sb.AppendLine($"{(i == _vehSel ? "> " : "")}<b>{v.id.ToUpper()}</b> {v.speed_kmh:0} km/h, {v.heading_deg:0}°{aim}, {n} Insass{(n == 1 ? "e" : "en")} ({belted} angegurtet){man}");
             }
             foreach (var w in _sc.pedestrians ?? new TrafficPedestrian[0]) sb.AppendLine($"{w.label}: {w.speed_kmh:0} km/h, {w.heading_deg:0}°");
             var pr = rig.TrafficPrediction;
@@ -350,7 +350,7 @@ namespace NotfallSIM.Crash
                     cat = c != null ? $"<color={c.color}><b>{c.label}</b></color> " : "";
                 }
                 string resc = plan != null ? $" <size=80%>[{sit.Text}; {plan.Label}, {plan.Total_min:0} min bis Schockraum]</size>" : "";
-                sb.AppendLine($"{(i == _p.Patient ? "▶ " : "")}{cat}{h.Label}: <size=85%>{(line.Length > 0 ? line : "kaum verletzt")}</size>{resc}");
+                sb.AppendLine($"{(i == _p.Patient ? "> " : "")}{cat}{h.Label}: <size=85%>{(line.Length > 0 ? line : "kaum verletzt")}</size>{resc}");
                 if (i == _p.Patient)
                 {
                     chosen = res;

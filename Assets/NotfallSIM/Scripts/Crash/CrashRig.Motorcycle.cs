@@ -14,6 +14,7 @@ namespace NotfallSIM.Crash
     public partial class CrashRig
     {
         const float BikeWheelZ = 0.1f;      // Mitte zwischen den Rädern relativ zum Fahrzeugursprung
+        float _faceShift;
 
         public static MotorcycleConfig MotorcycleConfigFor(string id)
         {
@@ -162,14 +163,19 @@ namespace NotfallSIM.Crash
             float halfFace = frontFace ? W / 2 : L / 2;
             Vector2 along = frontFace ? r : f;
             MotorcycleSim sim = null;
+            _faceShift = 0;
             drive = (time, dt) =>
             {
                 if (sim == null && mm != null)
                     sim = new MotorcycleSim(mm, rbBike.position.z, vBike, BikeWheelZ) { CarStiffness = frontFace ? 3.0e5 : 4.4e5 };
-                var carPos = rbCar.position + u3 * dt;
+                // PKW bremst 0,25 s nach dem Anprall mit 7 m/s² (Reaktion des Fahrers), bleibt im Bild
+                float vNow = time < tHit + 0.25f ? vCar : Mathf.Max(0, vCar - 7f * (time - tHit - 0.25f));
+                var carPos = rbCar.position + (vCar > 0 ? u3 / vCar * vNow : Vector3.zero) * dt;
                 rbCar.MovePosition(carPos);
                 if (sim == null) return;
-                float zo = zc + rate * (time - tHit);
+                // Fläche bewegt sich mit dem PKW (beim Bremsen langsamer): Weg aufsummieren
+                if (time >= tHit) _faceShift += rate * (vCar > 0 ? vNow / vCar : 0) * dt;
+                float zo = zc + _faceShift + (time < tHit ? rate * (time - tHit) : 0);
                 // Schnittpunkt noch auf der Fläche? (Ort entlang der Fläche relativ zur PKW-Mitte)
                 float s = Vector2.Dot(new Vector2(0, zo) - new Vector2(carPos.x, carPos.z), along);
                 bool active = Mathf.Abs(s) <= halfFace - 0.05f;
