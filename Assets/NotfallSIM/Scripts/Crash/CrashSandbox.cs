@@ -437,7 +437,7 @@ namespace NotfallSIM.Crash
         void ShowSettings() => settingsText.text = SettingsText() + StandLine;
 
         /// <summary>Welcher Code läuft (git-Commit) — klein und grau, damit Screenshots den Stand zeigen.</summary>
-        static string StandLine => Core.BuildInfo.Label.Length > 0 ? $"\n<size=70%><color=#9aa3ad>{Core.BuildInfo.Label}</color></size>" : "";
+        static string StandLine => NotfallSIM.UI.BuildInfo.Label.Length > 0 ? $"\n<size=70%><color=#9aa3ad>{NotfallSIM.UI.BuildInfo.Label}</color></size>" : "";
 
         string SettingsText()
         {
