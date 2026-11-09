@@ -55,6 +55,7 @@ namespace NotfallSIM.EditorTools
         static void Tick()
         {
             if (!Enabled || _busy || EditorApplication.timeSinceStartup < _next) return;
+            // nicht im Play-Modus holen: der laufende Test bliebe sonst auf dem alten Stand
             if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
             Start(manual: false);
         }
@@ -133,7 +134,23 @@ namespace NotfallSIM.EditorTools
             _lastWarning = null;
             if (!r.Updated) { if (manual) Debug.Log($"[NotfallSIM] Git: aktuell ({r.To})."); return; }
             int n = string.IsNullOrEmpty(r.Log) ? 0 : r.Log.Split('\n').Length;
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                // Im Play-Modus läuft noch der alte Code weiter — erst nach dem Beenden laden, und das deutlich sagen
+                Debug.LogWarning($"[NotfallSIM] Git: neuer Stand {r.To} geholt ({n} Commits) — läuft erst nach dem Beenden des Play-Modus. Bitte Play beenden und neu starten.\n{r.Log}");
+                EditorApplication.playModeStateChanged -= RefreshAfterPlay;
+                EditorApplication.playModeStateChanged += RefreshAfterPlay;
+                return;
+            }
             Debug.Log($"[NotfallSIM] Git: aktualisiert {r.From} → {r.To} ({n} Commits)\n{r.Log}");
+            AssetDatabase.Refresh();
+        }
+
+        static void RefreshAfterPlay(PlayModeStateChange s)
+        {
+            if (s != PlayModeStateChange.EnteredEditMode) return;
+            EditorApplication.playModeStateChanged -= RefreshAfterPlay;
+            Debug.Log("[NotfallSIM] Git: neuer Stand wird geladen.");
             AssetDatabase.Refresh();
         }
 
