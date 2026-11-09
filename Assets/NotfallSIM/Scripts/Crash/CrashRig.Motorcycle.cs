@@ -164,6 +164,7 @@ namespace NotfallSIM.Crash
             Vector2 along = frontFace ? r : f;
             MotorcycleSim sim = null;
             _faceShift = 0;
+            float lastContact = -1, fallStart = -1, theta0 = 0, y0 = 0;
             drive = (time, dt) =>
             {
                 if (sim == null && mm != null)
@@ -179,9 +180,22 @@ namespace NotfallSIM.Crash
                 // Schnittpunkt noch auf der Fläche? (Ort entlang der Fläche relativ zur PKW-Mitte)
                 float s = Vector2.Dot(new Vector2(0, zo) - new Vector2(carPos.x, carPos.z), along);
                 bool active = Mathf.Abs(s) <= halfFace - 0.05f;
-                sim.Step(dt, active ? zo : double.PositiveInfinity);
+                if (fallStart < 0) sim.Step(dt, active ? zo : double.PositiveInfinity);
+                if (sim.ForkForce > 0) lastContact = time;
                 double ry, rz;
                 sim.Root(out ry, out rz);
+                // Nach dem Anprall (keine Kraft mehr, Heck hoch) kippt das Motorrad in Wirklichkeit seitlich weg — die
+                // Seitenansicht kann das nicht: in 0,5 s auf die Seite legen und das Nicken zurücknehmen
+                if (fallStart < 0 && lastContact >= 0 && time - lastContact > 0.08f && sim.Theta > 0.35)
+                { fallStart = time; theta0 = (float)sim.Theta; y0 = (float)ry; }
+                if (fallStart >= 0)
+                {
+                    float u = Mathf.SmoothStep(0, 1, Mathf.Clamp01((time - fallStart) / 0.5f));
+                    rbBike.MovePosition(new Vector3(rbBike.position.x, Mathf.Lerp(y0, 0.15f, u), rbBike.position.z));
+                    rbBike.MoveRotation(Quaternion.Euler(theta0 * (1 - u) * Mathf.Rad2Deg, 0, 85f * u));
+                    bikeCrush = (float)sim.VisibleCrush;
+                    return;
+                }
                 rbBike.MovePosition(new Vector3(rbBike.position.x, (float)ry, (float)rz));
                 rbBike.MoveRotation(Quaternion.Euler((float)(sim.Theta * Mathf.Rad2Deg), 0, 0));
                 bikeCrush = (float)sim.VisibleCrush;

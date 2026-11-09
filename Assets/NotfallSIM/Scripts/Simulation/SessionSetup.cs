@@ -8,6 +8,7 @@ namespace NotfallSIM.Simulation
         public static bool Active;
         public static string ScenarioId;      // festes Szenario oder null
         public static string RandomMechanism; // Zufallsfall aus diesem Mechanismus oder null
+        public static string SandboxMechanism; // Mechanismus, mit dem die Unfall-Sandbox startet (aus der Auswahl im Hauptmenü) oder null
         public static PhysiologyMode Mode = PhysiologyMode.Textbook;
         public static bool CtInTraumaRoom;
         public static double BodyBmi;

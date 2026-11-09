@@ -72,7 +72,13 @@ namespace NotfallSIM.UI
             _bodyIndex = System.Math.Max(0, System.Array.FindIndex(BodyComposition.BodyTypes, t => t.bmi == SessionSetup.BodyBmi));
             RuntimeUi.Label(right, "", 10, Dim, 12);
             RuntimeUi.Button(right, "Schockraum starten", Selected, StartTraumaRoom, 60, 26);
-            RuntimeUi.Button(right, "Unfall-Sandbox (Ragdoll-Crash)", Primary, () => Load(SessionSetup.CrashScene), 56, 22);
+            RuntimeUi.Button(right, "Unfall-Sandbox (Ragdoll-Crash)", Primary, () =>
+            {
+                // gewählten Zufallsfall-Mechanismus in der Sandbox vorwählen (vorher startete sie immer mit PKW frontal)
+                string m = _choice != null && _choice.StartsWith("random:") ? _choice.Substring(7) : null;
+                SessionSetup.SandboxMechanism = m == "messerangriff" ? "gewalt" : m;
+                Load(SessionSetup.CrashScene);
+            }, 56, 22);
             _warning = RuntimeUi.Label(right, "", 18, new Color(1f, 0.48f, 0.44f), 50);
             RuntimeUi.Label(right, "<size=80%>Experimentelles Lernwerkzeug, kein Medizinprodukt. Werte aus einem vereinfachten, literaturgestützten Modell im Entwurfsstatus.\n<size=70%>Anatomie: BodyParts3D, © The Database Center for Life Science, CC BY-SA 2.1 Japan (bearbeitet).</size></size>", 16, Dim, 84);
 
