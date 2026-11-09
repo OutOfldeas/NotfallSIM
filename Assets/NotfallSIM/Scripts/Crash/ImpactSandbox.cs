@@ -366,7 +366,9 @@ namespace NotfallSIM.Crash
                 }
                 default: // gefuehrt: Schlag bzw. Stich aus 35 cm, wirksame Masse von Arm und Gegenstand
                 {
-                    Vector3 dir = -toCam;
+                    // Stich: überwiegend senkrecht in die Haut (Flächennormale), etwas aus Blickrichtung — aus reiner
+                    // Blickrichtung traf die Klinge den liegenden Körper flach, glitt ab und gab einen Schnitt statt eines Stichs
+                    Vector3 dir = o.Sharp && seg != null ? -(hit.normal * 0.75f + toCam * 0.25f).normalized : -toCam;
                     Vector3 start = hit.point - dir * 0.35f;
                     Quaternion rot = o.Sharp || o.shape != "capsule" ? Quaternion.LookRotation(dir)
                                    : Quaternion.LookRotation(Vector3.Cross(dir, Vector3.up).sqrMagnitude > 1e-4f ? Vector3.Cross(dir, Vector3.up) : Vector3.right, -dir); // Schläger quer
