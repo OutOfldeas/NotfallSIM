@@ -699,7 +699,7 @@ namespace NotfallSIM.Crash
             while (t < RecordedDuration && !_stopPlayback)
             {
                 // Vorlauf in Echtzeit, Zeitlupe erst kurz vor dem Aufprall
-                if (!PlaybackPaused) t += Time.deltaTime * (t < CrashStart - 0.15f ? 1f : PlaybackSpeed);
+                if (!PlaybackPaused) t += Time.deltaTime * (t < CrashStart - 0.15f || t > CrashStart + SlowMotionWindow_s ? 1f : PlaybackSpeed);
                 else t = PlaybackTime;    // Seek während der Pause übernehmen
                 ShowPose(t);
                 yield return null;
@@ -711,6 +711,9 @@ namespace NotfallSIM.Crash
         }
 
         bool _stopPlayback;
+
+        /// <summary>Zeitlupe nur bis so lange nach dem Aufprall, danach Echtzeit (Gewalt: kurze Einwirkung, langes Ausrollen).</summary>
+        public float SlowMotionWindow_s = float.PositiveInfinity;
 
         /// <summary>Wiedergabe beenden: springt im nächsten Bild in die Endlage, Abschluss wie sonst.</summary>
         public void StopPlayback() { if (Playing) _stopPlayback = true; }

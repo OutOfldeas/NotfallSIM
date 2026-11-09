@@ -273,7 +273,10 @@ namespace NotfallSIM.Crash
                 }
             }
             Running = false;
+            SlowMotionWindow_s = 0.5f;   // nur der Treffer in Zeitlupe, das Liegenbleiben in Echtzeit
+            progress?.Invoke(1f);        // „Wiedergabe läuft“ statt hängender 100 %
             yield return Replay(slowMotion);
+            SlowMotionWindow_s = float.PositiveInfinity;
             done?.Invoke(record);
         }
 

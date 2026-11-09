@@ -89,6 +89,9 @@ namespace NotfallSIM.Crash
             }
         }
 
+        /// <summary>Bodenkontakt ab dieser Annäherungsgeschwindigkeit als Anprall gezählt (Annahme).</summary>
+        public const float GroundImpactSpeed_m_s = 0.5f;
+
         void OnCollisionEnter(Collision c) => Collect(c);
         void OnCollisionStay(Collision c) => Collect(c);
 
@@ -109,6 +112,19 @@ namespace NotfallSIM.Crash
             if (impulse <= 0) return;
             _stepImpulse += impulse;
             string kind = surface != null ? surface.kind : otherSensor != null ? "insasse" : "vehicle";   // anderes Ragdoll: Mitinsasse bzw. Fußgänger
+            // Aufliegen ist kein Anprall: der ruhende Kopf (≈ 45 N) erreicht die Prellmarkenschwelle (5,9 Ns) schon nach
+            // 0,13 s. Bodenkontakt zählt für Zeichen und Verletzungen nur, wenn das Körperteil auftrifft (≥ 0,5 m/s); Gleiten
+            // (Schürfung) wird weiter erfasst.
+            if (kind == "ground" && c.contactCount > 0)
+            {
+                var cp0 = c.GetContact(0);
+                Vector3 rel0 = c.relativeVelocity;
+                if (Mathf.Abs(Vector3.Dot(rel0, cp0.normal)) < GroundImpactSpeed_m_s)
+                {
+                    float slide0 = (rel0 - Vector3.Dot(rel0, cp0.normal) * cp0.normal).magnitude;
+                    if (slide0 < 0.3f) return;
+                }
+            }
             if (!Contacts.TryGetValue(kind, out var sc)) Contacts[kind] = sc = new SurfaceContact();
             sc.Impulse_Ns += impulse;
             sc.StepImpulse += impulse;

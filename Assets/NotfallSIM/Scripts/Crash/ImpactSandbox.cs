@@ -406,7 +406,9 @@ namespace NotfallSIM.Crash
             _actions.Add(action);
             _host.SetGewaltResult(null, null, $"Aufprall wird berechnet …\n<size=80%>{action}</size>");
             StartCoroutine(_rig.RunImpact(_host.SlowMotion, rec => OnImpact(rec, action),
-                f => _host.SetGewaltResult(null, null, $"Aufprall wird berechnet … {f:P0}\n<size=80%>{action}\n0,1-ms-Schritte während jedes Kontakts, sonst 1 ms.</size>"),
+                f => _host.SetGewaltResult(null, null, f < 1
+                    ? $"Aufprall wird berechnet … {f:P0}\n<size=80%>{action}\n0,1-ms-Schritte während jedes Kontakts, sonst 1 ms.</size>"
+                    : $"Berechnet — Wiedergabe läuft …\n<size=80%>{action}\nLeertaste Pause · R wiederholen · Ergebnis folgt nach der Wiedergabe</size>"),
                 perStep));
         }
 
