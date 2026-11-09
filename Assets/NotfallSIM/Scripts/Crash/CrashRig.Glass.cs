@@ -87,7 +87,9 @@ namespace NotfallSIM.Crash
                 foreach (var col in w.Bodies)
                 {
                     if (col == null || !col.enabled) continue;
-                    var local = st.InverseTransformPoint(col.bounds.center);
+                    // im Rahmen der Scheibe, aber in Metern (die Scheibe ist ein skalierter Quader — InverseTransformPoint
+                    // würde durch die Dicke von 4 cm teilen und Geschwindigkeiten 25-fach überhöhen)
+                    var local = Quaternion.Inverse(st.rotation) * (col.bounds.center - st.position);
                     Vector3 prev;
                     bool hadPrev = w.Prev.TryGetValue(col, out prev);
                     w.Prev[col] = local;
@@ -108,7 +110,7 @@ namespace NotfallSIM.Crash
                     float ny, nz;
                     VehicleShape.ShieldNormal(w.Vis.Profile, out ny, out nz);
                     var outward = w.Vis.Go.transform.TransformDirection(new Vector3(0, ny, nz));
-                    var motion = st.TransformDirection(new Vector3(0, vLocal.y, 0));
+                    var motion = st.rotation * new Vector3(0, vLocal.y, 0);
                     float radius = GlassBreak.CrackRadius(vn);
                     float x = m.x, z = m.z;
                     VehicleShape.ClampToShield(w.Vis.Profile, ref x, ref z);
