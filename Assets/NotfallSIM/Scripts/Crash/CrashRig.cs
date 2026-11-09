@@ -695,7 +695,8 @@ namespace NotfallSIM.Crash
             ShowPose(0);
             SetVisible(true);
             float t = 0;
-            while (t < RecordedDuration)
+            _stopPlayback = false;
+            while (t < RecordedDuration && !_stopPlayback)
             {
                 // Vorlauf in Echtzeit, Zeitlupe erst kurz vor dem Aufprall
                 if (!PlaybackPaused) t += Time.deltaTime * (t < CrashStart - 0.15f ? 1f : PlaybackSpeed);
@@ -708,6 +709,11 @@ namespace NotfallSIM.Crash
             RestorePhysics();
             finished?.Invoke();
         }
+
+        bool _stopPlayback;
+
+        /// <summary>Wiedergabe beenden: springt im nächsten Bild in die Endlage, Abschluss wie sonst.</summary>
+        public void StopPlayback() { if (Playing) _stopPlayback = true; }
 
         /// <summary>Während der Wiedergabe springen (s, relativ).</summary>
         public void Seek(float delta_s) { if (Playing) ShowPose(PlaybackTime + delta_s); }

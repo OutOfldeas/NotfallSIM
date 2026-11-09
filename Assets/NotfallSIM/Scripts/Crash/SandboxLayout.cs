@@ -41,6 +41,10 @@ namespace NotfallSIM.Crash
             l._viewLayout = view.AddComponent<LayoutElement>();
             l._viewLayout.preferredHeight = 400;
             view.AddComponent<RectMask2D>();
+            // unsichtbare Fläche: ohne Grafik bekommt die Ansicht keine Mausrad-Ereignisse
+            var hit = view.AddComponent<Image>();
+            hit.color = new Color(0, 0, 0, 0);
+            hit.raycastTarget = true;
             var re = result.GetComponent<LayoutElement>();
             if (re != null) re.ignoreLayout = true;
             var rt = result.rectTransform;

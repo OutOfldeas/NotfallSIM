@@ -89,7 +89,13 @@ namespace NotfallSIM.Crash
             }
             Vz += Fz / _m.mass_kg * dt; Vy += Fy / _m.mass_kg * dt; W += tau / _m.pitchInertia_kgm2 * dt;
             Z += Vz * dt; Y += Vy * dt; Theta += W * dt;
+            // Heck legt sich an den Gegner bzw. kippt in Wirklichkeit seitlich weg (in der Seitenansicht nicht abbildbar):
+            // Nicken höchstens 75°, kein Überschlag über das Vorderrad
+            if (Theta > MaxPitch_rad) { Theta = MaxPitch_rad; if (W > 0) W = -0.2 * W; }
         }
+
+        /// <summary>Größtes Nicken (rad) — Annahme, siehe oben.</summary>
+        public const double MaxPitch_rad = 75 * Math.PI / 180;
 
         /// <summary>Steifigkeit des Gegners an der Anprallstelle (N/m); 0 = starr (Wand).</summary>
         public double CarStiffness;

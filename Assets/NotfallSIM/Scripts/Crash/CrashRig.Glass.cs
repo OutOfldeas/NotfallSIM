@@ -18,6 +18,7 @@ namespace NotfallSIM.Crash
         {
             public Collider Shield;
             public VehicleVisual Vis;
+            public List<Collider> Bodies;   // wer die Scheibe treffen kann
             public readonly Dictionary<Collider, Vector3> Prev = new Dictionary<Collider, Vector3>();
             public float PrevTime = float.NaN, MaxDepth, Speed;
             public bool Cracked;
@@ -58,7 +59,15 @@ namespace NotfallSIM.Crash
                     // zugehöriges Modell: gleicher Elternknoten, sonst das nächste
                     var vis = cars.FirstOrDefault(v => v.Go.transform.parent == c.transform.parent)
                               ?? cars.OrderBy(v => (v.Go.transform.position - c.transform.position).sqrMagnitude).FirstOrDefault();
-                    if (vis != null) _shields.Add(new ShieldWatch { Shield = c, Vis = vis });
+                    if (vis == null) continue;
+                    // Szenario: nur Insassen dieses Fahrzeugs, Fußgänger und Motorradfahrer — nicht die Insassen des Gegners,
+                    // deren Körper beim Ineinanderschieben der Fahrzeuge die Scheibe überlappen können
+                    var bodies = _bodyColliders;
+                    var vr = _trafficVehicles.FirstOrDefault(x => x.Root != null && x.Root.transform == c.transform.parent);
+                    if (vr != null)
+                        bodies = Humans.Where(h => h.Rd != null && h.Rd.Root != null && (h.Vehicle == vr.Index || h.Pedestrian || h.Rider))
+                                       .SelectMany(h => h.Rd.Root.GetComponentsInChildren<Collider>()).Where(x => x != null && !x.isTrigger).ToList();
+                    _shields.Add(new ShieldWatch { Shield = c, Vis = vis, Bodies = bodies });
                 }
             }
         }
@@ -75,7 +84,7 @@ namespace NotfallSIM.Crash
                 var b = w.Shield.bounds;
                 b.Expand(0.05f);
                 float depth = 0, dtPrev = time - w.PrevTime;
-                foreach (var col in _bodyColliders)
+                foreach (var col in w.Bodies)
                 {
                     if (col == null || !col.enabled) continue;
                     var local = st.InverseTransformPoint(col.bounds.center);

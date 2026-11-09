@@ -27,6 +27,20 @@ namespace NotfallSIM.Crash
 
         readonly CrashParams _p = new CrashParams();
         bool Busy => rig.Running || rig.Playing;
+        Action _pending;
+        GameObject _beltRow;
+
+        /// <summary>
+        /// Knopf während der Wiedergabe: Wiedergabe abbrechen (Endlage, Ergebnis wie sonst) und die Aktion danach ausführen,
+        /// statt den Klick still zu verwerfen. Während der Rechnung wird nur gemerkt. true = jetzt nicht ausführen.
+        /// </summary>
+        bool Defer(Action again)
+        {
+            if (!Busy) return false;
+            _pending = again;
+            if (rig.Playing && !rig.Running) rig.StopPlayback();
+            return true;
+        }
         GameObject _replayButton;
         float _slowMo = 0.2f;
         CrashResult _result;
@@ -64,6 +78,10 @@ namespace NotfallSIM.Crash
             _configText = MakeConfigButton();
             SandboxLayout.Attach(settingsText, resultText);
             rig.InjuryOracle = RolledInjuries;
+            // Zeile „Gurt / Airbag“: nur bei PKW-Insassen sinnvoll
+            var belt = settingsText.transform.parent.GetComponentsInChildren<UnityEngine.UI.Button>(true)
+                .FirstOrDefault(b => { var l = b.GetComponentInChildren<TMP_Text>(true); return l != null && l.text.StartsWith("Gurt"); });
+            if (belt != null) _beltRow = belt.transform.parent != settingsText.transform.parent ? belt.transform.parent.gameObject : belt.gameObject;
             BuildScenarioPanel();
             SelectMechanism("pkw_frontal");
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
@@ -185,7 +203,7 @@ namespace NotfallSIM.Crash
         /// <summary>Nächste Anprallkonfiguration; setzt die dazu passende Geschwindigkeit (bei „PKW trifft Motorrad“ die des PKW).</summary>
         public void CycleMotoConfig()
         {
-            if (Busy) return;
+            if (Defer(CycleMotoConfig)) return;
             var list = CrashRig.LoadVehicleModel()?.motorcycleConfigs;
             if (list == null || list.Length == 0) return;
             int i = System.Array.FindIndex(list, c => c.id == _p.MotoConfig);
@@ -212,7 +230,7 @@ namespace NotfallSIM.Crash
         /// <summary>Körperbau wechseln: Gewicht aus BMI und Größe (Ragdoll-Masse, Blutvolumen, Dosis, Brustwand im Schockraum).</summary>
         public void CycleBody()
         {
-            if (Busy) return;
+            if (Defer(CycleBody)) return;
             _bodyIndex = _bodyIndex % (Core.BodyComposition.BodyTypes.Length - 1) + 1;   // ohne „wie im Fall“
             ApplyBody(_bodyText);
             if (Gewalt) _impact.ResetBody(); else Preview();
@@ -245,11 +263,12 @@ namespace NotfallSIM.Crash
 
         public void SelectMechanism(string id)
         {
-            if (Busy) return;
+            if (Defer(() => SelectMechanism(id))) return;
             bool wasGewalt = Gewalt;
             _p.MechanismId = id;
             _p.Speed_kmh = Mechanisms[id].speed;
             ShowScenarioPanel(id == "szenario");
+            if (_beltRow != null) _beltRow.SetActive(id.StartsWith("pkw") || id == "szenario");
             if (_configText != null)
             {
                 _configText.GetComponentInParent<UnityEngine.UI.Button>(true).gameObject.SetActive(id == "motorrad");
@@ -259,6 +278,7 @@ namespace NotfallSIM.Crash
             ApplyCameraPreset();
             RelabelSpeedButtons();
             _result = null;
+            resultText.text = "Mechanismus gewählt — „Crash starten“ drücken.";   // altes Ergebnis nicht stehen lassen
             if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
             if (_replayButton) _replayButton.SetActive(false);
             if (id == "gewalt")
@@ -281,7 +301,7 @@ namespace NotfallSIM.Crash
         /// <summary>Geschwindigkeit bzw. beim Sturz die Fallhöhe ändern.</summary>
         public void ChangeSpeed(float direction)
         {
-            if (Busy) return;
+            if (Defer(() => ChangeSpeed(direction))) return;
             if (Scenario) { ScenarioSpeed(direction); return; }
             if (Gewalt) { _impact.ChangeSpeed(direction); ShowSettings(); return; }
             var m = Mechanisms[_p.MechanismId];
@@ -312,14 +332,14 @@ namespace NotfallSIM.Crash
             return go != null ? go.GetComponentInChildren<TMP_Text>() : null;
         }
 
-        public void ToggleBelt() { if (Busy) return; if (Scenario) { ScenarioBelt(); return; } _p.Belted = !_p.Belted; Preview(); }
+        public void ToggleBelt() { if (Defer(ToggleBelt)) return; if (Scenario) { ScenarioBelt(); return; } _p.Belted = !_p.Belted; Preview(); }
 
-        public void ToggleAirbag() { if (Busy) return; _p.Airbag = !_p.Airbag; Preview(); }
+        public void ToggleAirbag() { if (Defer(ToggleAirbag)) return; _p.Airbag = !_p.Airbag; Preview(); }
 
         /// <summary>Insasse: entspannt (unvorbereitet) → angespannt (abgestützt) → bewusstlos.</summary>
         public void CycleOccupant()
         {
-            if (Busy) return;
+            if (Defer(CycleOccupant)) return;
             _p.Occupant = _p.Occupant == OccupantState.Entspannt ? OccupantState.Angespannt
                         : _p.Occupant == OccupantState.Angespannt ? OccupantState.Bewusstlos : OccupantState.Entspannt;
             ShowSettings();
@@ -397,7 +417,7 @@ namespace NotfallSIM.Crash
 
         public void StartCrash()
         {
-            if (Busy) return;
+            if (Defer(StartCrash)) return;
             if (Gewalt) { resultText.text = "In der Gewalt-Sandbox startet jede Einwirkung selbst: Körper schleudern oder Gegenstand wählen und klicken."; return; }
             _p.Seed = UnityEngine.Random.Range(1, 100000);
             _result = null;
@@ -411,7 +431,7 @@ namespace NotfallSIM.Crash
 
         public void GoToMainMenu()
         {
-            if (Busy) return;
+            if (Defer(GoToMainMenu)) return;
             Time.timeScale = 1;
             SceneManager.LoadScene(Simulation.SessionSetup.MainMenuScene);
         }
@@ -645,6 +665,7 @@ namespace NotfallSIM.Crash
             var o = Orbit();
             if (o != null && rig != null) o.Follow(Gewalt ? null : rig.CameraTarget); // nach jedem Neuaufbau neu anhängen; Gewalt: feste Ansicht zum Zielen
             PlaybackKeys();
+            if (_pending != null && !Busy) { var a = _pending; _pending = null; a(); }
         }
 
         /// <summary>Wiedergabe: Leertaste Pause, Komma/Punkt spulen (±5 ms, mit Umschalt ±50 ms), R wiederholen.</summary>
