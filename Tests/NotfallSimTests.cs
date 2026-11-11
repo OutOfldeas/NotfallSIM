@@ -92,6 +92,7 @@ static class Tests
         Run("Fahrzeugmodelle aus Code: Flächen nach außen, Knautschen, Seitendelle, Gabel", VehicleShapeChecks);
         Run("Scheiben: Flächen je Scheibe, Bruchkriterien, Rissbild, Wölbung, Glassplitter-Zeichen", GlassChecks);
         Run("Sichtbare Frakturen: Zuordnung, Reihenfolge, Hautübergang, Knick über die Zeit", FractureChecks);
+        Run("Verformbares Fahrzeug (Punkte und Balken): Fließen, Energie, Kennlinie, Zelle, versetzter Anprall, Haut", SoftBodyChecks);
         Run("Motorrad: Gabel, Nicken über das Vorderrad, PKW-Delle in Reihe; ISO-13232-Konfigurationen", MotorcycleChecks);
         Run("Verkehrsunfall: Fahrdynamik, Bremsen, Ausweichen, Fahrzeug-Kollision mit Kennlinien (TrafficSim)", TrafficChecks);
 
@@ -1731,6 +1732,85 @@ static class Tests
         Check(NotfallSIM.Crash.FractureSpecs.All.All(s => defs.Contains(s.InjuryId)), "alle Frakturen gibt es in injuries.json");
         Check(NotfallSIM.Crash.FractureSpecs.DistalShare(-0.1f) == 0 && NotfallSIM.Crash.FractureSpecs.DistalShare(0.1f) == 1 && Math.Abs(NotfallSIM.Crash.FractureSpecs.DistalShare(0) - 0.5f) < 1e-6, "Haut: proximal 0, distal 1, an der Bruchstelle halb");
         Check(NotfallSIM.Crash.FractureSpecs.AngleAt(0.1f, 0.2f, 22) == 0 && NotfallSIM.Crash.FractureSpecs.AngleAt(0.3f, 0.2f, 22) == 22, "Knick erst ab dem Bruch, dann voll");
+    }
+
+    static void SoftBodyChecks()
+    {
+        // Ein Balken: schwingt elastisch ohne Energieverlust; über der Fließkraft bleibt er verformt
+        var e = new NotfallSIM.Crash.SoftBody();
+        e.AddNode(0, 0, 0, 1); e.AddNode(0, 0, 1, 1);
+        e.AddBeam(0, 1, 1000, 1000, 0.02);
+        e.Build(0);
+        e.Vz[1] = 0.1;   // unter der Fließgrenze: ½·0,5·0,1² = 2,5 mJ gegen ½·1000·0,02 = 10 J
+        double e0 = e.KineticEnergy(), dtE = e.StableStep() / 10;   // Energiefehler des Verfahrens wächst mit dem Schritt
+        for (int i = 0; i < 20000; i++) e.Step(dtE);
+        double eEl = e.KineticEnergy() + 0.5 * e.K[0] * Math.Pow(Math.Sqrt(Math.Pow(e.Z[1] - e.Z[0], 2)) - e.Lp[0], 2);
+        Check(Math.Abs(eEl - e0) / e0 < 0.02 && e.PlasticWork == 0, $"elastischer Balken: Energie bleibt erhalten ({(eEl - e0) / e0 * 100:0.0} %)");
+        var pl = new NotfallSIM.Crash.SoftBody();
+        pl.AddNode(0, 0, 0, 1e6); pl.AddNode(0, 0, 1, 10);
+        pl.AddBeam(0, 1, 1000, 1000, 0.02, 5);
+        pl.Build();
+        pl.Vz[1] = -6;   // 180 J gegen 1000 N: ca. 17 cm bleibende Stauchung (10 J federn elastisch zurück, etwas nimmt die Dämpfung)
+        double dtP = pl.StableStep();
+        for (int i = 0; i < (int)(0.5 / dtP); i++) pl.Step(dtP);
+        Check(pl.Lp[0] < 0.86 && pl.Lp[0] > 0.81 && pl.PlasticWork > 145 && pl.PlasticWork < 180, $"Fließen: Balken bleibt {100 * (1 - pl.Lp[0]):0.0} cm kürzer, Arbeit {pl.PlasticWork:0} J von 180 J");
+
+        // PKW gegen die starre Wand, verglichen mit der Front-Kennlinie (vehicle_model.json › vehicleTypes › pkw)
+        var vm = Load<NotfallSIM.Crash.VehicleModelFile>("vehicle_model.json");
+        var pkw = vm.vehicleTypes.First(t => t.id == "pkw");
+        Func<double, double> curveCrush = v =>
+        {
+            double energy = 0.5 * pkw.mass_kg * v * v, x = 0, f0 = 0, done = 0;
+            var d = pkw.front.deflection_m; var f = pkw.front.force_N;
+            for (int i = 1; i < d.Length; i++)
+            {
+                double seg = 0.5 * (f[i - 1] + f[i]) * (d[i] - d[i - 1]);
+                if (done + seg >= energy)
+                {
+                    // Trapez bis zur gesuchten Stelle (quadratische Gleichung)
+                    double slope = (f[i] - f[i - 1]) / (d[i] - d[i - 1]), rest = energy - done;
+                    double dx = Math.Abs(slope) < 1e-9 ? rest / f[i - 1] : (-f[i - 1] + Math.Sqrt(f[i - 1] * f[i - 1] + 2 * slope * rest)) / slope;
+                    return d[i - 1] + dx;
+                }
+                done += seg; x = d[i]; f0 = f[i];
+            }
+            return x + (energy - done) / f0;
+        };
+        Func<NotfallSIM.Crash.SoftCar> build = () => NotfallSIM.Crash.SoftCar.Build(
+            NotfallSIM.Crash.CarProfile.Make((float)pkw.length_m, (float)pkw.width_m, (float)pkw.wheelbase_m, 0.25f, 0.95f, 0.95f, -1.35f, 1.0f, -0.85f, 0.35f, 1.45f, 1.15f, 1.0f, 0.85f, true), pkw.mass_kg);
+        var c30 = build(); var r30 = NotfallSIM.Crash.SoftCrash.IntoWall(c30, 30 / 3.6);
+        var c56 = build(); var r56 = NotfallSIM.Crash.SoftCrash.IntoWall(c56, 56 / 3.6);
+        var c80 = build(); var r80 = NotfallSIM.Crash.SoftCrash.IntoWall(c80, 80 / 3.6);
+        double t30 = curveCrush(30 / 3.6), t56 = curveCrush(56 / 3.6), t80 = curveCrush(80 / 3.6);
+        Console.WriteLine($"        Knautschweg Gerüst / Kennlinie: 30 km/h {r30.MaxCrush_m * 100:0} / {t30 * 100:0} cm, 56 km/h {r56.MaxCrush_m * 100:0} / {t56 * 100:0} cm, 80 km/h {r80.MaxCrush_m * 100:0} / {t80 * 100:0} cm; " +
+                          $"56 km/h: Spitze {r56.PeakDecel_g:0} g, Zelle {r56.CabinShortening_m * 100:0.0} cm kürzer, {c56.Body.Count} Punkte, {c56.Body.Beams} Balken, Schritt {r56.Step_s * 1e6:0} µs");
+        Check(Math.Abs(r56.MaxCrush_m - t56) / t56 < 0.12, $"56 km/h: Knautschweg {r56.MaxCrush_m * 100:0} cm (Kennlinie {t56 * 100:0} cm, ±12 %)");
+        Check(Math.Abs(r30.MaxCrush_m - t30) / t30 < 0.20, $"30 km/h: Knautschweg {r30.MaxCrush_m * 100:0} cm (Kennlinie {t30 * 100:0} cm, ±20 %)");
+        Check(Math.Abs(r80.MaxCrush_m - t80) / t80 < 0.20 && r80.MaxCrush_m > r56.MaxCrush_m, $"80 km/h: Knautschweg {r80.MaxCrush_m * 100:0} cm (Kennlinie {t80 * 100:0} cm, ±20 %)");
+        Check(r56.CabinShortening_m < 0.05, $"56 km/h: Fahrgastzelle bleibt stehen ({r56.CabinShortening_m * 100:0.0} cm)");
+        Check(r56.PeakDecel_g > 25 && r56.PeakDecel_g < 60, $"56 km/h: Verzögerung der Zelle {r56.PeakDecel_g:0} g (10-ms-Mittel)");
+        double ke = 0.5 * pkw.mass_kg * Math.Pow(56 / 3.6, 2);
+        Check(c56.Body.PlasticWork > 0.75 * ke && c56.Body.PlasticWork < 1.05 * ke, $"Energie: {c56.Body.PlasticWork / ke * 100:0} % der Bewegungsenergie in bleibender Verformung");
+        double meanX = 0; for (int i = 0; i < c56.Body.Count; i++) meanX += c56.Body.X[i] - c56.Body.X0[i];
+        Check(Math.Abs(meanX / c56.Body.Count) < 0.01, "volle Überdeckung: bleibt symmetrisch");
+        var again = build(); var rAgain = NotfallSIM.Crash.SoftCrash.IntoWall(again, 56 / 3.6);
+        Check(rAgain.MaxCrush_m == r56.MaxCrush_m, "gleiches Ergebnis bei Wiederholung");
+
+        // 40 % Überdeckung: weniger tragende Struktur → mehr Knautschweg, Zelle wird eingedrückt, Fahrzeug dreht sich
+        var cOff = build(); var rOff = NotfallSIM.Crash.SoftCrash.IntoWall(cOff, 56 / 3.6, 0.4);
+        Check(rOff.MaxCrush_m > r56.MaxCrush_m && rOff.CabinShortening_m > r56.CabinShortening_m,
+              $"40 % versetzt, 56 km/h: Knautschweg {rOff.MaxCrush_m * 100:0} cm, Zelle {rOff.CabinShortening_m * 100:0} cm kürzer");
+
+        // Haut folgt dem Gerüst
+        var mesh = NotfallSIM.Crash.VehicleShape.Car(c56.Profile); mesh.Freeze();
+        var fresh = build();
+        var skin0 = new NotfallSIM.Crash.SoftSkin(mesh, fresh.Body); skin0.Apply();
+        Check(Enumerable.Range(0, mesh.Count * 3).All(i => Math.Abs(mesh.V[i] - mesh.Rest[i]) < 1e-6), "Haut: ohne Verformung unverändert");
+        var skin = new NotfallSIM.Crash.SoftSkin(mesh, c56.Body); skin.Apply();
+        float frontMax = float.MinValue, rearMin = float.MaxValue;
+        for (int i = 0; i < mesh.Count; i++) { frontMax = Math.Max(frontMax, mesh.V[3 * i + 2]); rearMin = Math.Min(rearMin, mesh.V[3 * i + 2]); }
+        double len = frontMax - rearMin;
+        Check(frontMax < c56.Body.WallZ + 0.05 && len < pkw.length_m - 0.35 && len > pkw.length_m - 0.9, $"Haut: Fahrzeug nach 56 km/h {len:0.00} m lang (vorher {pkw.length_m:0.00} m), nichts ragt durch die Wand");
     }
 
     static void MotorcycleChecks()
