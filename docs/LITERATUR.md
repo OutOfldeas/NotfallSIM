@@ -903,12 +903,12 @@ Automatische Wahl: eingeklemmt → schonend; gehfähig → selbst; rot (T1) → 
 - [x] Befunde zeitabhängig machen (dynamicFindings, v0.8)
 - [x] Differenzialdiagnosen ohne Physiologie ergänzen (differentials.json)
 - [ ] Review-Tabelle aller Befundtexte durch Nutzer und Arzt abarbeiten, Ergebnisse in die Daten übernehmen
-- [ ] Sandbox in Unity testen: Stabilität, Kniebeugung, Größenordnung der Messwerte
+- [ ] Sandbox in Unity testen: Stabilität, Kniebeugung, Größenordnung der Messwerte — *9.11.2026: alle sieben Modi in Unity durchgeklickt, laufen stabil; Größenordnung der Messwerte weiter offen (siehe „Unplausible Messwerte“ unten)*
 - [ ] Risikokurven Thorax (Deflexion, Laituri 2005), Femur (AIS2+) und Nij aus 73 FR 40016 (NCAP 2008, Anhang C) übernehmen
 - [ ] HIC-Kurve: Zuordnung der Parameter (7,45231/0,73998) zu HIC15 vs. HIC36 im NHTSA-Original prüfen
 - [ ] Sandbox gegen NHTSA-Crashtestdaten kalibrieren (Kalibrierlauf in Unity ausführen, weitere Referenzen ergänzen)
 - [ ] Thoraxmodell: Parameter von Lobdell 1973 bzw. Kroell 1974 prüfen
-- [ ] Gewalt-Sandbox in Unity: Vorzeichen der Kontaktnormale, Faustschlag 3–4 kN, Ziegel auf den Kopf, Messer stoppt an Rippe
+- [ ] Gewalt-Sandbox in Unity: Vorzeichen der Kontaktnormale, Faustschlag 3–4 kN, Ziegel auf den Kopf, Messer stoppt an Rippe — *9.11.2026: Faustschlag 9 m/s gegen Becken 2,4 kN; Messerstich 6 m/s in den Thorax 15 cm tief „durch den Knochen“ (Messer stoppt also nicht an der Rippe — prüfen); Ziegel auf den Kopf offen*
 - [ ] Körperbau: Brustwand-Streuung bei gleichem BMI, Fettdicke am Unterschenkel, Fett-Modul bei niedrigen Dehnraten belegen
 - [ ] Schädel- und Organwiderstand im Stichkanal, Kantenbreite und Schnitttiefe je N mit Messungen belegen; Steifigkeit von Becken und Extremitäten
 - [ ] Vorzeichen von Halskraft/-moment und Femurkraft aus Joint.currentForce/currentTorque in Unity prüfen
@@ -928,6 +928,70 @@ Automatische Wahl: eingeklemmt → schonend; gehfähig → selbst; rot (T1) → 
 - [ ] Restberührungen Bahn–Muskel (77 Stellen) beseitigen; Muskeln nach dem Formen wieder vereinfachen (derzeit ~890 000 Dreiecke)
 - [ ] Muskelgewebe: menschliche Werte für Extremitätenmuskeln suchen (bisher vom Zwerchfell übertragen)
 - [ ] Weibliches Anatomiemodell (z. B. Z-Anatomy, ebenfalls CC BY-SA) für Patientinnen prüfen
+
+### Stand 11.11.2026 — Unfall-Sandbox, Fahrzeuge, Darstellung
+
+**In Unity noch nicht geprüft** (eingespielt, automatische Tests grün)
+
+- [ ] Verformbares Fahrzeug bei PKW frontal (Stand 066980f): Front faltet sich und bleibt an der Barriere, kein Flattern; Abschnitt „Fahrzeug“ plausibel; HIC und Brustwerte „verformbar (neu)“ gegen „fester Verlauf (alt)“ vergleichen
+- [ ] Gewalt-Sandbox (Stand 6d2e5c9): Aufliegen erzeugt keine Prellmarken mehr (Schwelle 0,5 m/s); Zeitlupe nur 0,5 s nach dem Treffer; Anzeige „Berechnet — Wiedergabe läuft“; Schnitt mit Umschalttaste weiterhin möglich
+- [ ] Frontscheibe: Spinnennetz nach korrigierter Anprallgeschwindigkeit (Fußgänger 40 km/h: nach innen gewölbt; PKW frontal ohne Gurt/Airbag: am Kopfanprall); Aussehen der Risslinien und der Wölbung
+- [ ] Glaswürfel: Flugbahn und Liegenbleiben ansehen (bisher nur als Objekt in der Hierarchie bestätigt); Zeichen „Glassplitterverletzungen“ im Schockraum
+- [ ] Sichtbare Frakturen: Achsenknick am Ragdoll ansehen (im Szenario erschien das Ereignis „Fraktur Femurschaft rechts“, die Darstellung ist nicht begutachtet); Fußgänger 40–50 km/h → Unterschenkel
+- [ ] Motorrad: übrige Konfigurationen (45°, 135°, frontal, Ecke, PKW in die Motorradseite, Alleinsturz); Motorrad im Szenario mit Vorlage „Linksabbieger übersieht Motorrad“, Sozius
+- [ ] Automatisches Aktualisieren: Warnung in der Konsole, wenn der neue Stand im Play-Modus geholt wird
+- [ ] Rettung und Vorsichtung (mSTaRT) im Szenario an zwei, drei Vorlagen klinisch gegenlesen
+
+**Unplausible Messwerte** (in Unity am 9.11.2026 gesehen)
+
+- [ ] HIC viel zu hoch: PKW seitlich 21 634, Fußgänger 6 392, Motorrad 1 500–3 300, Szenario (Kreuzung 30/50 km/h, angegurtet) 3 500–3 900 — vermutlich Kopfanprall auf starre Kollider (Unfallgegner, Dachkante, A-Säule, Tür); Kontaktsteifigkeit und Kopfairbag/Seitenairbag fehlen
+- [ ] PKW frontal 50 km/h mit Gurt und Airbag: Brustkorbdeflexion 90 mm (94 % AIS3+) trotz HIC 420 — Gurt-/Thoraxmodell prüfen
+- [ ] Fußgänger 40 km/h: axiale Femurkraft 43 kN, Nij 6,2; Seitenaufprall: Nij 6,3 — Größenordnung prüfen (hängt mit dem Vorzeichenpunkt zu Joint.currentForce zusammen)
+- [ ] Insassenwerte für das verformbare Fahrzeug neu einordnen: Verzögerung kürzer und spitzer als der Halbsinus (50 km/h: ca. 40 g statt 22 g)
+
+**Verformbares Fahrzeug (Punkte und Balken) — Ausbau**
+
+- [ ] Über ca. 65 km/h zu hart (80 km/h: 135 g Spitze im Schlitten-Umriss): Streben Motor–Spritzwand und Blockieren nachstellen
+- [ ] Einzelne Fließkräfte sind Annahmen (nur die Summe ist an der Kennlinie eingestellt); versetzter Anprall nicht an Messdaten geprüft — Crashtest-Verläufe (Verzögerung über der Zeit, Verformungsprofil C1–C6) beschaffen; NHTSA-Seiten waren gesperrt
+- [ ] Auto gegen Auto, Seitenaufprall, Fußgänger, Szenario auf das Gerüst umstellen (Kollision Punkt gegen Fläche)
+- [ ] Schwerkraft, Räder mit Aufhängung, Kollision der Teile untereinander, abreißende Teile (Stoßfänger, Haube, Türen, Räder), Trümmer
+- [ ] Feineres Gerüst und feineres Fahrzeugnetz mit getrennten Teilen (Ziel: Detailgrad wie in Soft-Body-Crashvideos); Rückwirkung des Insassen auf das Fahrzeug
+- [ ] Unstimmigkeit der beiden alten Frontmodelle klären: Halbsinus (69 cm bei 50 km/h) gegen Kennlinie der Fahrzeugtypen (50 cm)
+
+**Scheiben, Frakturen, Motorrad — bekannte Grenzen**
+
+- [ ] Scheiben: alle Schwellen sind Annahmen (3 m/s, 3 cm, 25 cm, 75 cm); Würfel kollidieren nicht; Seitenscheibe bricht nicht durch Kopfanprall; gerissene Frontscheibe wird in der Physik nicht weicher
+- [ ] Frakturen: Physik bleibt unverändert (Bein schwingt wie intakt); nur die Haut knickt, Knochen und Muskeln nicht; im Schockraum keine Fehlstellung; Armfrakturen fehlen in der Verletzungsdatenbank
+- [ ] Motorrad: Nicken auf 75° begrenzt und Umkippen vorgegeben (Annahmen), kein Rollen/Gieren beim Anprall; Gabel-Kennlinie mit Lucernoni 2026 (Volltext) prüfen; im Szenario kein Nicken
+- [ ] Hautzeichen am Ragdoll in der Sandbox zeigen (bisher nur als Liste und im Schockraum)
+
+**Verletzungsmodell (geplant, Reihenfolge wie besprochen)**
+
+- [ ] 1 · Einheitliches Wundmodell (Ort, Art, Größe, Tiefe in Schichten, betroffene Gefäße/Nerven/Organe aus dem Anatomiemodell); Haut im Shader öffnen, sodass Muskeln und Knochen sichtbar werden; Blutungsrate in den Schockraum
+- [ ] 2 · Verlust von Gliedmaßen: Haut/Muskel/Knochen schneiden, Stumpf, Ragdoll trennen; Tourniquet; Auslöser als belegte oder gekennzeichnete Wahrscheinlichkeit
+- [ ] 3 · Verbrennungen: Wärmequellen, Tiefe aus Temperatur und Zeit (Moritz & Henriques 1947 nachschlagen), Fläche aus dem Hautnetz, Darstellung je Grad, Verbrennungsschock, Inhalationstrauma; Fahrzeugbrand mit Rettungszeit koppeln
+- [ ] 4 · Zeitverlauf (Rötung → Hämatom) und Behandlung an der Wunde (Verband, Naht, Escharotomie); Einstellung „schematisch / realistisch“
+
+**Darstellung und Bedienung**
+
+- [ ] Unfallorte statt Bodenplatte (Straße, Kreuzung, Leitplanke), Himmel/Licht, Nachbearbeitung; Bremsspuren, Funken, Staub
+- [ ] Oberfläche der Sandbox neu aufbauen (einheitliche Knöpfe, keine zur Laufzeit kopierten); Schrift ohne fehlende Zeichen
+- [ ] Browser-Prototyp: neue Unfallfunktionen (Scheiben, Frakturen, verformbares Fahrzeug) fehlen dort
+
+**Technik**
+
+- [ ] `.meta`-Dateien der neuen Skripte liegen nicht im Repository (Unity erzeugt sie lokal): vom PC aus einchecken
+- [ ] CI prüft nur die reinen Rechenteile; der Unity-Code wird nur lokal gegen Platzhalter kompiliert — Unity-Kompilierung in die CI aufnehmen (Lizenz nötig) oder Platzhalter ins Repository
+- [ ] `docs/LITERATUR.md` ist zugleich ToDo-Liste: offene Punkte in eine eigene Datei auslagern
+
+**Erledigt seit dem 8.11.2026**
+
+- [x] Fahrzeugmodelle aus Code in Unity: Flächen geschlossen, Scheiben durchsichtig (9.11.2026)
+- [x] Frontal-Knautschweg wuchs nach dem Aufprall weiter (Keil-Auto, HIC 4253 → 420) (9.11.2026)
+- [x] Alle Modi der Unfall-Sandbox bedienbar: Mechanismus aus dem Hauptmenü, Klicks während der Wiedergabe, scrollbares Ergebnis (9.11.2026)
+- [x] Messerstich erzeugt wieder einen Stichkanal (9.11.2026)
+- [x] Frontscheibe: Anprallgeschwindigkeit 25-fach zu hoch, im Szenario nur eigene Insassen (9.11.2026)
+- [x] Prototyp verformbares Fahrzeug an der Front-Kennlinie eingestellt: 30/56/80 km/h → 23/61/76 cm (11.11.2026)
 
 ## Quellen
 
