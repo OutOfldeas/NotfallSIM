@@ -15,6 +15,8 @@ namespace NotfallSIM.Crash
         public bool Airbag = true;                // nur PKW frontal
         public float Height_m = 1.80f, Mass_kg = 80;
         public bool Male = true;
+        /// <summary>PKW frontal: Fahrzeug als verformbares Gerüst (SoftBody) statt vorgegebenem Verzögerungsverlauf.</summary>
+        public bool SoftVehicle = true;
         public string MotoConfig = "413-6,7/13,4";  // ISO-13232-Anprallkonfiguration bzw. "alleinsturz" (vehicle_model.json › motorcycleConfigs)
         public int Seed = 1;
         public OccupantState Occupant = OccupantState.Entspannt;   // Muskeltonus (muscle_tone.json)
@@ -102,6 +104,7 @@ namespace NotfallSIM.Crash
         {
             _softParts.Clear();
             _visuals.Clear();
+            VehicleReport = null;
             // Sofort deaktivieren: Destroy greift erst am Ende des Frames, die neuen Teile entstehen am selben Ort.
             foreach (var go in _spawned) if (go) { go.SetActive(false); Destroy(go); }
             _spawned.Clear();
@@ -250,7 +253,7 @@ namespace NotfallSIM.Crash
                     const float sledL = 4.6f, sledW = 1.8f, sledCenterZ = 2.1f - sledL / 2, sledCenterX = -0.45f + sledW / 2;
                     var sledProfile = CabinProfile(sledL, sledW, 2.75f, 0f, hipY, 0f, d.HipToKnee + 0.2f, sledCenterZ, false, false);
                     float sledFront = 0, sledLeft = 0;
-                    CarModel(t, sledProfile, new Color(0.2f, 0.32f, 0.55f), new Vector3(sledCenterX, 0, sledCenterZ), 0,
+                    var sledVisual = CarModel(t, sledProfile, new Color(0.2f, 0.32f, 0.55f), new Vector3(sledCenterX, 0, sledCenterZ), 0,
                              () => new DeformState { Front = sledFront, FrontPos = 0, Left = sledLeft, LeftPos = 0.1f - sledCenterZ });
                     Part(t, "Mittelkonsole", new Vector3(0.38f, hipY - 0.05f, 0.2f), new Vector3(0.12f, 0.3f, 0.8f), new Color(0.2f, 0.2f, 0.22f), visible: false);
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, hipY, 0), Quaternion.identity, RagdollPose.Seated, H, p.Mass_kg, p.Male, invertKneeFlexion);
@@ -271,6 +274,21 @@ namespace NotfallSIM.Crash
                         // Halbsinus-Verzögerung (linearer Federstoß gegen die Barriere): Dauer π·√(m/k), Δv = v
                         float T = vm != null ? (float)FrontalImpact.Pulse_s(vm.frontal) : 0.1f;
                         float crush = 0;
+                        // Verformbares Fahrzeug (Punkte und Balken, SoftBody.cs): Bewegung der Fahrgastzelle und Eindringen der
+                        // Spritzwand kommen aus der mitgerechneten Struktur statt aus dem vorgegebenen Halbsinus
+                        SoftCrashRun soft = null;
+                        if (p.SoftVehicle)
+                        {
+                            var sc = SoftCar.Build(sledProfile, vm != null ? vm.frontal.mass_kg : 1500);
+                            sc.SetSeat(-sledCenterZ);
+                            soft = new SoftCrashRun(sc, v);
+                            sledVisual.SoftSkin = new SoftSkin(sledVisual.Shape, sc.Body);
+                            sledVisual.SoftSource = soft.Snapshot;
+                            var run = soft;
+                            VehicleReport = () => $"Fahrzeugstruktur (verformbar, {sc.Body.Count} Punkte, {sc.Body.Beams} Balken): Knautschweg {run.MaxCrush * 100:0} cm, " +
+                                                  $"Verzögerung der Zelle bis {run.PeakDecel_g:0} g (10-ms-Mittel), Spritzwand {run.MaxIntrusion * 100:0.0} cm eingedrungen";
+                        }
+                        float softVel = v;
                         Action<float> airbag = p.Airbag ? Airbag(car, wheel, t0 + 0.015f) : null;
                         // Betonbarriere (ohne Kollider: der Puls ersetzt die Verformung); die Front knautscht sichtbar mit
                         Visual(null, "Barriere", new Vector3(0, 0.75f, 2.1f + v * t0 + 1f), new Vector3(3.5f, 1.5f, 2f), new Color(0.55f, 0.55f, 0.52f));
@@ -279,12 +297,28 @@ namespace NotfallSIM.Crash
                         {
                             float u = Mathf.Clamp01((time - t0) / T);
                             float vel = v - v * (1 - Mathf.Cos(Mathf.PI * u)) / 2;
-                            if (time >= t0) crush += vel * dt;   // Knautschweg = Weg des Fahrzeugs nach dem Kontakt (endet bei v·T/2)
+                            float intr;
+                            if (soft != null)
+                            {
+                                if (time < t0) vel = v;
+                                else if (soft.Time < 0.25)
+                                {
+                                    soft.Advance(dt);
+                                    softVel = vel = (float)soft.Speed;
+                                }
+                                else vel = softVel = Mathf.MoveTowards(softVel, 0, 6f * dt);   // Rückprall rollt mit 6 m/s² aus (Annahme)
+                                crush = (float)soft.Crush;
+                                intr = (float)soft.Intrusion;
+                            }
+                            else
+                            {
+                                if (time >= t0) crush += vel * dt;   // Knautschweg = Weg des Fahrzeugs nach dem Kontakt (endet bei v·T/2)
+                                // Über die Knautschzone hinaus drücken Armaturenbrett/Fußraum und Lenkrad nach hinten (−z)
+                                intr = vm != null ? (float)FrontalImpact.Intrusion_m(vm.frontal, crush) : 0;
+                            }
                             sledFront = crush;
                             var carPos = rbCar.position + new Vector3(0, 0, vel * dt);
                             rbCar.MovePosition(carPos);
-                            // Über die Knautschzone hinaus drücken Armaturenbrett/Fußraum und Lenkrad nach hinten (−z)
-                            float intr = vm != null ? (float)FrontalImpact.Intrusion_m(vm.frontal, crush) : 0;
                             rbDash.MovePosition(carPos + new Vector3(0, 0, -intr));
                             rbWheel.MovePosition(carPos + new Vector3(0, 0, -intr * 0.6f));
                             rbDoor.MovePosition(carPos);
@@ -639,7 +673,7 @@ namespace NotfallSIM.Crash
         {
             _tracked.Clear(); _trackedBodies.Clear(); _savedInterp.Clear();
             _frameTimes.Clear(); _framePos.Clear(); _frameRot.Clear();
-            foreach (var v in _visuals) v.Frames.Clear();
+            foreach (var v in _visuals) { v.Frames.Clear(); v.SoftFrames.Clear(); }
             BeginGlass();
             var bodies = new List<Rigidbody>();
             foreach (var rd in AllRagdolls()) bodies.AddRange(rd.Root.GetComponentsInChildren<Rigidbody>(true));
@@ -709,6 +743,9 @@ namespace NotfallSIM.Crash
             RestorePhysics();
             finished?.Invoke();
         }
+
+        /// <summary>Kurzbericht der Fahrzeugstruktur für das Ergebnis (null, wenn das Fahrzeug nicht verformbar gerechnet wurde).</summary>
+        public Func<string> VehicleReport;
 
         bool _stopPlayback;
 

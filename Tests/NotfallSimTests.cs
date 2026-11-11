@@ -1801,6 +1801,30 @@ static class Tests
         Check(rOff.MaxCrush_m > r56.MaxCrush_m && rOff.CabinShortening_m > r56.CabinShortening_m,
               $"40 % versetzt, 56 km/h: Knautschweg {rOff.MaxCrush_m * 100:0} cm, Zelle {rOff.CabinShortening_m * 100:0} cm kürzer");
 
+        // Schrittweise mitgerechnet wie im Crash-Rig (0,1-ms-Schritte): gleiches Ergebnis, Fahrzeug des Aufrufers bleibt an der Wand
+        var cRun = build(); cRun.SetSeat(0.2);
+        var run = new NotfallSIM.Crash.SoftCrashRun(cRun, 56 / 3.6);
+        double carZ = 0, worstGap = 0, minSpeed = 99;
+        for (int i = 0; i < 2500; i++)
+        {
+            run.Advance(1e-4);
+            carZ += run.Speed * 1e-4;
+            minSpeed = Math.Min(minSpeed, run.Speed);
+            if (i % 20 == 0)
+            {
+                var snap = run.Snapshot();
+                for (int j = 0; j < cRun.Body.Count; j++) worstGap = Math.Max(worstGap, snap[3 * j + 2] + carZ - cRun.Body.WallZ);
+            }
+        }
+        Check(Math.Abs(run.MaxCrush - r56.MaxCrush_m) < 0.03, $"schrittweise: Knautschweg {run.MaxCrush * 100:0} cm wie im Einzellauf ({r56.MaxCrush_m * 100:0} cm)");
+        Check(worstGap < 0.005, $"schrittweise: kein Punkt ragt durch die Wand (größte Abweichung {worstGap * 1000:0.0} mm)");
+        Check(run.MaxIntrusion < 0.03 && run.Intrusion >= 0, $"56 km/h: Spritzwand dringt {run.MaxIntrusion * 100:0.0} cm ein");
+        Check(minSpeed < 0 && minSpeed > -3.5, $"Rückprall {-minSpeed:0.0} m/s");
+        var cFast = build(); cFast.SetSeat(0.2);
+        var runFast = new NotfallSIM.Crash.SoftCrashRun(cFast, 90 / 3.6);
+        for (int i = 0; i < 2500; i++) runFast.Advance(1e-4);
+        Check(runFast.MaxIntrusion > run.MaxIntrusion + 0.02, $"90 km/h: Spritzwand dringt {runFast.MaxIntrusion * 100:0} cm ein (mehr als bei 56 km/h)");
+
         // Haut folgt dem Gerüst
         var mesh = NotfallSIM.Crash.VehicleShape.Car(c56.Profile); mesh.Freeze();
         var fresh = build();

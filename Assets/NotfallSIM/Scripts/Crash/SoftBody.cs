@@ -320,6 +320,20 @@ namespace NotfallSIM.Crash
         public double CabinTravel => CabinZ() - _cabinZ0;
         public double CabinShortening => _cabinLen0 - CabinLength();
 
+        int _seatStation = -1; double _dashLen0;
+
+        /// <summary>Sitzposition (Modell-z) festlegen: Eindringen = Verkürzung zwischen Spritzwand und dieser Station.</summary>
+        public void SetSeat(double z)
+        {
+            int best = DeckStation;
+            for (int s = DeckStation; s < CowlStation; s++) if (Math.Abs(StationZ[s] - z) < Math.Abs(StationZ[best] - z)) best = s;
+            _seatStation = best;
+            _dashLen0 = StationMeanZ(CowlStation) - StationMeanZ(best);
+        }
+
+        /// <summary>Wie weit die Spritzwand auf den Sitz zugekommen ist (m, &gt; 0 = Eindringen).</summary>
+        public double DashIntrusion => _seatStation < 0 ? CabinShortening : _dashLen0 - (StationMeanZ(CowlStation) - StationMeanZ(_seatStation));
+
         public double CabinSpeed()
         {
             double v = 0; int c = 0;
@@ -350,7 +364,7 @@ namespace NotfallSIM.Crash
             double L = car.Profile.Length, W = car.Profile.Width;
             const double gap = 0.01;
             b.WallZ = L / 2 + gap;
-            b.GroundY = 0.12;   // Bodenfreiheit: Blech faltet sich nicht durch die Fahrbahn
+            b.GroundY = car.Profile.Sill - 0.13;   // Fahrbahn unter dem Schweller: Blech faltet sich nicht hindurch
             if (overlap < 0.999) { b.WallXMin = double.NegativeInfinity; b.WallXMax = -W / 2 + W * overlap; }
             b.SetVelocity(0, 0, speed_m_s);
             double dt = Math.Min(5e-5, b.StableStep());
@@ -381,6 +395,83 @@ namespace NotfallSIM.Crash
             r.Rebound_m_s = speeds.Count > 0 ? -Math.Min(0, speeds[speeds.Count - 1]) : 0;
             r.BrokenBeams = b.BrokenCount();
             return r;
+        }
+    }
+
+    /// <summary>
+    /// Anprall gegen die starre Wand, schrittweise mitgerechnet (für die Kopplung an den Insassen): Der Aufrufer rückt die
+    /// Zeit vor und liest Geschwindigkeit und Weg der Fahrgastzelle sowie das Eindringen der Spritzwand. Geschwindigkeit und
+    /// Eindringen sind über 2 bzw. 3 ms geglättet (Eigenschwingungen des Gerüsts sollen den Insassen nicht anregen).
+    /// </summary>
+    public class SoftCrashRun
+    {
+        const double Gap = 0.01;
+        public readonly SoftCar Car;
+        public readonly double Speed0_m_s, Step_s;
+        public double Time { get; private set; }
+        /// <summary>Geschwindigkeit der Zelle (m/s, geglättet), ihr Weg seit dem Kontakt (m) und der größte Weg (Knautschweg).</summary>
+        public double Speed { get; private set; }
+        public double Crush { get; private set; }
+        public double MaxCrush { get; private set; }
+        /// <summary>Eindringen der Spritzwand Richtung Sitz (m, geglättet, nie negativ) und der größte Wert.</summary>
+        public double Intrusion { get; private set; }
+        public double MaxIntrusion { get; private set; }
+        public double PeakDecel_g { get; private set; }
+        double _rawTravel, _shownTravel, _nextSample;
+        readonly List<double> _speeds = new List<double>();
+        float[] _snapshot; double _snapshotTime = -1;
+
+        public SoftCrashRun(SoftCar car, double speed_m_s, double overlap = 1.0)
+        {
+            Car = car; Speed0_m_s = speed_m_s; Speed = speed_m_s;
+            var b = car.Body;
+            double L = car.Profile.Length, W = car.Profile.Width;
+            b.WallZ = L / 2 + Gap;
+            b.GroundY = car.Profile.Sill - 0.13;
+            if (overlap < 0.999) { b.WallXMin = double.NegativeInfinity; b.WallXMax = -W / 2 + W * overlap; }
+            b.SetVelocity(0, 0, speed_m_s);
+            Step_s = Math.Min(5e-5, b.StableStep());
+        }
+
+        public void Advance(double dt)
+        {
+            int n = Math.Max(1, (int)Math.Ceiling(dt / Step_s - 1e-9));
+            double h = dt / n;
+            var b = Car.Body;
+            for (int i = 0; i < n; i++)
+            {
+                b.Step(h);
+                Time += h;
+                double v = Car.CabinSpeed();
+                Speed += (v - Speed) * Math.Min(1, h / 0.002);
+                _shownTravel += Speed * h;   // Weg, den der Aufrufer mit der geglätteten Geschwindigkeit zurücklegt
+                Intrusion += (Math.Max(0, Car.DashIntrusion) - Intrusion) * Math.Min(1, h / 0.003);
+                if (Time >= _nextSample)
+                {
+                    _nextSample += 0.001;
+                    _speeds.Add(v);
+                    int c = _speeds.Count;
+                    if (c > 10) PeakDecel_g = Math.Max(PeakDecel_g, (_speeds[c - 11] - _speeds[c - 1]) / 0.010 / 9.81);
+                }
+            }
+            _rawTravel = Car.CabinTravel;
+            Crush = Math.Max(0, _rawTravel - Gap);
+            MaxCrush = Math.Max(MaxCrush, Crush);
+            MaxIntrusion = Math.Max(MaxIntrusion, Intrusion);
+        }
+
+        /// <summary>
+        /// Lage aller Punkte relativ zum mitfahrenden Fahrzeug des Aufrufers (x, y, z je Punkt): abgezogen wird der Weg, den es
+        /// mit <see cref="Speed"/> zurückgelegt hat — so stehen die Punkte in der Welt genau dort, wo das Gerüst sie rechnet.
+        /// </summary>
+        public float[] Snapshot()
+        {
+            if (_snapshot != null && _snapshotTime == Time) return _snapshot;
+            var b = Car.Body;
+            var a = new float[3 * b.Count];
+            for (int i = 0; i < b.Count; i++) { a[3 * i] = (float)b.X[i]; a[3 * i + 1] = (float)b.Y[i]; a[3 * i + 2] = (float)(b.Z[i] - _shownTravel); }
+            _snapshot = a; _snapshotTime = Time;
+            return a;
         }
     }
 
@@ -443,6 +534,26 @@ namespace NotfallSIM.Crash
             var w = new double[Per];
             for (int k = 0; k < Per; k++) { w[k] = 1 / (bd[k] + 1e-4); sum += w[k]; }
             for (int k = 0; k < Per; k++) { _idx[v * Per + k] = best[k]; _w[v * Per + k] = (float)(w[k] / sum); }
+        }
+
+        /// <summary>Aufgezeichnete Lagen (siehe <see cref="SoftCrashRun.Snapshot"/>) zwischen zwei Bildern auf das Netz übertragen.</summary>
+        public void Apply(float[] a, float[] bFrame, float u)
+        {
+            var body = _body;
+            for (int i = 0; i < _mesh.Count; i++)
+            {
+                double dx = 0, dy = 0, dz = 0;
+                for (int k = 0; k < Per; k++)
+                {
+                    int j = _idx[i * Per + k]; float w = _w[i * Per + k];
+                    dx += w * (a[3 * j] + (bFrame[3 * j] - a[3 * j]) * u - body.X0[j]);
+                    dy += w * (a[3 * j + 1] + (bFrame[3 * j + 1] - a[3 * j + 1]) * u - body.Y0[j]);
+                    dz += w * (a[3 * j + 2] + (bFrame[3 * j + 2] - a[3 * j + 2]) * u - body.Z0[j]);
+                }
+                _mesh.V[3 * i] = _mesh.Rest[3 * i] + (float)dx;
+                _mesh.V[3 * i + 1] = _mesh.Rest[3 * i + 1] + (float)dy;
+                _mesh.V[3 * i + 2] = _mesh.Rest[3 * i + 2] + (float)dz;
+            }
         }
 
         /// <summary>Aktuelle Lage der Gerüstpunkte auf das Netz übertragen (schreibt <see cref="ShapeMesh.V"/>).</summary>

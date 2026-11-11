@@ -825,9 +825,17 @@ eingestellt, dass der Knautschweg gegen die starre Wand zur Front-Kennlinie des 
 (10-ms-Mittel), Zelle 1 cm kürzer, über 75 % der Bewegungsenergie in bleibender Verformung. Die einzelnen Fließkräfte
 sind **Annahmen**; belegt ist nur die Summe über die Kennlinie.
 
-**Grenzen des Prototyps.** Noch nicht in Unity eingebunden (nur Rechenkern, Haut und Tests). Keine Schwerkraft, Räder
-oder Aufhängung; Teile kollidieren nicht miteinander (nur das Blockieren begrenzt); nur starre Wand, kein zweites
-Fahrzeug; kein Insasse. Versetzter Anprall (40 %) rechnet plausibel (mehr Knautschweg, Zelle eingedrückt, Fahrzeug
+**Kopplung an den Insassen (PKW frontal, `SoftCrashRun`).** Das Gerüst wird mit dem Insassenmodell mitgerechnet: Die
+Fahrgastzelle des Ragdolls bewegt sich mit der Geschwindigkeit der Gerüst-Zelle (über 2 ms geglättet), Armaturenbrett
+und Lenkrad (60 %) folgen dem Eindringen der Spritzwand Richtung Sitz (über 3 ms geglättet). Nach 250 ms rollt das
+Fahrzeug mit 6 m/s² aus (Annahme). Das ersetzt den Halbsinus-Puls (100 ms, Spitze 22 g bei 50 km/h) durch einen
+kürzeren, spitzeren Verlauf (bei 50 km/h ca. 58 cm Knautschweg, Spitze ca. 40 g) — die Insassenwerte fallen damit
+höher aus und sind **nicht neu kalibriert**. In der Sandbox umschaltbar („Fahrzeug: verformbar / fester Verlauf“).
+Der Insasse wirkt nicht auf das Gerüst zurück (seine Masse steckt in den 1500 kg).
+
+**Grenzen des Prototyps.** Bisher nur „PKW frontal“ gegen die starre Wand. Keine Schwerkraft, Räder
+oder Aufhängung; Teile kollidieren nicht miteinander (nur das Blockieren begrenzt); kein zweites
+Fahrzeug. Versetzter Anprall (40 %) rechnet plausibel (mehr Knautschweg, Zelle eingedrückt, Fahrzeug
 dreht sich), ist aber nicht an Messdaten geprüft. Über ca. 80 km/h ist die Knautschzone aufgebraucht und das Ergebnis
 nicht mehr belastbar. Test: `SoftBodyChecks`.
 

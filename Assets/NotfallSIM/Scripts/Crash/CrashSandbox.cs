@@ -76,6 +76,7 @@ namespace NotfallSIM.Crash
             _bodyText = MakeBodyButton();
             _contactText = MakeContactButton();
             _configText = MakeConfigButton();
+            _softText = MakeSoftButton();
             SandboxLayout.Attach(settingsText, resultText);
             rig.InjuryOracle = RolledInjuries;
             // Zeile „Gurt / Airbag“: nur bei PKW-Insassen sinnvoll
@@ -183,6 +184,37 @@ namespace NotfallSIM.Crash
             ShowSettings();
         }
 
+        TMP_Text _softText;
+
+        /// <summary>Knopf „Fahrzeug: verformbar / Kennlinie“ (nur PKW frontal): neues Gerüst aus Punkten und Balken oder bisheriger Verzögerungsverlauf.</summary>
+        TMP_Text MakeSoftButton()
+        {
+            var src = _contactText != null ? _contactText.GetComponentInParent<UnityEngine.UI.Button>() : null;
+            if (src == null) return null;
+            var go = Instantiate(src.gameObject, src.transform.parent);
+            go.name = "Fahrzeugstruktur";
+            go.transform.SetSiblingIndex(src.transform.GetSiblingIndex() + 1);
+            var b = go.GetComponent<UnityEngine.UI.Button>();
+            for (int i = 0; i < b.onClick.GetPersistentEventCount(); i++)
+                b.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
+            b.onClick.AddListener(ToggleSoftVehicle);
+            var label = go.GetComponentInChildren<TMP_Text>();
+            label.text = SoftLabel;
+            go.SetActive(false);
+            return label;
+        }
+
+        string SoftLabel => _p.SoftVehicle ? "Fahrzeug: verformbar (neu)" : "Fahrzeug: fester Verlauf (alt)";
+
+        public void ToggleSoftVehicle()
+        {
+            if (Defer(ToggleSoftVehicle)) return;
+            _p.SoftVehicle = !_p.SoftVehicle;
+            if (_softText != null) _softText.text = SoftLabel;
+            ShowSettings();
+            Preview();
+        }
+
         TMP_Text _configText;
 
         /// <summary>Knopf „Konfiguration: …“ (ISO 13232 bzw. Alleinsturz), nur beim Motorrad sichtbar (zur Laufzeit).</summary>
@@ -272,6 +304,7 @@ namespace NotfallSIM.Crash
             _p.Speed_kmh = Mechanisms[id].speed;
             ShowScenarioPanel(id == "szenario");
             if (_beltRow != null) _beltRow.SetActive(id.StartsWith("pkw") || id == "szenario");
+            if (_softText != null) _softText.GetComponentInParent<UnityEngine.UI.Button>(true).gameObject.SetActive(id == "pkw_frontal");
             if (_configText != null)
             {
                 _configText.GetComponentInParent<UnityEngine.UI.Button>(true).gameObject.SetActive(id == "motorrad");
@@ -560,6 +593,12 @@ namespace NotfallSIM.Crash
                 sb.AppendLine("<b>Sichtbare Verletzungszeichen</b> <size=80%>(aus Kontaktimpuls, Spitzenkraft, Gleiten und Gurtkraft)</size>");
                 foreach (var cm in _crashMarks.Take(8)) sb.AppendLine(cm.Finding);
                 if (_crashMarks.Count > 8) sb.AppendLine($"… und {_crashMarks.Count - 8} weitere");
+            }
+            if (rig.VehicleReport != null)
+            {
+                sb.AppendLine();
+                sb.AppendLine("<b>Fahrzeug</b>");
+                sb.AppendLine(rig.VehicleReport());
             }
             string glass = rig.GlassReport();
             if (glass.Length > 0)
