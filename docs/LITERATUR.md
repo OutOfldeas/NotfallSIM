@@ -807,6 +807,30 @@ Achsenknick 18° (Femur), 22° (Unterschenkel), 28° (offen), aufgebaut in 15 ms
 zeichnet sie über Anzeige-Kopien, die der Physik folgen und mitgedreht werden. Die Physik selbst bleibt unverändert: Das
 Ragdoll bewegt sich nach dem Bruch wie mit intaktem Knochen weiter (Grenze). Test: `FractureChecks`.
 
+## Verformbares Fahrzeug aus Punkten und Balken (`SoftBody.cs`, Prototyp)
+
+**Prinzip.** Wie in Soft-Body-Fahrzeugsimulationen besteht das Fahrzeug aus Massepunkten und Balken. Jeder Balken trägt
+elastisch bis zu seiner Fließkraft, verformt sich darüber bleibend (ideal plastisch, Druck und Zug getrennt), reißt ab
+60 % bleibender Dehnung und blockiert unter 25 % seiner Länge. Knautschen, Falten und Abreißen entstehen daraus von
+selbst; die Verformung ist nicht mehr vorgegeben. Explizite Integration mit ca. 19 µs Schrittweite.
+
+**PKW-Gerüst.** Aus dem Umriss (`CarProfile`): je 20 cm eine Station mit zehn Punkten (Schweller, Gürtellinie, Dach,
+Bodenmitte, zwei Längsträger), dazwischen Längs-, Quer- und Diagonalbalken — 248 Punkte, 1268 Balken. Vorn und hinten
+weiche Knautschzonen, dazwischen die steife Fahrgastzelle; der Motorblock (250 kg) ist ein steifer Würfel 60 cm hinter
+dem Stoßfänger, über Streben an der Spritzwand abgestützt (zweite Stufe der Kennlinie, sobald er an der Wand steht).
+
+**Kalibrierung.** Die Fließkräfte (Blech vorn 21 kN, Längsträger 4-fach, Streben 150 kN, Zelle 120 kN) sind so
+eingestellt, dass der Knautschweg gegen die starre Wand zur Front-Kennlinie des PKW passt (vehicle_model.json):
+30 km/h 23 cm (Kennlinie 24), 56 km/h 61 cm (58), 80 km/h 76 cm (80). Bei 56 km/h: Verzögerung der Zelle bis 47 g
+(10-ms-Mittel), Zelle 1 cm kürzer, über 75 % der Bewegungsenergie in bleibender Verformung. Die einzelnen Fließkräfte
+sind **Annahmen**; belegt ist nur die Summe über die Kennlinie.
+
+**Grenzen des Prototyps.** Noch nicht in Unity eingebunden (nur Rechenkern, Haut und Tests). Keine Schwerkraft, Räder
+oder Aufhängung; Teile kollidieren nicht miteinander (nur das Blockieren begrenzt); nur starre Wand, kein zweites
+Fahrzeug; kein Insasse. Versetzter Anprall (40 %) rechnet plausibel (mehr Knautschweg, Zelle eingedrückt, Fahrzeug
+dreht sich), ist aber nicht an Messdaten geprüft. Über ca. 80 km/h ist die Knautschzone aufgebraucht und das Ergebnis
+nicht mehr belastbar. Test: `SoftBodyChecks`.
+
 ## MANV-Vorsichtung (`triage.json`, `Data/Triage.cs`)
 
 Vorsichtung Erwachsener nach mSTaRT [128]: gehfähig → grün (T3); keine Atmung nach Freimachen der Atemwege → schwarz;
