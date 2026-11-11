@@ -21,6 +21,13 @@ namespace NotfallSIM.Crash
         public Func<DeformState> Source;
         public readonly List<DeformState> Frames = new List<DeformState>();
 
+        // ---- Verformbares Gerüst (SoftBody): Haut folgt den aufgezeichneten Punktlagen statt der berechneten Form
+        public SoftSkin SoftSkin;
+        /// <summary>Liefert die aktuelle Lage aller Gerüstpunkte relativ zur Fahrgastzelle (<see cref="SoftCrashRun.Snapshot"/>).</summary>
+        public Func<float[]> SoftSource;
+        public readonly List<float[]> SoftFrames = new List<float[]>();
+        float[] _softA, _softB; float _softU;
+
         // ---- Scheiben (siehe GlassBreak): Zeitpunkt des Zerfalls je ESG-Scheibe, Risse und Wölbung der Frontscheibe, Glaswürfel
         /// <summary>Zeitpunkt (Aufzeichnungszeit, s), ab dem die Scheibe zerfallen ist; ∞ = heil.</summary>
         public readonly float[] PaneBreak = { float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity };
@@ -88,7 +95,8 @@ namespace NotfallSIM.Crash
             if (Motorcycle) VehicleShape.DeformMotorcycle(Shape, d.Front);
             else
             {
-                VehicleShape.DeformCar(Shape, Profile, d);
+                if (SoftSkin != null && _softA != null) SoftSkin.Apply(_softA, _softB, _softU);
+                else VehicleShape.DeformCar(Shape, Profile, d);
                 if (HasShieldImpact && d.Shield > 1e-4f) VehicleShape.BulgeShield(Shape, Profile, ShieldX, ShieldZ, ShieldSign * d.Shield, ShieldRadius);
             }
             _deformChanged = true;
@@ -103,6 +111,7 @@ namespace NotfallSIM.Crash
             var d = Source != null ? Source() : default(DeformState);
             d.Shield = ShieldDepthNow;
             Frames.Add(d);
+            if (SoftSource != null) SoftFrames.Add(SoftSource());
         }
 
 
@@ -225,6 +234,11 @@ namespace NotfallSIM.Crash
         {
             if (Frames.Count == 0) return;
             lo = Mathf.Clamp(lo, 0, Frames.Count - 1); hi = Mathf.Clamp(hi, 0, Frames.Count - 1);
+            if (SoftSkin != null && SoftFrames.Count > 0)
+            {
+                var a = SoftFrames[Mathf.Min(lo, SoftFrames.Count - 1)]; var b = SoftFrames[Mathf.Min(hi, SoftFrames.Count - 1)];
+                if (a != _softA || b != _softB || u != _softU) { _softA = a; _softB = b; _softU = u; _any = false; }
+            }
             Apply(DeformState.Lerp(Frames[lo], Frames[hi], u));
         }
     }
