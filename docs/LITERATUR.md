@@ -993,6 +993,29 @@ Automatische Wahl: eingeklemmt → schonend; gehfähig → selbst; rot (T1) → 
 - [x] Frontscheibe: Anprallgeschwindigkeit 25-fach zu hoch, im Szenario nur eigene Insassen (9.11.2026)
 - [x] Prototyp verformbares Fahrzeug an der Front-Kennlinie eingestellt: 30/56/80 km/h → 23/61/76 cm (11.11.2026)
 
+### Stand 14.11.2026 — Durchlauf in Unity (Stand 3bfda6e)
+
+**Geprüft, läuft**
+
+- [x] Alle sieben Modi starten, rechnen und spielen ab; Übergabe in den Schockraum mit sichtbaren Wunden
+- [x] Ergebnisliste scrollt mit dem Mausrad (vorher abgeschnitten); Kamera zoomt nicht mehr über Panels
+- [x] Seitenaufprall: Seitenscheiben links zerfallen (28/34 ms)
+- [x] Motorrad: „PKW in die Motorradseite“ und „Alleinsturz“; Szenario „Linksabbieger übersieht Motorrad“ (Fahrer T2, frei zugänglich, Seitenscheibe rechts zerfällt, Fraktur-Ereignis)
+- [x] Gewalt: Messerstich 15 cm Stichkanal, Hämatopneumothorax; keine Prellmarken mehr durch Aufliegen; Anzeige „Berechnet — Wiedergabe läuft“
+- [x] Sichtbare Frakturen: Haut bleibt beim Abspielen intakt (keine Darstellungsfehler)
+
+**Neu gefunden**
+
+- [ ] Verformbares Fahrzeug (PKW frontal 50 km/h, Gurt + Airbag): HIC 22 700–30 500, Nij bis 16,7, Bauch 80 % eingedrückt — alter Verlauf: HIC 383. Fahrzeug selbst verformt sich richtig und bleibt an der Barriere. Ursache nicht geklärt (Verzögerung des Gerüsts außerhalb von Unity glatt, max. 46 g); vermutlich schlägt der Insasse bei dem härteren Puls auf Lenkrad/Armaturenbrett durch. Voreinstellung deshalb wieder „fester Verlauf (alt)“
+- [ ] Frakturknick aus der Standardkamera kaum zu erkennen; bei „Crash wiederholen“ und in der Endlage zeigt das Ragdoll Grundkörper statt Haut → Fehlstellung dann nicht sichtbar
+- [ ] Fußgänger 40 km/h: kein Spinnennetz trotz Kopfanprall (HIC 5 700) — trifft der Kopf Haube/Dach statt Scheibe, oder greift die Erkennung nicht?
+- [ ] Kamera: bei Fußgänger und „PKW in die Motorradseite“ steht sie hinter dem PKW (Fahrzeug verdeckt den Menschen), Endlage beim Fußgänger im Fahrzeug
+- [ ] Weitere unplausible Werte: PKW in Motorradseite Nij 56, Unterschenkel 84 kN; Alleinsturz Nij 36; Fußgänger Femur 50 kN
+- [ ] Messerstich erzeugt zusätzlich einen 6 cm langen Schnitt am Abdomen
+- [ ] Nach Wechsel der Motorrad-Konfiguration bleibt das alte Ergebnis stehen
+- [ ] Schockraum bei kleinem Fenster: „Menü“, „Ansicht & Ton“ und Hinweistext überlappen die Maßnahmenliste; Warnung „crash_13_s: kein sichtbarer Hautort“
+- [ ] Wiedergabe läuft schneller als die eingestellte Zeitlupe (×0,05 zeigte ca. 100 ms in 1,3 s)
+
 ## Quellen
 
 1. American College of Surgeons. *Advanced Trauma Life Support (ATLS) Student Course Manual*, 10th ed. Chicago: ACS; 2018.
