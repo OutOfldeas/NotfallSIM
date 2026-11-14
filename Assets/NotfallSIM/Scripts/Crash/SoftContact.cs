@@ -181,7 +181,9 @@ namespace NotfallSIM.Crash
                 else if (Bodies.TryGetValue(pair.otherColliderEntityId, out body)) bodyFirst = false;
                 else continue;
                 var otherId = bodyFirst ? pair.otherColliderEntityId : pair.colliderEntityId;
-                if (Bodies.ContainsKey(otherId)) continue;               // Selbstkontakt des Ragdolls bleibt starr
+                // Körperteil auf Körperteil (Arm zwischen Tür und Brustkorb, Bein an Bein): beide Gewebe geben nach — jedes
+                // nimmt die halbe Eindrückung auf. Starr gerechnet entstanden hier 70–240 kN und Stöße durch den ganzen Körper.
+                bool tissuePair = Bodies.ContainsKey(otherId);
                 var bodyId = bodyFirst ? pair.colliderEntityId : pair.otherColliderEntityId;
                 if (Ignored.Contains(PairKey(bodyId, otherId)))
                 {
@@ -204,7 +206,7 @@ namespace NotfallSIM.Crash
                 for (int i = 0; i < n; i++)
                 {
                     float sep = pair.GetSeparation(i);
-                    float delta = Mathf.Max(0, -sep);
+                    float delta = Mathf.Max(0, -sep) * (tissuePair ? 0.5f : 1f);
                     Vector3 point = pair.GetPoint(i), normal = pair.GetNormal(i);
                     // VERIFY in Unity: Normale zeigt vom zweiten zum ersten Kollider; Schließgeschwindigkeit positiv, wenn sie sich nähern
                     Vector3 velB = vB + Vector3.Cross(wB, point - pB), velO = vO + Vector3.Cross(wO, point - pO);
