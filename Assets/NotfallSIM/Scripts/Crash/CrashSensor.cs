@@ -19,6 +19,8 @@ namespace NotfallSIM.Crash
         public readonly List<double> Force_kN = new List<double>();
         /// <summary>Kontaktimpuls nach Seite gewichtet (− links, + rechts) und Summe der Impulse — für Abdomen.lateral.</summary>
         public double LateralImpulse, TotalImpulse;
+        /// <summary>Härtester Einzelkontakt (Impuls eines Schritts) und sein Partner — zur Diagnose unplausibler Messwerte.</summary>
+        public float PeakImpulse_Ns; public string PeakPartner; public bool PeakPartnerSoft;
         public double Dt_s { get; private set; }
 
         /// <summary>Kontakte je Flächenart (für Verletzungszeichen): Impuls, Spitzenkraft, Gleiten, Ort des stärksten Schritts.</summary>
@@ -61,7 +63,7 @@ namespace NotfallSIM.Crash
         /// <param name="expectedSteps">Erwartete Schrittzahl, damit die Listen nicht wachsen müssen.</param>
         public void StartRecording(float dt, int expectedSteps = 0)
         {
-            Accel_g.Clear(); Force_kN.Clear(); LateralImpulse = TotalImpulse = 0; Contacts.Clear();
+            Accel_g.Clear(); Force_kN.Clear(); LateralImpulse = TotalImpulse = 0; Contacts.Clear(); PeakImpulse_Ns = 0; PeakPartner = null;
             if (expectedSteps > Accel_g.Capacity) { Accel_g.Capacity = expectedSteps; Force_kN.Capacity = expectedSteps; }
             _prevV = CrashPhysics.Velocity(_rb);
             _stepImpulse = 0;
@@ -105,6 +107,14 @@ namespace NotfallSIM.Crash
             if (!_lookup.TryGetValue(c.collider, out var hit))
                 _lookup[c.collider] = hit = (c.collider.GetComponentInParent<CrashSensor>(), c.collider.GetComponentInParent<CrashSurface>());
             var otherSensor = hit.sensor;
+            // Diagnose: woran schlägt dieses Körperteil am härtesten an (auch der eigene Körper, z. B. Kopf auf Schulter)?
+            float imp0 = c.impulse.magnitude;
+            if (imp0 > PeakImpulse_Ns)
+            {
+                PeakImpulse_Ns = imp0;
+                PeakPartner = (otherSensor != null && otherSensor._body == _body ? "eigener Körper: " : "") + c.collider.name;
+                PeakPartnerSoft = SoftContact.Object(c.collider.GetEntityId()) != null;
+            }
             if (otherSensor != null && otherSensor._body == _body) return; // eigenes Ragdoll
             var surface = hit.surface;
             if (surface != null && !surface.countsForInjury) return;

@@ -584,6 +584,9 @@ namespace NotfallSIM.Crash
                 string limit = r.Metric.limit > 0 ? $" <size=80%>(Grenzwert {r.Metric.limit:0.#}{Unit(r.Metric)}, {r.Metric.limitSource})</size>" : "";
                 sb.AppendLine($"{r.Metric.label}: <b>{r.Value:0.#}{Unit(r.Metric)}</b> → {r.Metric.ais} {r.Probability:P0}{limit}");
             }
+            var headS = rig.Ragdoll.Sensors.FirstOrDefault(x => x.Region == "Head" && x.PeakPartner != null);
+            if (headS != null)
+                sb.AppendLine($"<size=80%>Härtester Kopfkontakt: {headS.PeakPartner} ({headS.PeakImpulse_Ns / Mathf.Max(1e-4f, (float)headS.Dt_s) / 1000:0.0} kN, {(headS.PeakPartnerSoft ? "nachgiebig" : "starr")})</size>");
             var lat = measurements.FirstOrDefault(x => x.metric == "Abdomen.lateral");
             if (lat != null && Mathf.Abs((float)lat.value) > 0.2f)
                 sb.AppendLine($"Rumpfanprall überwiegend von {(lat.value < 0 ? "links" : "rechts")}");
