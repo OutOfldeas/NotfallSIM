@@ -526,6 +526,7 @@ namespace NotfallSIM.Crash
             SetVisible(false);
             Physics.SyncTransforms();
             bool soft = p.SoftContact && RegisterSoftBody(p, Anatomy.BodyFatShape.Model());
+            AirbagSparesSternum();
             if (soft) RegisterSoftVehicleParts();
             SoftContact.Enabled = soft;
             var tone = LoadMuscleTone();

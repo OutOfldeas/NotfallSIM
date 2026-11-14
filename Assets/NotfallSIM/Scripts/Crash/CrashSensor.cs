@@ -52,7 +52,9 @@ namespace NotfallSIM.Crash
         Rigidbody _rb;
         Transform _body;
         Vector3 _prevV;
-        float _stepImpulse;
+        float _stepImpulse, _stepCushion;
+        /// <summary>Anteil der Kontaktkraft aus flächiger Polsterung (Airbag), je Schritt (kN) — drückt den Bauch nicht örtlich ein.</summary>
+        public readonly List<double> CushionForce_kN = new List<double>();
         bool _recording;
 
         public void Configure(string regionName, Transform bodyRoot) { region = regionName; _body = bodyRoot; }
@@ -63,7 +65,7 @@ namespace NotfallSIM.Crash
         /// <param name="expectedSteps">Erwartete Schrittzahl, damit die Listen nicht wachsen müssen.</param>
         public void StartRecording(float dt, int expectedSteps = 0)
         {
-            Accel_g.Clear(); Force_kN.Clear(); LateralImpulse = TotalImpulse = 0; Contacts.Clear(); PeakImpulse_Ns = 0; PeakPartner = null;
+            Accel_g.Clear(); Force_kN.Clear(); CushionForce_kN.Clear(); _stepCushion = 0; LateralImpulse = TotalImpulse = 0; Contacts.Clear(); PeakImpulse_Ns = 0; PeakPartner = null;
             if (expectedSteps > Accel_g.Capacity) { Accel_g.Capacity = expectedSteps; Force_kN.Capacity = expectedSteps; }
             _prevV = CrashPhysics.Velocity(_rb);
             _stepImpulse = 0;
@@ -80,6 +82,8 @@ namespace NotfallSIM.Crash
             Vector3 v = CrashPhysics.Velocity(_rb);
             Accel_g.Add(((v - _prevV) / dt).magnitude / 9.81);
             Force_kN.Add(_stepImpulse / dt / 1000.0);
+            CushionForce_kN.Add(_stepCushion / dt / 1000.0);
+            _stepCushion = 0;
             _prevV = v;
             _stepImpulse = 0;
             foreach (var c in Contacts.Values)
@@ -121,6 +125,7 @@ namespace NotfallSIM.Crash
             float impulse = c.impulse.magnitude;
             if (impulse <= 0) return;
             _stepImpulse += impulse;
+            if (surface != null && surface.kind == "airbag") _stepCushion += impulse;
             string kind = surface != null ? surface.kind : otherSensor != null ? "insasse" : "vehicle";   // anderes Ragdoll: Mitinsasse bzw. Fußgänger
             // Aufliegen ist kein Anprall: der ruhende Kopf (≈ 45 N) erreicht die Prellmarkenschwelle (5,9 Ns) schon nach
             // 0,13 s. Bodenkontakt zählt für Zeichen und Verletzungen nur, wenn das Körperteil auftrifft (≥ 0,5 m/s); Gleiten

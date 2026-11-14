@@ -77,6 +77,22 @@ namespace NotfallSIM.Crash
         readonly List<GameObject> _softParts = new List<GameObject>();
 
         /// <summary>Nachgiebige Fahrzeugteile anmelden (nach <see cref="RegisterSoftBody"/>, das die Anmeldungen leert). Anzahl.</summary>
+        /// <summary>
+        /// Der Airbag stützt den Brustkorb flächig; das Sternum ist hier ein eigener leichter Körper für die Brustkorbdeflexion
+        /// (Gurt, Lenkrad). Träfe der Airbag ihn allein, drückte er ihn bis zum Anschlag ein (90 mm, 1 700 g am Sternum).
+        /// </summary>
+        void AirbagSparesSternum()
+        {
+            var bags = _spawned.Where(g => g != null && g.name == "Airbag").SelectMany(g => g.GetComponentsInChildren<Collider>()).ToList();
+            if (bags.Count == 0) return;
+            foreach (var rd in AllRagdolls())
+            {
+                if (rd == null || rd.Sternum == null) continue;
+                foreach (var sc in rd.Sternum.GetComponentsInChildren<Collider>())
+                    foreach (var b in bags) Physics.IgnoreCollision(b, sc);
+            }
+        }
+
         int RegisterSoftVehicleParts()
         {
             var vm = LoadVehicleModel();
@@ -567,6 +583,7 @@ namespace NotfallSIM.Crash
             Physics.SyncTransforms();
             // Nachgiebiger Kontakt auch beim Fahrzeugunfall: Körper mit Gewebesteifigkeit und Fettschicht statt starr
             bool soft = p.SoftContact && RegisterSoftBody(p, Anatomy.BodyFatShape.Model());
+            AirbagSparesSternum();
             if (soft) RegisterSoftVehicleParts();
             SoftContact.Enabled = soft;
             var tone = LoadMuscleTone();
@@ -871,7 +888,11 @@ namespace NotfallSIM.Crash
             {
                 var abd = byRegion["Abdomen"];
                 var force_N = new List<double>();
-                for (int i = 0; i < abd[0].Force_kN.Count; i++) force_N.Add(abd.Sum(s => i < s.Force_kN.Count ? s.Force_kN[i] : 0) * 1000);
+                // Der Airbag stützt den Rumpf flächig ab; die Bauchsteifigkeit des Organmodells stammt aus örtlichem Eindrücken
+                // (Stange, Gurt, Lenkradkranz). Seine Kraft zählt deshalb nicht als Organkompression (Annahme) — sonst
+                // ergaben 6,7 kN Airbagkraft 25 cm „Eindrückung“ und sichere Leber- und Nierenrisse beim angegurteten Fahrer.
+                for (int i = 0; i < abd[0].Force_kN.Count; i++)
+                    force_N.Add(abd.Sum(s => i < s.Force_kN.Count ? Math.Max(0, s.Force_kN[i] - (i < s.CushionForce_kN.Count ? s.CushionForce_kN[i] : 0)) : 0) * 1000);
                 abdomenLoad = OrganMechanics.Evaluate(organs, tissues, Biomechanics.Cfc(force_N, dt, 600), dt, lateral, p.Height_m);
                 result.AddRange(OrganMechanics.Measurements(abdomenLoad));
             }
