@@ -131,6 +131,8 @@ namespace NotfallSIM.UI
             float speed = walkSpeed * (fast ? 2.5f : 1f);
             target += walk * speed * dt + Vector3.up * rise * heightSpeed * (fast ? 2f : 1f) * dt;
 
+            // Mausrad über einem Panel gehört dem Panel (Ergebnisliste scrollen), nicht der Kamera
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) scroll = 0;
             distance *= 1 - scroll * 0.12f;
             distance *= Mathf.Pow(2f, -zoomKeys * dt * 1.5f);
             distance = Mathf.Clamp(distance, minDistance, maxDistance);

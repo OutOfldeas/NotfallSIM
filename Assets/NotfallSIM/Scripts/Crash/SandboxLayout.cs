@@ -57,10 +57,38 @@ namespace NotfallSIM.Crash
             l._scroll = view.AddComponent<ScrollRect>();
             l._scroll.horizontal = false; l._scroll.vertical = true;
             l._scroll.movementType = ScrollRect.MovementType.Clamped;
-            l._scroll.scrollSensitivity = 40;
+            l._scroll.scrollSensitivity = 0;   // Rad wird in ScrollByWheel ausgewertet (sonst doppelt)
             l._scroll.viewport = l._view;
             l._scroll.content = rt;
             l._result = result;
+        }
+
+        /// <summary>
+        /// Mausrad direkt auswerten (unabhängig vom Ereignissystem — dort kam das Rad nicht bei der Liste an):
+        /// Zeiger über der Ergebnisansicht → Inhalt um 60 px je Raste verschieben.
+        /// </summary>
+        void ScrollByWheel()
+        {
+            float wheel = 0; Vector2 pos;
+#if ENABLE_INPUT_SYSTEM
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (mouse == null) return;
+            wheel = mouse.scroll.ReadValue().y;
+            if (Mathf.Abs(wheel) >= 10f) wheel /= 120f;
+            pos = mouse.position.ReadValue();
+#else
+            wheel = Input.mouseScrollDelta.y;
+            pos = Input.mousePosition;
+#endif
+            if (Mathf.Abs(wheel) < 1e-4f) return;
+            var canvas = _result.canvas;
+            var cam = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+            if (!RectTransformUtility.RectangleContainsScreenPoint(_view, pos, cam)) return;
+            var content = _result.rectTransform;
+            float max = Mathf.Max(0, content.rect.height - _view.rect.height);
+            var p = content.anchoredPosition;
+            p.y = Mathf.Clamp(p.y - wheel * 60f, 0, max);
+            content.anchoredPosition = p;
         }
 
         void LateUpdate()
@@ -74,6 +102,7 @@ namespace NotfallSIM.Crash
                 float pref = _result.preferredHeight + 4;
                 _viewLayout.preferredHeight = Mathf.Clamp(pref, 40, Mathf.Max(80, h - others));
                 if (_result.text != _lastText) { _lastText = _result.text; _scroll.verticalNormalizedPosition = 1; }
+                ScrollByWheel();
             }
             // Linkes Panel: zu hoch → verkleinern (Ecke oben links bleibt)
             if (_left != null && _left.rect.height > 1)
