@@ -46,14 +46,11 @@ namespace NotfallSIM.Crash
             hit.color = new Color(0, 0, 0, 0);
             hit.raycastTarget = true;
             var re = result.GetComponent<LayoutElement>();
-            if (re != null) re.ignoreLayout = true;
+            if (re != null) { re.ignoreLayout = true; re.preferredHeight = -1; }   // feste Höhe aus der Szene hielte den Inhalt klein → nichts zu scrollen
             var rt = result.rectTransform;
             rt.SetParent(l._view, false);
             rt.anchorMin = new Vector2(0, 1); rt.anchorMax = new Vector2(1, 1); rt.pivot = new Vector2(0.5f, 1);
             rt.anchoredPosition = Vector2.zero; rt.sizeDelta = new Vector2(0, 400);
-            var fit = result.gameObject.AddComponent<ContentSizeFitter>();
-            fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            fit.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             l._scroll = view.AddComponent<ScrollRect>();
             l._scroll.horizontal = false; l._scroll.vertical = true;
             l._scroll.movementType = ScrollRect.MovementType.Clamped;
@@ -102,6 +99,9 @@ namespace NotfallSIM.Crash
                 float pref = _result.preferredHeight + 4;
                 _viewLayout.preferredHeight = Mathf.Clamp(pref, 40, Mathf.Max(80, h - others));
                 if (_result.text != _lastText) { _lastText = _result.text; _scroll.verticalNormalizedPosition = 1; }
+                // Inhalt so hoch wie der Text (nicht dem Layout überlassen)
+                var crt = _result.rectTransform;
+                if (Mathf.Abs(crt.rect.height - pref) > 1) crt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, pref);
                 ScrollByWheel();
             }
             // Linkes Panel: zu hoch → verkleinern (Ecke oben links bleibt)
