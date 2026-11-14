@@ -529,10 +529,16 @@ namespace NotfallSIM.Crash
         }
 
         /// <summary>Gurt für ein beliebiges Ragdoll (auch mehrere Insassen im Szenario).</summary>
+        /// <summary>Anteil der Schultergurtkraft, der das Brustbein eindrückt (Rest: Schlüsselbein, Rippen) — Annahme.</summary>
+        public const float SternumBeltShare = 0.2f;
+
         static Dictionary<string, ConfigurableJoint> BeltFor(Ragdoll rd, Rigidbody car)
         {
             var joints = new Dictionary<string, ConfigurableJoint>();
-            foreach (var name in new[] { "Sternum", "Becken" })
+            // Schultergurt: liegt über Schlüsselbein, Rippen und Brustbein. Nur ein Teil der Gurtkraft drückt das Brustbein
+            // ein (hier 20 %, Annahme: 5 kN Gurtkraft → ca. 40 mm Deflexion wie am Hybrid III), der Rest trägt der Brustkorb.
+            // Vorher hing der ganze Gurt am 0,45 kg leichten Sternum: Deflexion immer am Anschlag (90 mm).
+            foreach (var name in new[] { "Sternum", "Thorax", "Becken" })
             {
                 var seg = rd.Segments[name];
                 var j = seg.gameObject.AddComponent<ConfigurableJoint>();
@@ -540,15 +546,14 @@ namespace NotfallSIM.Crash
                 j.connectedBody = car;
                 j.autoConfigureConnectedAnchor = true;
                 j.anchor = Vector3.zero;
-                // Der Gurt hält nach vorn und oben, kaum zur Seite (Schultergurt rutscht ab). Seitlich begrenzt gerechnet riss
-                // er beim Seitenaufprall mit der Dämpfung (3 kNs/m × Türgeschwindigkeit) am leichten Sternum: Stoß durch den
-                // ganzen Körper, HIC > 10 000 ohne jeden Kopfkontakt.
+                // Der Gurt hält nach vorn und oben, kaum zur Seite (Schultergurt rutscht ab).
                 j.xMotion = ConfigurableJointMotion.Free;
                 j.yMotion = j.zMotion = ConfigurableJointMotion.Limited;
                 j.angularXMotion = j.angularYMotion = j.angularZMotion = ConfigurableJointMotion.Free;
-                j.linearLimit = new SoftJointLimit { limit = name == "Sternum" ? 0.06f : 0.04f }; // Gurtlose und Dehnung
+                j.linearLimit = new SoftJointLimit { limit = name == "Becken" ? 0.04f : 0.06f }; // Gurtlose und Dehnung
                 // Gurtband: ca. 140 kN/m (Dehnung ~7 % bei 10 kN auf 1 m) — didaktische Größenordnung
-                j.linearLimitSpring = new SoftJointLimitSpring { spring = 140000, damper = 3000 };
+                float share = name == "Sternum" ? SternumBeltShare : name == "Thorax" ? 1 - SternumBeltShare : 1;
+                j.linearLimitSpring = new SoftJointLimitSpring { spring = 140000 * share, damper = 3000 * share };
             }
             return joints;
         }
@@ -637,8 +642,9 @@ namespace NotfallSIM.Crash
             ShoulderBeltImpulse_Ns = LapBeltImpulse_Ns = 0;
             var gauges = gameObject.AddComponent<CrashGauges>();
             gauges.Begin(Ragdoll);
-            ConfigurableJoint beltShoulder, beltLap;
+            ConfigurableJoint beltShoulder, beltLap, beltRibs;
             BeltJoints.TryGetValue("Sternum", out beltShoulder);
+            BeltJoints.TryGetValue("Thorax", out beltRibs);
             BeltJoints.TryGetValue("Becken", out beltLap);
 
             // ---- Phase 2: Aufprall mit 0,1 ms und Messung (Zeit t ab Ende des Vorlaufs, wie früher ab Start)
@@ -656,6 +662,7 @@ namespace NotfallSIM.Crash
                     muscles?.Apply(t);
                     foreach (var s in Ragdoll.Sensors) s.Step(dt);
                     if (beltShoulder) ShoulderBeltImpulse_Ns += beltShoulder.currentForce.magnitude * dt;
+                    if (beltRibs) ShoulderBeltImpulse_Ns += beltRibs.currentForce.magnitude * dt;
                     if (beltLap) LapBeltImpulse_Ns += beltLap.currentForce.magnitude * dt;
                     gauges.Step();
                     SoftContact.StepDt = dt;

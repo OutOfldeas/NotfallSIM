@@ -568,6 +568,7 @@ namespace NotfallSIM.Crash
                         foreach (var s in h.Rd.Sensors) s.Step(dt);
                         ConfigurableJoint j;
                         if (h.Belts.TryGetValue("Sternum", out j) && j) h.ShoulderBeltImpulse_Ns += j.currentForce.magnitude * dt;
+                        if (h.Belts.TryGetValue("Thorax", out j) && j) h.ShoulderBeltImpulse_Ns += j.currentForce.magnitude * dt;
                         if (h.Belts.TryGetValue("Becken", out j) && j) h.LapBeltImpulse_Ns += j.currentForce.magnitude * dt;
                         h.Gauges.Step();
                     }
