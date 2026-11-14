@@ -487,6 +487,15 @@ namespace NotfallSIM.Crash
             if (Scenario) _p.Traffic = _sc;
             rig.Build(_p, out _); // Ausgangslage zeigen, Physik ruht bis zum Start
             if (rig.Ragdoll != null) foreach (var rb in rig.Ragdoll.Segments.Values) rb.isKinematic = true;
+            // Geänderte Einstellung: das alte Ergebnis gehört nicht mehr dazu
+            if (_result != null && !Gewalt)
+            {
+                _result = null; _heat.Clear();
+                resultText.text = "Einstellung geändert — „Crash starten“ drücken.";
+                if (toTraumaRoomButton) toTraumaRoomButton.SetActive(false);
+                if (_replayButton) _replayButton.SetActive(false);
+            }
+            ApplyCameraPreset();
             ShowSettings();
         }
 
@@ -662,14 +671,32 @@ namespace NotfallSIM.Crash
         void Colorize()
         {
             var byRegion = _result.Risks.GroupBy(r => r.Metric.region).ToDictionary(g => g.Key, g => g.Max(r => r.Probability));
-            // Haut ausblenden, Segmente nach Risiko eingefärbt zeigen
-            if (rig.Ragdoll.Skin) rig.Ragdoll.Skin.enabled = false;
+            _heat.Clear();
             foreach (var s in rig.Ragdoll.Sensors)
             {
                 double p = byRegion.TryGetValue(s.Region, out double q) ? q : 0;
-                var c = p < 0.5 ? Color.Lerp(new Color(0.3f, 0.75f, 0.4f), new Color(0.95f, 0.8f, 0.2f), (float)p * 2)
-                                : Color.Lerp(new Color(0.95f, 0.8f, 0.2f), new Color(0.85f, 0.15f, 0.15f), (float)(p - 0.5) * 2);
-                rig.Ragdoll.ShowHeat(s.name, c);
+                _heat[s.name] = p < 0.5 ? Color.Lerp(new Color(0.3f, 0.75f, 0.4f), new Color(0.95f, 0.8f, 0.2f), (float)p * 2)
+                                        : Color.Lerp(new Color(0.95f, 0.8f, 0.2f), new Color(0.85f, 0.15f, 0.15f), (float)(p - 0.5) * 2);
+            }
+            ShowHeatView(_heatView);
+        }
+
+        readonly Dictionary<string, Color> _heat = new Dictionary<string, Color>();
+        bool _heatView;   // aus: Haut mit sichtbaren Brüchen und Wunden; an: Segmente nach Risiko eingefärbt (Taste H)
+
+        /// <summary>Zwischen Haut (Brüche, Fehlstellungen sichtbar) und Risikofarben der Segmente umschalten.</summary>
+        void ShowHeatView(bool on)
+        {
+            _heatView = on;
+            if (rig == null || rig.Ragdoll == null) return;
+            bool heat = on && _heat.Count > 0;
+            if (rig.Ragdoll.Skin) rig.Ragdoll.Skin.enabled = !heat;
+            else heat = _heat.Count > 0;   // Ragdoll aus Grundkörpern: es gibt nur die Segmente
+            foreach (var kv in rig.Ragdoll.Heat)
+            {
+                if (kv.Value == null) continue;
+                if (heat && _heat.TryGetValue(kv.Key, out var c)) rig.Ragdoll.ShowHeat(kv.Key, c);
+                else if (rig.Ragdoll.Skin) kv.Value.enabled = false;
             }
         }
 
@@ -692,6 +719,8 @@ namespace NotfallSIM.Crash
         }
 
         /// <summary>Ausgangsansicht je Mechanismus: seitlich auf den Aufprall bzw. von der Seite auf den Insassen.</summary>
+        Vector3 _camOffset;
+
         void ApplyCameraPreset()
         {
             var o = Orbit();
@@ -699,6 +728,12 @@ namespace NotfallSIM.Crash
             Vector3 offset = Scenario ? new Vector3(-6f, 7f, -6f)
                            : _p.MechanismId == "pkw_seite" ? new Vector3(0.4f, 1.4f, 3.2f)
                            : Gewalt ? new Vector3(2.0f, 1.8f, 0.3f) : new Vector3(3.4f, 1.1f, 0.6f);
+            // Ein Fahrzeug fährt auf die Person zu: seitlich zur Fahrtrichtung stehen, sonst verdeckt es den Anprall
+            // und die Kamera landet am Ende im Fahrzeug
+            var d = rig != null ? rig.OpponentTravel : Vector3.zero;
+            if (d.sqrMagnitude > 0.5f) offset = Vector3.Cross(Vector3.up, d) * 4.2f + d * 1.2f + Vector3.up * 1.5f;
+            if ((offset - _camOffset).sqrMagnitude < 1e-4f) return;   // nur bei anderer Lage neu ausrichten — eigene Ansicht bleibt
+            _camOffset = offset;
             o.ConfigureFromOffset(new Vector3(0, 0.2f, 0), offset);
         }
 
@@ -714,16 +749,17 @@ namespace NotfallSIM.Crash
         void PlaybackKeys()
         {
             if (rig == null) return;
-            bool space, back, fwd, replay, shift;
+            bool space, back, fwd, replay, shift, heat;
 #if ENABLE_INPUT_SYSTEM
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb == null) return;
             space = kb.spaceKey.wasPressedThisFrame; back = kb.commaKey.wasPressedThisFrame; fwd = kb.periodKey.wasPressedThisFrame;
-            replay = kb.rKey.wasPressedThisFrame; shift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
+            replay = kb.rKey.wasPressedThisFrame; heat = kb.hKey.wasPressedThisFrame; shift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
 #else
             space = Input.GetKeyDown(KeyCode.Space); back = Input.GetKeyDown(KeyCode.Comma); fwd = Input.GetKeyDown(KeyCode.Period);
-            replay = Input.GetKeyDown(KeyCode.R); shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            replay = Input.GetKeyDown(KeyCode.R); heat = Input.GetKeyDown(KeyCode.H); shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 #endif
+            if (heat && _heat.Count > 0) ShowHeatView(!_heatView);
             if (replay) { Replay(); return; }
             if (!rig.Playing) return;
             if (space) rig.PlaybackPaused = !rig.PlaybackPaused;
@@ -734,7 +770,7 @@ namespace NotfallSIM.Crash
             string phase = rel < 0 ? (_p.MechanismId == "sturz_hoehe" ? "freier Fall" : Gewalt ? "Flug" : "Anfahrt") : "Aufprall";
             settingsText.text = SettingsText() + $"\n<b>Wiedergabe {phase}: t = {rel * 1000:+0;-0;0} ms</b>" +
                                 (rig.PlaybackPaused ? " (Pause)" : "") +
-                                "\n<size=80%>Leertaste Pause · , / . spulen (Umschalt: schneller) · R wiederholen</size>";
+                                "\n<size=80%>Leertaste Pause · , / . spulen (Umschalt: schneller) · R wiederholen · H Risikofarben</size>";
         }
     }
 }

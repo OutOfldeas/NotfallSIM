@@ -139,6 +139,12 @@ namespace NotfallSIM.Crash
 
             if (bikeSide)
             {
+                OpponentTravel = u3.normalized;
+                // Das Motorrad wird hier geführt (nicht gerechnet): ohne Ausnahme würde das Bein zwischen zwei starr geführten
+                // Körpern eingeklemmt (84 kN am Unterschenkel). Das Bein trifft nur die nachgiebige PKW-Front.
+                foreach (var c in bike.GetComponentsInChildren<Collider>())
+                    foreach (var kv in Ragdoll.Segments.Where(k => k.Key.StartsWith("Unterschenkel") || k.Key.StartsWith("Fuß") || k.Key.StartsWith("Oberschenkel")))
+                        foreach (var rc in kv.Value.GetComponentsInChildren<Collider>()) Physics.IgnoreCollision(c, rc);
                 // Motorrad wird mitgerissen (in 40 ms auf 90 % der PKW-Geschwindigkeit) und kippt vom PKW weg
                 float brakeAt = tHit + 0.25f, mu = mm != null ? (float)mm.slideFriction : 0.45f, vb = 0;
                 drive = (time, dt) =>

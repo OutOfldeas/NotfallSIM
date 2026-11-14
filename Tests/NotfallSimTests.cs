@@ -2082,6 +2082,26 @@ static class Tests
             }
             return NotfallSIM.Crash.Biomechanics.Hic(acc, dt);
         };
+        // Innenraum: freier Prüfkopf mit 24 km/h (FMVSS 201U, Grenzwert HIC(d) 1000) gegen Verkleidung; starr zum Vergleich
+        Func<double, double, double, double> hicAt = (k, clr, kmh) =>
+        {
+            double x = 0, v = kmh / 3.6, dt = 2e-6, mass = head.effectiveMass_kg;
+            var acc = new List<double>();
+            for (int i = 0; i < 40000; i++)
+            {
+                double f = NotfallSIM.Crash.ImpactModel.Force(m, head, x, v, 52, k, 0, 0, clr, out _);
+                if (x > 0 && v <= 0 && f <= 0) break;
+                v -= f / mass * dt; x += v * dt; acc.Add(f / mass / 9.81);
+                if (x <= 0 && v < 0) break;
+            }
+            return NotfallSIM.Crash.Biomechanics.Hic(acc, dt);
+        };
+        Check(vm.interior != null && vm.interior.Length >= 8, "Innenraumteile in vehicle_model.json");
+        var door = vm.interior.First(pp => pp.part == "Tür"); var wheelPart = vm.interior.First(pp => pp.part == "Lenkrad");
+        double hDoor = hicAt(door.stiffness_N_m, door.clearance_m, 24), hRigid = hicAt(0, 0, 24), hWheel = hicAt(wheelPart.stiffness_N_m, wheelPart.clearance_m, 24);
+        Console.WriteLine($"        Prüfkopf 24 km/h: Verkleidung HIC {hDoor:0}, Lenkrad {hWheel:0}, starr {hRigid:0}");
+        Check(hDoor > 500 && hDoor < 1300, $"Prüfkopf 24 km/h gegen Verkleidung: HIC {hDoor:0} (FMVSS 201U: höchstens 1000)");
+        Check(hRigid > 3 * hDoor, $"starr dagegen HIC {hRigid:0}");
         double hHaube = hic("Motorhaube"), hScheibe = hic("Windschutzscheibe");
         Check(hHaube > 900 && hHaube < 1600, $"Kopftest Haube HIC {hHaube:0} (Ziel ≈ 1250)");
         Check(hScheibe > 180 && hScheibe < 360, $"Kopftest Scheibe HIC {hScheibe:0} (Stammen 2001: 257)");
