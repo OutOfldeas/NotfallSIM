@@ -142,6 +142,8 @@ namespace NotfallSIM.Crash
         public FrontalImpactModel frontal;
         public SideImpactModel side;
         public VehiclePart[] pedestrianFront;
+        /// <summary>Nachgiebigkeit der Innenraumteile und der Außenhaut des Unfallgegners (Name des Teils bzw. Namensanfang).</summary>
+        [System.Runtime.Serialization.OptionalField] public VehiclePart[] interior;
         /// <summary>Fahrzeugtypen für frei gestellte Unfälle (<see cref="TrafficSim"/>).</summary>
         [System.Runtime.Serialization.OptionalField] public VehicleType[] vehicleTypes;
         [System.Runtime.Serialization.OptionalField] public MotorcycleModel motorcycle;

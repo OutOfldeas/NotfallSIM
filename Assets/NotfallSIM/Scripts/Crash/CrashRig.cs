@@ -69,6 +69,8 @@ namespace NotfallSIM.Crash
         /// <summary>Zeit im berechneten Crash (s) — während der Berechnung bzw. der Wiedergabe.</summary>
         public float SimTime => Playing ? PlaybackTime : _simTime;
         public Transform CameraTarget => Ragdoll?.Pelvis.transform;
+        /// <summary>Fahrtrichtung eines Fahrzeugs, das auf die Person zufährt (Fußgänger, PKW trifft Motorrad) — die Kamera stellt sich seitlich dazu; sonst null.</summary>
+        public Vector3 OpponentTravel { get; private set; }
 
         readonly List<GameObject> _spawned = new List<GameObject>();
         /// <summary>Fahrzeugteile, die beim nachgiebigen Kontakt als Gegenstand mit eigener Steifigkeit angemeldet werden.</summary>
@@ -78,22 +80,43 @@ namespace NotfallSIM.Crash
         int RegisterSoftVehicleParts()
         {
             var vm = LoadVehicleModel();
-            if (vm?.pedestrianFront == null) return 0;
+            if (vm == null) return 0;
+            // Fußgängerfront (nur die dafür vorgesehenen Teile) und Innenraum/Außenhaut (alle Fahrzeugteile nach Namen):
+            // ohne Anmeldung wäre jedes Teil starr — ein Kopfanprall an Tür, Dach oder Lenkrad ergäbe HIC > 20 000
+            var done = new HashSet<Collider>();
             int n = 0;
-            foreach (var go in _softParts)
+            Action<Collider, VehiclePart> reg = (col, part) =>
             {
-                if (go == null) continue;
-                var part = Array.Find(vm.pedestrianFront, x => x.part == go.name);
-                var col = go.GetComponent<Collider>();
-                if (part == null || col == null) continue;
+                if (col == null || part == null || col.isTrigger || !done.Add(col)) return;
                 var def = new SandboxObject
                 {
                     id = "fahrzeug:" + part.part, label = part.part, kind = "stumpf", mode = "statisch", shape = "box",
                     stiffness_N_m = part.stiffness_N_m, clearance_m = part.clearance_m, sourceId = part.sourceId
                 };
                 // Fahrzeug ist kinematisch: unendlich schwer (keine Masse im Kontakt), Kontaktfläche aus der Geometrie
-                SoftContact.RegisterObject(col, def, null, 0, go.transform.lossyScale, 0);
+                SoftContact.RegisterObject(col, def, null, 0, col.transform.lossyScale, 0);
                 n++;
+            };
+            if (vm.pedestrianFront != null)
+                foreach (var go in _softParts)
+                    if (go != null) reg(go.GetComponent<Collider>(), Array.Find(vm.pedestrianFront, x => x.part == go.name));
+            if (vm.interior != null)
+            {
+                var bodies = new HashSet<Transform>(AllRagdolls().Where(r => r != null && r.Root != null).Select(r => r.Root.transform));
+                foreach (var go in _spawned)
+                {
+                    if (go == null || bodies.Contains(go.transform)) continue;
+                    foreach (var col in go.GetComponentsInChildren<Collider>())
+                    {
+                        if (col.attachedRigidbody != null && !col.attachedRigidbody.isKinematic) continue;   // nur Fahrzeugteile (kinematisch)
+                        string name = col.name;
+                        var part = Array.Find(vm.interior, x => x.part == name)
+                                   ?? vm.interior.Where(x => name.StartsWith(x.part)).OrderByDescending(x => x.part.Length).FirstOrDefault();
+                        // Frontscheibe von innen wie von außen
+                        if (part == null && name == "Windschutzscheibe" && vm.pedestrianFront != null) part = Array.Find(vm.pedestrianFront, x => x.part == name);
+                        reg(col, part);
+                    }
+                }
             }
             return n;
         }
@@ -103,6 +126,7 @@ namespace NotfallSIM.Crash
         public void Clear()
         {
             _softParts.Clear();
+            OpponentTravel = Vector3.zero;
             _visuals.Clear();
             VehicleReport = null;
             // Sofort deaktivieren: Destroy greift erst am Ende des Frames, die neuen Teile entstehen am selben Ort.
@@ -398,6 +422,7 @@ namespace NotfallSIM.Crash
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, hipY, 0), Quaternion.identity, RagdollPose.Standing, H, p.Mass_kg, p.Male, invertKneeFlexion);
                     var rbCar = car.GetComponent<Rigidbody>();
                     // Fahrzeug fährt einige Sekunden auf den stehenden Fußgänger zu (der bis kurz vorher gehalten wird)
+                    OpponentTravel = Vector3.left;
                     approach.Carry.Add((rbCar, new Vector3(-v, 0, 0)));
                     approach.RagdollVelocity = Vector3.zero;
                     Shift(new[] { rbCar }, new Vector3(v * approachTime_s, 0, 0));

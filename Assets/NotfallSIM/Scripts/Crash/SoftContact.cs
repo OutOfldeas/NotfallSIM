@@ -233,7 +233,9 @@ namespace NotfallSIM.Crash
                     {
                         Vector3 rel = bodyFirst ? velO - velB : velB - velO;
                         float slide = (rel - Vector3.Dot(rel, normal) * normal).magnitude;
-                        if (slide >= 0.2f)
+                        // Schnitt nur, wenn die Klinge überwiegend entlang der Haut gezogen wird — ein Stich (Bewegung längs der
+                        // Normalen) mit etwas Querbewegung ist kein zusätzlicher Schnitt
+                        if (slide >= 0.2f && slide > Mathf.Abs(Vector3.Dot(rel, normal)))
                         {
                             lock (Cuts)
                             {
