@@ -1004,15 +1004,35 @@ Automatische Wahl: eingeklemmt → schonend; gehfähig → selbst; rot (T1) → 
 - [x] Gewalt: Messerstich 15 cm Stichkanal, Hämatopneumothorax; keine Prellmarken mehr durch Aufliegen; Anzeige „Berechnet — Wiedergabe läuft“
 - [x] Sichtbare Frakturen: Haut bleibt beim Abspielen intakt (keine Darstellungsfehler)
 
-**Neu gefunden**
+**Neu gefunden — Stand nach der Fehlersuche am 14.11. (Stand in Unity nachgemessen, soweit nicht anders vermerkt)**
 
-- [ ] Verformbares Fahrzeug (PKW frontal 50 km/h, Gurt + Airbag): HIC 22 700–30 500, Nij bis 16,7, Bauch 80 % eingedrückt — alter Verlauf: HIC 383. Fahrzeug selbst verformt sich richtig und bleibt an der Barriere. Ursache nicht geklärt (Verzögerung des Gerüsts außerhalb von Unity glatt, max. 46 g); vermutlich schlägt der Insasse bei dem härteren Puls auf Lenkrad/Armaturenbrett durch. Voreinstellung deshalb wieder „fester Verlauf (alt)“
-- [ ] Frakturknick aus der Standardkamera kaum zu erkennen; bei „Crash wiederholen“ und in der Endlage zeigt das Ragdoll Grundkörper statt Haut → Fehlstellung dann nicht sichtbar
-- [ ] Fußgänger 40 km/h: kein Spinnennetz trotz Kopfanprall (HIC 5 700) — trifft der Kopf Haube/Dach statt Scheibe, oder greift die Erkennung nicht?
-- [ ] Kamera: bei Fußgänger und „PKW in die Motorradseite“ steht sie hinter dem PKW (Fahrzeug verdeckt den Menschen), Endlage beim Fußgänger im Fahrzeug
-- [ ] Weitere unplausible Werte: PKW in Motorradseite Nij 56, Unterschenkel 84 kN; Alleinsturz Nij 36; Fußgänger Femur 50 kN
-- [ ] Messerstich erzeugt zusätzlich einen 6 cm langen Schnitt am Abdomen
-- [ ] Nach Wechsel der Motorrad-Konfiguration bleibt das alte Ergebnis stehen
+Ursachen der überhöhten Messwerte (alle vier lagen im Menschmodell bzw. Kontakt, nicht im Fahrzeugverlauf):
+
+1. **Gelenkanschläge starr**: Am Ende des Bewegungsumfangs stoppte ein Segment in einem Rechenschritt (Seitenaufprall: Halskraft 147 kN, Kopf 2 700 g, HIC 11 500 ohne jeden Kopfkontakt). Jetzt weicher Anschlag (Eigenfrequenz 100 rad/s, Dämpfungsgrad 0,5 — Annahme, `RagdollBuilder.StopFrequency_rad_s`).
+2. **Körperteil auf Körperteil starr**: Arm zwischen Tür und Brustkorb, Bein an Bein ergaben 70–240 kN. Jetzt geben beide Gewebe nach (je halbe Eindrückung).
+3. **Fahrzeugteile nicht am nachgiebigen Kontakt angemeldet** (Tür, Dach, Armaturenbrett, Lenkrad, Sitze, Karosserie des Unfallgegners, Airbag): `vehicle_model.json › interior`, Steifigkeiten sind Annahmen, an FMVSS 201 ausgerichtet (freier Prüfkopf 24 km/h: HIC 731 an der Verkleidung, 541 am Lenkrad; starr 10 702 — Test).
+4. **Gurt und Airbag**: Der ganze Schultergurt hing am 0,45 kg leichten Brustbein (Deflexion immer 90 mm) → 20 % am Brustbein, 80 % am Brustkorb (Annahme). Der Gurt hält nicht mehr seitlich. Der Airbag zählt nicht als örtliche Baucheindrückung und trifft das Brustbein nicht allein.
+
+Messwerte danach (50 km/h, Gurt, Airbag, entspannt):
+
+| Fall | vorher | nachher |
+|---|---|---|
+| PKW frontal, fester Verlauf | HIC 383, Deflexion 90 mm | HIC 228, Deflexion 44 mm, Brust 42 g, Femur 4,1 kN |
+| PKW frontal, verformbar | HIC 22 700–30 500, Bauch 80 % | HIC 236, Deflexion 36 mm, Brust 75 g, Bauch 0 % |
+| PKW seitlich | HIC 21 561, Nij 6,3 | HIC 276, Nij 0,5, Becken 6,1 kN, Milz 88 % |
+| Szenario Kreuzung, getroffener Fahrer | HIC 3 500–9 987 | kein Kopfkriterium über der Schwelle, Becken 6,2 kN |
+
+- [x] Verformbares Fahrzeug: Messwerte plausibel → wieder Standard
+- [x] Nach geänderter Einstellung (auch Motorrad-Konfiguration) wird das alte Ergebnis gelöscht
+- [x] Haut bleibt nach dem Crash und beim Wiederholen sichtbar (Brüche); Risikofarben mit Taste H
+- [x] Kamera steht seitlich zur Fahrtrichtung, wenn ein Fahrzeug auf die Person zufährt (Fußgänger nachgesehen; „PKW in die Motorradseite“ nur gerechnet)
+- [x] Im Ergebnis steht der härteste Kopfkontakt (Teil, Kraft, nachgiebig/starr); ins Protokoll (Editor.log) gehen je Segment Spitzenbeschleunigung, Kontaktpartner und die Schritte um die Kopfspitze
+- [ ] Nur geändert, nicht nachgemessen: „PKW in die Motorradseite“ (Bein nicht mehr zwischen zwei geführten Körpern), Messerstich ohne zusätzlichen Schnitt, Alleinsturz
+- [ ] Fußgänger 40 km/h: HIC 3 800–9 100 kommt jetzt vom Aufschlag des Kopfes auf den Boden (39–72 kN). Die Kontaktkraft steigt über die Bruchlast des Schädels hinaus (Plateau fehlt), und die Aufschlaggeschwindigkeit ist nicht geprüft. Axiale Femurkraft 20–44 kN. Spinnennetz: der Kopf traf in diesen Läufen die Scheibe nicht.
+- [ ] Seitenaufprall: Endlage ansehen — der Insasse sackt stark zur Beifahrerseite (kein seitlicher Gurthalt mehr, weiche Anschläge)
+- [ ] PKW seitlich und Szenario: Milzruptur 88–99 %, Leber 100 % bei Δv 35 km/h — Organmodell rechnet jede Kontaktkraft am Bauch als örtliche Eindrückung; Grenzwert „Kontaktkraft Abdomen 2,5 kN“ gilt für den Seitenaufprall, wird aber auch frontal angewendet
+- [ ] Verformbares Fahrzeug: Brustbeschleunigung 75 g (fester Verlauf 42 g) — Verlauf der Zellenverzögerung gegen Messkurve prüfen
+- [ ] Weiche Gelenkanschläge: Überschreiten des Bewegungsumfangs als Verletzung auswerten (Bandriss, Luxation) statt nur zu bremsen; Steifigkeit mit Literatur belegen
 - [ ] Schockraum bei kleinem Fenster: „Menü“, „Ansicht & Ton“ und Hinweistext überlappen die Maßnahmenliste; Warnung „crash_13_s: kein sichtbarer Hautort“
 - [ ] Wiedergabe läuft schneller als die eingestellte Zeitlupe (×0,05 zeigte ca. 100 ms in 1,3 s)
 
