@@ -18,7 +18,7 @@
     { "part": "Windschutzscheibe", "stiffness_N_m": 14000, "clearance_m": 0.2, "evidence": "kalibriert", "sourceId": "stammen2001", "note": "Verbundglas gibt stark nach: so gewählt, dass derselbe Kopfaufprall HIC ca. 260 ergibt (Rekonstruktion Scheibenaufprall: HIC 257, Stammen 2001)." }
   ],
   "interior": [
-    { "part": "Airbag", "stiffness_N_m": 25000, "clearance_m": 0.25, "evidence": "annahme", "sourceId": "", "note": "Gasgefüllter Sack: weich über den ganzen Weg (wie die Feder, an der er nach dem Entfalten hängt). Ohne Eintrag wirkte der sich entfaltende Airbag als starre Platte mit 10 m/s (102 kN am Kopf)." },
+    { "part": "Airbag", "stiffness_N_m": 60000, "clearance_m": 0.15, "evidence": "annahme", "sourceId": "", "note": "Gasgefüllter Sack: Größenordnung 30–50 kPa auf ca. 0,1 m² bei 5–10 cm Eindrücken. Dahinter hängt er an einer Feder (25 kN/m). Ohne Eintrag wirkte der sich entfaltende Airbag als starre Platte mit 10 m/s (102 kN am Kopf); mit 25 kN/m war er zu weich (Rumpf schlug bis ins Lenkrad durch)." },
     { "part": "Tür", "stiffness_N_m": 150000, "clearance_m": 0.05, "evidence": "annahme", "sourceId": "fmvss201", "note": "Türverkleidung, Brüstung, Säulenverkleidung: so gewählt, dass der freie Prüfkopf (4,5 kg) mit 24 km/h etwa den Grenzwert HIC(d) 1000 der FMVSS 201U erreicht. Gilt für alle Teile, deren Name mit „Tür“ beginnt, und die Fahrertür." },
     { "part": "Fahrertür", "stiffness_N_m": 150000, "clearance_m": 0.05, "evidence": "annahme", "sourceId": "fmvss201", "note": "wie Tür" },
     { "part": "Dach", "stiffness_N_m": 150000, "clearance_m": 0.03, "evidence": "annahme", "sourceId": "fmvss201", "note": "Dachhimmel und Dachrahmen wie Tür, kürzerer Weg." },
