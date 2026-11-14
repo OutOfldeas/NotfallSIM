@@ -599,6 +599,8 @@ namespace NotfallSIM.Crash
                     {
                         dg.Append(" | Verlauf:");
                         for (int i = Mathf.Max(0, ip - 12); i < Mathf.Min(sn.Accel_g.Count, ip + 13); i++) dg.Append($" {sn.Accel_g[i]:0}");
+                        if (rig.DebugTrace != null)
+                            for (int i = Mathf.Max(0, ip - 6); i < Mathf.Min(rig.DebugTrace.Count, ip + 5); i++) dg.Append("\n   " + rig.DebugTrace[i]);
                     }
                     dg.Append('\n');
                 }

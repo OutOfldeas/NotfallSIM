@@ -616,6 +616,7 @@ namespace NotfallSIM.Crash
             }
 
             foreach (var s in Ragdoll.Sensors) s.StartRecording(dt, steps + 1);
+            DebugTrace = new List<string>(steps + 1);
             ShoulderBeltImpulse_Ns = LapBeltImpulse_Ns = 0;
             var gauges = gameObject.AddComponent<CrashGauges>();
             gauges.Begin(Ragdoll);
@@ -642,6 +643,16 @@ namespace NotfallSIM.Crash
                     gauges.Step();
                     SoftContact.StepDt = dt;
                     Physics.Simulate(dt);
+                    if (DebugTrace != null)
+                    {
+                        var hv = CrashPhysics.Velocity(Ragdoll.Head); var tv = CrashPhysics.Velocity(Ragdoll.Segments["Thorax"]);
+                        var sbt = new System.Text.StringBuilder($"{t * 1000:0.0} ms Kopf v=({hv.x:0.00},{hv.y:0.00},{hv.z:0.00}) p=({Ragdoll.Head.position.x:0.000},{Ragdoll.Head.position.y:0.000},{Ragdoll.Head.position.z:0.000}) Thorax v=({tv.x:0.00},{tv.y:0.00},{tv.z:0.00})");
+                        foreach (var go in _spawned) if (go) { var rbk = go.GetComponent<Rigidbody>(); if (rbk) sbt.Append($" {go.name} x={rbk.position.x:0.000} z={rbk.position.z:0.000}"); }
+                        if (beltShoulder) sbt.Append($" Gurt S {beltShoulder.currentForce.magnitude:0} N");
+                        if (beltLap) sbt.Append($" B {beltLap.currentForce.magnitude:0} N");
+                        if (Ragdoll.NeckJoint) sbt.Append($" Hals {Ragdoll.NeckJoint.currentForce.magnitude:0} N {Ragdoll.NeckJoint.currentTorque.magnitude:0} Nm");
+                        DebugTrace.Add(sbt.ToString());
+                    }
                     step++;
                     if (step % everyFrame == 0 || step == steps) RecordFrame(CrashStart + step * dt);
                 } while (step < steps && watch.Elapsed.TotalMilliseconds < computeBudget_ms);
@@ -775,6 +786,8 @@ namespace NotfallSIM.Crash
 
         /// <summary>Kurzbericht der Fahrzeugstruktur für das Ergebnis (null, wenn das Fahrzeug nicht verformbar gerechnet wurde).</summary>
         public Func<string> VehicleReport;
+        /// <summary>Diagnose: je Physikschritt eine Zeile (Kopf, Thorax, Fahrzeugteile, Gurt, Hals); null = aus.</summary>
+        public List<string> DebugTrace;
 
         bool _stopPlayback;
 
