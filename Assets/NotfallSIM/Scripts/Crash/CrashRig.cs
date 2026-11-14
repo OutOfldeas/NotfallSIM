@@ -524,7 +524,11 @@ namespace NotfallSIM.Crash
                 j.connectedBody = car;
                 j.autoConfigureConnectedAnchor = true;
                 j.anchor = Vector3.zero;
-                j.xMotion = j.yMotion = j.zMotion = ConfigurableJointMotion.Limited;
+                // Der Gurt hält nach vorn und oben, kaum zur Seite (Schultergurt rutscht ab). Seitlich begrenzt gerechnet riss
+                // er beim Seitenaufprall mit der Dämpfung (3 kNs/m × Türgeschwindigkeit) am leichten Sternum: Stoß durch den
+                // ganzen Körper, HIC > 10 000 ohne jeden Kopfkontakt.
+                j.xMotion = ConfigurableJointMotion.Free;
+                j.yMotion = j.zMotion = ConfigurableJointMotion.Limited;
                 j.angularXMotion = j.angularYMotion = j.angularZMotion = ConfigurableJointMotion.Free;
                 j.linearLimit = new SoftJointLimit { limit = name == "Sternum" ? 0.06f : 0.04f }; // Gurtlose und Dehnung
                 // Gurtband: ca. 140 kN/m (Dehnung ~7 % bei 10 kN auf 1 m) — didaktische Größenordnung
