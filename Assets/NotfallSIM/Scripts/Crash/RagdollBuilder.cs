@@ -442,6 +442,9 @@ namespace NotfallSIM.Crash
         }
 
         /// <summary>ConfigurableJoint mit Grenzen in Grad und leichtem „Muskeltonus“ (hält die Ausgangshaltung).</summary>
+        /// <summary>Eigenfrequenz des weichen Gelenkanschlags (rad/s), siehe <see cref="Joint"/>.</summary>
+        public const float StopFrequency_rad_s = 100f;
+
         static ConfigurableJoint Joint(Rigidbody child, Rigidbody parent, Vector3 worldAnchor, Transform body,
                           float lowX, float highX, float swingY, float swingZ, float tone)
         {
@@ -457,11 +460,20 @@ namespace NotfallSIM.Crash
             j.highAngularXLimit = new SoftJointLimit { limit = highX };
             j.angularYLimit = new SoftJointLimit { limit = swingY };
             j.angularZLimit = new SoftJointLimit { limit = swingZ };
+            // Weicher Anschlag: Bänder und Kapsel bremsen am Ende des Bewegungsumfangs, sie halten nicht starr. Der starre
+            // Anschlag stoppte z. B. den Kopf beim Seitenaufprall in einem Rechenschritt (Halskraft 147 kN, 2 700 g, HIC
+            // 11 500 ohne jeden Kopfkontakt). Steifigkeit aus der Trägheit des Segments um das Gelenk: Eigenfrequenz des
+            // Anschlags 100 rad/s (16 Hz), Dämpfungsgrad 0,5 — Annahme, nicht gemessen.
+            float d = (child.worldCenterOfMass - worldAnchor).magnitude;
+            float inertia = child.mass * (d * d + 0.01f);
+            float kStop = Mathf.Max(30f, inertia * StopFrequency_rad_s * StopFrequency_rad_s), cStop = inertia * StopFrequency_rad_s;
+            j.angularXLimitSpring = new SoftJointLimitSpring { spring = kStop, damper = cStop };
+            j.angularYZLimitSpring = new SoftJointLimitSpring { spring = kStop, damper = cStop };
             j.rotationDriveMode = RotationDriveMode.Slerp;
             j.slerpDrive = new JointDrive { positionSpring = tone, positionDamper = tone * 0.1f, maximumForce = float.MaxValue };
             j.projectionMode = JointProjectionMode.PositionAndRotation;
             j.projectionDistance = 0.02f;
-            j.projectionAngle = 5;
+            j.projectionAngle = 180;   // Winkel nicht zurücksetzen: der weiche Anschlag darf überschritten werden
             j.enablePreprocessing = false;
             return j;
         }
