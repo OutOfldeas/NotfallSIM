@@ -900,6 +900,10 @@ namespace NotfallSIM.Crash
         static VehicleModelFile _vehicleModel;
         static bool _vehicleTried;
         /// <summary>Fahrzeugmodelle (vehicle_model.json); null ohne Datei — dann die alten festen Pulse.</summary>
+        /// <summary>Bei jedem Spielstart neu laden — sonst bleibt bei abgeschaltetem „Domain Reload“ die alte Datei im Speicher.</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetModelCache() { _vehicleModel = null; _vehicleTried = false; _organModel = null; }
+
         public static VehicleModelFile LoadVehicleModel()
         {
             if (_vehicleModel != null || _vehicleTried) return _vehicleModel;
