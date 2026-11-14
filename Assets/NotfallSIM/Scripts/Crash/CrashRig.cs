@@ -16,7 +16,7 @@ namespace NotfallSIM.Crash
         public float Height_m = 1.80f, Mass_kg = 80;
         public bool Male = true;
         /// <summary>PKW frontal: Fahrzeug als verformbares Gerüst (SoftBody) statt vorgegebenem Verzögerungsverlauf.</summary>
-        public bool SoftVehicle = true;
+        public bool SoftVehicle = false;   // Voreinstellung alt: mit dem härteren Puls des Gerüsts schlägt der Insasse durch (HIC > 20 000, Unity 14.11.2026)
         public string MotoConfig = "413-6,7/13,4";  // ISO-13232-Anprallkonfiguration bzw. "alleinsturz" (vehicle_model.json › motorcycleConfigs)
         public int Seed = 1;
         public OccupantState Occupant = OccupantState.Entspannt;   // Muskeltonus (muscle_tone.json)
