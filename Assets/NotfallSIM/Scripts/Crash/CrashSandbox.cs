@@ -587,6 +587,23 @@ namespace NotfallSIM.Crash
             var headS = rig.Ragdoll.Sensors.FirstOrDefault(x => x.name == "Kopf" && x.PeakPartner != null);
             if (headS != null)
                 sb.AppendLine($"<size=80%>Härtester Kopfkontakt: {headS.PeakPartner} ({headS.PeakImpulse_Ns / Mathf.Max(1e-4f, (float)headS.Dt_s) / 1000:0.0} kN, {(headS.PeakPartnerSoft ? "nachgiebig" : "starr")})</size>");
+            // Diagnose ins Protokoll (Editor.log): Verlauf der Kopfbeschleunigung um die Spitze, härtester Kontakt je Segment
+            {
+                var dg = new StringBuilder("[Diagnose] " + _p.MechanismId + " " + _p.Speed_kmh + " km/h\n");
+                foreach (var sn in rig.Ragdoll.Sensors)
+                {
+                    if (sn.Accel_g.Count == 0) continue;
+                    int ip = 0; for (int i = 1; i < sn.Accel_g.Count; i++) if (sn.Accel_g[i] > sn.Accel_g[ip]) ip = i;
+                    dg.Append($"{sn.name}: a_max {sn.Accel_g[ip]:0} g bei {ip * sn.Dt_s * 1000:0.0} ms, Kontakt: {sn.PeakPartner ?? "keiner"} {sn.PeakImpulse_Ns / Mathf.Max(1e-4f, (float)sn.Dt_s) / 1000:0.0} kN {(sn.PeakPartnerSoft ? "nachgiebig" : "starr")}");
+                    if (sn.name == "Kopf")
+                    {
+                        dg.Append(" | Verlauf:");
+                        for (int i = Mathf.Max(0, ip - 12); i < Mathf.Min(sn.Accel_g.Count, ip + 13); i++) dg.Append($" {sn.Accel_g[i]:0}");
+                    }
+                    dg.Append('\n');
+                }
+                Debug.Log(dg.ToString());
+            }
             var lat = measurements.FirstOrDefault(x => x.metric == "Abdomen.lateral");
             if (lat != null && Mathf.Abs((float)lat.value) > 0.2f)
                 sb.AppendLine($"Rumpfanprall überwiegend von {(lat.value < 0 ? "links" : "rechts")}");
