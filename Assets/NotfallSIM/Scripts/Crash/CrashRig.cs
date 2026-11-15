@@ -15,7 +15,8 @@ namespace NotfallSIM.Crash
         public bool Airbag = true;                // nur PKW frontal
         public float Height_m = 1.80f, Mass_kg = 80;
         public bool Male = true;
-        /// <summary>PKW frontal: Fahrzeug als verformbares Gerüst (SoftBody) statt vorgegebenem Verzögerungsverlauf.</summary>
+        /// <summary>Fahrzeuge als verformbares Gerüst (SoftBody/SoftImpact): frontal und seitlich rechnet das Gerüst den Stoß,
+        /// in den übrigen Modi formt es die Delle, deren Tiefe das jeweilige Stoßmodell liefert.</summary>
         public bool SoftVehicle = true;   // wieder Standard: HIC 236 statt > 20 000, seit Gelenkanschläge, Airbag und Gurt nachgeben (Unity 14.11.2026)
         public string MotoConfig = "413-6,7/13,4";  // ISO-13232-Anprallkonfiguration bzw. "alleinsturz" (vehicle_model.json › motorcycleConfigs)
         public int Seed = 1;
@@ -142,6 +143,7 @@ namespace NotfallSIM.Crash
         public void Clear()
         {
             _softParts.Clear();
+            _pedVisual = null;
             OpponentTravel = Vector3.zero;
             _visuals.Clear();
             VehicleReport = null;
@@ -188,12 +190,68 @@ namespace NotfallSIM.Crash
         /// <summary>Erzeugte Fahrzeugmodelle (sichtbar, verformbar; Verformung wird mit aufgezeichnet).</summary>
         readonly List<VehicleVisual> _visuals = new List<VehicleVisual>();
 
-        VehicleVisual CarModel(Transform parent, CarProfile p, Color paint, Vector3 localPos, float yaw, Func<DeformState> source = null)
+        /// <summary>Verformbares Gerüst für alle Fahrzeuge dieses Aufbaus (<see cref="CrashParams.SoftVehicle"/>).</summary>
+        bool _softVehicles;
+
+        VehicleVisual CarModel(Transform parent, CarProfile p, Color paint, Vector3 localPos, float yaw, Func<DeformState> source = null, double mass_kg = 1500)
         {
             var v = VehicleVisual.Car(parent, p, paint, localPos, Quaternion.Euler(0, yaw, 0));
             v.Source = source;
+            // Gerüst statt berechneter Form: die Tiefe kommt weiter aus dem Stoßmodell (source), die Form aus Punkten und Balken
+            if (_softVehicles && source != null) AttachDent(v, mass_kg);
             _visuals.Add(v);
             return v;
+        }
+
+        // ---- Fußgänger: Dellen in Stoßfänger und Haube aus der größten Kontaktkraft je Körperteil (Kraft / Steifigkeit, höchstens
+        //      der Federweg des Teils, vehicle_model.json › pedestrianFront), Ort = Lage des Körperteils in diesem Moment
+        VehicleVisual _pedVisual;
+        float _pedBumper, _pedBumperX;
+        readonly Dictionary<string, float> _pedTop = new Dictionary<string, float>();
+
+        void StepPedestrianDents()
+        {
+            if (_pedVisual == null || _pedVisual.Dent == null || Ragdoll == null || _pedVisual.Go == null) return;
+            var vm = LoadVehicleModel();
+            if (vm == null || vm.pedestrianFront == null) return;
+            var tr = _pedVisual.Go.transform;
+            int id = 0;
+            foreach (var kv in Ragdoll.Segments)
+            {
+                id++;
+                var col = kv.Value.GetComponent<Collider>();
+                if (col == null) continue;
+                foreach (var part in vm.pedestrianFront)
+                {
+                    bool bumper = part.part == "Stoßfänger", hood = part.part == "Motorhaube" || part.part == "Haubenvorderkante";
+                    if (!bumper && !hood) continue;
+                    float f = SoftContact.PeakWith(col, "fahrzeug:" + part.part).Force_N;
+                    if (f <= 0) continue;
+                    float depth = Mathf.Min((float)part.clearance_m, f / (float)part.stiffness_N_m);
+                    var local = tr.InverseTransformPoint(kv.Value.worldCenterOfMass);
+                    if (bumper)
+                    {
+                        if (depth > _pedBumper) { _pedBumper = depth; _pedBumperX = local.x; }
+                    }
+                    else
+                    {
+                        string key = kv.Key + part.part;
+                        float old; _pedTop.TryGetValue(key, out old);
+                        if (depth <= old + 0.002f) continue;
+                        _pedTop[key] = depth;
+                        // Kopf drückt kleiner und tiefer ein als Rumpf oder Becken
+                        _pedVisual.Dent.SetTop(id * 4 + (part.part == "Motorhaube" ? 0 : 1), local.x, local.z, kv.Key == "Kopf" ? 0.12 : 0.22, depth);
+                    }
+                }
+            }
+        }
+
+        SoftDent AttachDent(VehicleVisual v, double mass_kg = 1500)
+        {
+            var car = SoftCar.Build(v.Profile, mass_kg);
+            v.SoftSkin = new SoftSkin(v.Shape, car.Body);
+            v.Dent = new SoftDent(car);
+            return v.Dent;
         }
 
         /// <summary>Normaler PKW-Umriss (Fußgänger-Front, Unfallgegner), Länge L, Front bei z = L/2.</summary>
@@ -261,6 +319,7 @@ namespace NotfallSIM.Crash
         public float Build(CrashParams p, out Action<float, float> drive, out CrashApproach approach)
         {
             Clear();
+            _softVehicles = p.SoftVehicle;
             Ground();
             float H = p.Height_m;
             float v = p.Speed_kmh / 3.6f;
@@ -322,6 +381,7 @@ namespace NotfallSIM.Crash
                             var sc = SoftCar.Build(sledProfile, vm != null ? vm.frontal.mass_kg : 1500);
                             sc.SetSeat(-sledCenterZ);
                             soft = new SoftCrashRun(sc, v);
+                            sledVisual.Dent = null;
                             sledVisual.SoftSkin = new SoftSkin(sledVisual.Shape, sc.Body);
                             sledVisual.SoftSource = soft.Snapshot;
                             var run = soft;
@@ -377,13 +437,45 @@ namespace NotfallSIM.Crash
                         var bullet = Vehicle("Unfallgegner", new Vector3(doorX - v * t0 - bulletLen / 2, 0, 0.1f));
                         float bulletCrush = 0;
                         // Unfallgegner als PKW, fährt nach +x (Modell um 90° gedreht); seine Front knautscht um ihren Anteil
-                        CarModel(bullet.transform, SedanProfile(bulletLen), new Color(0.25f, 0.45f, 0.3f), Vector3.zero, 90,
+                        var bulletVisual = CarModel(bullet.transform, SedanProfile(bulletLen), new Color(0.25f, 0.45f, 0.3f), Vector3.zero, 90,
                                  () => new DeformState { Front = bulletCrush });
                         var rbBullet = bullet.GetComponent<Rigidbody>();
                         approach.Carry.Add((rbBullet, new Vector3(v, 0, 0)));
                         approach.RagdollVelocity = Vector3.zero;   // Fahrzeug steht (Kreuzung)
                         Shift(new[] { rbBullet }, new Vector3(-v * approachTime_s, 0, 0));
-                        if (vm != null)
+                        if (vm != null && p.SoftVehicle)
+                        {
+                            // Beide Fahrzeuge als Gerüst (SoftImpact.cs › SoftSideRun): Front des Gegners gegen die Seite; Bewegung
+                            // des getroffenen Fahrzeugs und Eindringen der Tür am Sitz kommen aus der gerechneten Struktur
+                            var struckCar = SoftCar.Build(sledProfile, vm.side.struckMass_kg);
+                            var bulletCar = SoftCar.Build(bulletVisual.Profile, vm.side.bulletMass_kg);
+                            var run = new SoftSideRun(struckCar, bulletCar, v, 0.1f - sledCenterZ, -sledCenterZ, true);
+                            sledVisual.Dent = null; bulletVisual.Dent = null;
+                            sledVisual.SoftSkin = new SoftSkin(sledVisual.Shape, struckCar.Body);
+                            sledVisual.SoftSource = run.StruckSnapshot;
+                            bulletVisual.SoftSkin = new SoftSkin(bulletVisual.Shape, bulletCar.Body);
+                            bulletVisual.SoftSource = run.BulletSnapshot;
+                            VehicleReport = () => $"Fahrzeugstruktur (verformbar, je {struckCar.Body.Count} Punkte): Tür am Sitz {run.MaxDoor * 100:0} cm eingedrungen, " +
+                                                  $"Front des Gegners {run.BulletCrush * 100:0} cm, Δv getroffen {run.StruckVelocity * 3.6:0} km/h, Spitze {run.PeakStruckAccel_g:0} g (10-ms-Mittel)";
+                            double vS = 0, vB = v;
+                            drive = (time, dt) =>
+                            {
+                                if (time >= t0)
+                                {
+                                    if (run.Time < 0.25) { run.Advance(dt); vS = run.StruckVelocity; vB = run.BulletVelocity; }
+                                    else { vS = Mathf.MoveTowards((float)vS, 0, 6f * dt); vB = Mathf.MoveTowards((float)vB, 0, 6f * dt); }   // ausrollen (Annahme)
+                                }
+                                double doorIn = run.Door;
+                                sledLeft = (float)doorIn;
+                                bulletCrush = (float)run.BulletCrush;
+                                var carPos = rbCar.position + new Vector3((float)(vS * dt), 0, 0);
+                                rbCar.MovePosition(carPos);
+                                rbBullet.MovePosition(rbBullet.position + new Vector3((float)((time < t0 ? v : vB) * dt), 0, 0));
+                                rbDoor.MovePosition(carPos + new Vector3((float)doorIn, 0, 0));   // Tür nach innen (+x)
+                                rbDash.MovePosition(carPos); rbWheel.MovePosition(carPos);
+                            };
+                        }
+                        else if (vm != null)
                         {
                             // Feder-Masse-Modell (vehicle_model.json › side): Front des Gegners und Seitenstruktur in Reihe, plastisch;
                             // die Tür dringt um den Anteil der Seite am Knautschweg ein und bleibt eingedrückt.
@@ -434,7 +526,11 @@ namespace NotfallSIM.Crash
                     _softParts.Add(Part(t, "Windschutzscheibe", new Vector3(1.75f, 1.08f, 0), new Vector3(0.7f, 0.05f, 1.5f), new Color(0.6f, 0.75f, 0.85f), tiltZ: 32, visible: false));
                     Part(t, "Dach", new Vector3(2.6f, 1.35f, 0), new Vector3(1.2f, 0.05f, 1.5f), c, visible: false);
                     // Sichtbares Modell: fährt nach −x (um −90° gedreht), Front bei x = 0
-                    CarModel(t, SedanProfile(), c, new Vector3(2.2f, 0, 0), -90);
+                    // Dellen: Stoßfänger (Beine) als Front, Haube von oben — Tiefe aus Kontaktkraft / Steifigkeit des Teils
+                    _pedBumper = 0; _pedBumperX = 0; _pedTop.Clear();
+                    _pedVisual = CarModel(t, SedanProfile(), c, new Vector3(2.2f, 0, 0), -90,
+                                          () => new DeformState { Front = _pedBumper, FrontPos = _pedBumperX });
+                    if (_pedVisual.Dent != null) _pedVisual.Dent.EndWidth = 0.6;
                     Ragdoll = RagdollBuilder.Build(new Vector3(0, hipY, 0), Quaternion.identity, RagdollPose.Standing, H, p.Mass_kg, p.Male, invertKneeFlexion);
                     var rbCar = car.GetComponent<Rigidbody>();
                     // Fahrzeug fährt einige Sekunden auf den stehenden Fußgänger zu (der bis kurz vorher gehalten wird)
@@ -737,7 +833,7 @@ namespace NotfallSIM.Crash
         {
             _tracked.Clear(); _trackedBodies.Clear(); _savedInterp.Clear();
             _frameTimes.Clear(); _framePos.Clear(); _frameRot.Clear();
-            foreach (var v in _visuals) { v.Frames.Clear(); v.SoftFrames.Clear(); }
+            foreach (var v in _visuals) v.ClearRecording();
             BeginGlass();
             var bodies = new List<Rigidbody>();
             foreach (var rd in AllRagdolls()) bodies.AddRange(rd.Root.GetComponentsInChildren<Rigidbody>(true));
@@ -760,7 +856,8 @@ namespace NotfallSIM.Crash
             }
             _frameTimes.Add(time); _framePos.Add(pos); _frameRot.Add(rot);
             StepGlass(time);
-            foreach (var v in _visuals) v.Record();
+            StepPedestrianDents();
+            foreach (var v in _visuals) v.Record(time);
         }
 
         /// <summary>Pose zum Zeitpunkt t (s) aus den Aufzeichnungen, linear bzw. sphärisch interpoliert.</summary>

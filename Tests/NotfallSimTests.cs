@@ -93,6 +93,7 @@ static class Tests
         Run("Scheiben: Flächen je Scheibe, Bruchkriterien, Rissbild, Wölbung, Glassplitter-Zeichen", GlassChecks);
         Run("Sichtbare Frakturen: Zuordnung, Reihenfolge, Hautübergang, Knick über die Zeit", FractureChecks);
         Run("Verformbares Fahrzeug (Punkte und Balken): Fließen, Energie, Kennlinie, Zelle, versetzter Anprall, Haut", SoftBodyChecks);
+        Run("Verformbares Fahrzeug in allen Modi: Dellen aus dem Knautschweg (Seite, Front, Haube), Seitenaufprall zweier Gerüste", SoftImpactChecks);
         Run("Motorrad: Gabel, Nicken über das Vorderrad, PKW-Delle in Reihe; ISO-13232-Konfigurationen", MotorcycleChecks);
         Run("Verkehrsunfall: Fahrdynamik, Bremsen, Ausweichen, Fahrzeug-Kollision mit Kennlinien (TrafficSim)", TrafficChecks);
 
@@ -1835,6 +1836,61 @@ static class Tests
         for (int i = 0; i < mesh.Count; i++) { frontMax = Math.Max(frontMax, mesh.V[3 * i + 2]); rearMin = Math.Min(rearMin, mesh.V[3 * i + 2]); }
         double len = frontMax - rearMin;
         Check(frontMax < c56.Body.WallZ + 0.05 && len < pkw.length_m - 0.35 && len > pkw.length_m - 0.9, $"Haut: Fahrzeug nach 56 km/h {len:0.00} m lang (vorher {pkw.length_m:0.00} m), nichts ragt durch die Wand");
+    }
+
+    static void SoftImpactChecks()
+    {
+        Func<NotfallSIM.Crash.CarProfile> sedan = () => NotfallSIM.Crash.CarProfile.Make(4.4f, 1.75f, 2.65f, 0.25f, 0.95f, 0.95f, -1.5f, 1.0f, -1.0f, 0.15f, 1.38f, 0.75f, 0.92f, 0.84f, true);
+        // Profil um den Innenraum wie in der Sandbox (PKW seitlich, Sitzhöhe 55 cm)
+        Func<NotfallSIM.Crash.CarProfile> cabin = () => NotfallSIM.Crash.CarProfile.Make(4.6f, 1.8f, 2.75f, 0.02f, 0.7f, 0.65f, -0.85f, 0.75f, -0.3f, 0.56f, 1.6f, 0.96f, 0.97f, 0.6f, false);
+
+        // Delle aus dem Knautschweg: Seite links 25 cm wird erreicht, die rechte Seite bleibt, nichts fliegt davon
+        var c = NotfallSIM.Crash.SoftCar.Build(sedan(), 1500);
+        var d = new NotfallSIM.Crash.SoftDent(c);
+        for (int i = 0; i <= 200; i++) d.Advance(new NotfallSIM.Crash.DeformState { Left = Math.Min(0.25f, i * 0.005f), LeftPos = 0.2f }, 0.001);
+        var b = c.Body; double near = 0, far = 0; int nn = 0, nf = 0;
+        for (int i = 0; i < b.Count; i++)
+        {
+            if (Math.Abs(b.Z0[i] - 0.2) > 0.25 || b.Y0[i] < 0.4 || b.Y0[i] > 1.0) continue;
+            if (b.X0[i] < -0.8) { near += b.X[i] - b.X0[i]; nn++; }
+            if (b.X0[i] > 0.8) { far += b.X[i] - b.X0[i]; nf++; }
+        }
+        near /= Math.Max(1, nn); far /= Math.Max(1, nf);
+        Check(near > 0.22 && near < 0.28 && Math.Abs(far) < 0.01 && d.MaxDisplacement() < 0.35, $"Delle Seite: getroffen {near * 100:0.0} cm (Ziel 25), gegenüber {far * 100:0.0} cm, größte Verschiebung {d.MaxDisplacement() * 100:0} cm");
+        // Sprung der Tiefe in einem Bild: wird nachgeholt, Blech fliegt nicht weiter als die Druckfläche
+        c = NotfallSIM.Crash.SoftCar.Build(sedan(), 1500); d = new NotfallSIM.Crash.SoftDent(c);
+        for (int i = 0; i < 200; i++) d.Advance(new NotfallSIM.Crash.DeformState { Front = 0.3f }, 0.001);
+        Check(Math.Abs(d.MaxDisplacement() - 0.3) < 0.03, $"Delle Front nach Sprung auf 30 cm: {d.MaxDisplacement() * 100:0.0} cm");
+        // Haube von oben (Kopf 6 cm): wird erreicht, 0,8 m daneben nichts
+        c = NotfallSIM.Crash.SoftCar.Build(sedan(), 1500); d = new NotfallSIM.Crash.SoftDent(c);
+        for (int i = 0; i < 100; i++) { d.SetTop(1, -0.2, 1.0, 0.12, Math.Min(0.06, i * 0.002)); d.Advance(new NotfallSIM.Crash.DeformState(), 0.001); }
+        b = c.Body; double hood = 0, hoodFar = 0;
+        for (int i = 0; i < b.Count; i++)
+        {
+            double dy = b.Y[i] - b.Y0[i];
+            if (Math.Abs(b.Z0[i] - 1.0) < 0.3) hood = Math.Min(hood, dy);   // ebene Fläche auf der schrägen Haube: der höchste Punkt gibt am meisten nach
+            if (Math.Abs(b.Z0[i] - 1.0) > 0.8) hoodFar = Math.Min(hoodFar, dy);
+        }
+        Check(hood < -0.055 && hood > -0.07 && hoodFar > -0.005, $"Delle Haube (Kopf 6 cm, neben dem Mittelpunkt): {-hood * 100:0.0} cm, 0,8 m daneben {-hoodFar * 100:0.0} cm");
+
+        // Seitenaufprall mit zwei Gerüsten (1500 kg in 1530 kg, 90°): Impuls bleibt, Tür dringt ein, Front knautscht
+        var res = new List<string>();
+        double door30 = 0, door50 = 0;
+        foreach (double kmh in new[] { 30.0, 50.0 })
+        {
+            var run = new NotfallSIM.Crash.SoftSideRun(NotfallSIM.Crash.SoftCar.Build(cabin(), 1530), NotfallSIM.Crash.SoftCar.Build(sedan(), 1500), kmh / 3.6, 0.3, 0.2);
+            double p0 = run.Momentum();
+            while (run.Time < 0.15) run.Advance(0.0005);
+            double common = 1500 * kmh / 3.6 / 3030;
+            Check(Math.Abs(run.Momentum() / p0 - 1) < 0.002, $"{kmh} km/h: Impuls {run.Momentum() / p0:0.0000}");
+            Check(run.StruckVelocity > 0.8 * common && run.StruckVelocity < 1.6 * common, $"{kmh} km/h: Δv getroffen {run.StruckVelocity * 3.6:0} km/h (gemeinsam {common * 3.6:0})");
+            if (kmh == 30) door30 = run.MaxDoor; else door50 = run.MaxDoor;
+            res.Add($"{kmh} km/h Tür {run.MaxDoor * 100:0} cm, Front {run.BulletCrush * 100:0} cm, Δv {run.StruckVelocity * 3.6:0} km/h, {run.PeakStruckAccel_g:0} g");
+        }
+        // Größenordnung: Federmodell nach Reichert 2018 (vehicle_model.json › side) 17 / 29 cm dynamisch; Gerüst ohne Abgleich
+        // an Messkurven, darf deshalb grob abweichen
+        Check(door30 > 0.05 && door50 > door30 && door50 < 0.35, $"Tür 30 / 50 km/h: {door30 * 100:0} / {door50 * 100:0} cm");
+        Console.WriteLine("        Seitenaufprall (zwei Gerüste): " + string.Join("; ", res));
     }
 
     static void MotorcycleChecks()

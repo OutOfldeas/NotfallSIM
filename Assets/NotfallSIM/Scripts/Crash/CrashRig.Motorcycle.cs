@@ -127,9 +127,11 @@ namespace NotfallSIM.Crash
             _softParts.Add(Part(ct, "Motorhaube", new Vector3(0, 0.84f, L / 2 - 1.0f), new Vector3(W - 0.1f, 0.08f, 1.0f), red, visible: false));
             _softParts.Add(Part(ct, "Windschutzscheibe", new Vector3(0, 1.15f, 0.45f), new Vector3(W - 0.3f, 0.05f, 0.76f), red, visible: false, tiltX: 37.5f));
             bool frontFace = cfg.contact == "front" || bikeSide;
-            CarModel(ct, SedanProfile(L, W), red, Vector3.zero, 0, () => frontFace
+            var carVisual = CarModel(ct, SedanProfile(L, W), red, Vector3.zero, 0, () => frontFace
                 ? new DeformState { Front = carDent, FrontPos = carDentPos }
                 : hitRight ? new DeformState { Right = carDent, RightPos = carDentPos } : new DeformState { Left = carDent, LeftPos = carDentPos });
+            // Das Motorrad trifft schmal (Vorderrad, Gabel ca. 0,4 m; liegend ca. 0,6 m): Delle am Gerüst entsprechend schmal
+            if (carVisual.Dent != null) { carVisual.Dent.SideWidth = 0.4; carVisual.Dent.EndWidth = 0.6; }
             var rbCar = car.GetComponent<Rigidbody>();
             if (vCar > 0)
             {
