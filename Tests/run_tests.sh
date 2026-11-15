@@ -37,6 +37,7 @@ mcs -nologo -warnaserror- \
     $SCRIPTS/Crash/MotorcycleSim.cs \
     $SCRIPTS/Crash/FractureSpecs.cs \
     $SCRIPTS/Crash/SoftBody.cs \
+    $SCRIPTS/Crash/SoftImpact.cs \
     Tests/NotfallSimTests.cs
 
 mono "$OUT/tests.exe" Assets/StreamingAssets/NotfallSIM

@@ -34,6 +34,12 @@ namespace NotfallSIM.Crash
         public double WallForce, PlasticWork;
         /// <summary>Unter diesem Anteil der Ausgangslänge blockiert ein Balken.</summary>
         public double LockRatio = 0.25;
+        /// <summary>Festgehaltene Punkte (bleiben in ihrer Lage; für Dellen am sonst ruhenden Fahrzeug).</summary>
+        public bool[] Fixed;
+        /// <summary>Geschwindigkeitsproportionale Dämpfung aller Punkte (1/s; 0 = keine) — beruhigt das Gerüst nach einer Delle.</summary>
+        public double Damping_per_s;
+        /// <summary>Starre Druckflächen (Stoßfänger des Gegners, Vorderrad, Körper): schieben Punkte in ihrer Richtung vor sich her.</summary>
+        public readonly List<SoftPlate> Plates = new List<SoftPlate>();
 
         readonly List<double[]> _nodes = new List<double[]>();
         readonly List<double[]> _beams = new List<double[]>();
@@ -61,6 +67,7 @@ namespace NotfallSIM.Crash
             Vx = new double[Count]; Vy = new double[Count]; Vz = new double[Count];
             X0 = new double[Count]; Y0 = new double[Count]; Z0 = new double[Count];
             _fx = new double[Count]; _fy = new double[Count]; _fz = new double[Count];
+            Fixed = new bool[Count];
             for (int i = 0; i < Count; i++) { X[i] = X0[i] = _nodes[i][0]; Y[i] = Y0[i] = _nodes[i][1]; Z[i] = Z0[i] = _nodes[i][2]; M[i] = _nodes[i][3]; }
             Beams = _beams.Count;
             A = new int[Beams]; B = new int[Beams]; Group = new int[Beams];
@@ -127,13 +134,45 @@ namespace NotfallSIM.Crash
                 _fx[a] += f * nx; _fy[a] += f * ny; _fz[a] += f * nz;
                 _fx[b] -= f * nx; _fy[b] -= f * ny; _fz[b] -= f * nz;
             }
-            double wall = 0;
+            double wall = 0, keep = Math.Max(0, 1 - Damping_per_s * dt);
+            int plates = Plates.Count;
+            for (int k = 0; k < plates; k++) Plates[k].Force = 0;
             for (int i = 0; i < Count; i++)
             {
+                if (Fixed[i]) { Vx[i] = Vy[i] = Vz[i] = 0; continue; }
                 double im = 1 / M[i];
-                Vx[i] += _fx[i] * im * dt; Vy[i] += _fy[i] * im * dt; Vz[i] += _fz[i] * im * dt;
+                Vx[i] = (Vx[i] + _fx[i] * im * dt) * keep; Vy[i] = (Vy[i] + _fy[i] * im * dt) * keep; Vz[i] = (Vz[i] + _fz[i] * im * dt) * keep;
                 X[i] += Vx[i] * dt; Y[i] += Vy[i] * dt; Z[i] += Vz[i] * dt;
                 if (Y[i] < GroundY) { Y[i] = GroundY; if (Vy[i] < 0) Vy[i] = 0; }
+                for (int k = 0; k < plates; k++)
+                {
+                    var pl = Plates[k];
+                    if (!pl.Active || pl.Mask == null || !pl.Mask[i]) continue;
+                    double d = pl.Nx * X[i] + pl.Ny * Y[i] + pl.Nz * Z[i] - pl.S;
+                    double vn = pl.Nx * Vx[i] + pl.Ny * Vy[i] + pl.Nz * Vz[i] - pl.V;
+                    if (d >= 0)
+                    {
+                        // Haftend: ein Punkt, der die Fläche berührt hat, eilt ihr nicht voraus (zerknautschtes Blech bleibt am
+                        // Hindernis, statt mit Schwung weiterzufliegen)
+                        if (pl.Sticky && pl.Touched != null && pl.Touched[i] && vn > 0 && d < 0.02)
+                        { Vx[i] -= pl.Nx * vn; Vy[i] -= pl.Ny * vn; Vz[i] -= pl.Nz * vn; }
+                        continue;
+                    }
+                    X[i] -= pl.Nx * d; Y[i] -= pl.Ny * d; Z[i] -= pl.Nz * d;   // auf die Fläche zurück
+                    if (pl.Touched != null) pl.Touched[i] = true;
+                    if (vn >= 0) continue;
+                    double jn = -M[i] * vn;
+                    pl.Force += jn / dt;
+                    Vx[i] -= pl.Nx * vn; Vy[i] -= pl.Ny * vn; Vz[i] -= pl.Nz * vn;
+                    // Reibung an der Fläche (Coulomb über den Normalimpuls), Fläche gleitet nicht quer
+                    double tx = Vx[i] - pl.Nx * pl.V, ty = Vy[i] - pl.Ny * pl.V, tz = Vz[i] - pl.Nz * pl.V;
+                    double vt = Math.Sqrt(tx * tx + ty * ty + tz * tz);
+                    if (vt > 1e-9)
+                    {
+                        double sc = Math.Max(0, 1 - pl.Friction * jn / (M[i] * vt)) - 1;
+                        Vx[i] += tx * sc; Vy[i] += ty * sc; Vz[i] += tz * sc;
+                    }
+                }
                 if (Z[i] > WallZ && X[i] >= WallXMin && X[i] <= WallXMax && Y[i] <= WallHeight)
                 {
                     Z[i] = WallZ;
@@ -165,11 +204,52 @@ namespace NotfallSIM.Crash
         public int BrokenCount() { int n = 0; for (int i = 0; i < Beams; i++) if (Broken[i]) n++; return n; }
     }
 
+    /// <summary>
+    /// Starre, ebene Druckfläche an einem <see cref="SoftBody"/>: Punkte im Bereich (Quader in Ausgangskoordinaten) müssen
+    /// in Schubrichtung n vor der Fläche bleiben (n·r ≥ S). Die Fläche bewegt sich mit V längs n (vom Aufrufer geführt).
+    /// </summary>
+    public class SoftPlate
+    {
+        public double Nx, Ny, Nz, S, V, Friction = 0.3;
+        /// <summary>Kraft der Punkte auf die Fläche im letzten Schritt (N, gegen die Schubrichtung).</summary>
+        public double Force;
+        public double MinX = double.NegativeInfinity, MaxX = double.PositiveInfinity, MinY = double.NegativeInfinity, MaxY = double.PositiveInfinity,
+                      MinZ = double.NegativeInfinity, MaxZ = double.PositiveInfinity;
+        public bool Active = true;
+        public bool[] Mask;
+        /// <summary>Berührte Punkte haften in Schubrichtung (siehe <see cref="SoftBody.Step"/>).</summary>
+        public bool Sticky;
+        public bool[] Touched;
+
+        /// <summary>Punkte im Bereich festlegen (nach Ausgangslage) und die Fläche an den vordersten davon legen. Anzahl.</summary>
+        public int Bind(SoftBody b)
+        {
+            Mask = new bool[b.Count];
+            Touched = new bool[b.Count];
+            int n = 0; double first = double.PositiveInfinity;
+            for (int i = 0; i < b.Count; i++)
+            {
+                if (b.X0[i] < MinX || b.X0[i] > MaxX || b.Y0[i] < MinY || b.Y0[i] > MaxY || b.Z0[i] < MinZ || b.Z0[i] > MaxZ) continue;
+                Mask[i] = true; n++;
+                first = Math.Min(first, Nx * b.X0[i] + Ny * b.Y0[i] + Nz * b.Z0[i]);
+            }
+            Rest = n > 0 ? first : 0;
+            S = Rest;
+            return n;
+        }
+        /// <summary>Lage der Fläche, in der sie den Körper gerade berührt (aus <see cref="Bind"/>).</summary>
+        public double Rest;
+    }
+
     /// <summary>Stellgrößen des Fahrzeuggerüsts. Fließkräfte in N je Balken; Werte für den PKW an der Front-Kennlinie eingestellt.</summary>
     public class SoftCarParams
     {
         /// <summary>Knautschzone vorn: Fließkraft der Blech-Balken; Längsträger tragen das <see cref="RailFactor"/>-Fache.</summary>
         public double FrontYield_N = 21000, RearYield_N = 7000, CabinYield_N = 120000, RailFactor = 4;
+        /// <summary>Seitenstruktur der Fahrgastzelle (Tür, Schweller bis zum Längsträger; quer): Fließkraft je Balken. Boden
+        /// (Schweller–Bodenmitte) und Dach quer tragen das <see cref="FloorFactor"/>-Fache. Nur Querbalken der Spanten: die
+        /// Längsbalken und Schubfelder der Zelle (Frontalcrash) bleiben unverändert. Eingestellt am Seitenaufprall, siehe Tests.</summary>
+        public double SideYield_N = 1000, FloorFactor = 3;
         /// <summary>Zug hält mehr aus als Druck (Blech knickt unter Druck, reißt erst spät).</summary>
         public double TensionFactor = 2.0;
         public double EngineMass_kg = 250, EngineYield_N = 600000, MountYield_N = 15000;
@@ -253,8 +333,13 @@ namespace NotfallSIM.Crash
                 // Querschnitt (Spant): Zone der Station = die steifere der angrenzenden Felder
                 int g = s == 0 ? zoneOfBay(0) : s == n ? zoneOfBay(n - 1) : (zoneOfBay(s) == GroupCabin || zoneOfBay(s - 1) == GroupCabin ? GroupCabin : zoneOfBay(s));
                 double fy = yieldOf(g);
-                foreach (var e in ring) beam(car.Node(s, e[0]), car.Node(s, e[1]), fy, g);
-                foreach (var e in cross) beam(car.Node(s, e[0]), car.Node(s, e[1]), fy, g);
+                foreach (var e in ring) beam(car.Node(s, e[0]), car.Node(s, e[1]), g == GroupCabin && (e[0] >= 6 || e[0] == 2 || e[0] == 3) ? prm.SideYield_N * prm.FloorFactor : fy, g);   // Boden und Dach quer
+                foreach (var e in cross)
+                {
+                    // Zelle quer: Tür/Schweller bis zum Längsträger und die Strebe auf Gürtelhöhe geben beim Seitenaufprall nach
+                    bool side = g == GroupCabin && ((e[0] >= 8 && (e[1] == 0 || e[1] == 1 || e[1] == 5 || e[1] == 6)) || (e[0] == 1 && e[1] == 5));
+                    beam(car.Node(s, e[0]), car.Node(s, e[1]), side ? prm.SideYield_N : fy, g);
+                }
             }
             for (int s = 0; s < n; s++)
             {

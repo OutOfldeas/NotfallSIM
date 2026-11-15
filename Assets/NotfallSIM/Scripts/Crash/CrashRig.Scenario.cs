@@ -188,7 +188,7 @@ namespace NotfallSIM.Crash
                 Rear = (float)faces[TrafficSim.Rear].MaxCrush, RearPos = (float)faces[TrafficSim.Rear].Position,
                 Left = (float)faces[TrafficSim.Left].MaxCrush, LeftPos = (float)faces[TrafficSim.Left].Position,
                 Right = (float)faces[TrafficSim.Right].MaxCrush, RightPos = (float)faces[TrafficSim.Right].Position
-            });
+            }, t.mass_kg);
             float engineFrom = dashZ + 0.1f;
 
             // Innenraum (Kollider)

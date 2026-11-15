@@ -186,7 +186,8 @@ namespace NotfallSIM.Crash
 
         TMP_Text _softText;
 
-        /// <summary>Knopf „Fahrzeug: verformbar / Kennlinie“ (nur PKW frontal): neues Gerüst aus Punkten und Balken oder bisheriger Verzögerungsverlauf.</summary>
+        /// <summary>Knopf „Fahrzeug: verformbar / einfach“ (alle Modi mit Fahrzeug): Gerüst aus Punkten und Balken oder bisherige
+        /// Rechnung (Frontal: Verzögerungsverlauf, Seite: Federmodell, sonst berechnete Delle ohne Gerüst).</summary>
         TMP_Text MakeSoftButton()
         {
             var src = _contactText != null ? _contactText.GetComponentInParent<UnityEngine.UI.Button>() : null;
@@ -204,7 +205,7 @@ namespace NotfallSIM.Crash
             return label;
         }
 
-        string SoftLabel => _p.SoftVehicle ? "Fahrzeug: verformbar (neu)" : "Fahrzeug: fester Verlauf (alt)";
+        string SoftLabel => _p.SoftVehicle ? "Fahrzeug: verformbar (Gerüst)" : "Fahrzeug: einfach (alt)";
 
         public void ToggleSoftVehicle()
         {
@@ -304,7 +305,7 @@ namespace NotfallSIM.Crash
             _p.Speed_kmh = Mechanisms[id].speed;
             ShowScenarioPanel(id == "szenario");
             if (_beltRow != null) _beltRow.SetActive(id.StartsWith("pkw") || id == "szenario");
-            if (_softText != null) _softText.GetComponentInParent<UnityEngine.UI.Button>(true).gameObject.SetActive(id == "pkw_frontal");
+            if (_softText != null) _softText.GetComponentInParent<UnityEngine.UI.Button>(true).gameObject.SetActive(id != "sturz_hoehe" && id != "gewalt");
             if (_configText != null)
             {
                 _configText.GetComponentInParent<UnityEngine.UI.Button>(true).gameObject.SetActive(id == "motorrad");

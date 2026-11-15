@@ -26,6 +26,9 @@ namespace NotfallSIM.Crash
         /// <summary>Liefert die aktuelle Lage aller Gerüstpunkte relativ zur Fahrgastzelle (<see cref="SoftCrashRun.Snapshot"/>).</summary>
         public Func<float[]> SoftSource;
         public readonly List<float[]> SoftFrames = new List<float[]>();
+        /// <summary>Dellen am Gerüst aus dem Knautschweg des Stoßmodells (<see cref="Source"/>) — alle Modi außer dem Frontalcrash gegen die Wand.</summary>
+        public SoftDent Dent;
+        float _lastRecord = float.NaN;
         float[] _softA, _softB; float _softU;
 
         // ---- Scheiben (siehe GlassBreak): Zeitpunkt des Zerfalls je ESG-Scheibe, Risse und Wölbung der Frontscheibe, Glaswürfel
@@ -106,13 +109,21 @@ namespace NotfallSIM.Crash
             Mesh.RecalculateBounds();
         }
 
-        public void Record()
+        public void Record(float time)
         {
             var d = Source != null ? Source() : default(DeformState);
             d.Shield = ShieldDepthNow;
             Frames.Add(d);
             if (SoftSource != null) SoftFrames.Add(SoftSource());
+            else if (Dent != null)
+            {
+                Dent.Advance(d, float.IsNaN(_lastRecord) ? 0 : time - _lastRecord);
+                SoftFrames.Add(Dent.Snapshot());
+            }
+            _lastRecord = time;
         }
+
+        public void ClearRecording() { Frames.Clear(); SoftFrames.Clear(); _lastRecord = float.NaN; }
 
 
         // ---------------------------------------------------------------- Scheiben
