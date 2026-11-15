@@ -110,8 +110,10 @@ namespace NotfallSIM.Crash
                     id = "fahrzeug:" + part.part, label = part.part, kind = "stumpf", mode = "statisch", shape = "box",
                     stiffness_N_m = part.stiffness_N_m, clearance_m = part.clearance_m, sourceId = part.sourceId
                 };
-                // Fahrzeug ist kinematisch: unendlich schwer (keine Masse im Kontakt), Kontaktfläche aus der Geometrie
-                SoftContact.RegisterObject(col, def, null, 0, col.transform.lossyScale, 0);
+                // Fahrzeug kinematisch bzw. Boden: unendlich schwer (keine Masse im Kontakt); Motorrad (bewegt): mit seiner Masse.
+                // Kontaktfläche aus der Geometrie
+                var rbo = col.attachedRigidbody != null && !col.attachedRigidbody.isKinematic ? col.attachedRigidbody : null;
+                SoftContact.RegisterObject(col, def, rbo, 0, col.transform.lossyScale, 0);
                 n++;
             };
             if (vm.pedestrianFront != null)
@@ -125,8 +127,9 @@ namespace NotfallSIM.Crash
                     if (go == null || bodies.Contains(go.transform)) continue;
                     foreach (var col in go.GetComponentsInChildren<Collider>())
                     {
-                        if (col.attachedRigidbody != null && !col.attachedRigidbody.isKinematic) continue;   // nur Fahrzeugteile (kinematisch)
                         string name = col.name;
+                        // nur Fahrzeugteile (kinematisch), Boden und Motorrad (bewegt, aber ebenfalls ein Fahrzeug)
+                        if (col.attachedRigidbody != null && !col.attachedRigidbody.isKinematic && !col.attachedRigidbody.name.StartsWith("Motorrad")) continue;
                         var part = Array.Find(vm.interior, x => x.part == name)
                                    ?? vm.interior.Where(x => name.StartsWith(x.part)).OrderByDescending(x => x.part.Length).FirstOrDefault();
                         // Frontscheibe von innen wie von außen

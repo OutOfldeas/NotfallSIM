@@ -18,6 +18,11 @@
     { "part": "Windschutzscheibe", "stiffness_N_m": 14000, "clearance_m": 0.2, "evidence": "kalibriert", "sourceId": "stammen2001", "note": "Verbundglas gibt stark nach: so gewählt, dass derselbe Kopfaufprall HIC ca. 260 ergibt (Rekonstruktion Scheibenaufprall: HIC 257, Stammen 2001)." }
   ],
   "interior": [
+    { "part": "Boden", "stiffness_N_m": 50000000, "clearance_m": 0, "evidence": "annahme", "sourceId": "", "note": "Fahrbahn/Boden (Asphalt, Beton): praktisch starr — die Nachgiebigkeit liefert das Gewebe (Kopfschwarte, Weichteile; impact_model.json). Ohne Eintrag war jeder Bodenkontakt starr gerechnet, ohne Gewebe (Kopf auf Boden 40–80 kN)." },
+    { "part": "Tank", "stiffness_N_m": 150000, "clearance_m": 0.03, "evidence": "annahme", "sourceId": "", "note": "Motorradtank (Blech, beult ein)." },
+    { "part": "Sitzbank", "stiffness_N_m": 40000, "clearance_m": 0.06, "evidence": "annahme", "sourceId": "", "note": "Schaumpolster der Sitzbank." },
+    { "part": "Lenker", "stiffness_N_m": 400000, "clearance_m": 0.01, "evidence": "annahme", "sourceId": "", "note": "Stahlrohr, kaum nachgiebig; kleine Fläche." },
+    { "part": "Rumpf", "stiffness_N_m": 300000, "clearance_m": 0.02, "evidence": "annahme", "sourceId": "", "note": "Motorrad: Rahmen und Motor mit Verkleidung." },
     { "part": "Airbag", "stiffness_N_m": 60000, "clearance_m": 0.15, "evidence": "annahme", "sourceId": "", "note": "Gasgefüllter Sack: Größenordnung 30–50 kPa auf ca. 0,1 m² bei 5–10 cm Eindrücken. Dahinter hängt er an einer Feder (25 kN/m). Ohne Eintrag wirkte der sich entfaltende Airbag als starre Platte mit 10 m/s (102 kN am Kopf); mit 25 kN/m war er zu weich (Rumpf schlug bis ins Lenkrad durch)." },
     { "part": "Tür", "stiffness_N_m": 150000, "clearance_m": 0.05, "evidence": "annahme", "sourceId": "fmvss201", "note": "Türverkleidung, Brüstung, Säulenverkleidung: so gewählt, dass der freie Prüfkopf (4,5 kg) mit 24 km/h etwa den Grenzwert HIC(d) 1000 der FMVSS 201U erreicht. Gilt für alle Teile, deren Name mit „Tür“ beginnt, und die Fahrertür." },
     { "part": "Fahrertür", "stiffness_N_m": 150000, "clearance_m": 0.05, "evidence": "annahme", "sourceId": "fmvss201", "note": "wie Tür" },
