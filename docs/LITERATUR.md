@@ -1036,6 +1036,25 @@ Messwerte danach (50 km/h, Gurt, Airbag, entspannt):
 - [ ] Schockraum bei kleinem Fenster: „Menü“, „Ansicht & Ton“ und Hinweistext überlappen die Maßnahmenliste; Warnung „crash_13_s: kein sichtbarer Hautort“
 - [ ] Wiedergabe läuft schneller als die eingestellte Zeitlupe (×0,05 zeigte ca. 100 ms in 1,3 s)
 
+**Stand 15.11.2026 — Gerüst und nachgiebiger Kontakt in allen Modi (in Unity nachgesehen, Stand 9148532)**
+
+| Modus | Bewegung/Kraft | Form der Verformung |
+|---|---|---|
+| PKW frontal | Gerüst rechnet den Stoß (SoftCrashRun) | Gerüst |
+| PKW seitlich | Federmodell (Reichert 2018) | Gerüst beider Fahrzeuge, Tiefe aus dem Federmodell (SoftDent) |
+| Motorrad | Motorrad-/Stoßmodell (ISO 13232) | Gerüst des PKW, schmale Delle (Vorderrad 0,4 m) |
+| Fußgänger | nachgiebige Front (pedestrianFront) | Stoßfänger und Haube am Gerüst, Tiefe = Kontaktkraft / Steifigkeit des Teils |
+| Szenario | Draufsicht-Modell (TrafficSim) | Gerüst je Fahrzeug, Tiefe je Seite aus TrafficSim |
+
+- [x] Druckflächen am Gerüst (SoftPlate, haftend, höchstens 15 m/s), festgehaltene Punkte, Dämpfung; Tests: Delle 25 cm wird erreicht, Gegenseite bleibt, Sprung der Tiefe wird nachgeholt, Kopfdelle in der Haube 6 cm
+- [x] Seitenstruktur der Zelle quer weicher (`SideYield_N`, nur Querbalken der Spanten) — Frontal-Kennlinie unverändert (30/56/80 km/h: 23/60/80 cm)
+- [x] Boden und Motorradteile am nachgiebigen Kontakt (waren starr). Fußgänger: Kopf auf Boden bleibt HIC ≈ 3 900 — das ist das Gewebemodell (Kopfschwarte 4,2 MN/m, Allsop 1991) bei 6–8 m/s auf Beton; ohne Bruchplateau des Schädels (offen, siehe oben)
+- [x] Knopf „Fahrzeug: verformbar (Gerüst)“ in allen Modi mit Fahrzeug
+- [ ] Gekoppelter Seitenaufprall zweier Gerüste (SoftSideRun) noch nicht abgeglichen: ohne Räder/Schwerkraft kippte das getroffene Fahrzeug (Drehung wird jetzt herausgenommen), danach zu elastisch (Δv 20 statt ≤ 15 km/h bei 30 km/h) und Türeindringen kaum geschwindigkeitsabhängig — Rückprall dämpfen, Reifen quer, Abgleich an FMVSS 214/IIHS-Seitentest
+- [ ] Gerüst ist grob (Haube: drei Punkte quer, Stationen alle 20 cm): Kopfdellen werden breit verschmiert; feinere Haube/Türen als eigene Teilnetze
+- [ ] Szenario: Breite der Delle je Gegner (Motorrad schmal) statt fest 1,7 m
+- [ ] Motorrad selbst: Gabel weiter aus der berechneten Form, nicht als Gerüst
+
 ## Quellen
 
 1. American College of Surgeons. *Advanced Trauma Life Support (ATLS) Student Course Manual*, 10th ed. Chicago: ACS; 2018.
