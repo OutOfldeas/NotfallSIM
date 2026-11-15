@@ -443,39 +443,10 @@ namespace NotfallSIM.Crash
                         approach.Carry.Add((rbBullet, new Vector3(v, 0, 0)));
                         approach.RagdollVelocity = Vector3.zero;   // Fahrzeug steht (Kreuzung)
                         Shift(new[] { rbBullet }, new Vector3(-v * approachTime_s, 0, 0));
-                        if (vm != null && p.SoftVehicle)
-                        {
-                            // Beide Fahrzeuge als Gerüst (SoftImpact.cs › SoftSideRun): Front des Gegners gegen die Seite; Bewegung
-                            // des getroffenen Fahrzeugs und Eindringen der Tür am Sitz kommen aus der gerechneten Struktur
-                            var struckCar = SoftCar.Build(sledProfile, vm.side.struckMass_kg);
-                            var bulletCar = SoftCar.Build(bulletVisual.Profile, vm.side.bulletMass_kg);
-                            var run = new SoftSideRun(struckCar, bulletCar, v, 0.1f - sledCenterZ, -sledCenterZ, true);
-                            sledVisual.Dent = null; bulletVisual.Dent = null;
-                            sledVisual.SoftSkin = new SoftSkin(sledVisual.Shape, struckCar.Body);
-                            sledVisual.SoftSource = run.StruckSnapshot;
-                            bulletVisual.SoftSkin = new SoftSkin(bulletVisual.Shape, bulletCar.Body);
-                            bulletVisual.SoftSource = run.BulletSnapshot;
-                            VehicleReport = () => $"Fahrzeugstruktur (verformbar, je {struckCar.Body.Count} Punkte): Tür am Sitz {run.MaxDoor * 100:0} cm eingedrungen, " +
-                                                  $"Front des Gegners {run.BulletCrush * 100:0} cm, Δv getroffen {run.StruckVelocity * 3.6:0} km/h, Spitze {run.PeakStruckAccel_g:0} g (10-ms-Mittel)";
-                            double vS = 0, vB = v;
-                            drive = (time, dt) =>
-                            {
-                                if (time >= t0)
-                                {
-                                    if (run.Time < 0.25) { run.Advance(dt); vS = run.StruckVelocity; vB = run.BulletVelocity; }
-                                    else { vS = Mathf.MoveTowards((float)vS, 0, 6f * dt); vB = Mathf.MoveTowards((float)vB, 0, 6f * dt); }   // ausrollen (Annahme)
-                                }
-                                double doorIn = run.Door;
-                                sledLeft = (float)doorIn;
-                                bulletCrush = (float)run.BulletCrush;
-                                var carPos = rbCar.position + new Vector3((float)(vS * dt), 0, 0);
-                                rbCar.MovePosition(carPos);
-                                rbBullet.MovePosition(rbBullet.position + new Vector3((float)((time < t0 ? v : vB) * dt), 0, 0));
-                                rbDoor.MovePosition(carPos + new Vector3((float)doorIn, 0, 0));   // Tür nach innen (+x)
-                                rbDash.MovePosition(carPos); rbWheel.MovePosition(carPos);
-                            };
-                        }
-                        else if (vm != null)
+                        // Bewegung und Türeindringen aus dem Federmodell (abgeglichen, Reichert 2018); bei verformbarem Fahrzeug
+                        // formt das Gerüst beider Fahrzeuge die Delle mit dieser Tiefe (CarModel › SoftDent). Der gekoppelte Stoß
+                        // zweier Gerüste (SoftImpact.cs › SoftSideRun) ist noch nicht abgeglichen und wird hier nicht benutzt.
+                        if (vm != null)
                         {
                             // Feder-Masse-Modell (vehicle_model.json › side): Front des Gegners und Seitenstruktur in Reihe, plastisch;
                             // die Tür dringt um den Anteil der Seite am Knautschweg ein und bleibt eingedrückt.

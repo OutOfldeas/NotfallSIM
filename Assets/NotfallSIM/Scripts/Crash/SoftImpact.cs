@@ -169,13 +169,15 @@ namespace NotfallSIM.Crash
     }
 
     /// <summary>
-    /// Seitenaufprall mit zwei verformbaren Fahrzeugen: Die Front des stoßenden Gerüsts und die Seite des getroffenen
+    /// **Noch nicht abgeglichen, in der Sandbox nicht benutzt** (zu elastisch: Δv des getroffenen Fahrzeugs über dem
+    /// unelastischen Wert, Türeindringen kaum von der Geschwindigkeit abhängig). Seitenaufprall mit zwei verformbaren Fahrzeugen: Die Front des stoßenden Gerüsts und die Seite des getroffenen
     /// begegnen sich an einer gemeinsamen, masselosen Fläche (so breit wie die Front, Stoßfänger bis Gürtellinie). In jedem
     /// Schritt bekommen alle Punkte, die an der Fläche anliegen und gegen sie drücken, dieselbe Geschwindigkeit — der Impuls
     /// bleibt erhalten, die Energie nehmen die fließenden Balken beider Fahrzeuge auf. Für die Kopplung an den Insassen
     /// liefert der Lauf Geschwindigkeit des getroffenen Fahrzeugs (abgewandte Seite der Zelle) und das Eindringen der Tür
     /// am Sitz, beides geglättet wie in <see cref="SoftCrashRun"/>.
-    /// Vereinfachungen: ebene Fläche (wie eine Barriere), keine Reifenhaftung quer, kein Abgleiten längs der Seite.
+    /// Vereinfachungen: ebene Fläche (wie eine Barriere), keine Reifenhaftung quer, kein Abgleiten längs der Seite; die
+    /// Fahrzeuge kippen und gieren nicht (starre Drehung wird je Schritt herausgenommen, wie beim Fahrzeug der Sandbox).
     /// </summary>
     public class SoftSideRun
     {
@@ -225,18 +227,20 @@ namespace NotfallSIM.Crash
             double hwB = struck.Profile.Width / 2;
             for (int i = 0; i < _b.Count; i++)
             {
-                if (_b.Z0[i] < contactZ - hwA || _b.Z0[i] > contactZ + hwA || _b.Y0[i] > top || _nx * _b.X0[i] > -hwB / 4) continue;
+                // Schweller (Bodenhöhe) liegt unter dem Stoßfänger des Gegners: getroffen wird die Tür darüber
+                if (_b.Z0[i] < contactZ - hwA || _b.Z0[i] > contactZ + hwA || _b.Y0[i] > top || _b.Y0[i] < struck.Profile.Sill + 0.15 || _nx * _b.X0[i] > -hwB / 4) continue;
                 _maskB[i] = true; _sB0 = Math.Min(_sB0, _nx * _b.X0[i]);
             }
-            // Bezug: abgewandte Hälfte der Fahrgastzelle. Tür: Schweller und Gürtellinie der getroffenen Seite am Sitz (± 0,3 m)
-            int near = fromLeft ? 0 : 6, nearBelt = fromLeft ? 1 : 5;
+            // Bezug: abgewandte Hälfte der Fahrgastzelle. Tür: Gürtellinie der getroffenen Seite am Sitz (± 0,3 m) — dort liegen
+            // Becken und Brustkorb des Insassen
+            int nearBelt = fromLeft ? 1 : 5;
             for (int s = struck.DeckStation; s <= struck.CowlStation; s++)
             {
                 for (int k = 0; k < SoftCar.PerStation; k++)
                     if (_nx * _b.X0[struck.Node(s, k)] > 0.2 * hwB) _ref.Add(struck.Node(s, k));
-                if (Math.Abs(struck.StationZ[s] - seatZ) <= 0.3) { _door.Add(struck.Node(s, near)); _door.Add(struck.Node(s, nearBelt)); }
+                if (Math.Abs(struck.StationZ[s] - seatZ) <= 0.3) _door.Add(struck.Node(s, nearBelt));
             }
-            if (_door.Count == 0) { int s = (struck.DeckStation + struck.CowlStation) / 2; _door.Add(struck.Node(s, near)); _door.Add(struck.Node(s, nearBelt)); }
+            if (_door.Count == 0) _door.Add(struck.Node((struck.DeckStation + struck.CowlStation) / 2, nearBelt));
             Step_s = Math.Min(5e-5, Math.Min(_a.StableStep(), _b.StableStep()));
         }
 
@@ -273,6 +277,7 @@ namespace NotfallSIM.Crash
                     if (_maskB[i] && _nx * _b.X[i] < sB && _nx * _b.Vx[i] < v) _b.Vx[i] = _nx * v;
                 _vP = v;
                 _u += v * h;
+                _a.RemoveRotation(); _b.RemoveRotation();
                 sB = _sB0 + (_u - _u0 - Gap);
                 for (int i = 0; i < _a.Count; i++) if (_maskA[i] && _a.Z[i] > _u) _a.Z[i] = _u;
                 for (int i = 0; i < _b.Count; i++) if (_maskB[i] && _nx * _b.X[i] < sB) _b.X[i] = _nx * sB;
@@ -313,23 +318,57 @@ namespace NotfallSIM.Crash
             return p;
         }
 
-        /// <summary>Punkte des getroffenen Fahrzeugs relativ zum mitbewegten Fahrzeug des Aufrufers (quer um den gezeigten Weg zurück).</summary>
+        /// <summary>Punkte des getroffenen Fahrzeugs relativ zum mitbewegten Fahrzeug des Aufrufers (quer um den gezeigten Weg zurück).
+        /// Das Fahrzeug des Aufrufers dreht sich nicht: die Gierdrehung der Zelle (außermittiger Stoß) wird herausgerechnet.</summary>
         public float[] StruckSnapshot()
         {
             if (_snapB != null && _snapTimeB == Time) return _snapB;
-            var a = new float[3 * _b.Count];
-            for (int i = 0; i < _b.Count; i++) { a[3 * i] = (float)(_b.X[i] - _nx * _shownB); a[3 * i + 1] = (float)_b.Y[i]; a[3 * i + 2] = (float)_b.Z[i]; }
-            _snapB = a; _snapTimeB = Time;
-            return a;
+            _snapB = WithoutYaw(Struck, _nx * _shownB, 0);
+            _snapTimeB = Time;
+            return _snapB;
         }
 
         /// <summary>Punkte des stoßenden Fahrzeugs relativ zu seinem mitbewegten Fahrzeug (längs um den gezeigten Weg zurück).</summary>
         public float[] BulletSnapshot()
         {
             if (_snapA != null && _snapTimeA == Time) return _snapA;
-            var a = new float[3 * _a.Count];
-            for (int i = 0; i < _a.Count; i++) { a[3 * i] = (float)_a.X[i]; a[3 * i + 1] = (float)_a.Y[i]; a[3 * i + 2] = (float)(_a.Z[i] - _shownA); }
-            _snapA = a; _snapTimeA = Time;
+            _snapA = WithoutYaw(Bullet, 0, _shownA);
+            _snapTimeA = Time;
+            return _snapA;
+        }
+
+        /// <summary>Gierwinkel der Fahrgastzelle (rad, um die Hochachse; beste Drehung der Zellpunkte gegen die Ausgangslage).</summary>
+        public static double CabinYaw(SoftCar car, out double cx, out double cz)
+        {
+            var b = car.Body;
+            double sx = 0, sz = 0, sx0 = 0, sz0 = 0; int n = 0;
+            for (int s = car.DeckStation; s <= car.CowlStation; s++)
+                for (int k = 0; k < SoftCar.PerStation; k++) { int i = car.Node(s, k); sx += b.X[i]; sz += b.Z[i]; sx0 += b.X0[i]; sz0 += b.Z0[i]; n++; }
+            cx = sx / n; cz = sz / n; double cx0 = sx0 / n, cz0 = sz0 / n;
+            double num = 0, den = 0;
+            for (int s = car.DeckStation; s <= car.CowlStation; s++)
+                for (int k = 0; k < SoftCar.PerStation; k++)
+                {
+                    int i = car.Node(s, k);
+                    double x0 = b.X0[i] - cx0, z0 = b.Z0[i] - cz0, x = b.X[i] - cx, z = b.Z[i] - cz;
+                    num += z0 * x - x0 * z; den += x0 * x + z0 * z;
+                }
+            return Math.Atan2(num, den);
+        }
+
+        static float[] WithoutYaw(SoftCar car, double shiftX, double shiftZ)
+        {
+            var b = car.Body;
+            double cx, cz, th = CabinYaw(car, out cx, out cz);
+            double c = Math.Cos(-th), sn = Math.Sin(-th);
+            var a = new float[3 * b.Count];
+            for (int i = 0; i < b.Count; i++)
+            {
+                double x = b.X[i] - cx, z = b.Z[i] - cz;
+                // Drehung um die Hochachse zurück (x' = x·cos + z·sin, z' = −x·sin + z·cos für den Winkel −θ)
+                double xr = x * c + z * sn, zr = -x * sn + z * c;
+                a[3 * i] = (float)(xr + cx - shiftX); a[3 * i + 1] = (float)b.Y[i]; a[3 * i + 2] = (float)(zr + cz - shiftZ);
+            }
             return a;
         }
     }

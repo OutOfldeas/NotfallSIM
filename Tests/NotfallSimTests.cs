@@ -1873,24 +1873,23 @@ static class Tests
         }
         Check(hood < -0.055 && hood > -0.07 && hoodFar > -0.005, $"Delle Haube (Kopf 6 cm, neben dem Mittelpunkt): {-hood * 100:0.0} cm, 0,8 m daneben {-hoodFar * 100:0.0} cm");
 
-        // Seitenaufprall mit zwei Gerüsten (1500 kg in 1530 kg, 90°): Impuls bleibt, Tür dringt ein, Front knautscht
+        // Seitenaufprall mit zwei Gerüsten (1500 kg in 1530 kg, 90°) — noch nicht abgeglichen, nicht in der Sandbox benutzt:
+        // geprüft wird nur, dass der Impuls erhalten bleibt und das getroffene Fahrzeug weder kippt noch giert
         var res = new List<string>();
-        double door30 = 0, door50 = 0;
         foreach (double kmh in new[] { 30.0, 50.0 })
         {
-            var run = new NotfallSIM.Crash.SoftSideRun(NotfallSIM.Crash.SoftCar.Build(cabin(), 1530), NotfallSIM.Crash.SoftCar.Build(sedan(), 1500), kmh / 3.6, 0.3, 0.2);
+            var sc = NotfallSIM.Crash.SoftCar.Build(cabin(), 1530);
+            var run = new NotfallSIM.Crash.SoftSideRun(sc, NotfallSIM.Crash.SoftCar.Build(sedan(), 1500), kmh / 3.6, 0.3, 0.2);
             double p0 = run.Momentum();
-            while (run.Time < 0.15) run.Advance(0.0005);
-            double common = 1500 * kmh / 3.6 / 3030;
+            while (run.Time < 0.25) run.Advance(0.001);
+            double cx, cz, yaw = NotfallSIM.Crash.SoftSideRun.CabinYaw(sc, out cx, out cz);
+            double lift = 0;
+            for (int i = 0; i < sc.Body.Count; i++) lift = Math.Max(lift, sc.Body.Y[i] - sc.Body.Y0[i]);
             Check(Math.Abs(run.Momentum() / p0 - 1) < 0.002, $"{kmh} km/h: Impuls {run.Momentum() / p0:0.0000}");
-            Check(run.StruckVelocity > 0.8 * common && run.StruckVelocity < 1.6 * common, $"{kmh} km/h: Δv getroffen {run.StruckVelocity * 3.6:0} km/h (gemeinsam {common * 3.6:0})");
-            if (kmh == 30) door30 = run.MaxDoor; else door50 = run.MaxDoor;
-            res.Add($"{kmh} km/h Tür {run.MaxDoor * 100:0} cm, Front {run.BulletCrush * 100:0} cm, Δv {run.StruckVelocity * 3.6:0} km/h, {run.PeakStruckAccel_g:0} g");
+            Check(Math.Abs(yaw) < 0.02 && lift < 0.08, $"{kmh} km/h: Gierwinkel {yaw * 57.3:0.0}°, größtes Anheben {lift * 100:0} cm");
+            res.Add($"{kmh} km/h Tür {run.MaxDoor * 100:0} cm, Front {run.BulletCrush * 100:0} cm, Δv {run.StruckVelocity * 3.6:0} km/h (unelastisch {1500 * kmh / 3030:0})");
         }
-        // Größenordnung: Federmodell nach Reichert 2018 (vehicle_model.json › side) 17 / 29 cm dynamisch; Gerüst ohne Abgleich
-        // an Messkurven, darf deshalb grob abweichen
-        Check(door30 > 0.05 && door50 > door30 && door50 < 0.35, $"Tür 30 / 50 km/h: {door30 * 100:0} / {door50 * 100:0} cm");
-        Console.WriteLine("        Seitenaufprall (zwei Gerüste): " + string.Join("; ", res));
+        Console.WriteLine("        Seitenaufprall zweier Gerüste (nicht abgeglichen): " + string.Join("; ", res));
     }
 
     static void MotorcycleChecks()

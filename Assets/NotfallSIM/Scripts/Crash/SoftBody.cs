@@ -194,6 +194,39 @@ namespace NotfallSIM.Crash
             WallForce = wall;
         }
 
+        /// <summary>
+        /// Starre Drehung des ganzen Gerüsts herausnehmen (Drehimpuls um den Schwerpunkt → 0; Impuls bleibt). Für Stöße, bei
+        /// denen das Fahrzeug des Aufrufers nicht kippt und nicht giert: ohne Schwerkraft, Räder und Reifenhaftung würde der
+        /// außermittige Stoß das Gerüst sonst frei rollen lassen (Seitenaufprall: 20° in 0,25 s).
+        /// </summary>
+        public void RemoveRotation()
+        {
+            double m = 0, cx = 0, cy = 0, cz = 0;
+            for (int i = 0; i < Count; i++) { m += M[i]; cx += M[i] * X[i]; cy += M[i] * Y[i]; cz += M[i] * Z[i]; }
+            cx /= m; cy /= m; cz /= m;
+            double lx = 0, ly = 0, lz = 0, ixx = 0, iyy = 0, izz = 0, ixy = 0, ixz = 0, iyz = 0;
+            for (int i = 0; i < Count; i++)
+            {
+                double x = X[i] - cx, y = Y[i] - cy, z = Z[i] - cz, mi = M[i];
+                lx += mi * (y * Vz[i] - z * Vy[i]); ly += mi * (z * Vx[i] - x * Vz[i]); lz += mi * (x * Vy[i] - y * Vx[i]);
+                ixx += mi * (y * y + z * z); iyy += mi * (x * x + z * z); izz += mi * (x * x + y * y);
+                ixy -= mi * x * y; ixz -= mi * x * z; iyz -= mi * y * z;
+            }
+            // I·ω = L lösen (Cramer)
+            double a11 = ixx, a12 = ixy, a13 = ixz, a22 = iyy, a23 = iyz, a33 = izz;
+            double det = a11 * (a22 * a33 - a23 * a23) - a12 * (a12 * a33 - a23 * a13) + a13 * (a12 * a23 - a22 * a13);
+            if (Math.Abs(det) < 1e-12) return;
+            double wx = (lx * (a22 * a33 - a23 * a23) - a12 * (ly * a33 - a23 * lz) + a13 * (ly * a23 - a22 * lz)) / det;
+            double wy = (a11 * (ly * a33 - a23 * lz) - lx * (a12 * a33 - a23 * a13) + a13 * (a12 * lz - ly * a13)) / det;
+            double wz = (a11 * (a22 * lz - ly * a23) - a12 * (a12 * lz - ly * a13) + lx * (a12 * a23 - a22 * a13)) / det;
+            for (int i = 0; i < Count; i++)
+            {
+                if (Fixed != null && Fixed[i]) continue;
+                double x = X[i] - cx, y = Y[i] - cy, z = Z[i] - cz;
+                Vx[i] -= wy * z - wz * y; Vy[i] -= wz * x - wx * z; Vz[i] -= wx * y - wy * x;
+            }
+        }
+
         public double KineticEnergy()
         {
             double e = 0;
