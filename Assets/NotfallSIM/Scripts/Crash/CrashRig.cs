@@ -58,6 +58,8 @@ namespace NotfallSIM.Crash
     /// </summary>
     public partial class CrashRig : MonoBehaviour
     {
+        /// <summary>Sturz aus der Höhe: Lage beim Aufprall (0 Füße voran, 1 Seite, 2 Rücken), sonst −1.</summary>
+        public int FallOrientation { get; private set; } = -1;
         [Tooltip("Physikschritt während des Aufpralls (s). Crashtests messen mit ≥ 10 kHz; 0,5 ms ist ein Kompromiss.")]
         [SerializeField] float crashStep_s = 0.0001f; // 10 kHz: nötig für den Kopffilter CFC 1000 (SAE J211)
         [Tooltip("VERIFY: umschalten, falls die Knie nach hinten durchknicken.")]
@@ -329,6 +331,7 @@ namespace NotfallSIM.Crash
             drive = null;
             approach = new CrashApproach { Duration_s = approachTime_s, HoldRagdoll = true };
             var rng = new System.Random(p.Seed);
+            FallOrientation = -1;
 
             switch (p.MechanismId)
             {
@@ -528,6 +531,7 @@ namespace NotfallSIM.Crash
                 {
                     float h = Mathf.Max(1, p.Speed_kmh);
                     int orientation = rng.Next(3); // 0 Füße voran, 1 Seite, 2 Rücken
+                    FallOrientation = orientation;
                     Quaternion rot = orientation == 0 ? Quaternion.Euler(0, 0, 8)
                                    : orientation == 1 ? Quaternion.Euler(0, 0, 80)
                                    : Quaternion.Euler(-75, 0, 0);
@@ -951,7 +955,15 @@ namespace NotfallSIM.Crash
             // Axiale Last auf Unterschenkel/Fuß und LWS nur dort, wo sie der Verletzungsmechanismus ist: Sturz auf die Füße bzw.
             // das Gesäß, Fußraum beim Frontalaufprall. In Unity gesehen: Fußgänger 40 km/h ergab 15 kN im Knie und 6,2 kN in der
             // LWS (Kalkaneus- und LWK-Fraktur fast sicher) — dort wirken Quer- und Kontaktkräfte, die Gelenkkraft ist kein Maß
-            bool axialLegs = p.MechanismId == "sturz_hoehe" || p.MechanismId == "pkw_frontal", axialSpine = p.MechanismId == "sturz_hoehe";
+            // Beim Sturz nur, wenn der Körper mit den Füßen voran aufkommt: bei Seiten- oder Rückenlage trifft der Boden Unterschenkel
+            // und Rumpf quer (in Unity gesehen: Rückenlage aus 6 m ergab 38 kN „axial“ im Knie und 71 kN in der LWS)
+            bool feetFirst = p.MechanismId == "sturz_hoehe" && FallOrientation == 0;
+            bool axialLegs = feetFirst || p.MechanismId == "pkw_frontal", axialSpine = feetFirst;
+            if (p.MechanismId == "sturz_hoehe")
+                Debug.Log($"[Crash] Sturz: {(FallOrientation == 0 ? "Füße voran" : FallOrientation == 1 ? "Seitenlage" : "Rückenlage")}; Gelenkkraft längs Unterschenkel " +
+                          $"{Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialR_N, dt, 600)) / 1000:0.0}/{Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialL_N, dt, 600)) / 1000:0.0} kN, " +
+                          $"längs LWS {Biomechanics.MaxAbs(Biomechanics.Cfc(g.LumbarFz_N, dt, 600)) / 1000:0.0} kN (3-ms-Wert {Biomechanics.Clip(Biomechanics.Cfc(g.LumbarFz_N, dt, 600), dt) / 1000:0.0} kN)" +
+                          (feetFirst ? "" : " — nicht als axiale Last gewertet"));
             if (axialLegs && g.TibiaAxialR_N.Count > 10) add("Unterschenkel rechts.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialR_N, dt, 600)) / 1000);
             if (axialLegs && g.TibiaAxialL_N.Count > 10) add("Unterschenkel links.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialL_N, dt, 600)) / 1000);
             if (axialSpine && g.LumbarFz_N.Count > 10) add("LWS.Fz", Biomechanics.MaxAbs(Biomechanics.Cfc(g.LumbarFz_N, dt, 600)) / 1000);
