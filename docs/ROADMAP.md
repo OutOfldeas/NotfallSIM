@@ -22,10 +22,16 @@ Häkchen = erledigt; *kursiv* = Stand der Prüfung. „In Unity nachgemessen“ 
 - [ ] In Unity prüfen: Lage des Zielrings auf der Haut, Größe/Lage des Hinweises bei verschiedenen Fenstergrößen, Bildrate beim Zielen (60 000 Dreiecke), Marken während der Wiedergabe
 - [ ] Offen: Stichrichtung frei wählen (z. B. mit gedrückter rechter Maustaste ziehen); Organ unter der Zielstelle in der Vorschau anzeigen (Anatomiemodell)
 
+## Stand 17.11.2026 (spät) — Organmodell (offline, in Unity noch nicht nachgemessen)
+
+- [x] Bauchkompression aus der im Kontakt berechneten Eindrückung statt Kraft / 27 kN/m: Vianos Pendel 9,4 m/s → Milz 37 % statt 100 %, 6,5 m/s → 12 % statt 46 % (Viano 1989: Organrisse nur vereinzelt bei 9,4 m/s)
+- [x] Kraftgrenzwert Bauch 2,5 kN (ES-2) nur beim Seitenaufprall; frontal nur Anzeige
+- [ ] In Unity: PKW seitlich 50 km/h und Szenario Kreuzung — Milz/Leber neu ablesen
+
 ## Nächste Schritte (Vorschlag, nach Nutzen)
 
 1. In Unity nachmessen (Liste oben) — vieles seit dem 14.11. ist nur offline geprüft.
-2. Organmodell: Bauchkraft nur als örtliche Eindrückung zählen, wenn sie örtlich ist (Tür, Lenkrad), und den Grenzwert 2,5 kN (ES-2, Seite) nicht frontal anwenden — Milz/Leber im Seitenaufprall 88–99 %.
+2. ~~Organmodell: Eindrückung statt statischer Steifigkeit, Grenzwert 2,5 kN nicht frontal~~ — erledigt 17.11. (in Unity nachmessen: Milz/Leber im Seitenaufprall vorher 88–99 %).
 3. Weiche Gelenkanschläge als Verletzung auswerten (Luxation, Bandriss) statt nur zu bremsen.
 4. Gekoppelter Seitenaufprall zweier Gerüste abgleichen (Rückprall, Reifen quer).
 5. Dezelerationsverletzungen (Aortenisthmus, Leberbänder, Nierenstiel).

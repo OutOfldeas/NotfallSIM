@@ -961,6 +961,11 @@ namespace NotfallSIM.Crash
                 foreach (var s in byRegion[r]) { lat += s.LateralImpulse; tot += s.TotalImpulse; }
             double lateral = tot > 0 ? lat / tot : 0;
             add("Abdomen.lateral", lateral);
+            // Grenzwert 2,5 kN gilt für die ES-2-Bauchmessung beim Seitenaufprall. Frontal gibt es keinen Kraftgrenzwert —
+            // dort nur anzeigen (Organrisiko über das Organmodell)
+            var orgModel = LoadOrganModel();
+            if (orgModel != null && Math.Abs(lateral) <= orgModel.abdomen.lateralThreshold)
+                foreach (var mm in result) if (mm.metric == "Abdomen.F") mm.metric = "Abdomen.Ffrontal";
 
             // Organmodell: Kontaktkraft am Bauch → Kompression → Dehnung von Leber, Milz, Nieren gegen ihre Versagensdehnung
             var organs = LoadOrganModel();
@@ -974,7 +979,15 @@ namespace NotfallSIM.Crash
                 // ergaben 6,7 kN Airbagkraft 25 cm „Eindrückung“ und sichere Leber- und Nierenrisse beim angegurteten Fahrer.
                 for (int i = 0; i < abd[0].Force_kN.Count; i++)
                     force_N.Add(abd.Sum(s => i < s.Force_kN.Count ? Math.Max(0, s.Force_kN[i] - (i < s.CushionForce_kN.Count ? s.CushionForce_kN[i] : 0)) : 0) * 1000);
-                abdomenLoad = OrganMechanics.Evaluate(organs, tissues, Biomechanics.Cfc(force_N, dt, 600), dt, lateral, p.Height_m);
+                // Eindrückung aus dem nachgiebigen Kontakt (Steifigkeit, die mit der Tiefe zunimmt, und Dämpfung — bei schnellem
+                // Anprall gibt der Bauch weniger nach als statisch); ohne nachgiebigen Kontakt aus Kraft / statischer Steifigkeit
+                float indent = 0;
+                if (SoftContact.Enabled || p.SoftContact)
+                    foreach (var s in abd) foreach (var c in s.GetComponentsInChildren<Collider>()) indent = Mathf.Max(indent, SoftContact.MaxIndentation(c));
+                double fLocal = force_N.Count > 0 ? force_N.Max() : 0, fAll = 0;
+                for (int i = 0; i < abd[0].Force_kN.Count; i++) fAll = Math.Max(fAll, abd.Sum(s => i < s.Force_kN.Count ? s.Force_kN[i] : 0) * 1000);
+                double share = fAll > 0 ? fLocal / fAll : 0;   // Airbaganteil zählt nicht als örtliche Eindrückung
+                abdomenLoad = OrganMechanics.Evaluate(organs, tissues, Biomechanics.Cfc(force_N, dt, 600), dt, lateral, p.Height_m, indent * share);
                 result.AddRange(OrganMechanics.Measurements(abdomenLoad));
             }
             return result;

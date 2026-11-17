@@ -98,6 +98,27 @@ namespace NotfallSIM.Crash
             return FromCompression(model, tissues, compression, dt_s, lateral, length);
         }
 
+        /// <summary>
+        /// Wie oben, aber mit der im Kontakt berechneten Eindrückung (m, Gewebe ohne Fett, nur örtliche Last): Der Verlauf
+        /// folgt der Kraft, die Spitze ist die Eindrückung. Hardy 2001: starrer Stab 27 kN/m bei 6,3 m/s, 63 kN/m bei
+        /// 9,2 m/s — mit der statischen Steifigkeit (27 kN/m) aus der Kraft gerechnet war der Bauch beim schnellen
+        /// Seitenaufprall um 47 % eingedrückt, im Kontaktmodell (Verhärtung mit der Tiefe, Dämpfung) deutlich weniger.
+        /// <paramref name="indentation_m"/> ≤ 0: wie <see cref="Evaluate(OrganModelFile, TissueDatabase, IList{double}, double, double, double)"/>.
+        /// </summary>
+        public static AbdomenLoad Evaluate(OrganModelFile model, TissueDatabase tissues, IList<double> force_N, double dt_s,
+                                           double lateral, double height_m, double indentation_m)
+        {
+            if (indentation_m <= 0) return Evaluate(model, tissues, force_N, dt_s, lateral, height_m);
+            var a = model.abdomen;
+            double scale = height_m > 0 && a.modelHeight_m > 0 ? height_m / a.modelHeight_m : 1;
+            bool side = Math.Abs(lateral) > a.lateralThreshold;
+            double length = (side ? a.widthLateral_m : a.depthFrontal_m) * scale;
+            double fMax = force_N.Count > 0 ? force_N.Max() : 0;
+            double cPeak = Math.Min(a.maxCompression, indentation_m / length);
+            var compression = force_N.Select(f => fMax > 0 ? Math.Max(0, f) / fMax * cPeak : 0).ToList();
+            return FromCompression(model, tissues, compression, dt_s, lateral, length);
+        }
+
         /// <summary>Wie <see cref="Evaluate"/>, aber direkt aus einem Kompressionsverlauf (0…1).</summary>
         public static AbdomenLoad FromCompression(OrganModelFile model, TissueDatabase tissues, IList<double> compression, double dt_s,
                                                   double lateral, double referenceLength_m)

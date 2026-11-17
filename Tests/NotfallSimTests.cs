@@ -1323,6 +1323,7 @@ static class Tests
             var load = OrganMechanics.FromCompression(model, tissues, Ramp(v.compression), 1e-4, v.lateral, 0.289);
             double pr = load.Organs.First(o => o.Organ.id == v.organ).Probability;
             Check(pr >= v.minProbability && pr <= v.maxProbability, $"{v.description} → {pr:P0}");
+            Console.WriteLine($"        Organmodell {v.organ} bei {v.compression:P0} (seitlich {v.lateral}): {pr:P0}, Ausnutzung {load.Organs.First(o => o.Organ.id == v.organ).Utilization:P0}, Dehnrate {load.StrainRate_per_s:0}/s");
         }
         // Seite: Anprall von links trifft die Milz, nicht die Leber; frontal beide
         var left = OrganMechanics.FromCompression(model, tissues, Ramp(0.45), 1e-4, -1, 0.289);
@@ -1344,6 +1345,25 @@ static class Tests
         var force = Ramp(3500);
         var ev = OrganMechanics.Evaluate(model, tissues, force, 1e-4, -1, model.abdomen.modelHeight_m);
         Check(ev.Lateral && Math.Abs(ev.PeakCompression - 3500 / 27000.0 / 0.289) < 1e-6, $"Kompression {ev.PeakCompression}");
+        // Mit der Eindrückung aus dem Kontaktmodell: Spitze = Eindrückung / Länge, Verlauf wie die Kraft
+        var withIndent = OrganMechanics.Evaluate(model, tissues, force, 1e-4, -1, model.abdomen.modelHeight_m, 0.0867);
+        Check(Math.Abs(withIndent.PeakCompression - 0.3) < 1e-3, $"Eindrückung 86,7 mm seitlich = 30 % ({withIndent.PeakCompression:P1})");
+        {
+            // Seitlicher Pendelstoß wie bei Viano 1989 (23,4 kg) gegen das Kontaktmodell des Bauchs (Hardy 2001)
+            var im = Load<NotfallSIM.Crash.ImpactModelFile>("impact_model.json");
+            var abdReg = NotfallSIM.Crash.ImpactModel.Region(im, "Abdomen");
+            foreach (var vv in new[] { 4.5, 6.5, 9.4 })
+            {
+                var sim = NotfallSIM.Crash.ImpactModel.Simulate(abdReg, 23.4, vv, 150);
+                var ld = OrganMechanics.Evaluate(model, tissues, Ramp(sim.peakForce_N), sim.duration_s / 200, -1, model.abdomen.modelHeight_m, sim.maxDelta_m);
+                var old = OrganMechanics.Evaluate(model, tissues, Ramp(sim.peakForce_N), sim.duration_s / 200, -1, model.abdomen.modelHeight_m);
+                // Viano 1989: bei 4,5 und 6,7 m/s vor allem Rippenbrüche, Leber-/Lungenrisse nur vereinzelt bei 9,4 m/s
+                double pm = org(ld, "milz").Probability;
+                if (vv < 7) Check(pm < 0.25, $"Pendel {vv} m/s: Milz {pm:P0} (Viano 1989: keine Organrisse in dieser Stufe)");
+                else Check(pm > 0.1 && pm < 0.7, $"Pendel {vv} m/s: Milz {pm:P0} (Viano 1989: vereinzelt Organrisse)");
+                Console.WriteLine($"        Pendel 23,4 kg seitlich {vv} m/s: {sim.peakForce_N / 1000:0.0} kN, Eindrückung {sim.maxDelta_m * 1000:0} mm = {ld.PeakCompression:P0} (statisch {old.PeakCompression:P0}); Milz {org(ld, "milz").Probability:P0} (statisch {org(old, "milz").Probability:P0})");
+            }
+        }
         var big = OrganMechanics.Evaluate(model, tissues, Ramp(1e5), 1e-4, 0, 1.8);
         Check(big.PeakCompression == model.abdomen.maxCompression, "Begrenzung");
         var ms = OrganMechanics.Measurements(ev);

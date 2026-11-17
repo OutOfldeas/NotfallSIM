@@ -198,6 +198,31 @@
       "reviewNotes": "Kurvenform und Parameter sind didaktische Setzungen, angelehnt an den Grenzwert. Ein starres Ragdoll misst keine Dummy-Werte; die Zahlen sind qualitativ."
     },
     {
+      "id": "Abdomen.Ffrontal",
+      "label": "Kontaktkraft Abdomen frontal (3 ms)",
+      "unit": "kN",
+      "region": "Abdomen",
+      "ais": "",
+      "limit": 0,
+      "limitSource": "",
+      "curve": {
+        "type": "none",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 0,
+        "shape": 0
+      },
+      "sources": [
+        {
+          "citation": "Euro NCAP. Assessment Protocol – Adult Occupant Protection.",
+          "url": "https://www.euroncap.com/en/for-engineers/protocols/",
+          "note": "Seitenaufprall ES-2: Bauchkraft (Grenze 2,5 kN), Schambeinkraft (Grenze 6 kN) — aktuelle Version prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Frontale Bauchlast: Der Kraftgrenzwert 2,5 kN gilt nur für die ES-2-Messung beim Seitenaufprall und wird hier nicht angewendet. Das Organrisiko kommt aus dem Organmodell (Eindrückung → Organdehnung)."
+    },
+    {
       "id": "Becken.F",
       "label": "Kontaktkraft Becken (3 ms)",
       "unit": "kN",

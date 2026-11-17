@@ -246,6 +246,16 @@ Milzruptur und Leberlazeration entstehen in der Sandbox nicht mehr aus einer pau
 
 Das Modell gibt die Wahrscheinlichkeit für einen Riss *jeden* Grades an; dass sie bei Vianos Toleranzwert über 25 % (nur kritische Verletzungen) liegt, ist deshalb erwartbar. Die Milz versagt früher als die Leber (geringere Versagensdehnung) — passend dazu, dass sie bei seitlichem Anprall das am häufigsten verletzte Organ ist.
 
+**Seit 17.11.2026: Eindrückung aus dem Kontaktmodell.** Mit nachgiebigem Kontakt (Standard) ist die Spitze der Kompression die im Kontakt berechnete Gewebe-Eindrückung des Bauchs (Steifigkeit mit der Tiefe zunehmend, 27 → 63 kN/m, und Dämpfung; Fett nicht mitgezählt, Airbaganteil abgezogen); der zeitliche Verlauf folgt weiter der Kraft (für die Dehnrate). Hardy 2001 maß 27 kN/m bei 6,3 m/s und 63 kN/m bei 9,2 m/s — die statische Rechnung mit 27 kN/m überschätzte schnelle Anpralle stark (Seitenaufprall: 47 % Kompression, Milz 88 %). Kontrolle mit Vianos Pendel (23,4 kg, 15 cm, seitlich), Test `Organmodell`:
+
+| Pendel | Kraft | Kompression Kontaktmodell (statisch) | Milzriss Kontaktmodell (statisch) | Viano et al. 1989 |
+|---|---|---|---|---|
+| 4,5 m/s | 1,9 kN | 17 % (25 %) | 4 % (13 %) | vor allem Rippenbrüche |
+| 6,5 m/s | 2,8 kN | 25 % (36 %) | 12 % (46 %) | vor allem Rippenbrüche |
+| 9,4 m/s | 4,8 kN | 33 % (61 %) | 37 % (100 %) | vereinzelt Leber-/Lungenrisse |
+
+Die Kraftgrenze 2,5 kN (ES-2, Seitenaufprall) wird frontal nicht mehr angewendet; frontal steht die Bauchkraft nur noch als Anzeige („Kontaktkraft Abdomen frontal“).
+
 Kraft → Risiko (Körpergröße 1,80 m, frontal): 1 kN → C 15 %, Leber 1 %; 2 kN → 30 %, 11 %; 3 kN → 45 %, 50 %; 4 kN → 60 %, 94 %.
 
 **Grenzen:** Die Kontaktkraft stammt von einem starren Ragdoll, nicht von einem nachgiebigen Bauch — das Modell rechnet die Eindrückung nachträglich aus der Kraft, statt sie zu simulieren. Die Steifigkeit steigt in den Versuchen mit der Geschwindigkeit (63 kN/m bei 9,2 m/s); verwendet wird der Wert bei 6,3 m/s, bei schnellen Anprallen ist die Eindrückung daher eher überschätzt. Gleichmäßige Stauchung aller Organe im Lastpfad, Schutz durch die unteren Rippen und Organbewegung bei Dezeleration (Abriss an Bändern und Gefäßstielen) sind nicht modelliert. Nieren haben noch keine Verletzung in der Datenbank (nur Anzeige).
