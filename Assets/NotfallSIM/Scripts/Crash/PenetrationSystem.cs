@@ -28,6 +28,7 @@ namespace NotfallSIM.Crash
             public float Depth, MaxDepth, Length;
             public bool BoneHit, Embedded;
             public PenetrationResult Result;
+            public float ClosedAt;          // Zeitpunkt, an dem die Klinge herausgezogen wurde (Rückprall)
         }
 
         readonly ImpactModelFile _model;
@@ -42,6 +43,11 @@ namespace NotfallSIM.Crash
         public global::NotfallSIM.Anatomy.AnatomyData Anatomy;
 
         public int ActiveCount => _active.Count;
+        // Geschlossene Kanäle: prallt dieselbe Klinge zurück und dringt an derselben Stelle wieder ein, ist das derselbe
+        // Stichkanal (in Unity gesehen: ein Stich ergab zwei Kanäle, 15 und 13 cm)
+        readonly List<Active> _closed = new List<Active>();
+        const float SameWound_m = 0.03f, SameWound_s = 0.3f;
+        float _time;
         public bool IsActive(SoftContact.ObjectInfo o) => _active.Exists(a => a.Obj == o);
 
         /// <summary>Durchstichmeldungen der Physik übernehmen (nach jedem Physikschritt).</summary>
@@ -71,6 +77,15 @@ namespace NotfallSIM.Crash
             Vector3 tipDir0 = Vector3.Dot(ot0.forward, axis) >= 0 ? ot0.forward : -ot0.forward;
             Vector3 tip0 = obj.Collider.bounds.center + tipDir0 * HalfLength(obj.Collider);
             if (Vector3.Dot(tip0 - point, axis) < 0) point = tip0;
+            _closed.RemoveAll(c => _time - c.ClosedAt > SameWound_s);
+            var again = _closed.FirstOrDefault(c => c.Obj == obj && c.Body == body
+                && (bodyRb.transform.TransformPoint(c.EntryLocal) - point).magnitude < SameWound_m);
+            if (again != null)
+            {
+                _closed.Remove(again);
+                point = bodyRb.transform.TransformPoint(again.EntryLocal);
+                axis = bodyRb.transform.TransformDirection(again.AxisLocal);
+            }
             var a = new Active
             {
                 Obj = obj, Body = body, BodyRb = bodyRb,
@@ -95,6 +110,16 @@ namespace NotfallSIM.Crash
             j.yMotion = j.zMotion = ConfigurableJointMotion.Locked;
             j.angularXMotion = j.angularYMotion = j.angularZMotion = ConfigurableJointMotion.Locked;
             a.Joint = j;
+
+            if (again != null)
+            {
+                // Wieder in denselben Kanal: Ergebnis, Schichten und erreichte Tiefe weiterführen
+                a.Result = again.Result; a.MaxDepth = again.MaxDepth;
+                a.BoneHit = again.BoneHit; a.BoneStart = again.BoneStart; a.OrganStart = again.OrganStart;
+                a.Result.Embedded = false;
+                _active.Add(a);
+                return;
+            }
 
             var sensor = body.Sensor;
             a.Result = new PenetrationResult
@@ -136,6 +161,7 @@ namespace NotfallSIM.Crash
         /// <summary>Gewebewiderstand anwenden (vor jedem Physikschritt).</summary>
         public void Step(float dt)
         {
+            _time += dt;
             for (int i = _active.Count - 1; i >= 0; i--)
             {
                 var a = _active[i];
@@ -159,6 +185,8 @@ namespace NotfallSIM.Crash
                     // herausgezogen: Kanal schließen, Kollision wieder zulassen
                     End(a, embedded: false);
                     _active.RemoveAt(i);
+                    a.ClosedAt = _time;
+                    _closed.Add(a);
                     continue;
                 }
                 if (a.Embedded) continue;
@@ -232,6 +260,7 @@ namespace NotfallSIM.Crash
         {
             foreach (var a in _active) if (a.Joint != null) Object.Destroy(a.Joint);
             _active.Clear();
+            _closed.Clear();
             Results.Clear();
         }
     }

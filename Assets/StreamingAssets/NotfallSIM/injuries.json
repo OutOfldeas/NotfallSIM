@@ -3180,7 +3180,7 @@
         }
       ],
       "clinicalFindings": [
-        "Stichwunde präkordial (zwischen den Medioklavikularlinien)",
+        "Stichwunde am Thorax",
         "Patient unruhig, kaltschweißig"
       ],
       "sources": [
@@ -3205,7 +3205,7 @@
       "imaging": [
         {
           "modality": "eFAST",
-          "finding": "Perikarderguss mit diastolischem Kollaps des rechten Ventrikels – vereinbar mit Perikardtamponade. Lungengleiten beidseits vorhanden.",
+          "finding": "Perikarderguss mit diastolischem Kollaps des rechten Ventrikels – vereinbar mit Perikardtamponade.",
           "resolvedByTag": "intervention:Thoracotomy:Pericardium",
           "resolvedFinding": "Perikard eröffnet, kein relevanter Resterguss.",
           "image": "",
@@ -3318,18 +3318,6 @@
           "requiresTag": "",
           "requiresTagDelay_s": 0,
           "untilTag": "intervention:Thoracotomy:Pericardium",
-          "untilTagDelay_s": 0
-        },
-        {
-          "text": "Atemgeräusch beidseits vorhanden, Klopfschall seitengleich",
-          "minLevel": 0,
-          "maxLevel": 1,
-          "minLost_mL": 0,
-          "minBodyLoss": 0,
-          "maxBodyLoss": 1,
-          "requiresTag": "",
-          "requiresTagDelay_s": 0,
-          "untilTag": "",
           "untilTagDelay_s": 0
         },
         {

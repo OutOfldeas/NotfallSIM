@@ -186,6 +186,9 @@ namespace NotfallSIM.Data
         public string reviewNotes;
 
         /// <summary>Übersetzt in ein Engine-Ereignis mit gewählter Dosis (Einheit wie <see cref="DoseSpec.unit"/>).</summary>
+        /// <summary>Einstellbare Dosis vorhanden? JsonUtility legt für "dose": null ein leeres Objekt an (Einheit leer, Referenz 0).</summary>
+        public bool HasDose => dose != null && dose.reference > 0 && !string.IsNullOrEmpty(dose.unit);
+
         public InterventionEvent ToEvent(double doseValue)
         {
             var ev = ToEvent();

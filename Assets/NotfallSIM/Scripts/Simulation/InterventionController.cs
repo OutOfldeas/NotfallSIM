@@ -36,14 +36,14 @@ namespace NotfallSIM.Simulation
             }
             if (def.once && _used.Contains(def.id)) return;
             if (sim.Ended || sim.IsAway || sim.Vitals.CardiacArrest) { sim.Note($"Nicht möglich: {def.label}"); return; }
-            if (def.dose != null) { NotfallSIM.UI.DoseDialog.Show(def, sim.Scenario?.patient, d => ApplyDose(interventionId, d)); return; }
+            if (def.HasDose) { NotfallSIM.UI.DoseDialog.Show(def, sim.Scenario?.patient, d => ApplyDose(interventionId, d)); return; }
             Execute(def, def.ToEvent(), null);
         }
 
         /// <summary>Maßnahme mit gewählter Dosis (Einheit wie in "dose.unit").</summary>
         public void ApplyDose(string interventionId, double doseValue)
         {
-            if (!_byId.TryGetValue(interventionId, out var def) || def.dose == null) { Apply(interventionId); return; }
+            if (!_byId.TryGetValue(interventionId, out var def) || !def.HasDose) { Apply(interventionId); return; }
             if (def.once && _used.Contains(def.id)) return;
             if (sim.Ended || sim.IsAway || sim.Vitals.CardiacArrest) { sim.Note($"Nicht möglich: {def.label}"); return; }
             Execute(def, def.ToEvent(doseValue), doseValue);
