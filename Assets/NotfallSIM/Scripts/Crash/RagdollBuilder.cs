@@ -454,9 +454,9 @@ namespace NotfallSIM.Crash
         /// <summary>Eigenfrequenz des weichen Gelenkanschlags (rad/s), siehe <see cref="Joint"/>.</summary>
         public const float StopFrequency_rad_s = 100f;
 
-        /// <param name="hingeFromStraight">Knie: Grenzen gelten ab gestrecktem Bein, nicht ab der Haltung beim Anlegen. Das
-        /// Anatomie-Ragdoll wird gestreckt angelegt und danach gesetzt (Beugung beim Anlegen ≈ 0, nichts ändert sich); das
-        /// Ersatz-Ragdoll aus Kapseln wird sitzend gebaut — dort konnte das Knie sonst nur 5° aus 90° Beugung strecken.</param>
+        /// <param name="hingeFromStraight">Knie: Grenzen gelten ab gestrecktem Bein, nicht ab der Haltung beim Anlegen. Sitzende
+        /// werden gebeugt angelegt (≈ 86°); vorher lag dort die große Grenze (140°) auf der Streckseite, das Knie konnte also
+        /// über 50° überstrecken.</param>
         static ConfigurableJoint Joint(Rigidbody child, Rigidbody parent, Vector3 worldAnchor, Transform body,
                           float lowX, float highX, float swingY, float swingZ, float tone, bool hingeFromStraight = false)
         {
@@ -468,10 +468,14 @@ namespace NotfallSIM.Crash
                 float f = Vector3.Angle(pa, ca);
                 if (f > 10f)
                 {
-                    // Beugung liegt auf der Seite der großen Grenze (wie beim stehend angelegten Knie)
-                    if (lowX < highX) { lowX += f; highX = Mathf.Max(5f, highX - f); }
-                    else { highX += f; lowX = Mathf.Max(5f, lowX - f); }
-                    flexAtRest = f;
+                    // Richtung aus der Geometrie: Drehsinn Oberschenkel → Unterschenkel um die Querachse. Unity zählt die Beugung
+                    // des ConfigurableJoint entgegengesetzt (in Unity gesehen: sitzend streckte das Knie auf der Seite der
+                    // großen Grenze — 108° aus der Sitzhaltung, also 22° über gestreckt)
+                    int unityFlex = Vector3.Dot(Vector3.Cross(pa, ca), body.right) >= 0 ? -1 : 1;
+                    float ext = Mathf.Min(lowX, highX), flex = Mathf.Max(lowX, highX);
+                    float extLim = ext + f, flexLim = Mathf.Max(5f, flex - f);
+                    if (unityFlex > 0) { highX = flexLim; lowX = extLim; } else { lowX = flexLim; highX = extLim; }
+                    flexAtRest = f; extensionSign = -unityFlex;
                 }
             }
             var j = child.gameObject.AddComponent<ConfigurableJoint>();
