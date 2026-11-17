@@ -200,6 +200,13 @@
         "^first lumbar vertebra$"
       ],
       "note": ""
+    },
+    {
+      "injuryId": "hws_fraktur",
+      "meshes": [
+        "^fifth cervical vertebra$"
+      ],
+      "note": ""
     }
   ]
 }

@@ -62,10 +62,15 @@
           "citation": "Injury Criteria and Motor Vehicle Regulations (Lehrbuchkapitel, Zusammenstellung FMVSS 208 / ECE R94).",
           "url": "https://musculoskeletalkey.com/injury-criteria-and-motor-vehicle-regulations/",
           "note": "Tabellen 27.1/27.2: Grenzwerte und Nij-Intercepts"
+        },
+        {
+          "citation": "Eppinger R, Sun E, Bandak F, et al. Development of Improved Injury Criteria for the Assessment of Advanced Automotive Restraint Systems – II. NHTSA; 1999.",
+          "url": "https://www.nhtsa.gov/sites/nhtsa.gov/files/rev_criteria.pdf",
+          "note": "Nij aus axialer Halskraft und Biegemoment; AIS3+-Risikokurve, Grenzwert 1,0 (FMVSS 208)."
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Aus Kraft und Moment im Kopf-Rumpf-Gelenk (CFC 1000 bzw. 600). Kurve didaktisch, Ankerpunkt etwa 22 % bei Nij 1,0 — NHTSA-Original prüfen. Noch keine Halsverletzung in der Datenbank, daher nur Anzeige."
+      "reviewNotes": "Aus Kraft und Moment im Kopf-Rumpf-Gelenk (CFC 1000 bzw. 600). Log-logistisch angenähert an die AIS3+-Kurve von Eppinger 1999 (1/(1+e^(3,2269−1,9688·Nij)): 22 % bei 1,0, 67 % bei 2,0; hier 22 % / 65 %). Zugeordnet: Fraktur HWK 5 (Anteil 0,6)."
     },
     {
       "id": "Thorax.D",
@@ -723,6 +728,18 @@
       "injuryId": "lwk1_berstungsfraktur",
       "metric": "LWS.Fz",
       "share": 1.0,
+      "severityMin": 0.4,
+      "severityMax": 0.8,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "hws_fraktur",
+      "metric": "Nij",
+      "share": 0.6,
       "severityMin": 0.4,
       "severityMax": 0.8,
       "onsetMin_s": 0,

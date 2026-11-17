@@ -3108,6 +3108,59 @@
         }
       ],
       "dynamicFindings": []
+    },
+    {
+      "id": "hws_fraktur",
+      "name": "Fraktur HWK 5 ohne neurologisches Defizit",
+      "region": "Kopf",
+      "icd10": "S12.2",
+      "aisSeverity": 3,
+      "effects": [],
+      "clinicalFindings": [
+        "Druckschmerz über den Dornfortsätzen der unteren HWS, Nackenschmerz",
+        "Motorik und Sensibilität an Armen und Beinen erhalten",
+        "Bewegung der Halswirbelsäule einschränken bis zur Bildgebung"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Spinal Cord and Spine Trauma: Bewegungseinschränkung der Wirbelsäule, Bildgebung"
+        },
+        {
+          "citation": "Eppinger R, Sun E, Bandak F, et al. Development of Improved Injury Criteria for the Assessment of Advanced Automotive Restraint Systems – II. NHTSA; 1999.",
+          "url": "https://www.nhtsa.gov/sites/nhtsa.gov/files/rev_criteria.pdf",
+          "note": "Nij aus axialer Halskraft und Biegemoment; AIS3+-Risikokurve, Grenzwert 1,0 (FMVSS 208)."
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Aus Nij (Halskraft und -moment im Kopf-Rumpf-Gelenk). Ohne Rückenmarkverletzung, Instabilität und Gefäßverletzung modelliert. Vorzeichen von Kraft und Moment in Unity noch nicht geprüft (siehe Roadmap). Untersuchung der HWS gibt es im Schockraum noch nicht. Region „Kopf“, weil der Schockraum keine eigene HWS-Untersuchung hat (HWS wird mit Kopf und Hals untersucht).",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Kompressionsfraktur des Wirbelkörpers HWK 5 ohne Hinterkantenbeteiligung, Spinalkanal frei; prävertebrale Weichteilschwellung.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "hws_bildgebung",
+          "description": "Bildgebung der Halswirbelsäule",
+          "type": "deadline",
+          "tags": [
+            "imaging:ct_ganzkoerper"
+          ],
+          "limit": 1800,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Verdacht auf HWS-Verletzung nach Hochrasanztrauma: CT (S3-Leitlinie Polytrauma). 30 min didaktisch."
+        }
+      ],
+      "dynamicFindings": []
     }
   ]
 }

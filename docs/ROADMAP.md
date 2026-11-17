@@ -27,6 +27,7 @@ Häkchen = erledigt; *kursiv* = Stand der Prüfung. „In Unity nachgemessen“ 
 - [x] Bauchkompression aus der im Kontakt berechneten Eindrückung statt Kraft / 27 kN/m: Vianos Pendel 9,4 m/s → Milz 37 % statt 100 %, 6,5 m/s → 12 % statt 46 % (Viano 1989: Organrisse nur vereinzelt bei 9,4 m/s)
 - [x] Kraftgrenzwert Bauch 2,5 kN (ES-2) nur beim Seitenaufprall; frontal nur Anzeige
 - [ ] In Unity: PKW seitlich 50 km/h und Szenario Kreuzung — Milz/Leber neu ablesen
+- [x] HWS-Fraktur (HWK 5, ohne neurologisches Defizit) in der Datenbank, an Nij gekoppelt (Anteil 0,6; Kurve wie Eppinger 1999). In Unity prüfen: Vorzeichen von Halskraft/-moment, Nij beim Fußgänger (zuletzt 8,7)
 
 ## Nächste Schritte (Vorschlag, nach Nutzen)
 
@@ -80,7 +81,7 @@ Häkchen = erledigt; *kursiv* = Stand der Prüfung. „In Unity nachgemessen“ 
 - [ ] Schädel- und Organwiderstand im Stichkanal, Kantenbreite und Schnitttiefe je N mit Messungen belegen; Steifigkeit von Becken und Extremitäten
 - [ ] Vorzeichen von Halskraft/-moment und Femurkraft aus Joint.currentForce/currentTorque in Unity prüfen
 - [ ] Halsverletzung (HWS) mit Physiologie in die Datenbank aufnehmen, dann Nij zuordnen
-- [ ] Fehlende typische Verletzungen: Kalkaneus und LWK 1 (Sturz) am 17.11. ergänzt, Rippenserie rechts vorhanden; offen: HWS, übrige Wirbelsäule, Aortenverletzung (Dezeleration)
+- [ ] Fehlende typische Verletzungen: Kalkaneus und LWK 1 (Sturz) am 17.11. ergänzt, Rippenserie rechts vorhanden; HWS (HWK 5) am 17.11. ergänzt; offen: übrige Wirbelsäule, Aortenverletzung (Dezeleration)
 - [ ] Anatomie: Zuordnung Verletzung → Strukturen (`anatomy.json`) und schematische Nervenverläufe gegenlesen
 - [ ] SDH/EDH als eigene Hämatom-Form (Sichel/Linse) zwischen Kalotte und Rinde darstellen statt Rinde einzufärben
 - [ ] Restliche Überschneidungen am Zwerchfell (dünne Platte) gezielt nachbearbeiten
