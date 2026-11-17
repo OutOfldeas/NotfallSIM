@@ -252,6 +252,8 @@ den Schockraum (Schockraum-Szene muss erzeugt sein).
     „nicht eingedrungen“ bzw. „verfehlt“, wenn nichts passiert ist.
     Beim Stich zeigen Vorschau und Marke, welche Strukturen in der Bahn liegen (`Anatomy/StabChannel.cs`: Strahl
     gegen Organe, Gefäße, Nerven und Knochen des Anatomiemodells in Ruhelage), z. B. „8. Rippe 2,5 cm · Zwerchfell 3,4 cm · Leber 4 cm“.
+    Dieselbe Bahn bestimmt die Schichten beim Eindringen (Rippe dort, wo sie im Modell liegt) und ob eine tiefe
+    Stichverletzung entsteht (nur wenn ein Organ oder Gefäß erreicht wurde).
   - Kontakt — `SoftContact.cs`: Kontaktmodifikation von PhysX; je Kontaktpunkt höchstens F·dt mit
     F = k(δ)·δ + c·δ̇ aus `impact_model.json` (Kopf nach Fläche, Thorax nach Melvin/Kroell, Bauch nach Hardy); Kontaktfläche aus der Geometrie
     (Fläche, Kante, Ecke, Kugelkappe); Schnittweg einer Schneide unter Andruck; HIC15 aus der Kopfbewegung

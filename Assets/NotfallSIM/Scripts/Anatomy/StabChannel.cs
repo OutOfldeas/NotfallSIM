@@ -53,6 +53,35 @@ namespace NotfallSIM.Anatomy
             return hits.OrderBy(h => h.Depth_m).ToList();
         }
 
+        /// <summary>
+        /// Wie <see cref="Trace"/>, aber vom Hauteintritt aus: Der Kontaktpunkt der Physik liegt auf einer Kapsel, nicht auf der
+        /// Haut des Modells. Vom Punkt aus wird rückwärts die Haut (erstes Netz, Ebene „skin“) gesucht und von dort gemessen.
+        /// Unterhautfett über dem Modell (BMI) kommt beim Aufrufer dazu.
+        /// </summary>
+        public static List<ChannelHit> TraceFromSkin(AnatomyData data, float[] point, float[] dir, double maxDepth)
+        {
+            if (data == null || point == null || dir == null) return new List<ChannelHit>();
+            double len = Math.Sqrt(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]);
+            if (len < 1e-9) return new List<ChannelHit>();
+            float dx = (float)(dir[0] / len), dy = (float)(dir[1] / len), dz = (float)(dir[2] / len);
+            var skin = data.Meshes.FirstOrDefault(m => m.Info != null && m.Info.layer == "skin");
+            var origin = point;
+            if (skin != null)
+            {
+                // Liegt der Punkt unter der Haut, ist die nächste Hautfläche rückwärts der Eintritt; liegt er davor,
+                // die nächste vorwärts (nicht weiter als 10 cm — sonst z. B. der danebenliegende Arm)
+                const double reach = 0.1;
+                if (MeshPick.Raycast(skin.Positions, skin.Indices, point[0], point[1], point[2], -dx, -dy, -dz, out double tb, out _, out _, out _, out _) && tb < reach)
+                    origin = new[] { (float)(point[0] - dx * tb), (float)(point[1] - dy * tb), (float)(point[2] - dz * tb) };
+                else if (MeshPick.Raycast(skin.Positions, skin.Indices, point[0], point[1], point[2], dx, dy, dz, out double tf, out _, out _, out _, out _) && tf < reach)
+                    origin = new[] { (float)(point[0] + dx * tf), (float)(point[1] + dy * tf), (float)(point[2] + dz * tf) };
+            }
+            return Trace(data, origin, new[] { dx, dy, dz }, maxDepth);
+        }
+
+        /// <summary>Weichteil- oder Hohlraumstrukturen, die beim Stich als Organverletzung zählen (nicht Knochen, nicht Nerv allein).</summary>
+        public static bool IsDeep(ChannelHit h) => h.Layer == "organ" || h.Layer == "artery" || h.Layer == "vein" || h.Layer == "brain";
+
         /// <summary>Kurztext: „Rippe 1,8 cm · Leber 3,5 cm“ (Tiefen mit <paramref name="scale"/> auf den Körper umgerechnet).</summary>
         public static string Describe(IEnumerable<ChannelHit> hits, double scale, int max = 4)
         {

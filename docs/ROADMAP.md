@@ -21,7 +21,8 @@ Häkchen = erledigt; *kursiv* = Stand der Prüfung. „In Unity nachgemessen“ 
 - [x] Marke an der Trefferstelle mit Ergebnis (Stichtiefe, Kraft, neue Verletzungen; „nicht eingedrungen“, „verfehlt“), wandert mit dem Körperteil
 - [ ] In Unity prüfen: Lage des Zielrings auf der Haut, Größe/Lage des Hinweises bei verschiedenen Fenstergrößen, Bildrate beim Zielen (60 000 Dreiecke), Marken während der Wiedergabe
 - [x] Strukturen in der Bahn der Klinge (Anatomiemodell, BodyParts3D): Vorschau „In der Bahn (Klinge 11 cm): 8. Rippe 2,5 cm · Zwerchfell 3,4 cm · Leber 4 cm“, nach dem Stich „durch: …“ bis zur erreichten Tiefe. Test: seitlicher Stich auf Leber-/Milzhöhe trifft Rippe/Zwerchfell, dann das Organ
-- [ ] Offen: Stichrichtung frei wählen (z. B. mit gedrückter rechter Maustaste ziehen); Verletzung aus den getroffenen Strukturen ableiten statt aus Region und Tiefe (Schritt 1 des Wundmodells)
+- [x] Stich mit Anatomiemodell (Schritt 1 des Wundmodells): Knochen liegt dort, wo das Modell eine Rippe hat (statt 50-%-Zufall), Organwiderstand ab dem ersten Organ; tiefe Stichverletzung nur, wenn ein Organ oder Gefäß erreicht wurde (Grund nennt es, z. B. „erreicht Leber“). Ohne body.bin gelten weiter Wanddicke und Wahrscheinlichkeit
+- [ ] Offen: Stichrichtung frei wählen (z. B. mit gedrückter rechter Maustaste ziehen); weitere Verletzungen je Struktur (Herz/Tamponade, große Gefäße, Niere) statt der Region
 
 ## Stand 17.11.2026 (spät) — Organmodell (offline, in Unity noch nicht nachgemessen)
 

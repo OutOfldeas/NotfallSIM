@@ -51,6 +51,7 @@ namespace NotfallSIM.Crash
             Ragdoll = RagdollBuilder.Build(new Vector3(0, 0.12f * H / 1.75f, 0), Quaternion.Euler(-90, 0, 0), RagdollPose.Standing, H, p.Mass_kg, p.Male, invertKneeFlexion);
             RegisterSoftBody(p, model);
             Penetrations = new PenetrationSystem(model, p.Seed);
+            try { Penetrations.Anatomy = Anatomy.AnatomyBuilder.Load(); } catch (System.Exception e) { Debug.LogWarning("[Gewalt] Anatomiemodell nicht geladen, Stichkanal ohne Strukturen: " + e.Message); }
             SoftContact.Enabled = false;   // zwischen den Würfen normale (starre) Kontakte: stabil beim Ziehen
         }
 

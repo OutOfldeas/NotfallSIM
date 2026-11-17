@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace NotfallSIM.Crash
@@ -21,6 +22,8 @@ namespace NotfallSIM.Crash
             public Rigidbody BodyRb;
             public Vector3 EntryLocal;      // Einstichpunkt im Segment
             public Vector3 AxisLocal;       // Stichrichtung (in die Tiefe) im Segment
+            public float BoneStart = -1;     // mit Anatomiemodell: Tiefe des Knochens (ab Modellhaut), sonst −1
+            public float OrganStart = float.MaxValue;   // mit Anatomiemodell: Tiefe des ersten Organs/Gefäßes
             public ConfigurableJoint Joint;
             public float Depth, MaxDepth, Length;
             public bool BoneHit, Embedded;
@@ -34,6 +37,9 @@ namespace NotfallSIM.Crash
         public bool Clothed = true;
 
         public PenetrationSystem(ImpactModelFile model, int seed) { _model = model; _rng = new System.Random(seed); }
+
+        /// <summary>Anatomiemodell (body.bin) für die Strukturen in der Bahn; null = Wanddicke und Wahrscheinlichkeit der Region.</summary>
+        public global::NotfallSIM.Anatomy.AnatomyData Anatomy;
 
         public int ActiveCount => _active.Count;
         public bool IsActive(SoftContact.ObjectInfo o) => _active.Exists(a => a.Obj == o);
@@ -100,6 +106,19 @@ namespace NotfallSIM.Crash
             {
                 a.Result.ModelPoint = new[] { mp.x, mp.y, mp.z }; a.Result.ModelInside = new[] { inside.x, inside.y, inside.z };
                 if (sensor.ToModelDirection(axis, out var md)) { a.Result.ModelDir = new[] { md.x, md.y, md.z }; a.Result.ModelScale = sensor.ModelScale; }
+                // Anatomie in der Bahn: Rippe/Knochen und Organe dort, wo sie im Modell liegen (statt Wanddicke und Wahrscheinlichkeit)
+                if (a.Result.ModelDir != null && Anatomy != null)
+                {
+                    float k = sensor.ModelScale;
+                    var hits = global::NotfallSIM.Anatomy.StabChannel.TraceFromSkin(Anatomy, a.Result.ModelPoint, a.Result.ModelDir, (a.Length + 0.02) / k);
+                    foreach (var h in hits) h.Depth_m *= k;   // auf Körpermaß
+                    a.Result.Channel = hits;
+                    var firstDeep = hits.FirstOrDefault(global::NotfallSIM.Anatomy.StabChannel.IsDeep);
+                    var bone = hits.FirstOrDefault(h => h.Layer == "bone" && (firstDeep == null || h.Depth_m < firstDeep.Depth_m));
+                    a.BoneHit = bone != null;
+                    a.BoneStart = bone != null ? (float)bone.Depth_m : -1;
+                    a.OrganStart = firstDeep != null ? (float)firstDeep.Depth_m : float.MaxValue;
+                }
             }
             Results.Add(a.Result);
             _active.Add(a);
@@ -145,10 +164,22 @@ namespace NotfallSIM.Crash
                 if (a.Embedded) continue;
 
                 string region = a.Result.Region;
-                float resistance = a.Depth >= a.Length ? 20000f   // Heft am Einstich: stoppt
-                                 : (float)ImpactModel.ResistanceAt(_model, region, a.Depth, a.BoneHit, a.Result.FatExtra_m);
                 var rule = ImpactModel.PenetrationRule(_model, region);
-                if (a.BoneHit && rule != null)
+                float resistance;
+                if (a.Depth >= a.Length) resistance = 20000f;   // Heft am Einstich: stoppt
+                else if (a.Result.Channel != null)
+                {
+                    // Schichten aus dem Anatomiemodell: Fett über dem Modell, Weichteil, Knochen an seiner Stelle, dahinter Organ
+                    float fat = (float)System.Math.Max(0, a.Result.FatExtra_m), d = a.Depth - fat;
+                    float boneEnd = a.BoneStart + (float)ImpactModel.BoneThickness(rule);
+                    string tissue = d < 0 ? "fett" : a.BoneStart >= 0 && d >= a.BoneStart && d < boneEnd ? ImpactModel.BoneTissue(rule)
+                                  : d >= a.OrganStart ? "organ" : "weichteil";
+                    resistance = (float)ImpactModel.TissueResistance(_model, tissue);
+                    if (a.BoneStart >= 0 && d >= a.BoneStart) a.Result.HitBone = true;
+                    if (a.BoneStart >= 0 && d >= boneEnd) a.Result.BonePierced = true;
+                }
+                else resistance = (float)ImpactModel.ResistanceAt(_model, region, a.Depth, a.BoneHit, a.Result.FatExtra_m);
+                if (a.Result.Channel == null && a.BoneHit && rule != null)
                 {
                     float fat = (float)System.Math.Max(0, a.Result.FatExtra_m);
                     float boneStart = (float)(rule.wall_m - ImpactModel.BoneThickness(rule)) + fat;

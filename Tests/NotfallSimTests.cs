@@ -1896,6 +1896,24 @@ static class Tests
             Check(hits.Select(h => h.Depth_m).SequenceEqual(hits.Select(h => h.Depth_m).OrderBy(x => x)), "nach Tiefe sortiert");
             var shortHits = StabChannel.Trace(data, origin, new[] { -sx, 0f, 0f }, organ.Depth_m - 0.001);
             Check(shortHits.All(h => h.Label != target.Item2), "kürzere Klinge erreicht das Organ nicht");
+            // Vom Kontaktpunkt (2 cm unter der Haut, wie auf einer Kapsel) zurück zur Haut: dieselben Tiefen
+            var inner = new[] { origin[0] - sx * 0.03f, origin[1], origin[2] };
+            var fromSkin = StabChannel.TraceFromSkin(data, inner, new[] { -sx, 0f, 0f }, 0.3);
+            var o2 = fromSkin.FirstOrDefault(h => h.Label == target.Item2);
+            Check(o2 != null && Math.Abs(o2.Depth_m - (organ.Depth_m - 0.01)) < 0.003, $"vom Hauteintritt gemessen: {o2?.Depth_m * 100:0.0} cm (von außen {organ.Depth_m * 100 - 1:0.0} cm)");
+        }
+        {
+            // Verletzung aus den erreichten Strukturen: nur Weichteil/Rippe → keine tiefe Verletzung; Leber erreicht → Stichverletzung
+            var im = Load<NotfallSIM.Crash.ImpactModelFile>("impact_model.json");
+            Func<double, NotfallSIM.Crash.PenetrationResult> pen = depth => new NotfallSIM.Crash.PenetrationResult
+            {
+                Region = "Abdomen", Segment = "Abdomen", Side = 1, Depth_m = depth, ObjectId = "messer",
+                Channel = new List<ChannelHit> { new ChannelHit { Label = "8. Rippe rechts", Layer = "bone", Depth_m = 0.025 }, new ChannelHit { Label = "Leber", Layer = "organ", Depth_m = 0.04 } }
+            };
+            var shallow = NotfallSIM.Crash.ImpactModel.Evaluate(im, null, new[] { pen(0.035) }, () => 0.5);
+            var deep = NotfallSIM.Crash.ImpactModel.Evaluate(im, null, new[] { pen(0.07) }, () => 0.5);
+            Check(shallow.Count == 0, $"3,5 cm: nur Rippe erreicht, keine Organverletzung ({shallow.Count})");
+            Check(deep.Count == 1 && deep[0].InjuryId == "stichverletzung_abdomen_rechts" && deep[0].Reason.Contains("Leber"), $"7 cm: {deep.FirstOrDefault()?.InjuryId} ({deep.FirstOrDefault()?.Reason})");
         }
     }
 

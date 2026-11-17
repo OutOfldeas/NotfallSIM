@@ -227,6 +227,12 @@ namespace NotfallSIM.Crash
         public float[] ModelPoint, ModelInside;   // Einstich im Modellraum (für die Wundmarke), sonst null
         public float[] ModelDir;                  // Stichrichtung im Modellraum (für die getroffenen Strukturen), sonst null
         public float ModelScale = 1;              // Körper / Anatomiemodell
+        /// <summary>Strukturen in der Bahn bis zur Klingenlänge (Tiefe in Metern am Körper ab Modellhaut, ohne Fett über dem
+        /// Modell); null = ohne Anatomiemodell (dann gelten Wanddicke und Knochenwahrscheinlichkeit der Region).</summary>
+        public List<Anatomy.ChannelHit> Channel;
+        /// <summary>Erreichte Strukturen: Kanal bis zur erreichten Tiefe.</summary>
+        public IEnumerable<Anatomy.ChannelHit> Reached => Channel == null ? Enumerable.Empty<Anatomy.ChannelHit>()
+            : Channel.Where(h => h.Depth_m <= Depth_m - Math.Max(0, FatExtra_m));
     }
 
     /// <summary>Schnitt einer Klinge über die Haut (Länge des Gleitwegs unter Andruck, geschätzte Tiefe).</summary>
@@ -610,6 +616,19 @@ namespace NotfallSIM.Crash
             foreach (var pen in penetrations ?? new PenetrationResult[0])
             {
                 var rule = PenetrationRule(m, pen.Region);
+                if (pen.Channel != null)
+                {
+                    // Mit Anatomiemodell: tiefe Verletzung nur, wenn die Klinge ein Organ oder Gefäß erreicht hat
+                    if (rule == null) continue;
+                    if (ContactRegion(pen.Region) == "Arm" && (pen.Segment == null || !pen.Segment.StartsWith("Unterarm"))) continue;
+                    var deep = pen.Reached.Where(Anatomy.StabChannel.IsDeep).ToList();
+                    if (deep.Count == 0) continue;
+                    string idA = !string.IsNullOrEmpty(rule.deep) ? rule.deep : pen.Side > 0 ? rule.deepRight : rule.deepLeft;
+                    double into = pen.Depth_m - Math.Max(0, pen.FatExtra_m) - deep[0].Depth_m;
+                    add(idA, 1, 0.5 + 0.4 * Math.Min(1, into / 0.05),
+                        $"Stichkanal {pen.Region} {pen.Depth_m * 100:0} cm tief, erreicht {string.Join(", ", deep.Select(h => h.Label).Distinct())}" + (pen.Embedded ? " (Fremdkörper steckt)" : ""));
+                    continue;
+                }
                 if (rule == null || pen.Depth_m < rule.wall_m + Math.Max(0, pen.FatExtra_m)) continue;   // in der Wand geblieben (auch: Rippe, dickes Fett)
                 if (ContactRegion(pen.Region) == "Arm" && (pen.Segment == null || !pen.Segment.StartsWith("Unterarm"))) continue;
                 string id = !string.IsNullOrEmpty(rule.deep) ? rule.deep : pen.Side > 0 ? rule.deepRight : rule.deepLeft;

@@ -348,7 +348,7 @@ namespace NotfallSIM.Crash
             Anatomy.AnatomyData data;
             try { data = Anatomy.AnatomyBuilder.Load(); } catch (Exception) { return null; }
             double blade = o.bladeLength_m > 0 ? o.bladeLength_m : 0.1;
-            var hits = Anatomy.StabChannel.Trace(data, new[] { mp.x, mp.y, mp.z }, new[] { md.x, md.y, md.z }, blade / sensor.ModelScale);
+            var hits = Anatomy.StabChannel.TraceFromSkin(data, new[] { mp.x, mp.y, mp.z }, new[] { md.x, md.y, md.z }, blade / sensor.ModelScale);
             string list = Anatomy.StabChannel.Describe(hits, sensor.ModelScale);
             _channelText = $"<size=90%>In der Bahn (Klinge {blade * 100:0} cm): {(list.Length > 0 ? list : "nur Weichteile")}</size>";
             return _channelText;
@@ -357,6 +357,7 @@ namespace NotfallSIM.Crash
         /// <summary>Strukturen, die ein Stichkanal bis zu seiner Tiefe durchquert (leer ohne Modellbezug).</summary>
         static string ChannelThrough(PenetrationResult pr)
         {
+            if (pr?.Channel != null) return Anatomy.StabChannel.Describe(pr.Reached, 1);
             if (pr?.ModelPoint == null || pr.ModelDir == null || pr.ModelScale <= 0 || pr.Depth_m <= 0) return "";
             Anatomy.AnatomyData data;
             try { data = Anatomy.AnatomyBuilder.Load(); } catch (Exception) { return ""; }
