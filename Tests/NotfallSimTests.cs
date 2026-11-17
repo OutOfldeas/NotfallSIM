@@ -1257,7 +1257,13 @@ static class Tests
         var metrics = new HashSet<string>(r.metrics.Select(m => m.id));
         foreach (var m in r.metrics)
         {
-            Check(m.curve.type == "lognormal" || m.curve.type == "loglogistic" || m.curve.type == "normal" && m.curve.sigma > 0 || m.curve.type == "none", $"{m.id}: Kurve {m.curve.type}");
+            Check(m.curve.type == "lognormal" || m.curve.type == "loglogistic" || m.curve.type == "normal" && m.curve.sigma > 0 || m.curve.type == "weibull" && m.curve.x50 > 0 && m.curve.shape > 0 || m.curve.type == "none", $"{m.id}: Kurve {m.curve.type}");
+            if (m.id == "Unterschenkel rechts.Fax")
+            {
+                // Yoganandan 2015, 45 Jahre: 10 % bei 5,03 kN, 25 % bei 6,30 kN, 50 % bei 7,67 kN
+                double p10 = NotfallSIM.Crash.InjuryRisk.Probability(m.curve, 5.031), p25 = NotfallSIM.Crash.InjuryRisk.Probability(m.curve, 6.299), p50 = NotfallSIM.Crash.InjuryRisk.Probability(m.curve, 7.669);
+                Check(Math.Abs(p10 - 0.10) < 0.01 && Math.Abs(p25 - 0.25) < 0.01 && Math.Abs(p50 - 0.5) < 0.01, $"Kalkaneus/Pilon Weibull: {p10:P1} / {p25:P1} / {p50:P1} (Ziel 10/25/50 %)");
+            }
             Check(m.sources.Length > 0, $"{m.id}: keine Quelle");
         }
         foreach (var l in r.injuries)

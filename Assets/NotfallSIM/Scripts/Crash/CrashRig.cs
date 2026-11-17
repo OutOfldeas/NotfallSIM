@@ -948,6 +948,9 @@ namespace NotfallSIM.Crash
             add("Thorax.VC", Biomechanics.ViscousCriterion(defl, dt, 0.229));
             add("Nij", Biomechanics.Nij(Biomechanics.Cfc(g.NeckFz_N, dt, 1000), Biomechanics.Cfc(g.NeckMy_Nm, dt, 600)));
             add("Oberschenkel rechts.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.FemurAxialR_N, dt, 600)) / 1000);
+            if (g.TibiaAxialR_N.Count > 10) add("Unterschenkel rechts.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialR_N, dt, 600)) / 1000);
+            if (g.TibiaAxialL_N.Count > 10) add("Unterschenkel links.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialL_N, dt, 600)) / 1000);
+            if (g.LumbarFz_N.Count > 10) add("LWS.Fz", Biomechanics.MaxAbs(Biomechanics.Cfc(g.LumbarFz_N, dt, 600)) / 1000);
 
             foreach (var region in new[] { "Thorax", "Abdomen", "Becken", "Oberschenkel rechts", "Unterschenkel rechts" })
                 add(region + ".F", byRegion[region].Max(s => Biomechanics.Clip(Biomechanics.Cfc(s.Force_kN, dt, 600), dt)));

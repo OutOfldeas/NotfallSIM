@@ -173,6 +173,11 @@ namespace NotfallSIM.Crash
         public readonly System.Collections.Generic.List<double> NeckFz_N = new System.Collections.Generic.List<double>();
         public readonly System.Collections.Generic.List<double> NeckMy_Nm = new System.Collections.Generic.List<double>();
         public readonly System.Collections.Generic.List<double> FemurAxialR_N = new System.Collections.Generic.List<double>();
+        /// <summary>Axiale Kraft im Knie längs des Unterschenkels (wie die proximale Messdose bei Yoganandan 2015) und in der
+        /// Lendenwirbelsäule längs des Rumpfes (Stemper 2017).</summary>
+        public readonly System.Collections.Generic.List<double> TibiaAxialR_N = new System.Collections.Generic.List<double>();
+        public readonly System.Collections.Generic.List<double> TibiaAxialL_N = new System.Collections.Generic.List<double>();
+        public readonly System.Collections.Generic.List<double> LumbarFz_N = new System.Collections.Generic.List<double>();
 
         Ragdoll _rd;
         bool _recording;
@@ -181,6 +186,7 @@ namespace NotfallSIM.Crash
         {
             _rd = ragdoll;
             ChestDeflection_m.Clear(); NeckFz_N.Clear(); NeckMy_Nm.Clear(); FemurAxialR_N.Clear();
+            TibiaAxialR_N.Clear(); TibiaAxialL_N.Clear(); LumbarFz_N.Clear();
             _recording = true;
         }
 
@@ -202,6 +208,10 @@ namespace NotfallSIM.Crash
             NeckMy_Nm.Add(Vector3.Dot(_rd.NeckJoint.currentTorque, head.right)); // > 0: Flexion (Kinn zur Brust)
             var thigh = _rd.Segments["Oberschenkel rechts"].transform;
             FemurAxialR_N.Add(Vector3.Dot(_rd.HipJointRight.currentForce, thigh.up));
+            // Vorzeichen wie oben nicht geprüft: ausgewertet wird der Betrag (beim Sturz auf die Füße überwiegt Druck)
+            if (_rd.KneeJointRight) TibiaAxialR_N.Add(Vector3.Dot(_rd.KneeJointRight.currentForce, _rd.Segments["Unterschenkel rechts"].transform.up));
+            if (_rd.KneeJointLeft) TibiaAxialL_N.Add(Vector3.Dot(_rd.KneeJointLeft.currentForce, _rd.Segments["Unterschenkel links"].transform.up));
+            if (_rd.LumbarJoint) LumbarFz_N.Add(Vector3.Dot(_rd.LumbarJoint.currentForce, _rd.Segments["Abdomen"].transform.up));
         }
     }
 }

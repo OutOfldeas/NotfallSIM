@@ -2903,6 +2903,211 @@
           "untilTagDelay_s": 0
         }
       ]
+    },
+    {
+      "id": "kalkaneusfraktur_rechts",
+      "name": "Kalkaneusfraktur rechts",
+      "region": "Unterschenkel rechts",
+      "icd10": "S92.0",
+      "aisSeverity": 2,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "RightLeg",
+          "baseRate_mL_min": 5,
+          "maxTotalLoss_mL": 300,
+          "lesion": "venous",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Ferse rechts verbreitert und geschwollen, Hämatom bis in die Fußsohle",
+        "Druckschmerz über dem Fersenbein rechts, Auftreten unmöglich",
+        "Sturz aus der Höhe auf die Füße: Wirbelsäule (thorakolumbaler Übergang) und Gegenseite mituntersuchen"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Spinal Cord and Spine Trauma; Musculoskeletal Trauma"
+        },
+        {
+          "citation": "Yoganandan N, Arun MWJ, Pintar FA, Banerjee A. Lower leg injury reference values and risk curves from survival analysis for male and female dummies: meta-analysis of postmortem human subject tests. Traffic Inj Prev. 2015;16(sup1):S100–S107.",
+          "url": "https://doi.org/10.1080/15389588.2015.1015118",
+          "note": "Axialer Stoß auf die Fußsohle, 52 PMHS-Präparate (Fuß–Sprunggelenk–Unterschenkel), Weibull; Kraft an der proximalen Messdose. 45 Jahre: 10 % bei 5,03 kN, 25 % bei 6,30 kN, 50 % bei 7,67 kN → Formparameter 4,47. Frakturen von Kalkaneus, Pilon und distaler Tibia."
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Axialer Stoß auf die Ferse (Sturz aus der Höhe). Blutverlust in die Weichteile bis ca. 0,3 L (Annahme). Kompartmentsyndrom des Fußes und Weichteilschaden nicht modelliert; Begleitverletzung der LWS als eigene Verletzung.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Intraartikuläre Kalkaneusfraktur rechts mit Abflachung des Böhler-Winkels, Weichteilschwellung der Ferse.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "ferse_rechts_untersucht",
+          "description": "Unterschenkel und Fuß rechts untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Unterschenkel rechts"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "E-Teil (Bodycheck) nach Sturz auf die Füße: Ferse, pDMS. Zeitziel didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Ferse rechts stark geschwollen, Plantarhämatom",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 100,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "kalkaneusfraktur_links",
+      "name": "Kalkaneusfraktur links",
+      "region": "Unterschenkel links",
+      "icd10": "S92.0",
+      "aisSeverity": 2,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "LeftLeg",
+          "baseRate_mL_min": 5,
+          "maxTotalLoss_mL": 300,
+          "lesion": "venous",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Ferse links verbreitert und geschwollen, Hämatom bis in die Fußsohle",
+        "Druckschmerz über dem Fersenbein links, Auftreten unmöglich",
+        "Sturz aus der Höhe auf die Füße: Wirbelsäule (thorakolumbaler Übergang) und Gegenseite mituntersuchen"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Spinal Cord and Spine Trauma; Musculoskeletal Trauma"
+        },
+        {
+          "citation": "Yoganandan N, Arun MWJ, Pintar FA, Banerjee A. Lower leg injury reference values and risk curves from survival analysis for male and female dummies: meta-analysis of postmortem human subject tests. Traffic Inj Prev. 2015;16(sup1):S100–S107.",
+          "url": "https://doi.org/10.1080/15389588.2015.1015118",
+          "note": "Axialer Stoß auf die Fußsohle, 52 PMHS-Präparate (Fuß–Sprunggelenk–Unterschenkel), Weibull; Kraft an der proximalen Messdose. 45 Jahre: 10 % bei 5,03 kN, 25 % bei 6,30 kN, 50 % bei 7,67 kN → Formparameter 4,47. Frakturen von Kalkaneus, Pilon und distaler Tibia."
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Axialer Stoß auf die Ferse (Sturz aus der Höhe). Blutverlust in die Weichteile bis ca. 0,3 L (Annahme). Kompartmentsyndrom des Fußes und Weichteilschaden nicht modelliert; Begleitverletzung der LWS als eigene Verletzung.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Intraartikuläre Kalkaneusfraktur links mit Abflachung des Böhler-Winkels, Weichteilschwellung der Ferse.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "ferse_links_untersucht",
+          "description": "Unterschenkel und Fuß links untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Unterschenkel links"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "E-Teil (Bodycheck) nach Sturz auf die Füße: Ferse, pDMS. Zeitziel didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Ferse links stark geschwollen, Plantarhämatom",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 100,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "lwk1_berstungsfraktur",
+      "name": "Berstungsfraktur LWK 1 ohne neurologisches Defizit",
+      "region": "Abdomen",
+      "icd10": "S32.01",
+      "aisSeverity": 3,
+      "effects": [],
+      "clinicalFindings": [
+        "Druck- und Klopfschmerz über dem thorakolumbalen Übergang",
+        "Motorik und Sensibilität beider Beine erhalten",
+        "Achsengerechte Lagerung; Bewegung der Wirbelsäule vermeiden bis zur Bildgebung"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Spinal Cord and Spine Trauma; Musculoskeletal Trauma"
+        },
+        {
+          "citation": "Stemper BD, Chirvi S, Doan N, et al. Biomechanical tolerance of whole lumbar spines in straightened posture subjected to axial acceleration. J Orthop Res. 2018;36(6):1747–1756.",
+          "url": "https://doi.org/10.1002/jor.23826",
+          "note": "23 ganze Lendenwirbelsäulen (Th12–L5) im Fallturm, Weibull: 50 % Verletzungsrisiko bei 4,5 kN axial (95-%-KI 3,9–5,2 kN). Formparameter nicht übernommen (Annahme 5)."
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Axiale Stauchung der LWS (Sturz aus der Höhe, Aufprall auf das Gesäß). Ohne Blutung und ohne neurologisches Defizit modelliert; Instabilität, Hinterkantenbeteiligung und Querschnitt nicht abgebildet. Untersuchung des Rückens (Log-Roll) gibt es im Schockraum noch nicht.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Berstungsfraktur LWK 1 mit Höhenminderung der Vorderkante um ca. ein Drittel und Hinterkantenbeteiligung; Spinalkanal gering eingeengt.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "wirbelsaeule_bildgebung",
+          "description": "Bildgebung der Wirbelsäule",
+          "type": "deadline",
+          "tags": [
+            "imaging:ct_ganzkoerper"
+          ],
+          "limit": 1800,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Hochrasanztrauma (Sturz aus großer Höhe): Ganzkörper-CT mit Wirbelsäule (S3-Leitlinie Polytrauma). 30 min didaktisch."
+        }
+      ],
+      "dynamicFindings": []
     }
   ]
 }

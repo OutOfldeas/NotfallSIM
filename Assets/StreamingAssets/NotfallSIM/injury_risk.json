@@ -426,6 +426,91 @@
       ],
       "evidenceStatus": "draft",
       "reviewNotes": "Ausnutzung = Organdehnung / Versagensdehnung bei der Dehnrate des Anpralls. Risiko = Anteil der Spender, deren Gewebe bei dieser Dehnung versagt (Normalverteilung, CV aus den Zugversuchen). Kraft stammt von einem starren Ragdoll — qualitativ."
+    },
+    {
+      "id": "Unterschenkel rechts.Fax",
+      "label": "Axiale Kraft Unterschenkel rechts (Knie)",
+      "unit": "kN",
+      "region": "Unterschenkel rechts",
+      "ais": "Fraktur",
+      "limit": 0,
+      "limitSource": "",
+      "curve": {
+        "type": "weibull",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 7.67,
+        "shape": 4.47
+      },
+      "sources": [
+        {
+          "citation": "Yoganandan N, Arun MWJ, Pintar FA, Banerjee A. Lower leg injury reference values and risk curves from survival analysis for male and female dummies: meta-analysis of postmortem human subject tests. Traffic Inj Prev. 2015;16(sup1):S100–S107.",
+          "url": "https://doi.org/10.1080/15389588.2015.1015118",
+          "note": "Axialer Stoß auf die Fußsohle, 52 PMHS-Präparate (Fuß–Sprunggelenk–Unterschenkel), Weibull; Kraft an der proximalen Messdose. 45 Jahre: 10 % bei 5,03 kN, 25 % bei 6,30 kN, 50 % bei 7,67 kN → Formparameter 4,47. Frakturen von Kalkaneus, Pilon und distaler Tibia."
+        },
+        {
+          "citation": "Yoganandan N, Pintar FA, Boynton M, et al. Dynamic axial tolerance of the human foot-ankle complex. 40th Stapp Car Crash Conference, SAE 962426; 1996.",
+          "url": "https://doi.org/10.4271/962426",
+          "note": "26 Präparate, Bruchkräfte 4,3–11,4 kN; Kalkaneus- und Pilonfrakturen."
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Veröffentlichte Risikokurve (45 Jahre, PMHS). Gemessen wird die axiale Kraft im Kniegelenk des Ragdolls längs des Unterschenkels; im Versuch lag die Messdose am proximalen Ende des Präparats. Alter und Geschlecht nicht berücksichtigt (25 J.: 9,7 kN, 65 J.: 6,1 kN; Frau 49 kg: 5,8 kN)."
+    },
+    {
+      "id": "Unterschenkel links.Fax",
+      "label": "Axiale Kraft Unterschenkel links (Knie)",
+      "unit": "kN",
+      "region": "Unterschenkel links",
+      "ais": "Fraktur",
+      "limit": 0,
+      "limitSource": "",
+      "curve": {
+        "type": "weibull",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 7.67,
+        "shape": 4.47
+      },
+      "sources": [
+        {
+          "citation": "Yoganandan N, Arun MWJ, Pintar FA, Banerjee A. Lower leg injury reference values and risk curves from survival analysis for male and female dummies: meta-analysis of postmortem human subject tests. Traffic Inj Prev. 2015;16(sup1):S100–S107.",
+          "url": "https://doi.org/10.1080/15389588.2015.1015118",
+          "note": "Axialer Stoß auf die Fußsohle, 52 PMHS-Präparate (Fuß–Sprunggelenk–Unterschenkel), Weibull; Kraft an der proximalen Messdose. 45 Jahre: 10 % bei 5,03 kN, 25 % bei 6,30 kN, 50 % bei 7,67 kN → Formparameter 4,47. Frakturen von Kalkaneus, Pilon und distaler Tibia."
+        },
+        {
+          "citation": "Yoganandan N, Pintar FA, Boynton M, et al. Dynamic axial tolerance of the human foot-ankle complex. 40th Stapp Car Crash Conference, SAE 962426; 1996.",
+          "url": "https://doi.org/10.4271/962426",
+          "note": "26 Präparate, Bruchkräfte 4,3–11,4 kN; Kalkaneus- und Pilonfrakturen."
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Veröffentlichte Risikokurve (45 Jahre, PMHS). Gemessen wird die axiale Kraft im Kniegelenk des Ragdolls längs des Unterschenkels; im Versuch lag die Messdose am proximalen Ende des Präparats. Alter und Geschlecht nicht berücksichtigt (25 J.: 9,7 kN, 65 J.: 6,1 kN; Frau 49 kg: 5,8 kN)."
+    },
+    {
+      "id": "LWS.Fz",
+      "label": "Axiale Kraft Lendenwirbelsäule",
+      "unit": "kN",
+      "region": "Abdomen",
+      "ais": "Fraktur",
+      "limit": 0,
+      "limitSource": "",
+      "curve": {
+        "type": "weibull",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 4.5,
+        "shape": 5
+      },
+      "sources": [
+        {
+          "citation": "Stemper BD, Chirvi S, Doan N, et al. Biomechanical tolerance of whole lumbar spines in straightened posture subjected to axial acceleration. J Orthop Res. 2018;36(6):1747–1756.",
+          "url": "https://doi.org/10.1002/jor.23826",
+          "note": "23 ganze Lendenwirbelsäulen (Th12–L5) im Fallturm, Weibull: 50 % Verletzungsrisiko bei 4,5 kN axial (95-%-KI 3,9–5,2 kN). Formparameter nicht übernommen (Annahme 5)."
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "50-%-Wert veröffentlicht, Formparameter angenommen. Gemessen wird die Kraft im Gelenk Becken–Abdomen längs des Rumpfes. Versuch in gestreckter Haltung; Beugung beim Aufprall senkt die Toleranz (keilförmige Fraktur) — nicht berücksichtigt."
     }
   ],
   "injuries": [
@@ -579,6 +664,42 @@
       "share": 0.6,
       "severityMin": 0.6,
       "severityMax": 1.0,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "kalkaneusfraktur_rechts",
+      "metric": "Unterschenkel rechts.Fax",
+      "share": 0.7,
+      "severityMin": 0.4,
+      "severityMax": 0.8,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "kalkaneusfraktur_links",
+      "metric": "Unterschenkel links.Fax",
+      "share": 0.7,
+      "severityMin": 0.4,
+      "severityMax": 0.8,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "lwk1_berstungsfraktur",
+      "metric": "LWS.Fz",
+      "share": 1.0,
+      "severityMin": 0.4,
+      "severityMax": 0.8,
       "onsetMin_s": 0,
       "onsetMax_s": 0,
       "conditionMetric": "",

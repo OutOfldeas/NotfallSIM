@@ -541,6 +541,30 @@
           "severityMax": 0.8,
           "onsetMin_s": 0,
           "onsetMax_s": 0
+        },
+        {
+          "injuryId": "lwk1_berstungsfraktur",
+          "probability": 0.35,
+          "severityMin": 0.4,
+          "severityMax": 0.8,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "kalkaneusfraktur_rechts",
+          "probability": 0.15,
+          "severityMin": 0.4,
+          "severityMax": 0.8,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
+        },
+        {
+          "injuryId": "kalkaneusfraktur_links",
+          "probability": 0.15,
+          "severityMin": 0.4,
+          "severityMax": 0.8,
+          "onsetMin_s": 0,
+          "onsetMax_s": 0
         }
       ],
       "unrestrainedMultipliers": [],
@@ -554,10 +578,20 @@
           "citation": "Newgard CD, et al. National guideline for the field triage of injured patients: recommendations of the National Expert Panel on Field Triage, 2021. J Trauma Acute Care Surg. 2022;93(2):e49-e60.",
           "url": "",
           "note": "Hochrisiko-Mechanismen (u. a. Sturz > 3 m, Fußgänger/Zweirad > 30 km/h, Herausschleudern, Intrusion) als Triagekriterium; Zitat vor Verwendung prüfen"
+        },
+        {
+          "citation": "Richter D, et al. Vertical deceleration injuries: a comparative study of the injury patterns of 101 patients after accidental and intentional high falls. Injury. 1996 Nov.",
+          "url": "https://www.qxmd.com/r/9039364",
+          "note": "Mittlere Sturzhöhe 7,2 m: Frakturen der BWS/LWS bei 83 % (v. a. thorakolumbaler Übergang), untere Extremität 45 %, davon Kalkaneus 64 % (≈ 29 % aller Patienten). Nur Abstract gesichtet; Stichprobe behandelter Patienten."
+        },
+        {
+          "citation": "Retrospektive Registerauswertung Sturz von Dach/Baum (Level-I-Zentrum). PMC3586599.",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3586599",
+          "note": "Brust-, Lenden- und Sakralwirbelfrakturen 28 %, Rippenfrakturen 27 %, Leber/Milz 6 %."
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Wirbelsäule und Kalkaneus (häufig) sind noch nicht in der Datenbank. Wahrscheinlichkeiten didaktisch."
+      "reviewNotes": "LWK-Berstungsfraktur 35 % und Kalkaneusfraktur je Seite 15 % (zusammen ≈ 28 %) liegen zwischen Registerdaten (Wirbelsäule 28 %) und Richter 1996 (83 % bzw. 29 %). Übrige Wahrscheinlichkeiten didaktisch."
     },
     {
       "id": "messerangriff",

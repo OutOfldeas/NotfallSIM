@@ -179,6 +179,27 @@
         "^A\\. radialis rechts$"
       ],
       "note": "Teildurchtrennung"
+    },
+    {
+      "injuryId": "kalkaneusfraktur_rechts",
+      "meshes": [
+        "^right calcaneus$"
+      ],
+      "note": ""
+    },
+    {
+      "injuryId": "kalkaneusfraktur_links",
+      "meshes": [
+        "^left calcaneus$"
+      ],
+      "note": ""
+    },
+    {
+      "injuryId": "lwk1_berstungsfraktur",
+      "meshes": [
+        "^first lumbar vertebra$"
+      ],
+      "note": ""
     }
   ]
 }

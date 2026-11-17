@@ -20,6 +20,9 @@ namespace NotfallSIM.Crash
         public Rigidbody Sternum;
         public float SternumRestOffset; // Abstand Sternum–Thorax entlang „vorn“ in Ruhe
         public ConfigurableJoint NeckJoint, HipJointRight;
+        /// <summary>Knie (Unterschenkel am Oberschenkel) und Lendenwirbelsäule (Abdomen am Becken): axiale Kräfte für
+        /// Kalkaneus/Pilon- und Wirbelkörperbrüche.</summary>
+        public ConfigurableJoint KneeJointRight, KneeJointLeft, LumbarJoint;
         public Transform Body => Root.transform;
         /// <summary>Für die Risiko-Heatmap: je Segment ein einfärbbarer Körper (beim anatomischen Ragdoll anfangs unsichtbar).</summary>
         public readonly Dictionary<string, Renderer> Heat = new Dictionary<string, Renderer>();
@@ -232,6 +235,9 @@ namespace NotfallSIM.Crash
                 else if (s.name.StartsWith("Oberschenkel")) j = Joint(rbs[i], parent, rbs[i].position, T, 100, 100, 30, 40, 40);
                 else j = Joint(rbs[i], parent, rbs[i].position, T, invertKneeFlexion ? 140 : 5, invertKneeFlexion ? 5 : 140, 5, 5, 30);
                 if (s.name == "Oberschenkel rechts") rd.HipJointRight = j;
+                if (s.name == "Unterschenkel rechts") rd.KneeJointRight = j;
+                if (s.name == "Unterschenkel links") rd.KneeJointLeft = j;
+                if (s.name == "Abdomen") rd.LumbarJoint = j;
             }
 
             // Brustbein vor dem Thorax (Brustkorbdeflexion)
@@ -341,7 +347,7 @@ namespace NotfallSIM.Crash
             var usL = Capsule(rd, "Unterschenkel links", "Unterschenkel links", P(kneeL), P(footL), 0.03f * H, m[7] * mass_kg);
 
             // ---- Gelenke (Winkel in Grad; X = Beugung um die Querachse des Körpers)
-            Joint(abdomen, becken, P(new Vector3(0, pelvisTop, 0)), T, 25, 25, 20, 20, 300);
+            rd.LumbarJoint = Joint(abdomen, becken, P(new Vector3(0, pelvisTop, 0)), T, 25, 25, 20, 20, 300);
             Joint(thorax, abdomen, P(new Vector3(0, abdomenTop, 0)), T, 25, 25, 20, 20, 300);
             rd.NeckJoint = Joint(kopf, thorax, P(new Vector3(0, shoulderY + 0.02f * H, 0)), T, 45, 45, 40, 30, 60);
             Joint(oaR, thorax, P(shR), T, 100, 100, 80, 80, 20);
@@ -351,8 +357,8 @@ namespace NotfallSIM.Crash
             rd.HipJointRight = Joint(osR, becken, P(hipR), T, 100, 100, 30, 40, 40);
             Joint(osL, becken, P(hipL), T, 100, 100, 30, 40, 40);
             float kneeLow = invertKneeFlexion ? 140 : 5, kneeHigh = invertKneeFlexion ? 5 : 140;
-            Joint(usR, osR, P(kneeR), T, kneeLow, kneeHigh, 5, 5, 30);
-            Joint(usL, osL, P(kneeL), T, kneeLow, kneeHigh, 5, 5, 30);
+            rd.KneeJointRight = Joint(usR, osR, P(kneeR), T, kneeLow, kneeHigh, 5, 5, 30);
+            rd.KneeJointLeft = Joint(usL, osL, P(kneeL), T, kneeLow, kneeHigh, 5, 5, 30);
             AddSternum(rd, thorax, T, H, (shoulderY + 0.015f * H - abdomenTop));
             return rd;
         }
