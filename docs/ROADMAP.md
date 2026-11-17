@@ -3,6 +3,30 @@
 Arbeitsliste von NotfallSIM. Die Modellbeschreibungen und Quellen stehen in [`LITERATUR.md`](LITERATUR.md).
 Häkchen = erledigt; *kursiv* = Stand der Prüfung. „In Unity nachgemessen“ heißt: im Editor auf dem PC durchgespielt.
 
+## Durchlauf in Unity am 17.11.2026 (22–23 Uhr, Stand 87ee34a)
+
+**Geprüft, läuft**
+- [x] Gewalt: Zielvorschau auf der Haut mit Strukturen in der Bahn („Oberlappen linke Lunge 5,3 · A. pulmonalis 5,8 · Herz 9,4 cm“), Marke mit Ergebnis an der Trefferstelle
+- [x] Herzstich → Stichverletzung des Herzens mit Tamponade + Hämatopneumothorax; im Schockraum eFAST-Befund, Verlauf mit schmalem Pulsdruck (74/64), Stillstand nach ≈ 10 min bei Schwere 0,9
+- [x] Reanimationsthorakotomie beim Tamponade-Stillstand → „Spontankreislauf nach Entlastung des Herzbeutels (ROSC)“; Monitor zeigt „PEA – KEIN PULS“
+- [x] Fußgänger 40 km/h: HIC 680 (vorher 3 800–9 100) — Schädel-Plateau wirkt (Kopf auf Motorhaube 12,5 kN); Knie rechts seitlich 13,9° → Kniebandverletzung 22 %; Schulter links 14,9° → 14 %; Vorzeichen der Kniebeugung stimmt (Streckseite = Anschlag −5°)
+- [x] PKW seitlich 50 km/h: Milz 3 %, Niere links 1 % (vorher Milz 88–99 %, Leber 100 %); HIC 298
+
+**Beim Test gefunden und behoben**
+- [x] Maßnahmen ohne Dosis öffneten den Dosisdialog („0, üblich 0–0“): JsonUtility legt für `"dose": null` ein leeres Objekt an
+- [x] Ein Stich ergab zwei Stichkanäle (Thorax-Kapsel und Brustbeinplatte sind zwei Kollider)
+- [x] Steckendes Messer: HIC 4 000–6 000 ohne Kopfkontakt (gesperrtes Führungsgelenk riss die Klinge zum Einstich zurück)
+- [x] Tamponade: Thorakotomie mit 5 min Vorlauf kam zu spät und war im Stillstand gesperrt → 3 min, Reanimationsthorakotomie im Stillstand; Rückmeldung nach der Punktion
+- [x] Herzstich: Befund „Atemgeräusch beidseits / Lungengleiten beidseits“ widersprach dem gleichzeitigen Hämatopneumothorax
+- [x] Fußgänger: axiale Gelenkkräfte 15 kN (Knie) und 6,2 kN (LWS) ergaben Kalkaneus- und LWK-Fraktur → axiale Messgrößen nur noch bei Sturz (Unterschenkel, LWS) und PKW frontal (Unterschenkel)
+
+**Noch offen (gesehen)**
+- [ ] Sturz 6 m: Gelenkkräfte unplausibel hoch (Knie 38 kN, Femur 49 kN, LWS 71 kN; Becken 341 g) → Kalkaneus und LWK immer 100 %. Das starre Ragdoll beugt die Knie kaum und landet auf dem Gesäß; Beinbeugung/Muskeln beim Aufprall oder eine an Fallversuchen abgeglichene Messung nötig
+- [ ] Wundort der Stichverletzungen ist in den Befundtexten fest vorgegeben (z. B. „4. ICR vordere Axillarlinie“), nicht aus dem Einstich
+- [ ] Gewalt: Messerstich drückt den liegenden Körper mit 3–5 kN in den Boden („Prellmarke Thorax seitlich (Bodenkontakt)“) — Wucht des Wurfs prüfen
+- [ ] Ergebnisliste der Sandbox lässt sich nach dem Crash nicht immer scrollen (Mausrad über der Liste)
+- [ ] Schockraum bei kleinem Fenster: Maßnahmenknöpfe winzig/überlappend (bekannt)
+
 ## Stand 17.11.2026 — erledigt (nur offline geprüft, in Unity noch nicht nachgemessen)
 
 - [x] **Schädelbruch als Kraftplateau**: Übersteigt die Kontaktkraft am Kopf die Bruchkraft (Allsop 1991: 5 kN auf 5 cm², 12,5 kN auf 52 cm²), trägt die Kalotte nicht mehr. Die Auswertung bekommt weiter die geforderte Kraft (Bruchrisiko). Test: Kopf mit 7 m/s auf Asphalt 30,5 → 12,5 kN, HIC 12 051 → 5 798, Impression 0,9 cm; 3 m/s unverändert.
