@@ -36,6 +36,7 @@ static class Tests
         Run("Mock SHT: frühe Kraniotomie verhindert Einklemmung", TbiEarlySurgery);
         Run("Mock SHT: ungesicherter Atemweg beschleunigt den Verlauf", TbiAirwayMatters);
         Run("Mock: Beatmung verschärft unentlasteten Spannungspneu", VentilationWorsensTension);
+        Run("Mock große Gefäße: massiver Hämatothorax, Thorakotomie stillt; Halsblutung und Lagerung", GreatVesselBleeding);
         Run("Mock Perikardtamponade: Druckkurve, Schock ohne Hb-Abfall, Punktion überbrückt, Thorakotomie entlastet", TamponadeCourse);
         Run("Zustandsereignisse: Episoden mit Hysterese, Schwellen einmalig", StateWatcherLogic);
         Run("Maßnahmen: Verzögerung nur bei Kraniotomie, nicht negativ", InterventionDelays);
@@ -289,6 +290,31 @@ static class Tests
         th.ApplyIntervention(new InterventionEvent { Type = InterventionType.Thoracotomy, TargetCompartment = "Pericardium", RateMultiplier = 0.05 });
         Advance(th, 30 * 60);
         Check(th.TamponadeLevel == 0 && !th.Current.CardiacArrest && th.Current.SystolicBP_mmHg > 110, $"Thorakotomie: Grad {th.TamponadeLevel:0.00}, RR {th.Current.SystolicBP_mmHg:0}");
+    }
+
+    static void GreatVesselBleeding()
+    {
+        // Massiver Hämatothorax aus einem großen Gefäß: ohne Thorakotomie Stillstand, mit Thorakotomie nach 5 min gestillt
+        Func<MockPhysiologyEngine> make = () =>
+        {
+            var e = new MockPhysiologyEngine(1);
+            e.Initialize(new PatientProfile { weight_kg = 80 });
+            e.ApplyInjury(new InjuryEvent { InjuryId = "g", Effect = InjuryEffectType.Hemorrhage, Compartment = "LeftChestVessel", Severity = 0.6, BaseRate_mL_min = 300, MaxTotalLoss_mL = 4500, Lesion = "partial" });
+            e.ApplyInjury(new InjuryEvent { InjuryId = "l", Effect = InjuryEffectType.Hemorrhage, Compartment = "LeftChest", Severity = 0.6, BaseRate_mL_min = 35, MaxTotalLoss_mL = 2500, Lesion = "parenchymal" });
+            return e;
+        };
+        var u = make(); Advance(u, 30 * 60);
+        var t = make(); Advance(t, 4 * 60);
+        t.ApplyIntervention(new InterventionEvent { Type = InterventionType.Thoracotomy, TargetCompartment = "Pericardium,LeftChestVessel,RightChestVessel,LeftChest,RightChest", RateMultiplier = 0.05 });
+        double lost4 = t.InjuryBloodLoss_mL("g");
+        Advance(t, 10 * 60);
+        Check(u.Current.CardiacArrest, $"unbehandelt nach 30 min: Stillstand ({u.InjuryBloodLoss_mL("g"):0} mL)");
+        Check(lost4 > 500 && t.InjuryBloodLoss_mL("g") - lost4 < 150 && t.InjuryBloodLoss_mL("l") > 0, $"Thorakotomie: {lost4:0} mL bis dahin, danach {t.InjuryBloodLoss_mL("g") - lost4:0} mL");
+        // Halsblutung nach außen: kein Gegendruck, Oberkörperhochlage senkt den Druck an der Wunde
+        var flat = new MockPhysiologyEngine(1); flat.Initialize(new PatientProfile());
+        var up = new MockPhysiologyEngine(1); up.Initialize(new PatientProfile());
+        up.ApplyIntervention(new InterventionEvent { Type = InterventionType.Positioning, TargetCompartment = "oberkoerper_30" });
+        Check(up.SiteHeight_m("RightNeck") > 0.1 && flat.SiteHeight_m("RightNeck") == 0, $"Hals über dem Herzen bei 30°: {up.SiteHeight_m("RightNeck"):0.00} m");
     }
 
     static void TensionDrain()
@@ -1969,8 +1995,17 @@ static class Tests
                 new ChannelHit { Name = "right kidney", Label = "Niere rechts", Layer = "organ", Depth_m = 0.06 } }) }, () => 0.5);
             Check(kidney.Count == 1 && kidney[0].InjuryId == "stichverletzung_niere_rechts" && kidney[0].Reason.Contains("Niere"),
                   $"Flanke/Rücken: {string.Join(", ", kidney.Select(x => x.InjuryId + " " + x.Reason))}");
+            Func<string, int, string, string> vessel = (region, side, name) => string.Join(", ", NotfallSIM.Crash.ImpactModel.Evaluate(im, null, new[] {
+                new NotfallSIM.Crash.PenetrationResult { Region = region, Segment = region, Side = side, Depth_m = 0.12, ObjectId = "messer",
+                    Channel = new List<ChannelHit> { new ChannelHit { Name = name, Label = name, Layer = "artery", Depth_m = 0.08 } } } }, () => 0.5).Select(x => x.InjuryId));
+            Check(vessel("Thorax", -1, "descending aorta") == "stichverletzung_thoraxgefaess_links", "Aorta descendens im Thorax, links: " + vessel("Thorax", -1, "descending aorta"));
+            Check(vessel("Abdomen", -1, "descending aorta") == "stichverletzung_bauchgefaess", "Aorta descendens im Bauch: " + vessel("Abdomen", -1, "descending aorta"));
+            Check(vessel("Becken", 1, "right common iliac vein") == "stichverletzung_bauchgefaess", "V. iliaca communis: " + vessel("Becken", 1, "right common iliac vein"));
+            Check(vessel("Kopf", 1, "right common carotid artery") == "stichverletzung_hals_rechts", "A. carotis rechts: " + vessel("Kopf", 1, "right common carotid artery"));
             var injIds = new HashSet<string>(Injuries.injuries.Select(x => x.id));
-            foreach (var r in im.penetration.structures) Check(injIds.Contains(r.injury), $"Strukturregel {r.pattern}: unbekannte Verletzung {r.injury}");
+            foreach (var r in im.penetration.structures)
+                foreach (var id in new[] { r.injury, r.injuryRight, r.injuryLeft }.Where(x => !string.IsNullOrEmpty(x)).DefaultIfEmpty(""))
+                    Check(injIds.Contains(id), $"Strukturregel {r.pattern}: unbekannte Verletzung '{id}'");
         }
     }
 

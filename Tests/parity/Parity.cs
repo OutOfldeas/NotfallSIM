@@ -276,5 +276,21 @@ static class Parity
             if (s == 1500) e.ApplyIntervention(Iv(InterventionType.Medication, compound: "Propofol", dose: 1));
             if (s == 1600) e.ApplyIntervention(Iv(InterventionType.Intubation));
         }, 1500);
+        const string thor = "Pericardium,LeftChestVessel,RightChestVessel,LeftChest,RightChest";
+        Run("tamponade", man80, (e, s) =>
+        {
+            if (s == 0) e.ApplyInjury(new InjuryEvent { InjuryId = "h", Effect = InjuryEffectType.Hemorrhage, Compartment = "Pericardium", Severity = 0.7, BaseRate_mL_min = 20, Lesion = "partial" });
+            if (s == 5400) e.ApplyIntervention(new InterventionEvent { Type = InterventionType.Pericardiocentesis, TargetCompartment = "Pericardium", SuccessProbability = 1 });
+            if (s == 9000) e.ApplyIntervention(Iv(InterventionType.Thoracotomy, thor, mult: 0.05));
+        }, 1500);
+        Run("gefaess_thorax", man80, (e, s) =>
+        {
+            if (s == 0)
+            {
+                e.ApplyInjury(new InjuryEvent { Effect = InjuryEffectType.Hemorrhage, Compartment = "LeftChestVessel", Severity = 0.6, BaseRate_mL_min = 300, MaxTotalLoss_mL = 4500, Lesion = "partial" });
+                e.ApplyInjury(new InjuryEvent { Effect = InjuryEffectType.Hemorrhage, Compartment = "LeftChest", Severity = 0.6, BaseRate_mL_min = 35, MaxTotalLoss_mL = 2500, Lesion = "parenchymal" });
+            }
+            if (s == 3000) e.ApplyIntervention(Iv(InterventionType.Thoracotomy, thor, mult: 0.05));
+        }, 1500);
     }
 }

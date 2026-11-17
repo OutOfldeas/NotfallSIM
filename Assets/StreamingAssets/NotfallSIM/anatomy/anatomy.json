@@ -228,6 +228,41 @@
         "^left kidney$"
       ],
       "note": "Niere links"
+    },
+    {
+      "injuryId": "stichverletzung_thoraxgefaess_rechts",
+      "meshes": [
+        "^(ascending aorta|arch of aorta|superior vena cava|right subclavian (artery|vein))$"
+      ],
+      "note": "große Gefäße"
+    },
+    {
+      "injuryId": "stichverletzung_thoraxgefaess_links",
+      "meshes": [
+        "^(arch of aorta|descending aorta|left subclavian (artery|vein))$"
+      ],
+      "note": "große Gefäße"
+    },
+    {
+      "injuryId": "stichverletzung_bauchgefaess",
+      "meshes": [
+        "^(inferior vena cava|(right|left) common iliac (artery|vein))$"
+      ],
+      "note": "V. cava inferior, Iliakalgefäße"
+    },
+    {
+      "injuryId": "stichverletzung_hals_rechts",
+      "meshes": [
+        "^right (common carotid artery|internal jugular vein)$"
+      ],
+      "note": "Halsgefäße"
+    },
+    {
+      "injuryId": "stichverletzung_hals_links",
+      "meshes": [
+        "^left (common carotid artery|internal jugular vein)$"
+      ],
+      "note": "Halsgefäße"
     }
   ]
 }

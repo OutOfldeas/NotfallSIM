@@ -339,6 +339,8 @@ Statt fester Raten mit linearer Obergrenze:
 | Fluss durch die Läsion | Q = Q₀ · √((MAD − P_Raum) / (MAD₀ − P_Raum,0)) (Ausflussformel/Bernoulli); Q₀ = Ausgangsrate der Verletzung (didaktisch) | – | [72] |
 | Bauchraum | IAP = IAP₀ · exp(V / (IAP₀ · C₀)); Milz, Leber und Mesenterium teilen sich den Raum | IAP₀ 7 mmHg, C₀ 400 mL/mmHg; ergibt +2 L ≈ 14 mmHg, Compliance bei +4 L ≈ 97 mL/mmHg | [73] |
 | Becken, Oberschenkel | Gegendruck linear, erreicht beim Tamponadevolumen den Ausgangs-MAD (bei Hypotonie früher) | Tamponadevolumen wie bisher (didaktisch) | Annahme |
+| Pleurahöhle (Hämatothorax) | Gegendruck kubisch: (V / Kapazität)³ · MAD₀ — die Lunge weicht aus, der Druck steigt erst kurz vor der Kapazität; Lungenblutung und große Gefäße teilen sich den Raum | Kapazität 2,5 L (Lunge) bzw. 4,5 L (große Gefäße) | Annahme: linear tamponierte sich ein Gefäßstich bei RR 85 von selbst |
+| Hals (Karotis, V. jugularis) | Blutung nach außen, kein Gegendruck; Höhe 0,87·H, Oberkörperhochlage senkt den Druck an der Wunde | – | Annahme |
 | Außen (Extremität, Arm) | kein Gegendruck | – | – |
 | Herzbeutel (Tamponade) | P = 2 mmHg · (exp(V / 60 mL) − 1); Tamponadegrad = P / 25 mmHg: ab 0,25 fällt der Blutdruck (systolisch stärker, Pulsdruck schmal), HF steigt, bei 1 obstruktiver Stillstand (PEA). Akut genügen ≈ 150 mL | 100 mL ≈ 9, 150 mL ≈ 22, 200 mL ≈ 54 mmHg | Spodick 2003 (Größenordnung 150–200 mL); Kurve und Kreislaufwirkung Annahmen |
 | Niere (Retroperitoneum) | wie Becken: Gerota-Faszie als geschlossener Raum | Tamponadevolumen 1,5 L | Annahme |

@@ -33,8 +33,17 @@ namespace NotfallSIM.Crash
         public string boneTissue;        // Gewebe der knöchernen Wand ("rippe", "schaedel"); leer = "knochen"
         public double boneThickness_m;   // Dicke der knöchernen Schicht vor dem Ende der Wand (0 = 1 cm)
     }
-    /// <summary>Verletzung je erreichter Struktur (Stichkanal mit Anatomiemodell): Name in body.bin (regulärer Ausdruck) → Verletzung.</summary>
-    [Serializable] public class StructureRule { public string pattern, injury, note; }
+    /// <summary>Verletzung je erreichter Struktur (Stichkanal mit Anatomiemodell): Name in body.bin (regulärer Ausdruck) → Verletzung.
+    /// Seitenabhängig (Mittellinie, z. B. Aorta): injuryRight/injuryLeft nach der Seite des Einstichs. regions: nur für diese
+    /// Kontaktregionen (kommagetrennt, leer = alle), z. B. Aorta descendens im Thorax anders als im Bauch.</summary>
+    [Serializable] public class StructureRule
+    {
+        public string pattern, note;
+        [System.Runtime.Serialization.OptionalField] public string injury;
+        [System.Runtime.Serialization.OptionalField] public string injuryRight;
+        [System.Runtime.Serialization.OptionalField] public string injuryLeft;
+        [System.Runtime.Serialization.OptionalField] public string regions;
+    }
     [Serializable] public class PenetrationModel { public SkinPenetration skin; public TissueResistance[] tissues; public PenetrationRegion[] regions; public StructureRule[] structures; }
 
     /// <summary>Schnitt: Klinge gleitet unter Andruck über die Haut.</summary>
@@ -631,10 +640,13 @@ namespace NotfallSIM.Crash
                     var rest = new List<Anatomy.ChannelHit>();
                     foreach (var h in deep)
                     {
-                        var sr = m.penetration?.structures?.FirstOrDefault(r => !string.IsNullOrEmpty(r.pattern) && Regex.IsMatch(h.Name ?? "", r.pattern));
-                        if (sr == null || string.IsNullOrEmpty(sr.injury)) { rest.Add(h); continue; }
+                        string key = ContactRegion(pen.Region);
+                        var sr = m.penetration?.structures?.FirstOrDefault(r => !string.IsNullOrEmpty(r.pattern) && Regex.IsMatch(h.Name ?? "", r.pattern)
+                            && (string.IsNullOrEmpty(r.regions) || r.regions.Split(',').Any(x => x.Trim() == key)));
+                        string sid = sr == null ? null : !string.IsNullOrEmpty(sr.injury) ? sr.injury : pen.Side > 0 ? sr.injuryRight : sr.injuryLeft;
+                        if (string.IsNullOrEmpty(sid)) { rest.Add(h); continue; }
                         double intoS = pen.Depth_m - fatX - h.Depth_m;
-                        add(sr.injury, 1, 0.5 + 0.4 * Math.Min(1, intoS / 0.03), $"Stichkanal {pen.Region} {pen.Depth_m * 100:0} cm tief, erreicht {h.Label}" + tail);
+                        add(sid, 1, 0.5 + 0.4 * Math.Min(1, intoS / 0.03), $"Stichkanal {pen.Region} {pen.Depth_m * 100:0} cm tief, erreicht {h.Label}" + tail);
                     }
                     if (rest.Count == 0 || rule == null) continue;
                     if (ContactRegion(pen.Region) == "Arm" && (pen.Segment == null || !pen.Segment.StartsWith("Unterarm"))) continue;

@@ -99,7 +99,12 @@
     "structures": [
       { "pattern": "^wall of heart$", "injury": "stichverletzung_herz", "note": "Herz erreicht: Hämoperikard mit Tamponade (statt Hämatopneumothorax allein). Gilt nur mit Anatomiemodell (Stichkanal)." },
       { "pattern": "^right (kidney|renal artery|renal vein)$", "injury": "stichverletzung_niere_rechts", "note": "Niere oder Nierengefäße: retroperitoneale Blutung; ohne weitere Organe keine Peritonealverletzung." },
-      { "pattern": "^left (kidney|renal artery|renal vein)$", "injury": "stichverletzung_niere_links", "note": "wie rechts" }
+      { "pattern": "^left (kidney|renal artery|renal vein)$", "injury": "stichverletzung_niere_links", "note": "wie rechts" },
+      { "pattern": "^(ascending aorta|arch of aorta|superior vena cava|(right|left) subclavian (artery|vein))$", "injuryRight": "stichverletzung_thoraxgefaess_rechts", "injuryLeft": "stichverletzung_thoraxgefaess_links", "note": "Große intrathorakale Gefäße: massiver Hämatothorax auf der Seite des Einstichs (vereinfachend; die Aorta ascendens liegt teils im Herzbeutel)." },
+      { "pattern": "^descending aorta$", "regions": "Thorax", "injuryRight": "stichverletzung_thoraxgefaess_rechts", "injuryLeft": "stichverletzung_thoraxgefaess_links", "note": "Aorta descendens im Thorax" },
+      { "pattern": "^(descending aorta|inferior vena cava|(right|left) (common|external|internal) iliac (artery|vein))$", "injury": "stichverletzung_bauchgefaess", "note": "Aorta abdominalis, V. cava inferior, Iliakalgefäße (Stich in Bauch oder Becken)" },
+      { "pattern": "^right (common carotid artery|internal jugular vein)$", "injury": "stichverletzung_hals_rechts", "note": "Halsgefäße" },
+      { "pattern": "^left (common carotid artery|internal jugular vein)$", "injury": "stichverletzung_hals_links", "note": "Halsgefäße" }
     ]
   },
   "cutting": {

@@ -114,6 +114,16 @@ run("adipos", { weight_kg: 130, height_cm: 172, age: 45, sex: "male", initialBlo
   if (s === 1500) e.applyIntervention(iv("Medication", { compound: "Propofol", doseFactor: 1 }));
   if (s === 1600) e.applyIntervention(iv("Intubation"));
 }, 1500);
+const thor = "Pericardium,LeftChestVessel,RightChestVessel,LeftChest,RightChest";
+run("tamponade", man80, (e, s) => {
+  if (s === 0) e.applyInjury({ injuryId: "h", ...bleed("Pericardium", 0.7, 20, 0), lesion: "partial" });
+  if (s === 5400) e.applyIntervention(iv("Pericardiocentesis", { target: "Pericardium", successProbability: 1 }));
+  if (s === 9000) e.applyIntervention(iv("Thoracotomy", { target: thor, rateMultiplier: 0.05 }));
+}, 1500);
+run("gefaess_thorax", man80, (e, s) => {
+  if (s === 0) { e.applyInjury({ ...bleed("LeftChestVessel", 0.6, 300, 4500), lesion: "partial" }); e.applyInjury({ ...bleed("LeftChest", 0.6, 35, 2500), lesion: "parenchymal" }); }
+  if (s === 3000) e.applyIntervention(iv("Thoracotomy", { target: thor, rateMultiplier: 0.05 }));
+}, 1500);
 
 // Zufallsszenarien (Datei als drittes Argument)
 if (process.argv[3]) {

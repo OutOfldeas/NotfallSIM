@@ -181,6 +181,9 @@
     Drugs: { Fentanyl: [-0.10, -0.33, -8, 0.3, 20, 40], Ketamin: [0.10, -0.29, 12, 0, 10, 20], Propofol: [-0.20, -0.67, -5, 0.6, 5, 15] },
     TpMaxHrAdd: 30, TpMaxRrAdd: 12, TpMaxSpO2Drop: 25, TpMaxEtCo2Drop: 6,
     TpHypotensionOnset: 0.6, TpMaxSbpDrop: 50, TpLevelAfterNeedle: 0.15, TpRateAfterNeedle: 0.2,
+    // Herzbeutel (wie Mock): P = 2 · (exp(V/60) − 1) mmHg, Tamponadegrad = P / 25
+    PeriP0: 2, PeriV0: 60, PeriArrest: 25, TamOnset: 0.25, TamMaxSbpDrop: 80, TamDbpShare: 0.4, TamMaxHrAdd: 40, TamMaxRrAdd: 8,
+    TamMaxEtCo2Drop: 12, TamMaxSpO2Drop: 4, PericardiocentesisShare: 0.7,
     TbiPoints: [0.0, 0.3, 0.5, 0.7, 0.85, 1.0], TbiGcs: [15, 14, 11, 8, 5, 3], ShockGcs: [15, 15, 15, 14, 12, 9],
     TbiAnisocoriaLevel: 0.7, TbiCushingLevel: 0.8, TbiSecondaryInsultFactor: 2.0,
     TbiOsmotherapyReduction: 0.15, TbiLevelAfterSurgery: 0.4,
@@ -198,6 +201,9 @@
     RightLeg: [(0.285 + 0.039) / 2, "legR"], LeftLeg: [(0.285 + 0.039) / 2, "legL"],
     RightThighArtery: [(0.530 + 0.285) / 2, "legR"], LeftThighArtery: [(0.530 + 0.285) / 2, "legL"],
     RightChest: [0.72, "trunk"], LeftChest: [0.72, "trunk"],
+    Pericardium: [0.72, "trunk"], RightKidney: [0.62, "trunk"], LeftKidney: [0.62, "trunk"],
+    LeftChestVessel: [0.75, "trunk"], RightChestVessel: [0.75, "trunk"], AbdominalVessels: [0.58, "trunk"],
+    RightNeck: [0.87, "trunk"], LeftNeck: [0.87, "trunk"],
   };
   const Positions = {
     flach: [0, 0, 0, 0, 0, 0], beine_hoch: [0, 45, 45, 0, 0, 150], bein_rechts_hoch: [0, 45, 0, 0, 0, 75],
@@ -216,10 +222,14 @@
     return h - heart;
   }
   function spaceOf(c) {
-    if (c === "Spleen" || c === "Liver" || c === "Abdomen") return "Peritoneum";
-    if (c === "Extremity" || c === "LeftArm" || c === "RightArm" || c === "RightThighArtery" || c === "LeftThighArtery") return "";
+    if (c === "Spleen" || c === "Liver" || c === "Abdomen" || c === "AbdominalVessels") return "Peritoneum";
+    if (c === "LeftChestVessel") return "LeftChest";
+    if (c === "RightChestVessel") return "RightChest";
+    if (c === "Extremity" || c === "LeftArm" || c === "RightArm" || c === "RightThighArtery" || c === "LeftThighArtery"
+        || c === "RightNeck" || c === "LeftNeck") return "";
     return c;
   }
+  const pericardialPressure = (v) => v <= 0 ? 0 : C.PeriP0 * (Math.exp(v / C.PeriV0) - 1);
   const canClot = (l) => l === "transection" || l === "parenchymal" || l === "venous";
 
   const clamp01 = (x) => Math.max(0, Math.min(1, x));
@@ -296,6 +306,7 @@
       this.time = 0;
       this.bleeds = {}; this.tension = {}; this.brain = {}; this.infusions = [];
       this.oxygen = this.arrest = this.intubated = false; this.pressor = 0;
+      this.periRemoved = 0; this.periOpen = false;
       this.apneaStart = this.apneaEnd = -1; this.apneaT90 = 364; this.lastIntubationAttempts = 0;
       this.position = Positions.flach; this.positionId = "flach";
       this.drugs = []; this.warming = this.fluidWarmer = this.txa = false;
@@ -340,8 +351,16 @@
       let level = 0;
       for (const t of Object.values(this.tension)) if (t.inj.injuryId === injuryId) level = Math.max(level, t.level);
       for (const b of Object.values(this.brain)) if (b.inj.injuryId === injuryId) level = Math.max(level, b.level);
+      for (const b of Object.values(this.bleeds)) if (b.inj.injuryId === injuryId && spaceOf(b.inj.compartment) === "Pericardium") level = Math.max(level, this.tamponadeLevel());
       return level;
     }
+    pericardialVolume() {
+      if (this.periOpen) return 0;
+      let v = 0;
+      for (const b of Object.values(this.bleeds)) if (spaceOf(b.inj.compartment) === "Pericardium") v += b.lost;
+      return Math.max(0, v - this.periRemoved);
+    }
+    tamponadeLevel() { return Math.min(1, pericardialPressure(this.pericardialVolume()) / C.PeriArrest); }
     injuryBloodLoss(injuryId) {
       let lost = 0;
       for (const b of Object.values(this.bleeds)) if (b.inj.injuryId === injuryId) lost += b.lost;
@@ -405,6 +424,14 @@
         case "Osmotherapy": for (const b of Object.values(this.brain)) b.level = Math.max(0, b.level - C.TbiOsmotherapyReduction); break;
         case "NeurosurgicalDecompression": for (const b of Object.values(this.brain)) { b.level = Math.min(b.level, C.TbiLevelAfterSurgery); b.stopped = true; } break;
         case "ChestDrain": { const t = this.tension[iv.target]; if (t) { t.level = 0; t.drained = true; } break; }
+        case "Pericardiocentesis":
+          if (!this.periOpen && this.random() < iv.successProbability) { this.periRemoved += C.PericardiocentesisShare * this.pericardialVolume(); this.updateVitals(); }
+          break;
+        case "Thoracotomy":
+          this.periOpen = true;
+          for (const t of String(iv.target || "Pericardium").split(",")) { const b = this.bleeds[t.trim()]; if (b) b.multiplier = Math.min(b.multiplier, iv.rateMultiplier); }
+          this.updateVitals();
+          break;
       }
     }
 
@@ -420,7 +447,11 @@
           const sp = spaceOf(b.inj.compartment);
           if (sp === "") return 0;
           if (sp === "Peritoneum") return C.IapBaseline * Math.exp(v / (C.IapBaseline * C.AbdominalCompliance));
-          return b.inj.maxTotalLoss_mL > 0 ? v / b.inj.maxTotalLoss_mL * pref(b) : 0;
+          if (sp === "Pericardium") return v <= 0 ? 0 : pericardialPressure(this.pericardialVolume());
+          if (!(b.inj.maxTotalLoss_mL > 0)) return 0;
+          let x = v / b.inj.maxTotalLoss_mL;
+          if (sp === "LeftChest" || sp === "RightChest") x = x * x * x;   // wie Mock: Pleura kubisch
+          return x * pref(b);
         };
         const pref = (b) => b.inj.lesion === "venous" ? C.VenousPressure : this.baselineMap;
         const sh = (c) => { const st = Sites[c]; return st ? siteHeight(st[0], st[1], this.position, this.height) : 0; };
@@ -497,7 +528,8 @@
       const f = Math.max(0, 1 - this.volume / this.baselineVolume);
       let tp = 0; for (const t of Object.values(this.tension)) tp = Math.max(tp, t.level);
       let tbi = 0; for (const b of Object.values(this.brain)) tbi = Math.max(tbi, b.level);
-      if (f >= C.ArrestThreshold || tp >= 1 || tbi >= 1) this.arrest = true;
+      const tam = this.tamponadeLevel();
+      if (f >= C.ArrestThreshold || tp >= 1 || tbi >= 1 || tam >= 1) this.arrest = true;
       const hb = this.volume > 0 ? this.redCells / this.volume * 100 / 3 : 0;
       if (this.arrest) {
         this.current = { hb, ph: 6.90, paco2: 70, pao2: 30, hco3: 4, potassium: 6.5, calcium: this.ica(), glucose: BloodGas.glucose(f),
@@ -512,24 +544,26 @@
       let airway = !this.intubated && gcs <= 8 ? Math.min(1, (8 - gcs) / 5 + 0.2) : 0;
       const cushing = tbi > C.TbiCushingLevel ? (tbi - C.TbiCushingLevel) / (1 - C.TbiCushingLevel) : 0;
       const sbpDrop = tp > C.TpHypotensionOnset ? (tp - C.TpHypotensionOnset) / (1 - C.TpHypotensionOnset) * C.TpMaxSbpDrop : 0;
+      const tamDrop = tam > C.TamOnset ? (tam - C.TamOnset) / (1 - C.TamOnset) * C.TamMaxSbpDrop : 0;
       const hr0 = Shock.hr(m, 0);
       const hr = hr0 + this.hrBaseOffset + (Shock.hr(m, fh) - hr0) * this.hrResponse;
       const dr = this.drugEffects(f), ica = this.ica();
       const hypoCa = Math.max(0, Math.min(1, (1.0 - ica) / 0.4));
-      const sbp = (Shock.sbp(m, fh) + this.sbpOffset - sbpDrop + 50 * cushing + C.VasopressorSbpRise * pressorEffect(this.pressor)) * dr.sbp - 15 * hypoCa;
-      const dbp = (Shock.dbp(m, fh) + this.sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + C.VasopressorDbpRise * pressorEffect(this.pressor)) * dr.sbp - 8 * hypoCa;
+      const sbp = (Shock.sbp(m, fh) + this.sbpOffset - sbpDrop - tamDrop + 50 * cushing + C.VasopressorSbpRise * pressorEffect(this.pressor)) * dr.sbp - 15 * hypoCa;
+      let dbp = (Shock.dbp(m, fh) + this.sbpOffset * 0.5 - sbpDrop * 0.6 - tamDrop * C.TamDbpShare + 25 * cushing + C.VasopressorDbpRise * pressorEffect(this.pressor)) * dr.sbp - 8 * hypoCa;
+      if (tam > 0) dbp = Math.min(dbp, sbp - 10);
       const respDep = this.intubated ? 0 : dr.resp, rrFactor = 1 - 0.5 * respDep;
       airway = Math.max(airway, respDep);
-      let spo2 = loss(f, SpO2Air) - C.TpMaxSpO2Drop * tp - C.AirwayMaxSpO2Drop * airway + (this.oxygen ? 3 : 0) + (this.intubated ? 3 : 0) - this.apneaDesaturation();
+      let spo2 = loss(f, SpO2Air) - C.TpMaxSpO2Drop * tp - C.AirwayMaxSpO2Drop * airway - C.TamMaxSpO2Drop * tam + (this.oxygen ? 3 : 0) + (this.intubated ? 3 : 0) - this.apneaDesaturation();
       spo2 = Math.max(50, Math.min(100, spo2));
       const be = Shock.be(f), hco3 = BloodGas.hco3(be), paco2 = BloodGas.paco2(hco3, this.intubated, airway, tp), ph = BloodGas.ph(hco3, paco2);
       this.current = {
         time: this.time,
-        hr: hr + dr.hr + C.TpMaxHrAdd * tp - 35 * cushing,
+        hr: hr + dr.hr + C.TpMaxHrAdd * tp + C.TamMaxHrAdd * tam - 35 * cushing,
         sbp, dbp, map: dbp + (sbp - dbp) / 3,
-        rr: this.intubated ? 14 : (Shock.rr(m, f) + C.TpMaxRrAdd * tp - 6 * airway - 6 * cushing) * rrFactor,
+        rr: this.intubated ? 14 : (Shock.rr(m, f) + C.TpMaxRrAdd * tp + C.TamMaxRrAdd * tam - 6 * airway - 6 * cushing) * rrFactor,
         spo2,
-        etco2: loss(f, EtCo2) - C.TpMaxEtCo2Drop * tp + C.AirwayMaxEtCo2Rise * airway,
+        etco2: loss(f, EtCo2) - C.TpMaxEtCo2Drop * tp - C.TamMaxEtCo2Drop * tam + C.AirwayMaxEtCo2Rise * airway,
         be, lactate: Shock.lactate(f), hb, hco3, paco2, ph,
         pao2: BloodGas.pao2(spo2, this.oxygen, this.intubated), potassium: BloodGas.potassium(ph),
         calcium: ica, glucose: BloodGas.glucose(f),

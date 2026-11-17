@@ -224,6 +224,58 @@
       "reviewNotes": "Stoppt die Blutung der Schnittverletzung am linken Unterarm (Blutungsort LeftArm) vollständig. Versagen des Druckverbands nicht modelliert."
     },
     {
+      "id": "kompression_hals",
+      "label": "Halsblutung komprimieren",
+      "logLabel": "Manuelle Kompression der Halsblutung",
+      "type": "HemorrhageControl",
+      "target": "RightNeck,LeftNeck",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 0.3,
+      "successProbability": 1,
+      "once": true,
+      "effectDelay_s": 0,
+      "contraindicatedBy": [],
+      "contraindicationNote": "",
+      "dose": null,
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Penetrierende Halsverletzung: direkte Kompression bis zur Operation"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Senkt die Blutung auf 30 % (Annahme: Kompression einer großen Arterie am Hals unvollständig; nicht zirkulär verbinden)."
+    },
+    {
+      "id": "op_hals",
+      "label": "Gefäßchirurgie Hals",
+      "logLabel": "Operative Versorgung der Halsgefäße",
+      "type": "HemorrhageControl",
+      "target": "RightNeck,LeftNeck",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 0.05,
+      "successProbability": 1,
+      "once": true,
+      "effectDelay_s": 900,
+      "contraindicatedBy": [],
+      "contraindicationNote": "",
+      "dose": null,
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Harte Zeichen der Gefäßverletzung am Hals: sofortige Exploration"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Wirkt nach 15 min (OP bereit) – didaktische Setzung."
+    },
+    {
       "id": "femur_schiene",
       "label": "Bein schienen",
       "logLabel": "Bein geschient (Femur: Extension, Unterschenkel: Schiene)",
@@ -897,7 +949,7 @@
       "label": "Notfallthorakotomie",
       "logLabel": "Notfallthorakotomie (Clamshell), Perikardiotomie und Naht der Herzwunde",
       "type": "Thoracotomy",
-      "target": "Pericardium",
+      "target": "Pericardium,LeftChestVessel,RightChestVessel,LeftChest,RightChest",
       "compound": "",
       "volume_mL": 0,
       "rate_mL_min": 0,
@@ -921,7 +973,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Wirkt nach 5 min (Traumachirurg, Clamshell) – didaktische Setzung. Entlastet den Herzbeutel vollständig und stillt die Herzblutung auf 5 %."
+      "reviewNotes": "Wirkt nach 5 min (Traumachirurg, Clamshell) – didaktische Setzung. Entlastet den Herzbeutel vollständig und stillt Herz-, Gefäß- und Lungenblutung in die Pleurahöhlen auf 5 %."
     },
     {
       "id": "intubation",
@@ -1046,7 +1098,7 @@
       "label": "Notfall-Laparotomie",
       "logLabel": "Notfall-Laparotomie (Damage Control)",
       "type": "HemorrhageControl",
-      "target": "Spleen,Liver,Abdomen",
+      "target": "Spleen,Liver,Abdomen,AbdominalVessels",
       "compound": "",
       "volume_mL": 0,
       "rate_mL_min": 0,
@@ -1065,7 +1117,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Wirkt nach 15 min (OP-Saal bereit, Schnitt); stillt Milz-, Leber- und Mesenterialblutung (Stichverletzung). Zeit didaktisch."
+      "reviewNotes": "Wirkt nach 15 min (OP-Saal bereit, Schnitt); stillt Milz-, Leber- und Mesenterialblutung (Stichverletzung). Zeit didaktisch. Stillt auch Blutungen der großen Bauchgefäße (AbdominalVessels)."
     },
     {
       "id": "lagerung_flach",

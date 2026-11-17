@@ -50,7 +50,7 @@ namespace NotfallSIM.Engines
         // Bauchraum (Milz, Leber, Mesenterium teilen sich ihn): IAP = IAP0 · exp(V / (IAP0 · C0)), Anfangscompliance
         // 400 mL/mmHg bei IAP 7 mmHg, danach steiler (Malbrain 2016: 250–450 mL/mmHg normal, 60–133 bei hohem IAP).
         // Geschlossene Räume (Becken, Oberschenkel): linear, Gegendruck erreicht den Ausgangs-MAD beim Tamponadevolumen
-        // (maxTotalLoss_mL). Außen (Extremität, Arm): kein Gegendruck.
+        // (maxTotalLoss_mL); Pleurahöhle kubisch statt linear. Außen (Extremität, Arm, Hals): kein Gegendruck.
         const double IapBaseline_mmHg = 7, AbdominalCompliance_mL_per_mmHg = 400;
         // Gerinnsel: bilden sich bei Läsionen, die sich verschließen können (Durchtrennung mit Retraktion, Parenchym,
         // venös), wenn der MAD unter der Nachblutungsschwelle bleibt; darüber lösen sie sich (Sondeen 2003: 64 ± 2 mmHg).
@@ -116,6 +116,11 @@ namespace NotfallSIM.Engines
             { "RightChest", new KeyValuePair<double, string>(0.72, "trunk") },           // Pleurahöhle (Hämatothorax)
             { "LeftChest", new KeyValuePair<double, string>(0.72, "trunk") },
             { "Pericardium", new KeyValuePair<double, string>(HeartLevel, "trunk") },
+            { "LeftChestVessel", new KeyValuePair<double, string>(0.75, "trunk") },
+            { "RightChestVessel", new KeyValuePair<double, string>(0.75, "trunk") },
+            { "AbdominalVessels", new KeyValuePair<double, string>(0.58, "trunk") },
+            { "RightNeck", new KeyValuePair<double, string>(0.87, "trunk") },                // Halsmitte (Annahme 0,87·H)
+            { "LeftNeck", new KeyValuePair<double, string>(0.87, "trunk") },
             { "RightKidney", new KeyValuePair<double, string>(0.62, "trunk") },               // Retroperitoneum (Gerota-Faszie)
             { "LeftKidney", new KeyValuePair<double, string>(0.62, "trunk") },
         };
@@ -167,8 +172,11 @@ namespace NotfallSIM.Engines
         {
             switch (compartment)
             {
-                case "Spleen": case "Liver": case "Abdomen": return "Peritoneum";
-                case "Extremity": case "LeftArm": case "RightArm": case "RightThighArtery": case "LeftThighArtery": return "";
+                case "Spleen": case "Liver": case "Abdomen": case "AbdominalVessels": return "Peritoneum";
+                case "LeftChestVessel": return "LeftChest";     // große Gefäße bluten in dieselbe Pleurahöhle wie die Lunge
+                case "RightChestVessel": return "RightChest";
+                case "Extremity": case "LeftArm": case "RightArm": case "RightThighArtery": case "LeftThighArtery":
+                case "RightNeck": case "LeftNeck": return "";
                 default: return compartment;
             }
         }
@@ -186,7 +194,12 @@ namespace NotfallSIM.Engines
             if (space == "") return 0;
             if (space == "Peritoneum") return AbdominalPressure_mmHg(spaceVolume_mL);
             if (space == "Pericardium") return spaceVolume_mL <= 0 ? 0 : PericardialPressure_mmHg(PericardialVolume_mL);   // abzüglich Abgesaugtem
-            return b.Injury.MaxTotalLoss_mL > 0 ? spaceVolume_mL / b.Injury.MaxTotalLoss_mL * ReferencePressure(b) : 0;
+            if (b.Injury.MaxTotalLoss_mL <= 0) return 0;
+            double x = spaceVolume_mL / b.Injury.MaxTotalLoss_mL;
+            // Pleurahöhle: die Lunge weicht aus, der Druck steigt erst kurz vor der Kapazität (kubisch, Annahme) — sonst
+            // tamponiert ein Hämatothorax aus einem großen Gefäß bei RR 85 von selbst
+            if (space == "LeftChest" || space == "RightChest") x = x * x * x;
+            return x * ReferencePressure(b);
         }
 
         /// <summary>Treibender Druck auf Herzhöhe im Ausgangszustand: MAD, bei venösen Läsionen der venöse Druck.</summary>

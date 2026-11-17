@@ -520,7 +520,7 @@
           "description": "Notfall-Laparotomie angeordnet",
           "type": "deadline",
           "tags": [
-            "intervention:HemorrhageControl:Spleen,Liver,Abdomen:laparotomie"
+            "intervention:HemorrhageControl:Spleen,Liver,Abdomen,AbdominalVessels:laparotomie"
           ],
           "limit": 900,
           "relativeTo": "",
@@ -701,7 +701,7 @@
           "description": "Notfall-Laparotomie angeordnet",
           "type": "deadline",
           "tags": [
-            "intervention:HemorrhageControl:Spleen,Liver,Abdomen:laparotomie"
+            "intervention:HemorrhageControl:Spleen,Liver,Abdomen,AbdominalVessels:laparotomie"
           ],
           "limit": 900,
           "relativeTo": "",
@@ -1527,7 +1527,7 @@
           "description": "Notfall-Laparotomie angeordnet",
           "type": "deadline",
           "tags": [
-            "intervention:HemorrhageControl:Spleen,Liver,Abdomen:laparotomie"
+            "intervention:HemorrhageControl:Spleen,Liver,Abdomen,AbdominalVessels:laparotomie"
           ],
           "limit": 900,
           "relativeTo": "",
@@ -2564,7 +2564,7 @@
           "description": "Notfall-Laparotomie angeordnet",
           "type": "deadline",
           "tags": [
-            "intervention:HemorrhageControl:Spleen,Liver,Abdomen:laparotomie"
+            "intervention:HemorrhageControl:Spleen,Liver,Abdomen,AbdominalVessels:laparotomie"
           ],
           "limit": 900,
           "relativeTo": "",
@@ -3681,6 +3681,820 @@
           "maxBodyLoss": 1,
           "requiresTag": "",
           "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "stichverletzung_thoraxgefaess_links",
+      "name": "Stichverletzung großer intrathorakaler Gefäße mit massivem Hämatothorax links",
+      "region": "Thorax",
+      "icd10": "S25.9",
+      "aisSeverity": 5,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "LeftChestVessel",
+          "baseRate_mL_min": 300,
+          "maxTotalLoss_mL": 4500,
+          "lesion": "partial",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Stichwunde am oberen Thorax bzw. in der Thoraxapertur",
+        "Rasch zunehmende Atemnot, Patient blass und kaltschweißig"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Massiver Hämatothorax: ≥ 1500 mL sofort über die Drainage oder > 200 mL/h über 2–4 h → Thorakotomie; Volumen- und Blutersatz parallel zur Entlastung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Stichkanal erreicht Aorta, V. cava superior oder A./V. subclavia (impact_model.json › penetration.structures; Seite nach dem Einstich). Arterieller seitlicher Einriss, Blutung in die Pleurahöhle links (gemeinsamer Raum mit einer Lungenblutung; Gegendruck kubisch bis 4,5 L — Annahme, so gewählt, dass ein unversorgter Gefäßstich verblutet statt sich bei RR 85 selbst zu tamponieren; Kapazität der Pleurahöhle nicht belegt). Rate didaktisch. Die Thoraxdrainage zeigt die Menge, stillt aber nicht; Thorakotomie stillt (5 %). Zahlreiche Verletzte versterben am Ort — der Verlauf ist für den Schockraum gestreckt.",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Großer Erguss im Pleuraspalt links (Hämatothorax), Lungengleiten links vorhanden bzw. eingeschränkt beurteilbar; Perikard ohne Erguss.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "XrayChest",
+          "finding": "Homogene Verschattung des linken Hemithorax (massiver Hämatothorax), Mediastinum zur Gegenseite verlagert, verbreitertes oberes Mediastinum.",
+          "resolvedByTag": "intervention:Thoracotomy:Pericardium",
+          "resolvedFinding": "Zustand nach Thorakotomie, Drainagen in situ, Resterguss.",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Massiver Hämatothorax links mit Kontrastmittelaustritt aus einem großen mediastinalen Gefäß entlang des Stichkanals; Mediastinalhämatom.",
+          "resolvedByTag": "intervention:Thoracotomy:Pericardium",
+          "resolvedFinding": "Zustand nach Thorakotomie und Gefäßnaht, kein aktiver Kontrastmittelaustritt.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "thorax_untersucht",
+          "description": "Thorax untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Thorax"
+          ],
+          "limit": 120,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "B-Teil: Stichwunde, Atemgeräusch, Perkussion. Zeitziel didaktisch."
+        },
+        {
+          "id": "drainage",
+          "description": "Thoraxdrainage angelegt",
+          "type": "deadline",
+          "tags": [
+            "intervention:ChestDrain:LeftLung"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Hämatothorax: Drainage zeigt den Blutverlust und entlastet die Lunge (ATLS). 10 min didaktisch."
+        },
+        {
+          "id": "thorakotomie",
+          "description": "Notfallthorakotomie angeordnet",
+          "type": "deadline",
+          "tags": [
+            "intervention:Thoracotomy:Pericardium"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Massiver Hämatothorax (≥ 1500 mL über die Drainage): Thorakotomie (ATLS). 15 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Massive Blutung: Blutprodukte sofort (Massivtransfusion), jede Minute zählt (Duchesne 2024). 5 min didaktisch."
+        },
+        {
+          "id": "txa",
+          "description": "Tranexamsäure gegeben",
+          "type": "deadline",
+          "tags": [
+            "intervention:Medication:TXA"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "So früh wie möglich, spätestens 3 h nach Trauma (Rossaint 2023, Grade 1A). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Abgeschwächtes bis aufgehobenes Atemgeräusch links",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Gedämpfter Klopfschall über dem gesamten Hemithorax links",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 800,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Halsvenen flach",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0.15,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Thoraxdrainage links fördert sofort reichlich Blut (über 1500 mL: Indikation zur Thorakotomie)",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 1000,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:ChestDrain:LeftLung",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Thoraxdrainage links fördert hellrotes Blut",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:ChestDrain:LeftLung",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Thorakotomie: Gefäßverletzung abgeklemmt und übernäht",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:Thoracotomy:Pericardium",
+          "requiresTagDelay_s": 300,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "stichverletzung_thoraxgefaess_rechts",
+      "name": "Stichverletzung großer intrathorakaler Gefäße mit massivem Hämatothorax rechts",
+      "region": "Thorax",
+      "icd10": "S25.9",
+      "aisSeverity": 5,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "RightChestVessel",
+          "baseRate_mL_min": 300,
+          "maxTotalLoss_mL": 4500,
+          "lesion": "partial",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Stichwunde am oberen Thorax bzw. in der Thoraxapertur",
+        "Rasch zunehmende Atemnot, Patient blass und kaltschweißig"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Massiver Hämatothorax: ≥ 1500 mL sofort über die Drainage oder > 200 mL/h über 2–4 h → Thorakotomie; Volumen- und Blutersatz parallel zur Entlastung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Stichkanal erreicht Aorta, V. cava superior oder A./V. subclavia (impact_model.json › penetration.structures; Seite nach dem Einstich). Arterieller seitlicher Einriss, Blutung in die Pleurahöhle rechts (gemeinsamer Raum mit einer Lungenblutung; Gegendruck kubisch bis 4,5 L — Annahme, so gewählt, dass ein unversorgter Gefäßstich verblutet statt sich bei RR 85 selbst zu tamponieren; Kapazität der Pleurahöhle nicht belegt). Rate didaktisch. Die Thoraxdrainage zeigt die Menge, stillt aber nicht; Thorakotomie stillt (5 %). Zahlreiche Verletzte versterben am Ort — der Verlauf ist für den Schockraum gestreckt.",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Großer Erguss im Pleuraspalt rechts (Hämatothorax), Lungengleiten rechts vorhanden bzw. eingeschränkt beurteilbar; Perikard ohne Erguss.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "XrayChest",
+          "finding": "Homogene Verschattung des rechten Hemithorax (massiver Hämatothorax), Mediastinum zur Gegenseite verlagert, verbreitertes oberes Mediastinum.",
+          "resolvedByTag": "intervention:Thoracotomy:Pericardium",
+          "resolvedFinding": "Zustand nach Thorakotomie, Drainagen in situ, Resterguss.",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Massiver Hämatothorax rechts mit Kontrastmittelaustritt aus einem großen mediastinalen Gefäß entlang des Stichkanals; Mediastinalhämatom.",
+          "resolvedByTag": "intervention:Thoracotomy:Pericardium",
+          "resolvedFinding": "Zustand nach Thorakotomie und Gefäßnaht, kein aktiver Kontrastmittelaustritt.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "thorax_untersucht",
+          "description": "Thorax untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Thorax"
+          ],
+          "limit": 120,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "B-Teil: Stichwunde, Atemgeräusch, Perkussion. Zeitziel didaktisch."
+        },
+        {
+          "id": "drainage",
+          "description": "Thoraxdrainage angelegt",
+          "type": "deadline",
+          "tags": [
+            "intervention:ChestDrain:RightLung"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Hämatothorax: Drainage zeigt den Blutverlust und entlastet die Lunge (ATLS). 10 min didaktisch."
+        },
+        {
+          "id": "thorakotomie",
+          "description": "Notfallthorakotomie angeordnet",
+          "type": "deadline",
+          "tags": [
+            "intervention:Thoracotomy:Pericardium"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Massiver Hämatothorax (≥ 1500 mL über die Drainage): Thorakotomie (ATLS). 15 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Massive Blutung: Blutprodukte sofort (Massivtransfusion), jede Minute zählt (Duchesne 2024). 5 min didaktisch."
+        },
+        {
+          "id": "txa",
+          "description": "Tranexamsäure gegeben",
+          "type": "deadline",
+          "tags": [
+            "intervention:Medication:TXA"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "So früh wie möglich, spätestens 3 h nach Trauma (Rossaint 2023, Grade 1A). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Abgeschwächtes bis aufgehobenes Atemgeräusch rechts",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Gedämpfter Klopfschall über dem gesamten Hemithorax rechts",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 800,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Halsvenen flach",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0.15,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Thoraxdrainage rechts fördert sofort reichlich Blut (über 1500 mL: Indikation zur Thorakotomie)",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 1000,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:ChestDrain:RightLung",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Thoraxdrainage rechts fördert hellrotes Blut",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:ChestDrain:RightLung",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Thorakotomie: Gefäßverletzung abgeklemmt und übernäht",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:Thoracotomy:Pericardium",
+          "requiresTagDelay_s": 300,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "stichverletzung_bauchgefaess",
+      "name": "Stichverletzung großer Bauch- bzw. Beckengefäße",
+      "region": "Abdomen",
+      "icd10": "S35.9",
+      "aisSeverity": 5,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "AbdominalVessels",
+          "baseRate_mL_min": 250,
+          "maxTotalLoss_mL": 4000,
+          "lesion": "partial",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Stichwunde am Bauch",
+        "Patient blass, kaltschweißig, unruhig"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Penetrierendes Abdominaltrauma mit Schock: sofortige Laparotomie, keine Verzögerung durch CT; Damage Control"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Stichkanal erreicht Aorta abdominalis, V. cava inferior oder Iliakalgefäße. Vereinfachend in den Bauchraum (gemeinsamer Gegendruck mit Leber/Milz/Mesenterium); ein abgegrenztes retroperitoneales Hämatom ist nicht modelliert. Rate didaktisch. Laparotomie stillt (5 %).",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Reichlich freie Flüssigkeit in allen Bauchquadranten (Morison, perisplenisch, kleines Becken).",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Stichkanal bis an die großen retroperitonealen Gefäße mit aktivem Kontrastmittelaustritt, retroperitoneales Hämatom und Hämatoperitoneum.",
+          "resolvedByTag": "intervention:HemorrhageControl:Spleen,Liver,Abdomen,AbdominalVessels:laparotomie",
+          "resolvedFinding": "Zustand nach Laparotomie und Gefäßversorgung.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "abdomen_untersucht",
+          "description": "Abdomen untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Abdomen"
+          ],
+          "limit": 180,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "C-Teil. Zeitziel didaktisch."
+        },
+        {
+          "id": "efast",
+          "description": "eFAST durchgeführt",
+          "type": "deadline",
+          "tags": [
+            "imaging:efast"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Freie Flüssigkeit sichert die Blutungsquelle (ATLS). 5 min didaktisch."
+        },
+        {
+          "id": "laparotomie",
+          "description": "Notfall-Laparotomie angeordnet",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:Spleen,Liver,Abdomen,AbdominalVessels:laparotomie"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Penetrierende Verletzung mit Schock: sofort in den OP, kein CT (ATLS). 10 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Massive Blutung: Blutprodukte sofort (Massivtransfusion), jede Minute zählt (Duchesne 2024). 5 min didaktisch."
+        },
+        {
+          "id": "txa",
+          "description": "Tranexamsäure gegeben",
+          "type": "deadline",
+          "tags": [
+            "intervention:Medication:TXA"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "So früh wie möglich, spätestens 3 h nach Trauma (Rossaint 2023, Grade 1A). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Abdomen zunehmend gespannt und aufgetrieben",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 1000,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:Spleen,Liver,Abdomen,AbdominalVessels:laparotomie",
+          "untilTagDelay_s": 900
+        },
+        {
+          "text": "Peripherer Puls kaum tastbar, zentral fadenförmig",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0.3,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Z. n. Notfall-Laparotomie mit Gefäßnaht und Bauchtüchern (Laparostoma)",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:Spleen,Liver,Abdomen,AbdominalVessels:laparotomie",
+          "requiresTagDelay_s": 900,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "stichverletzung_hals_rechts",
+      "name": "Stichverletzung der Halsgefäße rechts (A. carotis / V. jugularis)",
+      "region": "Kopf",
+      "icd10": "S15.9",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "RightNeck",
+          "baseRate_mL_min": 150,
+          "maxTotalLoss_mL": 0,
+          "lesion": "partial",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Stichwunde seitlich am Hals rechts",
+        "Stark blutende Wunde, Hämatom am Hals"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Penetrierende Halsverletzung: harte Zeichen (aktive Blutung, expandierendes oder pulsierendes Hämatom, Schwirren, Schock, Atemwegsverlegung) → sofortige operative Exploration; Blutung bis dahin direkt komprimieren; Atemweg früh sichern"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Stichkanal erreicht A. carotis communis oder V. jugularis interna. Blutung nach außen (ohne Gegendruck), arterieller seitlicher Einriss; Höhe über dem Herzen über die Lagerung (Hals 0,87·H, Annahme). Manuelle Kompression senkt auf 30 %, Operation auf 5 %. Nicht modelliert: Luftembolie bei Venenverletzung, Atemwegsverlegung durch das Hämatom, Schlaganfall.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Halsweichteilhämatom rechts mit Kontrastmittelaustritt aus der A. carotis communis entlang des Stichkanals; Trachea zur Gegenseite verlagert.",
+          "resolvedByTag": "intervention:HemorrhageControl:RightNeck,LeftNeck:op_hals",
+          "resolvedFinding": "Zustand nach operativer Gefäßversorgung am Hals.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "kompression",
+          "description": "Halsblutung direkt komprimiert",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:RightNeck,LeftNeck"
+          ],
+          "limit": 60,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Aktive Blutung zuerst stoppen (x-ABCDE): direkte Kompression. 1 min didaktisch."
+        },
+        {
+          "id": "op",
+          "description": "Operative Versorgung angeordnet",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:RightNeck,LeftNeck:op_hals"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Harte Zeichen der Gefäßverletzung: sofortige Exploration (ATLS). 15 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Massive Blutung: Blutprodukte sofort (Massivtransfusion), jede Minute zählt (Duchesne 2024). 5 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Pulsierende, spritzende Blutung aus der Halswunde rechts",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:RightNeck,LeftNeck",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Zunehmendes Hämatom am Hals rechts",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 300,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Unter Kompression sickert nur noch wenig Blut",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:RightNeck,LeftNeck:kompression_hals",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:RightNeck,LeftNeck:op_hals",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Z. n. operativer Versorgung der Halsgefäße",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:RightNeck,LeftNeck:op_hals",
+          "requiresTagDelay_s": 900,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "stichverletzung_hals_links",
+      "name": "Stichverletzung der Halsgefäße links (A. carotis / V. jugularis)",
+      "region": "Kopf",
+      "icd10": "S15.9",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "LeftNeck",
+          "baseRate_mL_min": 150,
+          "maxTotalLoss_mL": 0,
+          "lesion": "partial",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Stichwunde seitlich am Hals links",
+        "Stark blutende Wunde, Hämatom am Hals"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Penetrierende Halsverletzung: harte Zeichen (aktive Blutung, expandierendes oder pulsierendes Hämatom, Schwirren, Schock, Atemwegsverlegung) → sofortige operative Exploration; Blutung bis dahin direkt komprimieren; Atemweg früh sichern"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Stichkanal erreicht A. carotis communis oder V. jugularis interna. Blutung nach außen (ohne Gegendruck), arterieller seitlicher Einriss; Höhe über dem Herzen über die Lagerung (Hals 0,87·H, Annahme). Manuelle Kompression senkt auf 30 %, Operation auf 5 %. Nicht modelliert: Luftembolie bei Venenverletzung, Atemwegsverlegung durch das Hämatom, Schlaganfall.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Halsweichteilhämatom links mit Kontrastmittelaustritt aus der A. carotis communis entlang des Stichkanals; Trachea zur Gegenseite verlagert.",
+          "resolvedByTag": "intervention:HemorrhageControl:RightNeck,LeftNeck:op_hals",
+          "resolvedFinding": "Zustand nach operativer Gefäßversorgung am Hals.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "kompression",
+          "description": "Halsblutung direkt komprimiert",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:RightNeck,LeftNeck"
+          ],
+          "limit": 60,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Aktive Blutung zuerst stoppen (x-ABCDE): direkte Kompression. 1 min didaktisch."
+        },
+        {
+          "id": "op",
+          "description": "Operative Versorgung angeordnet",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:RightNeck,LeftNeck:op_hals"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Harte Zeichen der Gefäßverletzung: sofortige Exploration (ATLS). 15 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 300,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Massive Blutung: Blutprodukte sofort (Massivtransfusion), jede Minute zählt (Duchesne 2024). 5 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Pulsierende, spritzende Blutung aus der Halswunde links",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:RightNeck,LeftNeck",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Zunehmendes Hämatom am Hals links",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 300,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Unter Kompression sickert nur noch wenig Blut",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:RightNeck,LeftNeck:kompression_hals",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:HemorrhageControl:RightNeck,LeftNeck:op_hals",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Z. n. operativer Versorgung der Halsgefäße",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:HemorrhageControl:RightNeck,LeftNeck:op_hals",
+          "requiresTagDelay_s": 900,
           "untilTag": "",
           "untilTagDelay_s": 0
         }
