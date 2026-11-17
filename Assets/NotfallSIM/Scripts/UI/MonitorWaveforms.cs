@@ -96,7 +96,8 @@ namespace NotfallSIM.UI
             float dt = Time.deltaTime;
             if (dt <= 0 || sim.Paused) return; // pausiert: Kurven und Ton stehen
             bool arrest = v.CardiacArrest;
-            float hr = arrest ? 0 : (float)v.HeartRate_bpm, rr = arrest ? 0 : (float)v.RespirationRate_bpm;
+            // PEA: EKG-Komplexe ohne Auswurf (Frequenz 40, Annahme), keine Pulskurve
+            float hr = arrest ? (v.Pea ? 40f : 0f) : (float)v.HeartRate_bpm, rr = arrest ? 0 : (float)v.RespirationRate_bpm;
             float perfusion = arrest ? 0 : Mathf.Clamp01(((float)v.SystolicBP_mmHg - 40) / 80f);
             float co2 = (float)v.EtCO2_mmHg;
 

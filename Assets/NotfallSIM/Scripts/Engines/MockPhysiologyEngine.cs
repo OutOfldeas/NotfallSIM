@@ -69,7 +69,7 @@ namespace NotfallSIM.Engines
         // Stillstand durch Tamponade: Notfallthorakotomie als Reanimationsmaßnahme (ERC 2021) — Wahrscheinlichkeit eines
         // Spontankreislaufs 50 % (Annahme; Überlebensraten nach Notfallthorakotomie bei Herzstich je nach Kollektiv sehr verschieden)
         public const double ThoracotomyRoscProbability = 0.5;
-        bool _arrestTamponade;
+        bool _arrestTamponade, _arrestPea;
 
         /// <summary>Stillstand allein durch die Tamponade (reversibel durch Thorakotomie)?</summary>
         public bool ArrestFromTamponade => _arrest && _arrestTamponade;
@@ -695,6 +695,7 @@ namespace NotfallSIM.Engines
             {
                 _arrest = true;
                 _arrestTamponade = tam >= 1 && f < ArrestThreshold && tp < 1 && tbi < 1;
+                _arrestPea = tam >= 1 || tp >= 1;   // obstruktiv: elektrische Aktivität ohne Auswurf
             }
 
             double hb = _volume > 0 ? _redCellVolume / _volume * 100 / 3 : 0;
@@ -706,7 +707,7 @@ namespace NotfallSIM.Engines
                     IonizedCalcium = IonizedCa, Glucose = BloodGas.Glucose(f),
                     Temperature_C = _temp, FactorActivity = _factors, Fibrinogen_g_L = _fib * FibrinogenNormal_g_L, Coagulation = 0,
                     SimTime_s = _time, BloodVolume_mL = _volume, BloodLossFraction = f,
-                    EtCO2_mmHg = 5, CardiacArrest = true, GCS = 3, BaseExcess = -20, Lactate = 12, Anisocoria = tbi >= TbiAnisocoriaLevel,
+                    EtCO2_mmHg = 5, CardiacArrest = true, Pea = _arrestPea, GCS = 3, BaseExcess = -20, Lactate = 12, Anisocoria = tbi >= TbiAnisocoriaLevel,
                     Intubated = _intubated
                 };
                 return;

@@ -102,7 +102,7 @@ namespace NotfallSIM.Core
             Action<string, string, AlarmPriority> add = (p, t, pr) => a.Add(new MonitorAlarm { Parameter = p, Text = t, Priority = pr });
             if (v.CardiacArrest)
             {
-                add("HF", "ASYSTOLIE", AlarmPriority.High);
+                add("HF", v.Pea ? "PEA – KEIN PULS" : "ASYSTOLIE", AlarmPriority.High);
                 return a;
             }
             double hr = Math.Round(v.HeartRate_bpm);

@@ -40,7 +40,7 @@ namespace NotfallSIM.UI
                 Set(heartRate, "---", true); Set(bloodPressure, "---/---", true);
                 Set(respRate, "---", true); Set(spo2, "---", true);
                 Set(etco2, $"{v.EtCO2_mmHg:F0}", true);
-                Set(status, "ASYSTOLIE / PEA", true);
+                Set(status, v.Pea ? "PEA – KEIN PULS" : "ASYSTOLIE", true);
             }
             else
             {

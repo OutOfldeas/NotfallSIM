@@ -119,7 +119,7 @@
   /** Alarme mit Priorität 3 (hoch), 2 (mittel), 1 (niedrig), höchste zuerst. */
   function monitorAlarms(v, nibp, L = ALARM_LIMITS) {
     const a = [], add = (parameter, text, priority) => a.push({ parameter, text, priority });
-    if (v.arrest) { add("HF", "ASYSTOLIE", 3); return a; }
+    if (v.arrest) { add("HF", v.pea ? "PEA – KEIN PULS" : "ASYSTOLIE", 3); return a; }
     const hr = Math.round(v.hr);
     if (hr < L.hrExtremeLow) add("HF", `BRADYKARDIE ${hr}`, 3);
     else if (hr > L.hrExtremeHigh) add("HF", `TACHYKARDIE ${hr}`, 3);
@@ -536,13 +536,14 @@
       if (!this.arrest && (f >= C.ArrestThreshold || tp >= 1 || tbi >= 1 || tam >= 1)) {
         this.arrest = true;
         this.arrestTamponade = tam >= 1 && f < C.ArrestThreshold && tp < 1 && tbi < 1;
+        this.arrestPea = tam >= 1 || tp >= 1;
       }
       const hb = this.volume > 0 ? this.redCells / this.volume * 100 / 3 : 0;
       if (this.arrest) {
         this.current = { hb, ph: 6.90, paco2: 70, pao2: 30, hco3: 4, potassium: 6.5, calcium: this.ica(), glucose: BloodGas.glucose(f),
           temp: this.temp, factors: this.factors, fib: this.fib * C.FibNormal, coag: 0,
           time: this.time, hr: 0, sbp: 0, dbp: 0, map: 0, rr: 0, spo2: 0, etco2: 5, bv: this.volume, loss: f,
-          arrest: true, gcs: 3, be: -20, lactate: 12, anisocoria: tbi >= C.TbiAnisocoriaLevel, intubated: this.intubated };
+          arrest: true, pea: !!this.arrestPea, gcs: 3, be: -20, lactate: 12, anisocoria: tbi >= C.TbiAnisocoriaLevel, intubated: this.intubated };
         return;
       }
       const m = this.mode;

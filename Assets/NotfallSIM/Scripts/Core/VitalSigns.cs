@@ -22,6 +22,9 @@ namespace NotfallSIM.Core
         /// <summary>True, wenn der Patient kreislaufstillständig ist (Reanimationspflicht).</summary>
         public bool CardiacArrest;
 
+        /// <summary>Stillstand mit elektrischer Aktivität ohne Auswurf (PEA), z. B. obstruktiv bei Tamponade oder Spannungspneu.</summary>
+        public bool Pea;
+
         /// <summary>Glasgow Coma Scale 3–15 (Mock: aus SHT-Schwere und Schockklasse).</summary>
         public double GCS;
         /// <summary>Pupillendifferenz als Herniationszeichen.</summary>

@@ -52,7 +52,10 @@ namespace NotfallSIM.UI
             bool pending = sim.IsPending(id);
             var def = controller ? controller.Get(id) : null;
             bool done = def != null && def.once && controller.IsUsed(id) && !pending;
-            bool blocked = sim.Ended || sim.IsAway || sim.Vitals.CardiacArrest || done || (controller == null && pending);
+            // Beim Stillstand durch die Tamponade bleibt die Notfallthorakotomie möglich (Reanimationsthorakotomie)
+            bool resuscitative = def != null && def.type == "Thoracotomy" && sim.Engine is NotfallSIM.Engines.MockPhysiologyEngine me && me.ArrestFromTamponade;
+            if (resuscitative) done = false;
+            bool blocked = sim.Ended || sim.IsAway || (sim.Vitals.CardiacArrest && !resuscitative) || done || (controller == null && pending);
             string state = pending ? (controller == null ? "läuft …" : "angeordnet …") : done ? "erledigt" : "";
 
             Color c = pending ? Pending : done ? Done : blocked ? Blocked : normal;
