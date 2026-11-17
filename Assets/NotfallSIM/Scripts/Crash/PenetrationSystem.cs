@@ -58,7 +58,7 @@ namespace NotfallSIM.Crash
                 var body = SoftContact.Body(r.BodyCollider);
                 var obj = SoftContact.Object(r.ObjectCollider);
                 if (body == null || obj == null || body.Collider == null || obj.Collider == null) continue;
-                if (_active.Exists(a => a.Obj == obj && a.Body == body)) continue;
+                if (_active.Exists(a => a.Obj == obj && (a.Body == body || SameSegment(a.Body, body)))) continue;
                 Begin(obj, body, r.Point);
             }
         }
@@ -148,6 +148,11 @@ namespace NotfallSIM.Crash
             Results.Add(a.Result);
             _active.Add(a);
         }
+
+        /// <summary>Gleiche Region: Thorax-Kapsel und Brustbeinplatte sind zwei Kollider, aber ein Stichkanal
+        /// (in Unity gesehen: ein Stich ergab zwei Kanäle, 15 und 13,5 cm, mit denselben Organen).</summary>
+        static bool SameSegment(SoftContact.BodyInfo x, SoftContact.BodyInfo y) =>
+            x?.Sensor != null && y?.Sensor != null && x.Sensor.Region == y.Sensor.Region;
 
         static int Side(CrashSensor s, Vector3 world)
         {
