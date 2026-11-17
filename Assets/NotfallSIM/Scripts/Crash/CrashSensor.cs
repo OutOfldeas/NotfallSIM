@@ -37,6 +37,18 @@ namespace NotfallSIM.Crash
         public void SetModelFrame(Transform frame, Vector3 modelJoint, Vector3 modelEnd, float k) { _frame = frame; _modelJoint = modelJoint; _modelEnd = modelEnd; _k = k; }
         public string ModelSegment;
 
+        /// <summary>Maßstab Körper / Anatomiemodell (Modellmaß · k = Meter am Körper).</summary>
+        public float ModelScale => _k;
+
+        /// <summary>Richtung in Modellkoordinaten (nur Drehung).</summary>
+        public bool ToModelDirection(Vector3 worldDir, out Vector3 dir)
+        {
+            dir = Vector3.zero;
+            if (_frame == null) return false;
+            dir = _frame.InverseTransformDirection(worldDir).normalized;
+            return true;
+        }
+
         /// <summary>Punkt in Modellkoordinaten und der nächste Punkt auf der Segmentachse (von dort nach außen).</summary>
         public bool ToModel(Vector3 world, out Vector3 point, out Vector3 inside)
         {

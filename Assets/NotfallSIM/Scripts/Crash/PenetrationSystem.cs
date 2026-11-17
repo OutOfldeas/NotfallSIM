@@ -97,7 +97,10 @@ namespace NotfallSIM.Crash
                 Side = Side(sensor, point), ObjectId = obj.Def.id, HitBone = false, FatExtra_m = body.FatExtra_m
             };
             if (sensor != null && sensor.HasModelFrame && sensor.ToModel(point, out var mp, out var inside))
-            { a.Result.ModelPoint = new[] { mp.x, mp.y, mp.z }; a.Result.ModelInside = new[] { inside.x, inside.y, inside.z }; }
+            {
+                a.Result.ModelPoint = new[] { mp.x, mp.y, mp.z }; a.Result.ModelInside = new[] { inside.x, inside.y, inside.z };
+                if (sensor.ToModelDirection(axis, out var md)) { a.Result.ModelDir = new[] { md.x, md.y, md.z }; a.Result.ModelScale = sensor.ModelScale; }
+            }
             Results.Add(a.Result);
             _active.Add(a);
         }

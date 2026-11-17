@@ -313,7 +313,13 @@ namespace NotfallSIM.Crash
             if (_tool.mode != "statisch") hints.Add("+/−: Tempo");
             if (_tool.HasEdge) hints.Add(slash ? "Umschalt loslassen: Stich" : "Umschalt: Schnitt");
             if (_tool.mode == "statisch") hints.Add("dann den Körper dagegen schleudern");
-            ShowTip(mouse, $"<b>{plan.Verb}: {_tool.label}</b>{speed}{angle}\nZiel: {where}\n<size=85%><color=#bbb>{string.Join(" · ", hints)}</color></size>");
+            string path = "";
+            if (_tool.Sharp && !slash && a.Segment != null && _tool.mode != "statisch")
+            {
+                string along = ChannelPreview(a, plan.Dir, _tool);
+                if (along != null) path = "\n" + along;
+            }
+            ShowTip(mouse, $"<b>{plan.Verb}: {_tool.label}</b>{speed}{angle}\nZiel: {where}{path}\n<size=85%><color=#bbb>{string.Join(" · ", hints)}</color></size>");
         }
 
         void ShowTip(Vector2 mouse, string text)
@@ -323,6 +329,39 @@ namespace NotfallSIM.Crash
             _tip.text = text;
             float k = _canvas != null && _canvas.scaleFactor > 0 ? _canvas.scaleFactor : 1;
             _tipBox.anchoredPosition = (mouse + new Vector2(22, 18)) / k;
+        }
+
+        // ---------------------------------------------------------------- Strukturen in der Bahn (Anatomiemodell)
+
+        AimHit _channelFor;
+        Vector3 _channelDir;
+        string _channelText;
+
+        /// <summary>Was läge in der Bahn der Klinge (bis zur Klingenlänge)? Aus dem Anatomiemodell in Ruhelage.</summary>
+        string ChannelPreview(AimHit a, Vector3 dir, SandboxObject o)
+        {
+            if (a == _channelFor && (dir - _channelDir).sqrMagnitude < 1e-8f) return _channelText;
+            _channelFor = a; _channelDir = dir; _channelText = null;
+            var sensor = a.Segment != null ? a.Segment.GetComponent<CrashSensor>() : null;
+            if (sensor == null || !sensor.HasModelFrame || sensor.ModelScale <= 0) return null;
+            if (!sensor.ToModel(a.Point, out var mp, out _) || !sensor.ToModelDirection(dir, out var md)) return null;
+            Anatomy.AnatomyData data;
+            try { data = Anatomy.AnatomyBuilder.Load(); } catch (Exception) { return null; }
+            double blade = o.bladeLength_m > 0 ? o.bladeLength_m : 0.1;
+            var hits = Anatomy.StabChannel.Trace(data, new[] { mp.x, mp.y, mp.z }, new[] { md.x, md.y, md.z }, blade / sensor.ModelScale);
+            string list = Anatomy.StabChannel.Describe(hits, sensor.ModelScale);
+            _channelText = $"<size=90%>In der Bahn (Klinge {blade * 100:0} cm): {(list.Length > 0 ? list : "nur Weichteile")}</size>";
+            return _channelText;
+        }
+
+        /// <summary>Strukturen, die ein Stichkanal bis zu seiner Tiefe durchquert (leer ohne Modellbezug).</summary>
+        static string ChannelThrough(PenetrationResult pr)
+        {
+            if (pr?.ModelPoint == null || pr.ModelDir == null || pr.ModelScale <= 0 || pr.Depth_m <= 0) return "";
+            Anatomy.AnatomyData data;
+            try { data = Anatomy.AnatomyBuilder.Load(); } catch (Exception) { return ""; }
+            var hits = Anatomy.StabChannel.Trace(data, pr.ModelPoint, pr.ModelDir, pr.Depth_m / pr.ModelScale);
+            return Anatomy.StabChannel.Describe(hits, pr.ModelScale);
         }
 
         // ---------------------------------------------------------------- Marken nach der Einwirkung
@@ -375,7 +414,11 @@ namespace NotfallSIM.Crash
             if (m == null) return;
             var lines = new List<string>();
             foreach (var pr in newPens)
+            {
                 lines.Add($"Stich {pr.Segment}: {pr.Depth_m * 100:0.#} cm" + (pr.BonePierced ? ", durch Knochen" : pr.HitBone ? ", auf Knochen" : "") + (pr.Embedded ? ", steckt" : ""));
+                string through = ChannelThrough(pr);
+                if (through.Length > 0) lines.Add($"<size=90%>durch: {through}</size>");
+            }
             foreach (var c in rec.Cuts)
                 lines.Add($"Schnitt {c.Segment}: {c.Length_m * 100:0.#} cm, {c.Depth_m * 1000:0} mm tief");
             var top = rec.Blunt.OrderByDescending(b => b.PeakForce_N).FirstOrDefault();

@@ -94,6 +94,7 @@ static class Tests
         Run("Sichtbare Frakturen: Zuordnung, Reihenfolge, Hautübergang, Knick über die Zeit", FractureChecks);
         Run("Verformbares Fahrzeug (Punkte und Balken): Fließen, Energie, Kennlinie, Zelle, versetzter Anprall, Haut", SoftBodyChecks);
         Run("Zielen auf die Haut (Strahl gegen Dreiecksnetz)", MeshPickChecks);
+        Run("Stichkanal: getroffene Strukturen aus dem Anatomiemodell", StabChannelChecks);
         Run("Verformbares Fahrzeug in allen Modi: Dellen aus dem Knautschweg (Seite, Front, Haube), Seitenaufprall zweier Gerüste", SoftImpactChecks);
         Run("Motorrad: Gabel, Nicken über das Vorderrad, PKW-Delle in Reihe; ISO-13232-Konfigurationen", MotorcycleChecks);
         Run("Verkehrsunfall: Fahrdynamik, Bremsen, Ausweichen, Fahrzeug-Kollision mit Kennlinien (TrafficSim)", TrafficChecks);
@@ -1863,6 +1864,39 @@ static class Tests
         for (int i = 0; i < mesh.Count; i++) { frontMax = Math.Max(frontMax, mesh.V[3 * i + 2]); rearMin = Math.Min(rearMin, mesh.V[3 * i + 2]); }
         double len = frontMax - rearMin;
         Check(frontMax < c56.Body.WallZ + 0.05 && len < pkw.length_m - 0.35 && len > pkw.length_m - 0.9, $"Haut: Fahrzeug nach 56 km/h {len:0.00} m lang (vorher {pkw.length_m:0.00} m), nichts ragt durch die Wand");
+    }
+
+    static void StabChannelChecks()
+    {
+        var data = AnatomyFile.Read(File.ReadAllBytes(Path.Combine(DataRoot, "anatomy", "body.bin")), json =>
+        {
+            var ser = new DataContractJsonSerializer(typeof(AnatomyHeader));
+            using (var st = new MemoryStream(Encoding.UTF8.GetBytes(json))) return (AnatomyHeader)ser.ReadObject(st);
+        });
+        Func<string, float[][]> box = name =>
+        {
+            var m = data.Meshes.First(x => x.Info.name == name);
+            NotfallSIM.Crash.MeshPick.Bounds(m.Positions, out var mn, out var mx);
+            return new[] { mn, mx };
+        };
+        var skin = box(data.Meshes[0].Info.name);
+        foreach (var target in new[] { ("liver", "Leber"), ("spleen", "Milz") })
+        {
+            var b = box(target.Item1);
+            float cx = (b[0][0] + b[1][0]) / 2, cy = (b[0][1] + b[1][1]) / 2, cz = (b[0][2] + b[1][2]) / 2;
+            float sx = Math.Sign(cx);
+            // Hautpunkt seitlich auf Organhöhe: vom Organ nach außen bis zur Rumpfhaut, Start 1 cm außerhalb
+            var sk = data.Meshes[0];
+            NotfallSIM.Crash.MeshPick.Raycast(sk.Positions, sk.Indices, cx, cy, cz, sx, 0, 0, out double toSkin, out _, out _, out _, out _);
+            var origin = new[] { cx + sx * (float)(toSkin + 0.01), cy, cz };
+            var hits = StabChannel.Trace(data, origin, new[] { -sx, 0f, 0f }, 0.3);
+            var organ = hits.FirstOrDefault(h => h.Layer == "organ" && h.Label != "Zwerchfell");   // Zwerchfell liegt seitlich davor (richtig)
+            Console.WriteLine($"        Stich seitlich auf {target.Item2}: {StabChannel.Describe(hits, 1, 6)}");
+            Check(organ != null && organ.Label == target.Item2 && organ.Depth_m < 0.08, $"erstes Organ in der Bahn: {organ?.Label ?? "keins"} in {organ?.Depth_m * 100:0.#} cm (erwartet {target.Item2}, < 8 cm)");
+            Check(hits.Select(h => h.Depth_m).SequenceEqual(hits.Select(h => h.Depth_m).OrderBy(x => x)), "nach Tiefe sortiert");
+            var shortHits = StabChannel.Trace(data, origin, new[] { -sx, 0f, 0f }, organ.Depth_m - 0.001);
+            Check(shortHits.All(h => h.Label != target.Item2), "kürzere Klinge erreicht das Organ nicht");
+        }
     }
 
     static void MeshPickChecks()

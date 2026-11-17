@@ -491,7 +491,11 @@ namespace NotfallSIM.Crash
             {
                 sb.AppendLine("<b>Stichkanäle</b>");
                 foreach (var pr in pens)
+                {
                     sb.AppendLine($"{pr.Segment}: {pr.Depth_m * 100:0.#} cm tief" + (pr.BonePierced ? ", durch den Knochen" : pr.HitBone ? ", auf Knochen gestoppt" : "") + (pr.Embedded ? ", steckt" : ""));
+                    string through = ChannelThrough(pr);
+                    if (through.Length > 0) sb.AppendLine($"<size=80%>   in der Bahn (Anatomiemodell): {through}</size>");
+                }
             }
             if (rec.Cuts.Count > 0)
             {

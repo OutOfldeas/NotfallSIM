@@ -28,6 +28,7 @@ mcs -nologo -warnaserror- \
     $SCRIPTS/Anatomy/SkinPerfusion.cs \
     $SCRIPTS/Anatomy/BloodFlow.cs \
     $SCRIPTS/Anatomy/CrashMarks.cs \
+    $SCRIPTS/Anatomy/StabChannel.cs \
     $SCRIPTS/Crash/InjuryRisk.cs \
     $SCRIPTS/Crash/OrganMechanics.cs \
     $SCRIPTS/Crash/MuscleTone.cs \

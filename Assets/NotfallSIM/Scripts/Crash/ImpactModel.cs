@@ -225,6 +225,8 @@ namespace NotfallSIM.Crash
         public bool BonePierced;       // Knochen getroffen und durchstoßen (z. B. Rippe)
         public double FatExtra_m;      // Unterhautfett über dem Bezugs-BMI: verlängert den Weg bis hinter die Wand
         public float[] ModelPoint, ModelInside;   // Einstich im Modellraum (für die Wundmarke), sonst null
+        public float[] ModelDir;                  // Stichrichtung im Modellraum (für die getroffenen Strukturen), sonst null
+        public float ModelScale = 1;              // Körper / Anatomiemodell
     }
 
     /// <summary>Schnitt einer Klinge über die Haut (Länge des Gleitwegs unter Andruck, geschätzte Tiefe).</summary>
