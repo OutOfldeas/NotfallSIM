@@ -948,9 +948,13 @@ namespace NotfallSIM.Crash
             add("Thorax.VC", Biomechanics.ViscousCriterion(defl, dt, 0.229));
             add("Nij", Biomechanics.Nij(Biomechanics.Cfc(g.NeckFz_N, dt, 1000), Biomechanics.Cfc(g.NeckMy_Nm, dt, 600)));
             add("Oberschenkel rechts.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.FemurAxialR_N, dt, 600)) / 1000);
-            if (g.TibiaAxialR_N.Count > 10) add("Unterschenkel rechts.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialR_N, dt, 600)) / 1000);
-            if (g.TibiaAxialL_N.Count > 10) add("Unterschenkel links.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialL_N, dt, 600)) / 1000);
-            if (g.LumbarFz_N.Count > 10) add("LWS.Fz", Biomechanics.MaxAbs(Biomechanics.Cfc(g.LumbarFz_N, dt, 600)) / 1000);
+            // Axiale Last auf Unterschenkel/Fuß und LWS nur dort, wo sie der Verletzungsmechanismus ist: Sturz auf die Füße bzw.
+            // das Gesäß, Fußraum beim Frontalaufprall. In Unity gesehen: Fußgänger 40 km/h ergab 15 kN im Knie und 6,2 kN in der
+            // LWS (Kalkaneus- und LWK-Fraktur fast sicher) — dort wirken Quer- und Kontaktkräfte, die Gelenkkraft ist kein Maß
+            bool axialLegs = p.MechanismId == "sturz_hoehe" || p.MechanismId == "pkw_frontal", axialSpine = p.MechanismId == "sturz_hoehe";
+            if (axialLegs && g.TibiaAxialR_N.Count > 10) add("Unterschenkel rechts.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialR_N, dt, 600)) / 1000);
+            if (axialLegs && g.TibiaAxialL_N.Count > 10) add("Unterschenkel links.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialL_N, dt, 600)) / 1000);
+            if (axialSpine && g.LumbarFz_N.Count > 10) add("LWS.Fz", Biomechanics.MaxAbs(Biomechanics.Cfc(g.LumbarFz_N, dt, 600)) / 1000);
             // Gelenkanschläge (JointStops): seitliche Biegung und Überstreckung des Knies, Überdehnung der Schulter
             if (rd.KneeJointRight) { add("Knie rechts.Biegung", g.KneeBendR_deg); add("Knie rechts.Überstreckung", g.KneeHyperR_deg); }
             if (rd.KneeJointLeft) { add("Knie links.Biegung", g.KneeBendL_deg); add("Knie links.Überstreckung", g.KneeHyperL_deg); }
