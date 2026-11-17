@@ -147,7 +147,11 @@ namespace NotfallSIM.Crash
 
         /// <summary>Größte Eindrücktiefe an einem Kollider seit dem letzten <see cref="ResetIndentation"/>.</summary>
         public static float MaxIndentation(Collider c) => c != null && MaxIndent.TryGetValue(c.GetEntityId(), out float d) ? d : 0;
-        public static void ResetIndentation() { MaxIndent.Clear(); Peaks.Clear(); lock (Cuts) Cuts.Clear(); }
+        public static void ResetIndentation() { MaxIndent.Clear(); Peaks.Clear(); SkullFractures.Clear(); lock (Cuts) Cuts.Clear(); }
+
+        /// <summary>Paare, bei denen der Schädel die Bruchkraft erreicht hat (Kraftplateau aktiv).</summary>
+        static readonly System.Collections.Concurrent.ConcurrentDictionary<PairId, bool> SkullFractures = new System.Collections.Concurrent.ConcurrentDictionary<PairId, bool>();
+        public static bool SkullFractured(Collider body) { if (body == null) return false; var id = body.GetEntityId(); foreach (var k in SkullFractures.Keys) if (k.Body.Equals(id)) return true; return false; }
 
         /// <summary>Fläche im Moment der größten Kraft zwischen einem Körperkollider und Gegenständen mit dieser Id (cm²; 0 = kein Kontakt).</summary>
         public static PeakContact PeakWith(Collider body, string objectDefId)
@@ -222,7 +226,10 @@ namespace NotfallSIM.Crash
                     else if (obj != null && obj.Area_cm2 > 0) area = obj.Area_cm2;
                     area = System.Math.Min(area, region.maxArea_cm2);
                     double f = ImpactModel.Force(Model, region, delta, closing, area, kObj, mObj, body.Fat_m, obj != null ? obj.Clearance_m : 0, out double tissueDelta);
-                    pair.SetMaxImpulse(i, (float)(f * dt / n));
+                    // Schädel bricht: Kraft bleibt auf der Bruchkraft. Für die Auswertung zählt die geforderte Kraft (Peaks, unten)
+                    double fAct = ImpactModel.SkullPlateau(Model, region.region, f, area, out bool skullBroken);
+                    if (skullBroken) SkullFractures.TryAdd(key, true);
+                    pair.SetMaxImpulse(i, (float)(fAct * dt / n));
                     maxDelta = Mathf.Max(maxDelta, (float)tissueDelta);   // Gewebe unter dem Fett (Thoraxkompression)
                     if (obj != null)
                     {

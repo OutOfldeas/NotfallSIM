@@ -2157,6 +2157,30 @@ static class Tests
         Console.WriteLine($"        Prüfkopf 24 km/h: Verkleidung HIC {hDoor:0}, Lenkrad {hWheel:0}, starr {hRigid:0}");
         Check(hDoor > 500 && hDoor < 1300, $"Prüfkopf 24 km/h gegen Verkleidung: HIC {hDoor:0} (FMVSS 201U: höchstens 1000)");
         Check(hRigid > 3 * hDoor, $"starr dagegen HIC {hRigid:0}");
+        // Kopf auf Asphalt: Kalotte bricht bei der Bruchkraft (Allsop 1991) und trägt dann nicht mehr (Plateau)
+        var ground = vm.interior.First(pp => pp.part == "Boden");
+        Func<double, bool, double[]> drop = (vms, plateau) =>
+        {
+            double x = 0, v = vms, dt = 2e-6, mass = head.effectiveMass_kg, peak = 0, maxX = 0; bool broke = false;
+            var acc = new List<double>();
+            for (int i = 0; i < 200000; i++)
+            {
+                double f = NotfallSIM.Crash.ImpactModel.Force(m, head, x, v, 52, ground.stiffness_N_m, 0, 0, ground.clearance_m, out _);
+                if (plateau) { f = NotfallSIM.Crash.ImpactModel.SkullPlateau(m, "Kopf", f, 52, out bool b); broke |= b; }
+                if (x > 0 && v <= 0 && f <= 0) break;
+                peak = Math.Max(peak, f); maxX = Math.Max(maxX, x);
+                v -= f / mass * dt; x += v * dt; acc.Add(f / mass / 9.81);
+                if (x <= 0 && v < 0) break;
+            }
+            return new[] { peak, NotfallSIM.Crash.Biomechanics.Hic(acc, dt), maxX, broke ? 1 : 0 };
+        };
+        var d7 = drop(7, false); var d7p = drop(7, true); var d3 = drop(3, false); var d3p = drop(3, true);
+        double fb = NotfallSIM.Crash.ImpactModel.SkullFractureForce(m, 52);
+        Console.WriteLine($"        Kopf auf Asphalt 7 m/s: ohne Bruch {d7[0] / 1000:0.0} kN / HIC {d7[1]:0}; mit Bruch {d7p[0] / 1000:0.0} kN / HIC {d7p[1]:0}, Impression {d7p[2] * 100:0.0} cm; 3 m/s: {d3p[0] / 1000:0.0} kN, HIC {d3p[1]:0}");
+        Check(Math.Abs(fb - 12500) < 1, $"Bruchkraft Schädel 52 cm²: {fb:0} N");
+        Check(d7[0] > 2 * fb && d7p[0] <= fb + 1 && d7p[3] == 1, $"7 m/s: Kraft ohne Bruch {d7[0] / 1000:0} kN, mit Bruch höchstens {fb / 1000:0.0} kN");
+        Check(d7p[1] < d7[1] && d7p[2] < 0.03, $"7 m/s: HIC sinkt ({d7[1]:0} → {d7p[1]:0}), Impression {d7p[2] * 100:0.0} cm < 3 cm");
+        Check(d3p[3] == 0 && Math.Abs(d3p[1] - d3[1]) < 1e-6, $"3 m/s: kein Bruch, unverändert (HIC {d3[1]:0})");
         double hHaube = hic("Motorhaube"), hScheibe = hic("Windschutzscheibe");
         Check(hHaube > 900 && hHaube < 1600, $"Kopftest Haube HIC {hHaube:0} (Ziel ≈ 1250)");
         Check(hScheibe > 180 && hScheibe < 360, $"Kopftest Scheibe HIC {hScheibe:0} (Stammen 2001: 257)");

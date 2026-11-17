@@ -338,6 +338,31 @@ namespace NotfallSIM.Crash
             return force_N <= 0 ? 0 : Phi((force_N - f50) / (s.cv * f50));
         }
 
+        /// <summary>Bruchkraft des Schädels für die Kontaktfläche (Median, Allsop 1991), N; 0 = kein Bruchmodell.</summary>
+        public static double SkullFractureForce(ImpactModelFile m, double area_cm2)
+        {
+            var s = m?.fractures?.skull;
+            if (s?.points == null || s.points.Length == 0) return 0;
+            var p = s.points.OrderBy(x => x.area_cm2).ToArray();
+            return LogInterp(Math.Max(1, area_cm2), p[0].area_cm2, p[0].force50_N, p[p.Length - 1].area_cm2, p[p.Length - 1].force50_N);
+        }
+
+        /// <summary>
+        /// Kraft am Kopf nach Schädelbruch: Übersteigt die Kontaktkraft die Bruchkraft, bricht die Kalotte ein und trägt
+        /// nicht mehr als diese Kraft (Plateau, Annahme: kein Wiederanstieg innerhalb der Impressionstiefe). Ohne Plateau stieg
+        /// die Kraft beim Kopfaufschlag auf Asphalt auf 40–80 kN, gemessen brechen Schädel bei 5–12,5 kN (Allsop 1991).
+        /// Gibt die physikalisch wirkende Kraft zurück; <paramref name="broken"/> sagt, ob die Grenze erreicht wurde.
+        /// </summary>
+        public static double SkullPlateau(ImpactModelFile m, string region, double force_N, double area_cm2, out bool broken)
+        {
+            broken = false;
+            if (region != "Kopf") return force_N;
+            double fb = SkullFractureForce(m, area_cm2);
+            if (fb <= 0 || force_N <= fb) return force_N;
+            broken = true;
+            return fb;
+        }
+
         /// <summary>Biegebruch eines Röhrenknochens bei Querkraft F mittig: M = F·L/4 gegen das 50-%-Moment (Kerrigan 2004).</summary>
         public static double LongBoneProbability(LongBone b, double force_N, double length_m)
         {
