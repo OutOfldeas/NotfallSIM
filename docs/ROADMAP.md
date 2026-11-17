@@ -20,6 +20,9 @@ Häkchen = erledigt; *kursiv* = Stand der Prüfung. „In Unity nachgemessen“ 
 - [x] Herzstich: Befund „Atemgeräusch beidseits / Lungengleiten beidseits“ widersprach dem gleichzeitigen Hämatopneumothorax
 - [x] Fußgänger: axiale Gelenkkräfte 15 kN (Knie) und 6,2 kN (LWS) ergaben Kalkaneus- und LWK-Fraktur → axiale Messgrößen nur noch bei Sturz (Unterschenkel, LWS) und PKW frontal (Unterschenkel)
 
+- [x] Gelenkwinkel: Unity zählt die Beugung des ConfigurableJoint entgegen dem Drehvektor; sitzende Ragdolls werden gebeugt angelegt (Knie 86°, Motorrad 66°) und hatten die große Grenze (140°) auf der Streckseite → „Überstreckung Knie 108°“ beim Frontalcrash, Kniebandverletzung 100 % bei Fahrern. Jetzt Grenzen ab gestrecktem Bein (Streckung bis 5° darüber), Richtung aus der Geometrie. PKW frontal danach: Überstreckung 9° (1 %), HIC 261, Deflexion 39 mm, Femur 4,3 kN (vorher 265 / 38,7 / 4,2 — unverändert)
+- [x] Szenario „Linksabbieger übersieht Motorrad“: schmale Delle am rechten vorderen Kotflügel (18 cm), Rest der Flanke gerade; PKW-Fahrer T3 „kaum verletzt“, Motorradfahrer T1 (Beckenring 90 %, Femurschaft re 78 %, Rippenserie li 68 %)
+
 **Noch offen (gesehen)**
 - [ ] Sturz 6 m: Gelenkkräfte unplausibel hoch (Knie 38 kN, Femur 49 kN, LWS 71 kN; Becken 341 g) → Kalkaneus und LWK immer 100 %. Das starre Ragdoll beugt die Knie kaum und landet auf dem Gesäß; Beinbeugung/Muskeln beim Aufprall oder eine an Fallversuchen abgeglichene Messung nötig
 - [ ] Wundort der Stichverletzungen ist in den Befundtexten fest vorgegeben (z. B. „4. ICR vordere Axillarlinie“), nicht aus dem Einstich
