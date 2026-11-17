@@ -340,6 +340,8 @@ Statt fester Raten mit linearer Obergrenze:
 | Bauchraum | IAP = IAP₀ · exp(V / (IAP₀ · C₀)); Milz, Leber und Mesenterium teilen sich den Raum | IAP₀ 7 mmHg, C₀ 400 mL/mmHg; ergibt +2 L ≈ 14 mmHg, Compliance bei +4 L ≈ 97 mL/mmHg | [73] |
 | Becken, Oberschenkel | Gegendruck linear, erreicht beim Tamponadevolumen den Ausgangs-MAD (bei Hypotonie früher) | Tamponadevolumen wie bisher (didaktisch) | Annahme |
 | Außen (Extremität, Arm) | kein Gegendruck | – | – |
+| Herzbeutel (Tamponade) | P = 2 mmHg · (exp(V / 60 mL) − 1); Tamponadegrad = P / 25 mmHg: ab 0,25 fällt der Blutdruck (systolisch stärker, Pulsdruck schmal), HF steigt, bei 1 obstruktiver Stillstand (PEA). Akut genügen ≈ 150 mL | 100 mL ≈ 9, 150 mL ≈ 22, 200 mL ≈ 54 mmHg | Spodick 2003 (Größenordnung 150–200 mL); Kurve und Kreislaufwirkung Annahmen |
+| Niere (Retroperitoneum) | wie Becken: Gerota-Faszie als geschlossener Raum | Tamponadevolumen 1,5 L | Annahme |
 | Läsionsart | seitlicher Einriss (zieht sich nicht zurück, kein Gerinnsel), Durchtrennung (Retraktion, Gerinnsel), Parenchym, venös | – | [ATLS] |
 | Gerinnsel und Nachblutung | Gerinnsel, wenn der MAD 5 min unter 64 mmHg bleibt (Restfluss 10 %); löst sich, sobald der MAD 64 mmHg erreicht | 64 ± 2 mmHg | [74]; Bildungszeit und Restfluss Annahmen |
 
@@ -352,6 +354,12 @@ Folge der Hydrostatik: Ein hochgelagertes Bein mit venöser Blutung (Oberschenke
 eine arterielle Blutung am Unterschenkel (45 cm über dem Herzen) nur um etwa ein Viertel weniger; ein senkrecht gehaltener
 Arm senkt den Druck an der Schnittwunde um ≈ 35 mmHg. Bei Oberkörperhochlage liegen Leber und Milz etwas unter dem Herzen
 (+4 mmHg). Nicht modelliert: Wirkung der Oberkörperhochlage auf den Hirndruck, Blutverschiebung in die Beine bei Kopf-hoch.
+
+Herzstich im Mock (Schwere 0,7, Ausgangsrate 20 mL/min): Hypotonie nach ≈ 8 min, Stillstand nach ≈ 13 min — bei nur
+≈ 150 mL Blutverlust, also Schock ohne Hb-Abfall und ohne Hypoxie (Abgrenzung zum Spannungspneu: Atemgeräusch
+seitengleich). Perikardpunktion saugt bei Erfolg (50 %, geronnenes Blut) 70 % ab, die Blutung läuft weiter und tamponiert
+erneut; die Notfallthorakotomie entlastet vollständig und stillt die Herzblutung (wirkt nach 5 min). ATLS: Punktion beim
+Trauma nicht verlässlich, definitiv operativ; ERC 2021: Tamponade beim traumatischen Stillstand sofort entlasten.
 
 Folge im Spiel: Großzügige Volumengabe vor der Blutstillung kann ein Gerinnsel lösen (permissive Hypotension). Die
 intraabdominelle Blutung tamponiert sich nicht von selbst (der Bauchraum fasst mehr als das Blutvolumen). Venöse und

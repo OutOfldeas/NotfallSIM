@@ -202,6 +202,7 @@ namespace NotfallSIM.Data
         /// <summary>Maßnahmen, die eine bestimmte Verletzung voraussetzen.</summary>
         static bool Specific(CoachContext c, string tag) =>
             tag.StartsWith("intervention:HemorrhageControl") || tag.StartsWith("intervention:NeedleDecompression") || tag.StartsWith("intervention:ChestDrain")
+            || tag.StartsWith("intervention:Pericardiocentesis") || tag.StartsWith("intervention:Thoracotomy")
             || tag.StartsWith("intervention:NeurosurgicalDecompression") || tag.StartsWith("intervention:Osmotherapy")
             || tag.StartsWith("intervention:Medication:Antibiotic") || tag.StartsWith("imaging:cct");
 

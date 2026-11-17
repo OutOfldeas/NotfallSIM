@@ -867,6 +867,63 @@
       "reviewNotes": "Im Mock sofortige und vollständige Entlastung; Anlagezeit wird noch nicht simuliert."
     },
     {
+      "id": "perikardpunktion",
+      "label": "Perikardpunktion",
+      "logLabel": "Perikardpunktion (subxiphoidal, sonografisch gesteuert)",
+      "type": "Pericardiocentesis",
+      "target": "Pericardium",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 1,
+      "successProbability": 0.5,
+      "once": false,
+      "effectDelay_s": 0,
+      "contraindicatedBy": [],
+      "contraindicationNote": "",
+      "dose": null,
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Perikardpunktion beim Trauma nicht verlässlich (geronnenes Blut im Herzbeutel); nur überbrückend, wenn keine Thorakotomie möglich ist"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Mock: Erfolg 50 % (Annahme); bei Erfolg werden 70 % des Hämoperikards abgesaugt, die Blutung läuft weiter (erneute Tamponade). Wiederholbar."
+    },
+    {
+      "id": "thorakotomie",
+      "label": "Notfallthorakotomie",
+      "logLabel": "Notfallthorakotomie (Clamshell), Perikardiotomie und Naht der Herzwunde",
+      "type": "Thoracotomy",
+      "target": "Pericardium",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 0.05,
+      "successProbability": 1,
+      "once": true,
+      "effectDelay_s": 300,
+      "contraindicatedBy": [],
+      "contraindicationNote": "",
+      "dose": null,
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Herzbeuteltamponade beim penetrierenden Trauma: operative Entlastung und Versorgung"
+        },
+        {
+          "citation": "Lott C, Truhlář A, Alfonzo A, et al. European Resuscitation Council Guidelines 2021: Cardiac arrest in special circumstances. Resuscitation. 2021;161:152-219.",
+          "url": "https://doi.org/10.1016/j.resuscitation.2021.02.011",
+          "note": "Notfallthorakotomie beim traumatischen Stillstand nach penetrierendem Thoraxtrauma"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Wirkt nach 5 min (Traumachirurg, Clamshell) – didaktische Setzung. Entlastet den Herzbeutel vollständig und stillt die Herzblutung auf 5 %."
+    },
+    {
       "id": "intubation",
       "label": "Intubation + Beatmung",
       "logLabel": "Notfallnarkose, Intubation und Beatmung",
@@ -957,6 +1014,32 @@
       "sources": [],
       "evidenceStatus": "draft",
       "reviewNotes": "Definitive Blutstillung der Beckenblutung; wirkt nach 20 min (Team, Saal bzw. Angiographie bereit) – didaktische Setzung, reale Intervalle prüfen."
+    },
+    {
+      "id": "angio_niere",
+      "label": "Angioembolisation Niere",
+      "logLabel": "Angioembolisation der Nierenblutung (bzw. Not-OP)",
+      "type": "HemorrhageControl",
+      "target": "RightKidney,LeftKidney",
+      "compound": "",
+      "volume_mL": 0,
+      "rate_mL_min": 0,
+      "rateMultiplier": 0.05,
+      "successProbability": 1,
+      "once": true,
+      "effectDelay_s": 1200,
+      "contraindicatedBy": [],
+      "contraindicationNote": "",
+      "dose": null,
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Nierenverletzung mit aktiver Blutung: Angioembolisation, beim instabilen Patienten Operation"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Wie angio_op für das Becken: wirkt nach 20 min (Angiographie bereit) – didaktische Setzung."
     },
     {
       "id": "laparotomie",

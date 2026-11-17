@@ -36,6 +36,7 @@ static class Tests
         Run("Mock SHT: frühe Kraniotomie verhindert Einklemmung", TbiEarlySurgery);
         Run("Mock SHT: ungesicherter Atemweg beschleunigt den Verlauf", TbiAirwayMatters);
         Run("Mock: Beatmung verschärft unentlasteten Spannungspneu", VentilationWorsensTension);
+        Run("Mock Perikardtamponade: Druckkurve, Schock ohne Hb-Abfall, Punktion überbrückt, Thorakotomie entlastet", TamponadeCourse);
         Run("Zustandsereignisse: Episoden mit Hysterese, Schwellen einmalig", StateWatcherLogic);
         Run("Maßnahmen: Verzögerung nur bei Kraniotomie, nicht negativ", InterventionDelays);
         Run("Realitätsmodus: deutlich weniger Tachykardie als Lehrbuch", RegistryLessTachycardia);
@@ -249,6 +250,45 @@ static class Tests
         }
         Check(hypoxia != null && hypotension != null && hypoxia < hypotension, $"Hypoxie {hypoxia}s, Hypotonie {hypotension}s");
         Check(arrest != null && arrest > 15 * 60 && arrest < 30 * 60, $"Stillstand bei {arrest}s");
+    }
+
+    static void TamponadeCourse()
+    {
+        Check(Math.Abs(MockPhysiologyEngine.PericardialPressure_mmHg(150) - 22.4) < 0.5 && MockPhysiologyEngine.PericardialPressure_mmHg(50) < 5,
+              $"Perikarddruck 50/150 mL: {MockPhysiologyEngine.PericardialPressure_mmHg(50):0.0}/{MockPhysiologyEngine.PericardialPressure_mmHg(150):0.0} mmHg");
+        Func<MockPhysiologyEngine> make = () =>
+        {
+            var e = new MockPhysiologyEngine(1);
+            e.Initialize(new PatientProfile { weight_kg = 80 });
+            e.ApplyInjury(new InjuryEvent { InjuryId = "stichverletzung_herz", Effect = InjuryEffectType.Hemorrhage, Compartment = "Pericardium", Severity = 0.7, BaseRate_mL_min = 20, Lesion = "partial" });
+            return e;
+        };
+        var u = make();
+        double? shock = null, arrest = null; double hbAtShock = 0, spo2AtShock = 0;
+        for (double t = 0; t < 40 * 60 && arrest == null; t += 1)
+        {
+            u.Advance(1);
+            if (u.Current.CardiacArrest) arrest = t;
+            else if (shock == null && u.Current.SystolicBP_mmHg < 90) { shock = t; hbAtShock = u.Current.Hb; spo2AtShock = u.Current.SpO2_percent; }
+        }
+        Check(shock != null && arrest != null && arrest > 8 * 60 && arrest < 20 * 60 && arrest - shock > 120,
+              $"unbehandelt: Hypotonie {shock / 60:0.0} min, Stillstand {arrest / 60:0.0} min");
+        Check(hbAtShock > 13.5 && spo2AtShock >= 93, $"obstruktiver Schock: Hb {hbAtShock:0.0}, SpO2 {spo2AtShock:0} bei Hypotonie");
+        Check(u.InjuryLevel("stichverletzung_herz") >= 1, "Level der Verletzung = Tamponadegrad (für Befunde)");
+
+        var p = make();
+        Advance(p, 9 * 60);
+        double before = p.TamponadeLevel;
+        p.ApplyIntervention(new InterventionEvent { Type = InterventionType.Pericardiocentesis, TargetCompartment = "Pericardium", SuccessProbability = 1 });
+        Check(p.TamponadeLevel < 0.2 * before && p.Current.SystolicBP_mmHg > 110, $"Punktion: Grad {before:0.00} → {p.TamponadeLevel:0.00}, RR {p.Current.SystolicBP_mmHg:0}");
+        Advance(p, 6 * 60);
+        Check(p.TamponadeLevel > 0.3, $"Blutung läuft weiter: nach 6 min erneut Grad {p.TamponadeLevel:0.00}");
+
+        var th = make();
+        Advance(th, 9 * 60);
+        th.ApplyIntervention(new InterventionEvent { Type = InterventionType.Thoracotomy, TargetCompartment = "Pericardium", RateMultiplier = 0.05 });
+        Advance(th, 30 * 60);
+        Check(th.TamponadeLevel == 0 && !th.Current.CardiacArrest && th.Current.SystolicBP_mmHg > 110, $"Thorakotomie: Grad {th.TamponadeLevel:0.00}, RR {th.Current.SystolicBP_mmHg:0}");
     }
 
     static void TensionDrain()
@@ -1914,6 +1954,23 @@ static class Tests
             var deep = NotfallSIM.Crash.ImpactModel.Evaluate(im, null, new[] { pen(0.07) }, () => 0.5);
             Check(shallow.Count == 0, $"3,5 cm: nur Rippe erreicht, keine Organverletzung ({shallow.Count})");
             Check(deep.Count == 1 && deep[0].InjuryId == "stichverletzung_abdomen_rechts" && deep[0].Reason.Contains("Leber"), $"7 cm: {deep.FirstOrDefault()?.InjuryId} ({deep.FirstOrDefault()?.Reason})");
+            // Eigene Verletzung je Struktur: Herz → Tamponade (Lunge davor zusätzlich Hämatopneumothorax), Niere → retroperitoneal
+            Func<string, double, List<ChannelHit>, NotfallSIM.Crash.PenetrationResult> penAt = (region, depth, ch) => new NotfallSIM.Crash.PenetrationResult
+            { Region = region, Segment = region, Side = 1, Depth_m = depth, ObjectId = "messer", Channel = ch };
+            var heart = NotfallSIM.Crash.ImpactModel.Evaluate(im, null, new[] { penAt("Thorax", 0.08, new List<ChannelHit> {
+                new ChannelHit { Name = "wall of heart", Label = "Herz", Layer = "organ", Depth_m = 0.05 } }) }, () => 0.5);
+            Check(heart.Count == 1 && heart[0].InjuryId == "stichverletzung_herz", $"präkordial: {string.Join(", ", heart.Select(x => x.InjuryId))}");
+            var lungHeart = NotfallSIM.Crash.ImpactModel.Evaluate(im, null, new[] { penAt("Thorax", 0.1, new List<ChannelHit> {
+                new ChannelHit { Name = "upper lobe of left lung", Label = "Oberlappen linke Lunge", Layer = "organ", Depth_m = 0.04 },
+                new ChannelHit { Name = "wall of heart", Label = "Herz", Layer = "organ", Depth_m = 0.07 } }) }, () => 0.5);
+            Check(lungHeart.Select(x => x.InjuryId).OrderBy(x => x).SequenceEqual(new[] { "stichverletzung_herz", "stichverletzung_thorax_rechts" }),
+                  $"durch Lunge ins Herz: {string.Join(", ", lungHeart.Select(x => x.InjuryId))}");
+            var kidney = NotfallSIM.Crash.ImpactModel.Evaluate(im, null, new[] { penAt("Becken", 0.09, new List<ChannelHit> {
+                new ChannelHit { Name = "right kidney", Label = "Niere rechts", Layer = "organ", Depth_m = 0.06 } }) }, () => 0.5);
+            Check(kidney.Count == 1 && kidney[0].InjuryId == "stichverletzung_niere_rechts" && kidney[0].Reason.Contains("Niere"),
+                  $"Flanke/Rücken: {string.Join(", ", kidney.Select(x => x.InjuryId + " " + x.Reason))}");
+            var injIds = new HashSet<string>(Injuries.injuries.Select(x => x.id));
+            foreach (var r in im.penetration.structures) Check(injIds.Contains(r.injury), $"Strukturregel {r.pattern}: unbekannte Verletzung {r.injury}");
         }
     }
 

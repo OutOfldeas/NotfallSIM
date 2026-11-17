@@ -95,6 +95,11 @@
       { "region": "Oberschenkel", "wall_m": 0.035, "boneHitProbability": 0.1, "deep": "", "deepRight": "stichverletzung_oberschenkel_rechts", "deepLeft": "stichverletzung_oberschenkel_links", "probability": 0.5, "boneTissue": "knochen", "boneThickness_m": 0.01, "note": "Ab ca. 3,5 cm Tiefe Gefäß-Nerven-Straße erreichbar; ob die A. femoralis getroffen wird, hängt von Ort und Richtung ab (hier 50 %, Annahme)." },
       { "region": "Unterschenkel", "wall_m": 0.02, "boneHitProbability": 0.4, "deep": "", "deepRight": "", "deepLeft": "", "probability": 0, "boneTissue": "knochen", "boneThickness_m": 0.01, "note": "Nur Weichteilwunde (Annahme)." },
       { "region": "Arm", "wall_m": 0.01, "boneHitProbability": 0.2, "deep": "", "deepRight": "schnittverletzung_unterarm_rechts", "deepLeft": "schnittverletzung_unterarm_links", "probability": 0.5, "boneTissue": "knochen", "boneThickness_m": 0.01, "note": "Unterarm: A. radialis/ulnaris oberflächlich (50 %, Annahme); Oberarm nur Weichteil." }
+    ],
+    "structures": [
+      { "pattern": "^wall of heart$", "injury": "stichverletzung_herz", "note": "Herz erreicht: Hämoperikard mit Tamponade (statt Hämatopneumothorax allein). Gilt nur mit Anatomiemodell (Stichkanal)." },
+      { "pattern": "^right (kidney|renal artery|renal vein)$", "injury": "stichverletzung_niere_rechts", "note": "Niere oder Nierengefäße: retroperitoneale Blutung; ohne weitere Organe keine Peritonealverletzung." },
+      { "pattern": "^left (kidney|renal artery|renal vein)$", "injury": "stichverletzung_niere_links", "note": "wie rechts" }
     ]
   },
   "cutting": {

@@ -3161,6 +3161,530 @@
         }
       ],
       "dynamicFindings": []
+    },
+    {
+      "id": "stichverletzung_herz",
+      "name": "Stichverletzung des Herzens mit Perikardtamponade",
+      "region": "Thorax",
+      "icd10": "S26.0",
+      "aisSeverity": 5,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "Pericardium",
+          "baseRate_mL_min": 20,
+          "maxTotalLoss_mL": 0,
+          "lesion": "partial",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Stichwunde präkordial (zwischen den Medioklavikularlinien)",
+        "Patient unruhig, kaltschweißig"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Thoracic Trauma: Herzbeuteltamponade — Beck-Trias (Hypotonie, gestaute Halsvenen, leise Herztöne) oft unvollständig; FAST zur Diagnose; Perikardpunktion beim Trauma kein verlässliches Verfahren (geronnenes Blut), definitiv Thorakotomie bzw. Sternotomie"
+        },
+        {
+          "citation": "Spodick DH. Acute cardiac tamponade. N Engl J Med. 2003;349(7):684-690.",
+          "url": "https://doi.org/10.1056/NEJMra022643",
+          "note": "Steile Druck-Volumen-Kurve des Perikards: akut verursachen schon 150–200 mL eine Tamponade; Pulsus paradoxus"
+        },
+        {
+          "citation": "Lott C, Truhlář A, Alfonzo A, et al. European Resuscitation Council Guidelines 2021: Cardiac arrest in special circumstances. Resuscitation. 2021;161:152-219.",
+          "url": "https://doi.org/10.1016/j.resuscitation.2021.02.011",
+          "note": "Traumatischer Kreislaufstillstand: Tamponade sofort entlasten; Notfallthorakotomie bei penetrierendem Thoraxtrauma"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Blutung aus dem Herzmuskel in den Herzbeutel (Kompartiment Pericardium). Der Perikarddruck steigt nach einer steilen Kurve (Mock: 150 mL ≈ 22 mmHg); daraus Tamponadegrad und Kreislaufwirkung (Blutdruckabfall, schmaler Pulsdruck, Tachykardie), bei 25 mmHg obstruktiver Stillstand. Der Gegendruck bremst die Blutung. Perikardpunktion saugt bei Erfolg (50 %, Annahme) 70 % ab; die Blutung läuft weiter. Thorakotomie entlastet und stillt (95 %). Blutungsrate, Kurve und Erfolg sind Annahmen. Offen: Perikard zur Pleura hin offen (dann Hämatothorax statt Tamponade). Entsteht in der Gewalt-Sandbox, wenn der Stichkanal das Herz erreicht (impact_model.json › penetration.structures).",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Perikarderguss mit diastolischem Kollaps des rechten Ventrikels – vereinbar mit Perikardtamponade. Lungengleiten beidseits vorhanden.",
+          "resolvedByTag": "intervention:Thoracotomy:Pericardium",
+          "resolvedFinding": "Perikard eröffnet, kein relevanter Resterguss.",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "XrayChest",
+          "finding": "Herzsilhouette nicht wesentlich verbreitert (akute Tamponade), kein Pneumothorax.",
+          "resolvedByTag": "intervention:Thoracotomy:Pericardium",
+          "resolvedFinding": "Zustand nach Thorakotomie, Drainagen in situ.",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Hämoperikard mit Stichkanal durch die vordere Brustwand in das Perikard und den Herzmuskel; abgeflachter rechter Ventrikel, gestaute V. cava inferior.",
+          "resolvedByTag": "intervention:Thoracotomy:Pericardium",
+          "resolvedFinding": "Zustand nach Perikardiotomie und Naht, kein Resterguss.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "efast",
+          "description": "eFAST durchgeführt",
+          "type": "deadline",
+          "tags": [
+            "imaging:efast"
+          ],
+          "limit": 180,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Penetrierende präkordiale Verletzung: Perikard im FAST sofort darstellen (ATLS). 3 min didaktisch."
+        },
+        {
+          "id": "entlastung",
+          "description": "Herzbeutel entlastet (Punktion oder Thorakotomie)",
+          "type": "deadline",
+          "tags": [
+            "intervention:Pericardiocentesis:Pericardium",
+            "intervention:Thoracotomy:Pericardium"
+          ],
+          "limit": 420,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Tamponade ist eine sofort reversible Ursache des Schocks bzw. Stillstands (ERC 2021). 7 min didaktisch."
+        },
+        {
+          "id": "thorakotomie",
+          "description": "Notfallthorakotomie angeordnet",
+          "type": "deadline",
+          "tags": [
+            "intervention:Thoracotomy:Pericardium"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Definitive Versorgung der Herzverletzung; Punktion nur überbrückend (ATLS). 10 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Gestaute Halsvenen",
+          "minLevel": 0.3,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 0.15,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Halsvenen flach (Hypovolämie überdeckt die Stauung)",
+          "minLevel": 0.3,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0.15,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Leise, entfernt klingende Herztöne",
+          "minLevel": 0.2,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Atemgeräusch beidseits vorhanden, Klopfschall seitengleich",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Systolischer Blutdruck fällt bei Einatmung deutlich ab (Pulsus paradoxus)",
+          "minLevel": 0.4,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Perikardpunktion: nicht gerinnendes Blut aspiriert, Kreislauf bessert sich vorübergehend",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:Pericardiocentesis:Pericardium",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Thorakotomie: Herzbeutel eröffnet, Koagel ausgeräumt, Myokardwunde übernäht",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:Thoracotomy:Pericardium",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "stichverletzung_niere_rechts",
+      "name": "Stichverletzung der Niere rechts mit retroperitonealem Hämatom",
+      "region": "Abdomen",
+      "icd10": "S37.0",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "RightKidney",
+          "baseRate_mL_min": 25,
+          "maxTotalLoss_mL": 1500,
+          "lesion": "parenchymal",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Stichwunde in der Flanke rechts",
+        "Druck- und Klopfschmerz im Nierenlager rechts"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Abdominal and Pelvic Trauma: Retroperitoneum im FAST schlecht beurteilbar; CT mit Kontrastmittel beim stabilen Patienten; Hämaturie als Hinweis auf Nierenverletzung"
+        },
+        {
+          "citation": "Kozar RA, Crandall M, Shanmuganathan K, et al. Organ injury scaling 2018 update: Spleen, liver, and kidney. J Trauma Acute Care Surg. 2018;85(6):1119-1122.",
+          "url": "https://doi.org/10.1097/TA.0000000000002058",
+          "note": "AAST-Graduierung der Nierenverletzung (Grad IV: Lazeration bis ins Hohlsystem bzw. Segmentgefäß, aktive Blutung)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Stichkanal in die Niere rechts: Blutung ins Retroperitoneum, durch die Gerota-Faszie begrenzt (geschlossener Raum, Tamponadevolumen 1,5 L – Annahme). Parenchymblutung, kann gerinnen. Rate didaktisch. Behandlung: Angioembolisation (angio_niere) oder Operation. Entsteht in der Gewalt-Sandbox, wenn der Stichkanal die Niere oder ihre Gefäße erreicht.",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Keine freie Flüssigkeit intraperitoneal; das Retroperitoneum ist im FAST nicht sicher beurteilbar.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Tiefe Lazeration der Niere rechts bis ins Hohlsystem mit Kontrastmittelaustritt und perirenalem Hämatom (AAST Grad IV); Stichkanal von dorsolateral.",
+          "resolvedByTag": "intervention:HemorrhageControl:RightKidney,LeftKidney:angio_niere",
+          "resolvedFinding": "Zustand nach Embolisation, kein aktiver Kontrastmittelaustritt mehr, Hämatom unverändert.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "abdomen_untersucht",
+          "description": "Abdomen untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Abdomen"
+          ],
+          "limit": 240,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "C-Teil: Wunde, Flanke und Abdomen als Blutungsquelle prüfen. Zeitziel didaktisch."
+        },
+        {
+          "id": "ct",
+          "description": "CT mit Kontrastmittel durchgeführt",
+          "type": "deadline",
+          "tags": [
+            "imaging:ct_ganzkoerper"
+          ],
+          "limit": 1200,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Retroperitoneale Blutung zeigt erst die CT (ATLS). 20 min didaktisch."
+        },
+        {
+          "id": "blutstillung",
+          "description": "Angioembolisation bzw. OP angeordnet",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:RightKidney,LeftKidney:angio_niere"
+          ],
+          "limit": 1800,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Aktive Blutung aus der Niere: Embolisation oder Operation. 30 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Zunehmende Schwellung und Abwehrspannung in der Flanke rechts",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 400,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Hämatom in der Flanke rechts (Grey-Turner-Zeichen beginnt)",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 900,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Makrohämaturie: blutiger Urin im Blasenkatheter",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:Supportive:UrinaryCatheter:blasenkatheter",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Bauch weich, keine Peritonitis",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "stichverletzung_niere_links",
+      "name": "Stichverletzung der Niere links mit retroperitonealem Hämatom",
+      "region": "Abdomen",
+      "icd10": "S37.0",
+      "aisSeverity": 4,
+      "effects": [
+        {
+          "effectType": "Hemorrhage",
+          "compartment": "LeftKidney",
+          "baseRate_mL_min": 25,
+          "maxTotalLoss_mL": 1500,
+          "lesion": "parenchymal",
+          "progressionRate_per_min": 0,
+          "initialLevel": 0
+        }
+      ],
+      "clinicalFindings": [
+        "Stichwunde in der Flanke links",
+        "Druck- und Klopfschmerz im Nierenlager links"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Abdominal and Pelvic Trauma: Retroperitoneum im FAST schlecht beurteilbar; CT mit Kontrastmittel beim stabilen Patienten; Hämaturie als Hinweis auf Nierenverletzung"
+        },
+        {
+          "citation": "Kozar RA, Crandall M, Shanmuganathan K, et al. Organ injury scaling 2018 update: Spleen, liver, and kidney. J Trauma Acute Care Surg. 2018;85(6):1119-1122.",
+          "url": "https://doi.org/10.1097/TA.0000000000002058",
+          "note": "AAST-Graduierung der Nierenverletzung (Grad IV: Lazeration bis ins Hohlsystem bzw. Segmentgefäß, aktive Blutung)"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Stichkanal in die Niere links: Blutung ins Retroperitoneum, durch die Gerota-Faszie begrenzt (geschlossener Raum, Tamponadevolumen 1,5 L – Annahme). Parenchymblutung, kann gerinnen. Rate didaktisch. Behandlung: Angioembolisation (angio_niere) oder Operation. Entsteht in der Gewalt-Sandbox, wenn der Stichkanal die Niere oder ihre Gefäße erreicht.",
+      "imaging": [
+        {
+          "modality": "eFAST",
+          "finding": "Keine freie Flüssigkeit intraperitoneal; das Retroperitoneum ist im FAST nicht sicher beurteilbar.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        },
+        {
+          "modality": "CTBody",
+          "finding": "Tiefe Lazeration der Niere links bis ins Hohlsystem mit Kontrastmittelaustritt und perirenalem Hämatom (AAST Grad IV); Stichkanal von dorsolateral.",
+          "resolvedByTag": "intervention:HemorrhageControl:RightKidney,LeftKidney:angio_niere",
+          "resolvedFinding": "Zustand nach Embolisation, kein aktiver Kontrastmittelaustritt mehr, Hämatom unverändert.",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "abdomen_untersucht",
+          "description": "Abdomen untersucht",
+          "type": "deadline",
+          "tags": [
+            "exam:Abdomen"
+          ],
+          "limit": 240,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "C-Teil: Wunde, Flanke und Abdomen als Blutungsquelle prüfen. Zeitziel didaktisch."
+        },
+        {
+          "id": "ct",
+          "description": "CT mit Kontrastmittel durchgeführt",
+          "type": "deadline",
+          "tags": [
+            "imaging:ct_ganzkoerper"
+          ],
+          "limit": 1200,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Retroperitoneale Blutung zeigt erst die CT (ATLS). 20 min didaktisch."
+        },
+        {
+          "id": "blutstillung",
+          "description": "Angioembolisation bzw. OP angeordnet",
+          "type": "deadline",
+          "tags": [
+            "intervention:HemorrhageControl:RightKidney,LeftKidney:angio_niere"
+          ],
+          "limit": 1800,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Aktive Blutung aus der Niere: Embolisation oder Operation. 30 min didaktisch."
+        },
+        {
+          "id": "blut",
+          "description": "Blutprodukte begonnen",
+          "type": "deadline",
+          "tags": [
+            "intervention:FluidInfusion:Blood"
+          ],
+          "limit": 600,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": true,
+          "rationale": "Frühe Blutprodukte bei relevanter Blutung; jede Minute Verzögerung ist mit höherer Letalität assoziiert (Duchesne 2024). 10 min didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Zunehmende Schwellung und Abwehrspannung in der Flanke links",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 400,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Hämatom in der Flanke links (Grey-Turner-Zeichen beginnt)",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 900,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Makrohämaturie: blutiger Urin im Blasenkatheter",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:Supportive:UrinaryCatheter:blasenkatheter",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Bauch weich, keine Peritonitis",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
     }
   ]
 }

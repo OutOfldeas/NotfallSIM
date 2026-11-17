@@ -140,7 +140,8 @@ namespace NotfallSIM.Engines
                     Debug.LogWarning("[Pulse] Sauerstoffgabe noch nicht angebunden.");
                     break;
                 default:
-                    // TODO Phase 2: SENeedleDecompression bzw. Thoraxdrainage, inkl. Versagerrate wie im Mock.
+                    // TODO Phase 2: SENeedleDecompression bzw. Thoraxdrainage, inkl. Versagerrate wie im Mock;
+                    // Perikardpunktion/Thorakotomie über SEPericardialEffusion (Hämoperikard) — VERIFY in der Asset-Version.
                     Debug.LogWarning($"[Pulse] Maßnahme {iv.Type} noch nicht angebunden.");
                     break;
             }

@@ -22,7 +22,10 @@ Häkchen = erledigt; *kursiv* = Stand der Prüfung. „In Unity nachgemessen“ 
 - [ ] In Unity prüfen: Lage des Zielrings auf der Haut, Größe/Lage des Hinweises bei verschiedenen Fenstergrößen, Bildrate beim Zielen (60 000 Dreiecke), Marken während der Wiedergabe
 - [x] Strukturen in der Bahn der Klinge (Anatomiemodell, BodyParts3D): Vorschau „In der Bahn (Klinge 11 cm): 8. Rippe 2,5 cm · Zwerchfell 3,4 cm · Leber 4 cm“, nach dem Stich „durch: …“ bis zur erreichten Tiefe. Test: seitlicher Stich auf Leber-/Milzhöhe trifft Rippe/Zwerchfell, dann das Organ
 - [x] Stich mit Anatomiemodell (Schritt 1 des Wundmodells): Knochen liegt dort, wo das Modell eine Rippe hat (statt 50-%-Zufall), Organwiderstand ab dem ersten Organ; tiefe Stichverletzung nur, wenn ein Organ oder Gefäß erreicht wurde (Grund nennt es, z. B. „erreicht Leber“). Ohne body.bin gelten weiter Wanddicke und Wahrscheinlichkeit
-- [ ] Offen: Stichrichtung frei wählen (z. B. mit gedrückter rechter Maustaste ziehen); weitere Verletzungen je Struktur (Herz/Tamponade, große Gefäße, Niere) statt der Region
+- [x] Verletzung je erreichter Struktur (`impact_model.json › penetration.structures`): Herz → **Stichverletzung des Herzens mit Perikardtamponade**, Niere oder Nierengefäße → **Stichverletzung der Niere mit retroperitonealem Hämatom** (re/li); die übrigen Strukturen ergeben weiter die Verletzung der Region (Lunge davor → zusätzlich Hämatopneumothorax)
+- [x] Mock: Hämoperikard mit steiler Druck-Volumen-Kurve → Tamponadegrad (Blutdruckabfall, schmaler Pulsdruck, Tachykardie, obstruktiver Stillstand bei 25 mmHg); neue Maßnahmen **Perikardpunktion** (50 % Erfolg, überbrückend) und **Notfallthorakotomie** (nach 5 min, definitiv), **Angioembolisation Niere**; Befunde Beck-Trias, Pulsus paradoxus, Hämaturie im Blasenkatheter; eFAST/CT-Befunde. Test: Stillstand nach ≈ 13 min bei ≈ 150 mL Verlust
+- [ ] In Unity prüfen: Stich präkordial in der Gewalt-Sandbox → Übergabe in den Schockraum, Verlauf, Maßnahmen im Menü; Kriterien und Zeitziele klinisch gegenlesen
+- [ ] Offen: Stichrichtung frei wählen (z. B. mit gedrückter rechter Maustaste ziehen); große Gefäße (Aorta, V. cava, Aa. iliacae) als eigene Verletzung; Perikard zur Pleura hin offen (Hämatothorax statt Tamponade); Volumengabe bessert die Tamponade kurz (nicht modelliert); Hautzeichen in `injury_visuals.json` für die neuen Verletzungen; Browser-Prototyp und Pulse ohne Tamponade
 
 ## Stand 17.11.2026 (spät) — Organmodell (offline, in Unity noch nicht nachgemessen)
 
@@ -83,7 +86,7 @@ Häkchen = erledigt; *kursiv* = Stand der Prüfung. „In Unity nachgemessen“ 
 - [ ] Schädel- und Organwiderstand im Stichkanal, Kantenbreite und Schnitttiefe je N mit Messungen belegen; Steifigkeit von Becken und Extremitäten
 - [ ] Vorzeichen von Halskraft/-moment und Femurkraft aus Joint.currentForce/currentTorque in Unity prüfen
 - [ ] Halsverletzung (HWS) mit Physiologie in die Datenbank aufnehmen, dann Nij zuordnen
-- [ ] Fehlende typische Verletzungen: Kalkaneus und LWK 1 (Sturz) am 17.11. ergänzt, Rippenserie rechts vorhanden; HWS (HWK 5) am 17.11. ergänzt; offen: übrige Wirbelsäule, Aortenverletzung (Dezeleration)
+- [ ] Fehlende typische Verletzungen: Kalkaneus und LWK 1 (Sturz) am 17.11. ergänzt, Rippenserie rechts vorhanden; HWS (HWK 5) am 17.11. ergänzt; Herz (Tamponade) und Niere als Stichverletzung am 17.11. ergänzt; offen: übrige Wirbelsäule, Aortenverletzung (Dezeleration)
 - [ ] Anatomie: Zuordnung Verletzung → Strukturen (`anatomy.json`) und schematische Nervenverläufe gegenlesen
 - [ ] SDH/EDH als eigene Hämatom-Form (Sichel/Linse) zwischen Kalotte und Rinde darstellen statt Rinde einzufärben
 - [ ] Restliche Überschneidungen am Zwerchfell (dünne Platte) gezielt nachbearbeiten

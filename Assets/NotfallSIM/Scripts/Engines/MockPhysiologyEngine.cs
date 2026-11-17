@@ -57,6 +57,37 @@ namespace NotfallSIM.Engines
         // Bildungszeit und Restfluss: Annahmen.
         const double RebleedMap_mmHg = 64, ClotFormation_s = 300, ClotFlowFactor = 0.1;
 
+        // Herzbeutel (Kompartiment "Pericardium"): akute Tamponade. Das Perikard dehnt sich akut kaum — Druck-Volumen-Kurve
+        // flach bis zur Reserve, dann steil; akut genügen 150–200 mL (Spodick 2003). Hier P = P0 · (exp(V / V0) − 1) mit
+        // P0 = 2 mmHg, V0 = 60 mL (Annahme): 100 mL → 9, 150 mL → 22, 200 mL → 54 mmHg.
+        // Tamponadegrad = Perikarddruck / 25 mmHg: ab etwa dem venösen Füllungsdruck füllt sich das rechte Herz schlechter,
+        // bei 25 mmHg kein Schlagvolumen mehr (PEA). Kreislaufwirkung ab Grad 0,25, Pulsdruck wird schmal. Alles Annahmen.
+        const double PeriP0_mmHg = 2, PeriV0_mL = 60, PeriArrest_mmHg = 25;
+        const double TamOnset = 0.25, TamMaxSbpDrop = 80, TamDbpShare = 0.4, TamMaxHrAdd = 40, TamMaxRrAdd = 8, TamMaxEtCo2Drop = 12, TamMaxSpO2Drop = 4;
+        // Perikardpunktion: nur flüssiges Blut lässt sich absaugen (Annahme 70 % des Ergusses); die Blutung läuft weiter.
+        const double PericardiocentesisShare = 0.7;
+        double _periRemoved_mL;
+        bool _periOpen;
+
+        /// <summary>Druck im Herzbeutel (mmHg) bei dem darin angesammelten Blut.</summary>
+        public static double PericardialPressure_mmHg(double volume_mL) =>
+            volume_mL <= 0 ? 0 : PeriP0_mmHg * (Math.Exp(volume_mL / PeriV0_mL) - 1);
+
+        /// <summary>Blut im Herzbeutel (mL); nach Thorakotomie 0 (Perikard offen).</summary>
+        public double PericardialVolume_mL
+        {
+            get
+            {
+                if (_periOpen) return 0;
+                double v = 0;
+                foreach (var b in _bleeds.Values) if (SpaceOf(b.Injury.Compartment) == "Pericardium") v += b.Lost_mL;
+                return Math.Max(0, v - _periRemoved_mL);
+            }
+        }
+
+        /// <summary>Tamponadegrad 0..1 (1 = obstruktiver Stillstand).</summary>
+        public double TamponadeLevel => Math.Min(1, PericardialPressure_mmHg(PericardialVolume_mL) / PeriArrest_mmHg);
+
         // Hydrostatik: Druck am Blutungsort = Druck auf Herzhöhe − ρ·g·Δh (Δh = Höhe über dem Herzen).
         // ρ = 1060 kg/m³ (Kenner 1989), g = 9,81 m/s² → 78,0 mmHg je Meter.
         public const double HydrostaticMmHgPerM = 1060 * 9.81 / 133.322;
@@ -84,6 +115,9 @@ namespace NotfallSIM.Engines
             { "LeftThighArtery", new KeyValuePair<double, string>((0.530 + 0.285) / 2, "legL") },
             { "RightChest", new KeyValuePair<double, string>(0.72, "trunk") },           // Pleurahöhle (Hämatothorax)
             { "LeftChest", new KeyValuePair<double, string>(0.72, "trunk") },
+            { "Pericardium", new KeyValuePair<double, string>(HeartLevel, "trunk") },
+            { "RightKidney", new KeyValuePair<double, string>(0.62, "trunk") },               // Retroperitoneum (Gerota-Faszie)
+            { "LeftKidney", new KeyValuePair<double, string>(0.62, "trunk") },
         };
 
         /// <summary>Lagerungen: Oberkörper (Kopf hoch, Grad), Beine rechts/links, Arme rechts/links (Grad gegen die Liegefläche),
@@ -151,6 +185,7 @@ namespace NotfallSIM.Engines
             string space = SpaceOf(b.Injury.Compartment);
             if (space == "") return 0;
             if (space == "Peritoneum") return AbdominalPressure_mmHg(spaceVolume_mL);
+            if (space == "Pericardium") return spaceVolume_mL <= 0 ? 0 : PericardialPressure_mmHg(PericardialVolume_mL);   // abzüglich Abgesaugtem
             return b.Injury.MaxTotalLoss_mL > 0 ? spaceVolume_mL / b.Injury.MaxTotalLoss_mL * ReferencePressure(b) : 0;
         }
 
@@ -349,6 +384,8 @@ namespace NotfallSIM.Engines
             double level = 0;
             foreach (var t in _tension.Values) if (t.Injury.InjuryId == injuryId) level = Math.Max(level, t.Level);
             foreach (var b in _brain.Values) if (b.Injury.InjuryId == injuryId) level = Math.Max(level, b.Level);
+            foreach (var b in _bleeds.Values)
+                if (b.Injury.InjuryId == injuryId && SpaceOf(b.Injury.Compartment) == "Pericardium") level = Math.Max(level, TamponadeLevel);
             return level;
         }
 
@@ -368,6 +405,7 @@ namespace NotfallSIM.Engines
             _brain.Clear();
             _infusions.Clear();
             _oxygen = _arrest = _intubated = false; _pressor = 0;
+            _periRemoved_mL = 0; _periOpen = false;
             _apneaStart = _apneaEnd = -1; LastIntubationAttempts = 0;
             _position = Positions["flach"]; PositionId = "flach";
             _drugs.Clear(); _drugDoses.Clear(); _warming = _fluidWarmer = _txa = false;
@@ -498,6 +536,21 @@ namespace NotfallSIM.Engines
                 case InterventionType.NeurosurgicalDecompression:
                     foreach (var bi in _brain.Values) { bi.Level = Math.Min(bi.Level, TbiLevelAfterSurgery); bi.Stopped = true; }
                     break;
+                case InterventionType.Pericardiocentesis:
+                    // Kann versagen (Nadel verfehlt den Erguss, Blut geronnen): SuccessProbability
+                    if (!_periOpen && _rng.NextDouble() < iv.SuccessProbability)
+                    {
+                        _periRemoved_mL += PericardiocentesisShare * PericardialVolume_mL;
+                        UpdateVitals();
+                    }
+                    break;
+                case InterventionType.Thoracotomy:
+                    _periOpen = true;
+                    foreach (var target in (iv.TargetCompartment ?? "Pericardium").Split(','))
+                        if (_bleeds.TryGetValue(target.Trim(), out var hb))
+                            hb.Multiplier = Math.Min(hb.Multiplier, iv.RateMultiplier);
+                    UpdateVitals();
+                    break;
                 case InterventionType.ChestDrain:
                     if (_tension.TryGetValue(iv.TargetCompartment, out var td))
                     {
@@ -611,7 +664,8 @@ namespace NotfallSIM.Engines
 
             // Ohne Reanimationsmodell irreversibel. Voller Spannungspneu = obstruktiver Stillstand (PEA),
             // volle Raumforderung = Einklemmung.
-            if (f >= ArrestThreshold || tp >= 1 || tbi >= 1) _arrest = true;
+            double tam = TamponadeLevel;
+            if (f >= ArrestThreshold || tp >= 1 || tbi >= 1 || tam >= 1) _arrest = true;
 
             double hb = _volume > 0 ? _redCellVolume / _volume * 100 / 3 : 0;
             if (_arrest)
@@ -639,18 +693,21 @@ namespace NotfallSIM.Engines
             // Spannungspneu wirkt additiv auf das Blutungsbild: früh Hypoxie, Tachypnoe, Tachykardie;
             // erst ab höherer Spannung obstruktiver Blutdruckabfall.
             double sbpDrop = tp > TpHypotensionOnset ? (tp - TpHypotensionOnset) / (1 - TpHypotensionOnset) * TpMaxSbpDrop : 0;
+            // Tamponade: Füllung behindert, Schlagvolumen sinkt; systolisch stärker als diastolisch (schmaler Pulsdruck)
+            double tamDrop = tam > TamOnset ? (tam - TamOnset) / (1 - TamOnset) * TamMaxSbpDrop : 0;
             double hr0 = ShockTables.Hr(Mode, 0);
             double hr = hr0 + _hrBaseOffset + (ShockTables.Hr(Mode, fh) - hr0) * _hrResponse;
             DrugEffects(f, out double drugSbp, out double drugHr, out double drugResp);
             double hypoCa = Math.Max(0, Math.Min(1, (1.0 - IonizedCa) / 0.4));       // ionisiertes Ca < 1,0: schwächere Kontraktion (Annahme)
-            double sbp = (ShockTables.Sbp(Mode, fh) + _sbpOffset - sbpDrop + 50 * cushing + VasopressorSbpRise * PressorEffect(_pressor)) * drugSbp - 15 * hypoCa;
-            double dbp = (ShockTables.Dbp(Mode, fh) + _sbpOffset * 0.5 - sbpDrop * 0.6 + 25 * cushing + VasopressorDbpRise * PressorEffect(_pressor)) * drugSbp - 8 * hypoCa;
+            double sbp = (ShockTables.Sbp(Mode, fh) + _sbpOffset - sbpDrop - tamDrop + 50 * cushing + VasopressorSbpRise * PressorEffect(_pressor)) * drugSbp - 15 * hypoCa;
+            double dbp = (ShockTables.Dbp(Mode, fh) + _sbpOffset * 0.5 - sbpDrop * 0.6 - tamDrop * TamDbpShare + 25 * cushing + VasopressorDbpRise * PressorEffect(_pressor)) * drugSbp - 8 * hypoCa;
+            if (tam > 0) dbp = Math.Min(dbp, sbp - 10);   // Tamponade: Pulsdruck schmal, aber nicht umgekehrt
             hr += drugHr;
             // Atemdepression durch Opioid/Hypnotikum wirkt wie ein ungeschützter Atemweg (nur spontan atmend)
             double respDep = _intubated ? 0 : drugResp;
             double rrFactor = 1 - 0.5 * respDep;
             airway = Math.Max(airway, respDep);
-            double spo2 = Interp(f, ShockTables.SpO2Air) - TpMaxSpO2Drop * tp - AirwayMaxSpO2Drop * airway
+            double spo2 = Interp(f, ShockTables.SpO2Air) - TpMaxSpO2Drop * tp - AirwayMaxSpO2Drop * airway - TamMaxSpO2Drop * tam
                           + (_oxygen ? 3 : 0) + (_intubated ? 3 : 0) - ApneaDesaturation();
             spo2 = Math.Max(50, Math.Min(100, spo2));
             double be = Interp(f, ShockTables.BaseExcess);
@@ -660,13 +717,13 @@ namespace NotfallSIM.Engines
             Current = new VitalSigns
             {
                 SimTime_s = _time,
-                HeartRate_bpm = hr + TpMaxHrAdd * tp - 35 * cushing,
+                HeartRate_bpm = hr + TpMaxHrAdd * tp + TamMaxHrAdd * tam - 35 * cushing,
                 SystolicBP_mmHg = sbp,
                 DiastolicBP_mmHg = dbp,
                 MeanArterialPressure_mmHg = dbp + (sbp - dbp) / 3.0,
-                RespirationRate_bpm = _intubated ? 14 : (ShockTables.Rr(Mode, f) + TpMaxRrAdd * tp - 6 * airway - 6 * cushing) * rrFactor,
+                RespirationRate_bpm = _intubated ? 14 : (ShockTables.Rr(Mode, f) + TpMaxRrAdd * tp + TamMaxRrAdd * tam - 6 * airway - 6 * cushing) * rrFactor,
                 SpO2_percent = spo2,
-                EtCO2_mmHg = Interp(f, ShockTables.EtCo2) - TpMaxEtCo2Drop * tp + AirwayMaxEtCo2Rise * airway,
+                EtCO2_mmHg = Interp(f, ShockTables.EtCo2) - TpMaxEtCo2Drop * tp - TamMaxEtCo2Drop * tam + AirwayMaxEtCo2Rise * airway,
                 BaseExcess = be,
                 Lactate = Interp(f, ShockTables.Lactate),
                 Hb = hb,

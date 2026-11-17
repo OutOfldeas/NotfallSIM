@@ -207,6 +207,27 @@
         "^fifth cervical vertebra$"
       ],
       "note": ""
+    },
+    {
+      "injuryId": "stichverletzung_herz",
+      "meshes": [
+        "^wall of heart$"
+      ],
+      "note": "Herz"
+    },
+    {
+      "injuryId": "stichverletzung_niere_rechts",
+      "meshes": [
+        "^right kidney$"
+      ],
+      "note": "Niere rechts"
+    },
+    {
+      "injuryId": "stichverletzung_niere_links",
+      "meshes": [
+        "^left kidney$"
+      ],
+      "note": "Niere links"
     }
   ]
 }

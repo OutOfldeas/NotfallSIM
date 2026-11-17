@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace NotfallSIM.Crash
 {
@@ -32,7 +33,9 @@ namespace NotfallSIM.Crash
         public string boneTissue;        // Gewebe der knöchernen Wand ("rippe", "schaedel"); leer = "knochen"
         public double boneThickness_m;   // Dicke der knöchernen Schicht vor dem Ende der Wand (0 = 1 cm)
     }
-    [Serializable] public class PenetrationModel { public SkinPenetration skin; public TissueResistance[] tissues; public PenetrationRegion[] regions; }
+    /// <summary>Verletzung je erreichter Struktur (Stichkanal mit Anatomiemodell): Name in body.bin (regulärer Ausdruck) → Verletzung.</summary>
+    [Serializable] public class StructureRule { public string pattern, injury, note; }
+    [Serializable] public class PenetrationModel { public SkinPenetration skin; public TissueResistance[] tissues; public PenetrationRegion[] regions; public StructureRule[] structures; }
 
     /// <summary>Schnitt: Klinge gleitet unter Andruck über die Haut.</summary>
     [Serializable] public class CutRule { public string segmentPrefix; public double vesselDepth_m, minLength_m; public string injuryRight, injuryLeft, note; }
@@ -618,15 +621,28 @@ namespace NotfallSIM.Crash
                 var rule = PenetrationRule(m, pen.Region);
                 if (pen.Channel != null)
                 {
-                    // Mit Anatomiemodell: tiefe Verletzung nur, wenn die Klinge ein Organ oder Gefäß erreicht hat
-                    if (rule == null) continue;
-                    if (ContactRegion(pen.Region) == "Arm" && (pen.Segment == null || !pen.Segment.StartsWith("Unterarm"))) continue;
+                    // Mit Anatomiemodell: tiefe Verletzung nur, wenn die Klinge ein Organ oder Gefäß erreicht hat.
+                    // Strukturen mit eigener Verletzung (Herz, Niere: penetration.structures) zuerst, unabhängig von der Region;
+                    // die übrigen erreichten Strukturen ergeben die Verletzung der Region (Lunge → Hämatopneumothorax usw.).
                     var deep = pen.Reached.Where(Anatomy.StabChannel.IsDeep).ToList();
                     if (deep.Count == 0) continue;
+                    double fatX = Math.Max(0, pen.FatExtra_m);
+                    string tail = pen.Embedded ? " (Fremdkörper steckt)" : "";
+                    var rest = new List<Anatomy.ChannelHit>();
+                    foreach (var h in deep)
+                    {
+                        var sr = m.penetration?.structures?.FirstOrDefault(r => !string.IsNullOrEmpty(r.pattern) && Regex.IsMatch(h.Name ?? "", r.pattern));
+                        if (sr == null || string.IsNullOrEmpty(sr.injury)) { rest.Add(h); continue; }
+                        double intoS = pen.Depth_m - fatX - h.Depth_m;
+                        add(sr.injury, 1, 0.5 + 0.4 * Math.Min(1, intoS / 0.03), $"Stichkanal {pen.Region} {pen.Depth_m * 100:0} cm tief, erreicht {h.Label}" + tail);
+                    }
+                    if (rest.Count == 0 || rule == null) continue;
+                    if (ContactRegion(pen.Region) == "Arm" && (pen.Segment == null || !pen.Segment.StartsWith("Unterarm"))) continue;
                     string idA = !string.IsNullOrEmpty(rule.deep) ? rule.deep : pen.Side > 0 ? rule.deepRight : rule.deepLeft;
-                    double into = pen.Depth_m - Math.Max(0, pen.FatExtra_m) - deep[0].Depth_m;
+                    if (string.IsNullOrEmpty(idA)) continue;
+                    double into = pen.Depth_m - fatX - rest[0].Depth_m;
                     add(idA, 1, 0.5 + 0.4 * Math.Min(1, into / 0.05),
-                        $"Stichkanal {pen.Region} {pen.Depth_m * 100:0} cm tief, erreicht {string.Join(", ", deep.Select(h => h.Label).Distinct())}" + (pen.Embedded ? " (Fremdkörper steckt)" : ""));
+                        $"Stichkanal {pen.Region} {pen.Depth_m * 100:0} cm tief, erreicht {string.Join(", ", rest.Select(h => h.Label).Distinct())}" + tail);
                     continue;
                 }
                 if (rule == null || pen.Depth_m < rule.wall_m + Math.Max(0, pen.FatExtra_m)) continue;   // in der Wand geblieben (auch: Rippe, dickes Fett)

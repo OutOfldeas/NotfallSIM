@@ -67,14 +67,16 @@ namespace NotfallSIM.Core
         Supportive,          // Wärmeerhalt, Infusionswärmer, Blasenkatheter u. Ä. (Compound bestimmt die Wirkung)
         Vasopressor,         // Noradrenalin: hebt den Blutdruck, erhöht damit aber auch den Blutfluss aus Läsionen
         Positioning,         // Lagerung (Ziel = Lagerungs-ID): Höhe der Blutungsorte über dem Herzen, Autotransfusion
-        VascularAccess       // Gefäßzugang (Compound "iv" oder "io"): nur im Ablauf, ohne Physiologie; Infusionen und Medikamente brauchen ihn
+        VascularAccess,      // Gefäßzugang (Compound "iv" oder "io"): nur im Ablauf, ohne Physiologie; Infusionen und Medikamente brauchen ihn
+        Pericardiocentesis,  // Perikardpunktion: saugt einen Teil des Hämoperikards ab (geronnenes Blut nicht), überbrückend
+        Thoracotomy          // Notfallthorakotomie mit Perikardiotomie und Naht: entlastet den Herzbeutel, stillt die Herzblutung
     }
 
     public class InterventionEvent
     {
         public string Id;                 // ID aus interventions.json, Teil des Protokoll-Tags
         public InterventionType Type;
-        public string TargetCompartment;  // HemorrhageControl: Blutungsort; Entlastung: "LeftLung"/"RightLung"
+        public string TargetCompartment;  // HemorrhageControl: Blutungsort; Entlastung: "LeftLung"/"RightLung"; Perikard: "Pericardium"
         public double RateMultiplier = 1; // für HemorrhageControl: 0 = Blutung gestoppt
         public double SuccessProbability = 1; // für NeedleDecompression
         public string Compound;           // FluidInfusion: "BalancedCrystalloid", "Blood"; Medication: z. B. "TXA"
