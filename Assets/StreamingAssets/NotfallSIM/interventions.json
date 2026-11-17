@@ -956,7 +956,7 @@
       "rateMultiplier": 0.05,
       "successProbability": 1,
       "once": true,
-      "effectDelay_s": 300,
+      "effectDelay_s": 180,
       "contraindicatedBy": [],
       "contraindicationNote": "",
       "dose": null,
@@ -973,7 +973,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Wirkt nach 5 min (Traumachirurg, Clamshell) – didaktische Setzung. Entlastet den Herzbeutel vollständig und stillt Herz-, Gefäß- und Lungenblutung in die Pleurahöhlen auf 5 %."
+      "reviewNotes": "Wirkt nach 3 min (Traumachirurg im Schockraum, Clamshell) – didaktische Setzung. Entlastet den Herzbeutel vollständig und stillt Herz-, Gefäß- und Lungenblutung in die Pleurahöhlen auf 5 %. Beim Stillstand durch die Tamponade als Reanimationsthorakotomie sofort: Spontankreislauf mit 50 % (Annahme)."
     },
     {
       "id": "intubation",

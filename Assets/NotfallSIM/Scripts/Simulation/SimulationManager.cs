@@ -220,7 +220,18 @@ namespace NotfallSIM.Simulation
         /// Bewertet wird der Zeitpunkt der Anordnung.</param>
         public void ApplyIntervention(InterventionEvent iv, string label, double delay_s = 0)
         {
-            if (Engine == null || Ended || Engine.Current.CardiacArrest) return;
+            // Beim Stillstand nur noch die Reanimationsthorakotomie (Tamponade), sofort statt nach der Vorlaufzeit
+            bool resuscitative = iv.Type == InterventionType.Thoracotomy && Engine is MockPhysiologyEngine mt && mt.ArrestFromTamponade;
+            if (Engine == null || Ended || (Engine.Current.CardiacArrest && !resuscitative)) return;
+            if (resuscitative)
+            {
+                string rtag = $"intervention:{iv.Type}:{iv.TargetCompartment ?? iv.Compound ?? ""}:{iv.Id}";
+                Engine.ApplyIntervention(iv);
+                Log($"Reanimationsthorakotomie: {label}", rtag);
+                Log(Engine.Current.CardiacArrest ? "Kein Spontankreislauf nach Entlastung des Herzbeutels" : "Spontankreislauf nach Entlastung des Herzbeutels (ROSC)",
+                    Engine.Current.CardiacArrest ? "event:rosc-failed" : "event:rosc");
+                return;
+            }
             if (IsAway) { Log($"Nicht möglich: Patient ist zur Bildgebung außerhalb des Schockraums ({label})", null); return; }
             string tag = $"intervention:{iv.Type}:{iv.TargetCompartment ?? iv.Compound ?? ""}:{iv.Id}";
             if (iv.Type == InterventionType.VascularAccess) { StartAccess(iv, label, tag); return; }

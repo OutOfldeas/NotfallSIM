@@ -34,8 +34,9 @@ namespace NotfallSIM.Simulation
                 Debug.LogWarning($"[Maßnahmen] Unbekannte ID '{interventionId}'");
                 return;
             }
-            if (def.once && _used.Contains(def.id)) return;
-            if (sim.Ended || sim.IsAway || sim.Vitals.CardiacArrest) { sim.Note($"Nicht möglich: {def.label}"); return; }
+            bool resuscitative = def.type == "Thoracotomy" && sim.Engine is NotfallSIM.Engines.MockPhysiologyEngine mt && mt.ArrestFromTamponade;
+            if (def.once && _used.Contains(def.id) && !resuscitative) return;   // Reanimationsthorakotomie auch nach früherer Anordnung
+            if (sim.Ended || sim.IsAway || (sim.Vitals.CardiacArrest && !resuscitative)) { sim.Note($"Nicht möglich: {def.label}"); return; }
             if (def.HasDose) { NotfallSIM.UI.DoseDialog.Show(def, sim.Scenario?.patient, d => ApplyDose(interventionId, d)); return; }
             Execute(def, def.ToEvent(), null);
         }

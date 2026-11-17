@@ -183,7 +183,7 @@
     TpHypotensionOnset: 0.6, TpMaxSbpDrop: 50, TpLevelAfterNeedle: 0.15, TpRateAfterNeedle: 0.2,
     // Herzbeutel (wie Mock): P = 2 · (exp(V/60) − 1) mmHg, Tamponadegrad = P / 25
     PeriP0: 2, PeriV0: 60, PeriArrest: 25, TamOnset: 0.25, TamMaxSbpDrop: 80, TamDbpShare: 0.4, TamMaxHrAdd: 40, TamMaxRrAdd: 8,
-    TamMaxEtCo2Drop: 12, TamMaxSpO2Drop: 4, PericardiocentesisShare: 0.7,
+    TamMaxEtCo2Drop: 12, TamMaxSpO2Drop: 4, PericardiocentesisShare: 0.7, ThoracotomyRoscProbability: 0.5,
     TbiPoints: [0.0, 0.3, 0.5, 0.7, 0.85, 1.0], TbiGcs: [15, 14, 11, 8, 5, 3], ShockGcs: [15, 15, 15, 14, 12, 9],
     TbiAnisocoriaLevel: 0.7, TbiCushingLevel: 0.8, TbiSecondaryInsultFactor: 2.0,
     TbiOsmotherapyReduction: 0.15, TbiLevelAfterSurgery: 0.4,
@@ -306,7 +306,7 @@
       this.time = 0;
       this.bleeds = {}; this.tension = {}; this.brain = {}; this.infusions = [];
       this.oxygen = this.arrest = this.intubated = false; this.pressor = 0;
-      this.periRemoved = 0; this.periOpen = false;
+      this.periRemoved = 0; this.periOpen = false; this.arrestTamponade = false;
       this.apneaStart = this.apneaEnd = -1; this.apneaT90 = 364; this.lastIntubationAttempts = 0;
       this.position = Positions.flach; this.positionId = "flach";
       this.drugs = []; this.warming = this.fluidWarmer = this.txa = false;
@@ -428,6 +428,10 @@
           if (!this.periOpen && this.random() < iv.successProbability) { this.periRemoved += C.PericardiocentesisShare * this.pericardialVolume(); this.updateVitals(); }
           break;
         case "Thoracotomy":
+          if (this.arrest) {
+            if (!this.arrestTamponade || this.random() >= C.ThoracotomyRoscProbability) break;
+            this.arrest = false; this.arrestTamponade = false;
+          }
           this.periOpen = true;
           for (const t of String(iv.target || "Pericardium").split(",")) { const b = this.bleeds[t.trim()]; if (b) b.multiplier = Math.min(b.multiplier, iv.rateMultiplier); }
           this.updateVitals();
@@ -529,7 +533,10 @@
       let tp = 0; for (const t of Object.values(this.tension)) tp = Math.max(tp, t.level);
       let tbi = 0; for (const b of Object.values(this.brain)) tbi = Math.max(tbi, b.level);
       const tam = this.tamponadeLevel();
-      if (f >= C.ArrestThreshold || tp >= 1 || tbi >= 1 || tam >= 1) this.arrest = true;
+      if (!this.arrest && (f >= C.ArrestThreshold || tp >= 1 || tbi >= 1 || tam >= 1)) {
+        this.arrest = true;
+        this.arrestTamponade = tam >= 1 && f < C.ArrestThreshold && tp < 1 && tbi < 1;
+      }
       const hb = this.volume > 0 ? this.redCells / this.volume * 100 / 3 : 0;
       if (this.arrest) {
         this.current = { hb, ph: 6.90, paco2: 70, pao2: 30, hco3: 4, potassium: 6.5, calcium: this.ica(), glucose: BloodGas.glucose(f),

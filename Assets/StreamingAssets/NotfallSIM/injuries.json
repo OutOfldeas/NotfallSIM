@@ -3201,7 +3201,7 @@
         }
       ],
       "evidenceStatus": "draft",
-      "reviewNotes": "Blutung aus dem Herzmuskel in den Herzbeutel (Kompartiment Pericardium). Der Perikarddruck steigt nach einer steilen Kurve (Mock: 150 mL ≈ 22 mmHg); daraus Tamponadegrad und Kreislaufwirkung (Blutdruckabfall, schmaler Pulsdruck, Tachykardie), bei 25 mmHg obstruktiver Stillstand. Der Gegendruck bremst die Blutung. Perikardpunktion saugt bei Erfolg (50 %, Annahme) 70 % ab; die Blutung läuft weiter. Thorakotomie entlastet und stillt (95 %). Blutungsrate, Kurve und Erfolg sind Annahmen. Offen: Perikard zur Pleura hin offen (dann Hämatothorax statt Tamponade). Entsteht in der Gewalt-Sandbox, wenn der Stichkanal das Herz erreicht (impact_model.json › penetration.structures).",
+      "reviewNotes": "Blutung aus dem Herzmuskel in den Herzbeutel (Kompartiment Pericardium). Der Perikarddruck steigt nach einer steilen Kurve (Mock: 150 mL ≈ 22 mmHg); daraus Tamponadegrad und Kreislaufwirkung (Blutdruckabfall, schmaler Pulsdruck, Tachykardie), bei 25 mmHg obstruktiver Stillstand. Der Gegendruck bremst die Blutung. Perikardpunktion saugt bei Erfolg (50 %, Annahme) 70 % ab; die Blutung läuft weiter. Thorakotomie entlastet und stillt (95 %); beim Stillstand durch die Tamponade als Reanimationsthorakotomie mit 50 % Spontankreislauf (Annahme). Befunde nach der Punktion zeigen, ob sie gewirkt hat. Blutungsrate, Kurve und Erfolg sind Annahmen. Offen: Perikard zur Pleura hin offen (dann Hämatothorax statt Tamponade). Entsteht in der Gewalt-Sandbox, wenn der Stichkanal das Herz erreicht (impact_model.json › penetration.structures).",
       "imaging": [
         {
           "modality": "eFAST",
@@ -3333,8 +3333,20 @@
           "untilTagDelay_s": 0
         },
         {
-          "text": "Perikardpunktion: nicht gerinnendes Blut aspiriert, Kreislauf bessert sich vorübergehend",
+          "text": "Perikardpunktion: nicht gerinnendes Blut aspiriert, Blutdruck steigt vorübergehend",
           "minLevel": 0,
+          "maxLevel": 0.3,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "intervention:Pericardiocentesis:Pericardium",
+          "requiresTagDelay_s": 0,
+          "untilTag": "intervention:Thoracotomy:Pericardium",
+          "untilTagDelay_s": 0
+        },
+        {
+          "text": "Perikardpunktion: kaum Blut aspirierbar (geronnen oder verfehlt), Tamponade besteht weiter",
+          "minLevel": 0.3,
           "maxLevel": 1,
           "minLost_mL": 0,
           "minBodyLoss": 0,

@@ -66,6 +66,13 @@ namespace NotfallSIM.Engines
         const double TamOnset = 0.25, TamMaxSbpDrop = 80, TamDbpShare = 0.4, TamMaxHrAdd = 40, TamMaxRrAdd = 8, TamMaxEtCo2Drop = 12, TamMaxSpO2Drop = 4;
         // Perikardpunktion: nur flüssiges Blut lässt sich absaugen (Annahme 70 % des Ergusses); die Blutung läuft weiter.
         const double PericardiocentesisShare = 0.7;
+        // Stillstand durch Tamponade: Notfallthorakotomie als Reanimationsmaßnahme (ERC 2021) — Wahrscheinlichkeit eines
+        // Spontankreislaufs 50 % (Annahme; Überlebensraten nach Notfallthorakotomie bei Herzstich je nach Kollektiv sehr verschieden)
+        public const double ThoracotomyRoscProbability = 0.5;
+        bool _arrestTamponade;
+
+        /// <summary>Stillstand allein durch die Tamponade (reversibel durch Thorakotomie)?</summary>
+        public bool ArrestFromTamponade => _arrest && _arrestTamponade;
         double _periRemoved_mL;
         bool _periOpen;
 
@@ -418,7 +425,7 @@ namespace NotfallSIM.Engines
             _brain.Clear();
             _infusions.Clear();
             _oxygen = _arrest = _intubated = false; _pressor = 0;
-            _periRemoved_mL = 0; _periOpen = false;
+            _periRemoved_mL = 0; _periOpen = false; _arrestTamponade = false;
             _apneaStart = _apneaEnd = -1; LastIntubationAttempts = 0;
             _position = Positions["flach"]; PositionId = "flach";
             _drugs.Clear(); _drugDoses.Clear(); _warming = _fluidWarmer = _txa = false;
@@ -558,6 +565,12 @@ namespace NotfallSIM.Engines
                     }
                     break;
                 case InterventionType.Thoracotomy:
+                    if (_arrest)
+                    {
+                        // Reanimationsthorakotomie: nur beim Stillstand durch die Tamponade, dann mit Wahrscheinlichkeit ROSC
+                        if (!_arrestTamponade || _rng.NextDouble() >= ThoracotomyRoscProbability) break;
+                        _arrest = false; _arrestTamponade = false;
+                    }
                     _periOpen = true;
                     foreach (var target in (iv.TargetCompartment ?? "Pericardium").Split(','))
                         if (_bleeds.TryGetValue(target.Trim(), out var hb))
@@ -678,7 +691,11 @@ namespace NotfallSIM.Engines
             // Ohne Reanimationsmodell irreversibel. Voller Spannungspneu = obstruktiver Stillstand (PEA),
             // volle Raumforderung = Einklemmung.
             double tam = TamponadeLevel;
-            if (f >= ArrestThreshold || tp >= 1 || tbi >= 1 || tam >= 1) _arrest = true;
+            if (!_arrest && (f >= ArrestThreshold || tp >= 1 || tbi >= 1 || tam >= 1))
+            {
+                _arrest = true;
+                _arrestTamponade = tam >= 1 && f < ArrestThreshold && tp < 1 && tbi < 1;
+            }
 
             double hb = _volume > 0 ? _redCellVolume / _volume * 100 / 3 : 0;
             if (_arrest)

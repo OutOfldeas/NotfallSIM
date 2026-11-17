@@ -291,6 +291,23 @@ static class Tests
         th.ApplyIntervention(new InterventionEvent { Type = InterventionType.Thoracotomy, TargetCompartment = "Pericardium", RateMultiplier = 0.05 });
         Advance(th, 30 * 60);
         Check(th.TamponadeLevel == 0 && !th.Current.CardiacArrest && th.Current.SystolicBP_mmHg > 110, $"Thorakotomie: Grad {th.TamponadeLevel:0.00}, RR {th.Current.SystolicBP_mmHg:0}");
+        // Stillstand durch die Tamponade: Reanimationsthorakotomie kann den Kreislauf wiederherstellen (50 %)
+        int rosc = 0;
+        for (int seed = 1; seed <= 40; seed++)
+        {
+            var r = new MockPhysiologyEngine(seed);
+            r.Initialize(new PatientProfile { weight_kg = 80 });
+            r.ApplyInjury(new InjuryEvent { InjuryId = "stichverletzung_herz", Effect = InjuryEffectType.Hemorrhage, Compartment = "Pericardium", Severity = 0.9, BaseRate_mL_min = 20, Lesion = "partial" });
+            for (int k = 0; k < 40 * 60 && !r.Current.CardiacArrest; k++) r.Advance(1);
+            if (seed == 1) Check(r.ArrestFromTamponade, "Stillstand durch die Tamponade erkannt");
+            r.ApplyIntervention(new InterventionEvent { Type = InterventionType.Thoracotomy, TargetCompartment = "Pericardium", RateMultiplier = 0.05 });
+            if (!r.Current.CardiacArrest) { rosc++; r.Advance(600); Check(!r.Current.CardiacArrest && r.Current.SystolicBP_mmHg > 90, $"nach ROSC stabil: RR {r.Current.SystolicBP_mmHg:0}"); }
+        }
+        Check(rosc > 10 && rosc < 30, $"ROSC nach Reanimationsthorakotomie: {rosc}/40");
+        var bled = new MockPhysiologyEngine(1); bled.Initialize(new PatientProfile());
+        bled.ApplyInjury(Bleed("Pelvis", 1, 400, 0));
+        for (int k = 0; k < 60 * 60 && !bled.Current.CardiacArrest; k++) bled.Advance(1);
+        Check(bled.Current.CardiacArrest && !bled.ArrestFromTamponade, "Verblutung ist kein Tamponade-Stillstand");
     }
 
     static void GreatVesselBleeding()
