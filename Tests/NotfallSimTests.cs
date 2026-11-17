@@ -1954,6 +1954,25 @@ static class Tests
 
     static void TrafficChecks()
     {
+        {
+            // Breite der Delle je Seite: Überdeckung mit dem Gegner (für das Gerüst im Szenario)
+            var vm0 = Load<NotfallSIM.Crash.VehicleModelFile>("vehicle_model.json");
+            var file0 = Load<NotfallSIM.Crash.TrafficScenarioFile>("traffic_scenarios.json");
+            var w = new List<string>();
+            foreach (var sc in file0.scenarios)
+            {
+                var ts = RunTraffic(sc, vm0.vehicleTypes, 8);
+                foreach (var b in ts.Bodies)
+                    for (int f = 0; f < 4; f++)
+                    {
+                        var fs = b.Faces[f];
+                        if (fs.MaxCrush < 0.02) continue;
+                        Check(fs.Width > 0.05 && fs.Width < 5, $"{sc.id} {b.Id} Seite {f}: Breite {fs.Width:0.00} m");
+                        w.Add($"{b.Id}/{f} {fs.Width:0.0}");
+                    }
+            }
+            Console.WriteLine("        Breite der Überdeckung (Szenarien): " + string.Join(", ", w.Take(12)));
+        }
         var vm = Load<NotfallSIM.Crash.VehicleModelFile>("vehicle_model.json");
         var types = vm.vehicleTypes;
         var file = Load<NotfallSIM.Crash.TrafficScenarioFile>("traffic_scenarios.json");

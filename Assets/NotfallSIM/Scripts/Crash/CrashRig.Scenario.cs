@@ -182,13 +182,15 @@ namespace NotfallSIM.Crash
             const bool rearRow = true;   // Innenraum hat immer zwei Sitzreihen
             var profile = CabinProfile(L, W, (float)t.wheelbase_m, floorY, hipY, zFront, dashZ, 0, rearRow, true);
             var faces = b.Faces;
-            CarModel(tr, profile, color, Vector3.zero, 0, () => new DeformState
+            var carVisual = CarModel(tr, profile, color, Vector3.zero, 0, () => new DeformState
             {
                 Front = (float)faces[TrafficSim.Front].MaxCrush, FrontPos = (float)faces[TrafficSim.Front].Position,
                 Rear = (float)faces[TrafficSim.Rear].MaxCrush, RearPos = (float)faces[TrafficSim.Rear].Position,
                 Left = (float)faces[TrafficSim.Left].MaxCrush, LeftPos = (float)faces[TrafficSim.Left].Position,
                 Right = (float)faces[TrafficSim.Right].MaxCrush, RightPos = (float)faces[TrafficSim.Right].Position
             }, t.mass_kg);
+            // Delle so breit wie die Überdeckung mit dem Gegner (Motorrad schmal, versetzter Anprall teilweise)
+            if (carVisual.Dent != null) carVisual.Dent.FaceWidth = f => faces[f].Width;
             float engineFrom = dashZ + 0.1f;
 
             // Innenraum (Kollider)

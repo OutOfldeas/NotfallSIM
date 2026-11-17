@@ -191,6 +191,7 @@ namespace NotfallSIM.Crash
             public double MaxCrush, MaxCurveForce;   // größte Verformung und die Kennlinienkraft dort (volle Breite)
             public double Crush;                     // aktuelle Verformung
             public double Position;                  // Ort des Kontakts entlang der Seite (lokal x bzw. z)
+            public double Width;                     // Breite der Überdeckung bei der größten Verformung (m; 0 = kein Kontakt)
             public double Intrusion;                 // Innenraum-Eindringen (verzögert)
             public double PeakForce_N;
         }
@@ -670,6 +671,7 @@ namespace NotfallSIM.Crash
                 fs.MaxCurveForce = Curve(b, face).Force(c);
                 b.ToLocal(px, pz, out double lx, out double lz);
                 fs.Position = face == Front || face == Rear ? lx : lz;
+                fs.Width = width;
             }
         }
 

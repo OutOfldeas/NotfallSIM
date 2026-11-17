@@ -16,6 +16,9 @@ namespace NotfallSIM.Crash
         public readonly SoftCar Car;
         /// <summary>Breite der Druckfläche an der Seite (m; PKW-Front ca. 1,7, Vorderrad ca. 0,4) und an Front/Heck (0 = volle Breite).</summary>
         public double SideWidth = 1.7, EndWidth = 0;
+        /// <summary>Breite je Seite (0 Front, 1 Heck, 2 links, 3 rechts) aus dem Stoßmodell, z. B. Überdeckung im Szenario;
+        /// gilt, wenn größer als 0, beim ersten Kontakt der Seite statt <see cref="SideWidth"/>/<see cref="EndWidth"/>.</summary>
+        public Func<int, double> FaceWidth;
         public readonly double Step_s;
         /// <summary>Größte Geschwindigkeit einer Druckfläche (m/s) — etwa die Annäherung bei einem Stadtunfall.</summary>
         public double MaxPlateSpeed = 15;
@@ -73,18 +76,20 @@ namespace NotfallSIM.Crash
             {
                 if (depth < 0.005) return;
                 double L = Car.Profile.Length, hw = Car.Profile.Width / 2;
+                double given = FaceWidth != null ? FaceWidth(f) : 0;
+                double endW = given > 0 ? Math.Max(0.3, given) : EndWidth, sideW = given > 0 ? Math.Max(0.3, given) : SideWidth;
                 pl = new SoftPlate { Sticky = true };
                 if (f < 2)
                 {
                     pl.Nz = f == 0 ? -1 : 1;
-                    if (EndWidth > 0) { pl.MinX = pos - EndWidth / 2; pl.MaxX = pos + EndWidth / 2; }
+                    if (endW > 0 && endW < Car.Profile.Width) { pl.MinX = pos - endW / 2; pl.MaxX = pos + endW / 2; }
                     // nur das vordere bzw. hintere Viertel bindet an (sonst zählte die ganze Länge als „vor der Fläche“)
                     if (f == 0) pl.MinZ = L / 4; else pl.MaxZ = -L / 4;
                 }
                 else
                 {
                     pl.Nx = f == 2 ? 1 : -1;
-                    pl.MinZ = pos - SideWidth / 2; pl.MaxZ = pos + SideWidth / 2;
+                    pl.MinZ = pos - sideW / 2; pl.MaxZ = pos + sideW / 2;
                     pl.MaxY = Car.Profile.Belt + 0.05;                       // Stoßfänger bis Haubenkante: unter der Gürtellinie
                     if (f == 2) pl.MaxX = -hw / 4; else pl.MinX = hw / 4;
                 }
