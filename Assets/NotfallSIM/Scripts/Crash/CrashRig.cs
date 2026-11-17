@@ -951,7 +951,6 @@ namespace NotfallSIM.Crash
             add("Thorax.D", Biomechanics.MaxAbs(defl) * 1000);
             add("Thorax.VC", Biomechanics.ViscousCriterion(defl, dt, 0.229));
             add("Nij", Biomechanics.Nij(Biomechanics.Cfc(g.NeckFz_N, dt, 1000), Biomechanics.Cfc(g.NeckMy_Nm, dt, 600)));
-            add("Oberschenkel rechts.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.FemurAxialR_N, dt, 600)) / 1000);
             // Axiale Last auf Unterschenkel/Fuß und LWS nur dort, wo sie der Verletzungsmechanismus ist: Sturz auf die Füße bzw.
             // das Gesäß, Fußraum beim Frontalaufprall. In Unity gesehen: Fußgänger 40 km/h ergab 15 kN im Knie und 6,2 kN in der
             // LWS (Kalkaneus- und LWK-Fraktur fast sicher) — dort wirken Quer- und Kontaktkräfte, die Gelenkkraft ist kein Maß
@@ -959,6 +958,10 @@ namespace NotfallSIM.Crash
             // und Rumpf quer (in Unity gesehen: Rückenlage aus 6 m ergab 38 kN „axial“ im Knie und 71 kN in der LWS)
             bool feetFirst = p.MechanismId == "sturz_hoehe" && FallOrientation == 0;
             bool axialLegs = feetFirst || p.MechanismId == "pkw_frontal", axialSpine = feetFirst;
+            // Femur längs: Knieanprall des Insassen (FMVSS 208) bzw. Landung auf den Füßen — nicht beim Fußgänger und nicht bei
+            // seitlicher Landung (in Unity gesehen: Fußgänger 43 kN, Sturz in Seitenlage 11 kN → Femurschaftfraktur 51 %)
+            bool axialFemur = p.MechanismId != "fussgaenger" && (p.MechanismId != "sturz_hoehe" || feetFirst);
+            if (axialFemur) add("Oberschenkel rechts.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.FemurAxialR_N, dt, 600)) / 1000);
             if (p.MechanismId == "sturz_hoehe")
                 Debug.Log($"[Crash] Sturz: {(FallOrientation == 0 ? "Füße voran" : FallOrientation == 1 ? "Seitenlage" : "Rückenlage")}; Gelenkkraft längs Unterschenkel " +
                           $"{Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialR_N, dt, 600)) / 1000:0.0}/{Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialL_N, dt, 600)) / 1000:0.0} kN, " +

@@ -24,7 +24,8 @@ Häkchen = erledigt; *kursiv* = Stand der Prüfung. „In Unity nachgemessen“ 
 - [x] Szenario „Linksabbieger übersieht Motorrad“: schmale Delle am rechten vorderen Kotflügel (18 cm), Rest der Flanke gerade; PKW-Fahrer T3 „kaum verletzt“, Motorradfahrer T1 (Beckenring 90 %, Femurschaft re 78 %, Rippenserie li 68 %)
 
 **Noch offen (gesehen)**
-- [ ] Sturz 6 m: Gelenkkräfte unplausibel hoch (Knie 38 kN, Femur 49 kN, LWS 71 kN; Becken 341 g) → Kalkaneus und LWK immer 100 %. Das starre Ragdoll beugt die Knie kaum und landet auf dem Gesäß; Beinbeugung/Muskeln beim Aufprall oder eine an Fallversuchen abgeglichene Messung nötig
+- [x] Sturz 6 m (17.11., 23 Uhr, in Unity nachgemessen): Die Landelage ist zufällig (Füße voran, Seite, Rücken). Bei Seiten- und Rückenlage waren die „axialen“ Gelenkkräfte kurze Spitzen quer zur Achse (LWS 43 kN, über 3 ms nur 7 kN) — Kalkaneus/Pilon, LWK und Femur längs zählen beim Sturz jetzt nur bei Landung mit den Füßen voran; Femur längs auch nicht mehr beim Fußgänger (43 kN). Füße voran: Unterschenkel 39 kN, LWS 33 kN (3-ms-Wert 30 kN, also anhaltend) — passt zur steifbeinigen Landung mit 10,8 m/s (Rumpf ≈ 70 g); Fraktur dann sicher
+- [ ] Sturz: Knie beugen beim Aufsetzen nicht nach (Muskeltonus hält die Haltung) — eine federnde Landung würde die Kräfte senken; Landelage nur aus drei Vorgaben, kein Gesäß voran
 - [ ] Wundort der Stichverletzungen ist in den Befundtexten fest vorgegeben (z. B. „4. ICR vordere Axillarlinie“), nicht aus dem Einstich
 - [ ] Gewalt: Messerstich drückt den liegenden Körper mit 3–5 kN in den Boden („Prellmarke Thorax seitlich (Bodenkontakt)“) — Wucht des Wurfs prüfen
 - [ ] Ergebnisliste der Sandbox lässt sich nach dem Crash nicht immer scrollen (Mausrad über der Liste)
