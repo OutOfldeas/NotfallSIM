@@ -93,6 +93,7 @@ static class Tests
         Run("Scheiben: Flächen je Scheibe, Bruchkriterien, Rissbild, Wölbung, Glassplitter-Zeichen", GlassChecks);
         Run("Sichtbare Frakturen: Zuordnung, Reihenfolge, Hautübergang, Knick über die Zeit", FractureChecks);
         Run("Verformbares Fahrzeug (Punkte und Balken): Fließen, Energie, Kennlinie, Zelle, versetzter Anprall, Haut", SoftBodyChecks);
+        Run("Zielen auf die Haut (Strahl gegen Dreiecksnetz)", MeshPickChecks);
         Run("Verformbares Fahrzeug in allen Modi: Dellen aus dem Knautschweg (Seite, Front, Haube), Seitenaufprall zweier Gerüste", SoftImpactChecks);
         Run("Motorrad: Gabel, Nicken über das Vorderrad, PKW-Delle in Reihe; ISO-13232-Konfigurationen", MotorcycleChecks);
         Run("Verkehrsunfall: Fahrdynamik, Bremsen, Ausweichen, Fahrzeug-Kollision mit Kennlinien (TrafficSim)", TrafficChecks);
@@ -1842,6 +1843,23 @@ static class Tests
         for (int i = 0; i < mesh.Count; i++) { frontMax = Math.Max(frontMax, mesh.V[3 * i + 2]); rearMin = Math.Min(rearMin, mesh.V[3 * i + 2]); }
         double len = frontMax - rearMin;
         Check(frontMax < c56.Body.WallZ + 0.05 && len < pkw.length_m - 0.35 && len > pkw.length_m - 0.9, $"Haut: Fahrzeug nach 56 km/h {len:0.00} m lang (vorher {pkw.length_m:0.00} m), nichts ragt durch die Wand");
+    }
+
+    static void MeshPickChecks()
+    {
+        // Würfel 1 m um den Ursprung (12 Dreiecke)
+        float[] v = { -0.5f,-0.5f,-0.5f, 0.5f,-0.5f,-0.5f, 0.5f,0.5f,-0.5f, -0.5f,0.5f,-0.5f, -0.5f,-0.5f,0.5f, 0.5f,-0.5f,0.5f, 0.5f,0.5f,0.5f, -0.5f,0.5f,0.5f };
+        int[] t = { 0,1,2, 0,2,3, 4,6,5, 4,7,6, 0,4,5, 0,5,1, 3,2,6, 3,6,7, 0,3,7, 0,7,4, 1,5,6, 1,6,2 };
+        bool hit = NotfallSIM.Crash.MeshPick.Raycast(v, t, 0.1, 0.2, -3, 0, 0, 1, out double d, out int tri, out double nx, out double ny, out double nz);
+        Check(hit && Math.Abs(d - 2.5) < 1e-9 && Math.Abs(nz + 1) < 1e-9, $"Strahl trifft die Vorderseite: t {d:0.###}, Normale ({nx:0},{ny:0},{nz:0}) zum Betrachter");
+        hit = NotfallSIM.Crash.MeshPick.Raycast(v, t, 0.7, 0.2, -3, 0, 0, 1, out d, out tri, out nx, out ny, out nz);
+        Check(!hit, "Strahl neben dem Würfel trifft nicht");
+        hit = NotfallSIM.Crash.MeshPick.Raycast(v, t, 0, 3, 0, 0, -2, 0, out d, out tri, out nx, out ny, out nz);
+        Check(hit && Math.Abs(d * 2 - 2.5) < 1e-9 && Math.Abs(ny - 1) < 1e-9, $"von oben, Richtung nicht normiert: Punkt in {d * 2:0.###} m Abstand, Normale nach oben");
+        NotfallSIM.Crash.MeshPick.Bounds(v, out var mn, out var mx);
+        Check(NotfallSIM.Crash.MeshPick.HitsBox(mn, mx, 0, 0.1, 0.2, -3, 0, 0, 1) && !NotfallSIM.Crash.MeshPick.HitsBox(mn, mx, 0, 2, 2, -3, 0, 0, 1), "Rahmen: Treffer und Fehlschuss");
+        hit = NotfallSIM.Crash.MeshPick.Raycast(v, t, 0, 0, 0, 1, 0, 0, out d, out tri, out nx, out ny, out nz);
+        Check(hit && Math.Abs(d - 0.5) < 1e-9 && Math.Abs(nx + 1) < 1e-9, "von innen: nächste Wand, Normale zum Ursprung");
     }
 
     static void SoftImpactChecks()

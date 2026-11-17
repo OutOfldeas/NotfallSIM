@@ -15,6 +15,13 @@ Häkchen = erledigt; *kursiv* = Stand der Prüfung. „In Unity nachgemessen“ 
 - [ ] Fußgänger 40 km/h: HIC nach dem Schädel-Plateau; Schädelfraktur im Ergebnis
 - [ ] Szenario mit Motorrad: schmale Delle in der PKW-Seite
 
+## Stand 17.11.2026 (abends) — Gewalt-Sandbox: Zielen und Rückmeldung (offline gebaut, in Unity noch nicht geprüft)
+
+- [x] Zielen auf die sichtbare Haut statt auf die Kapseln; Vorschau (Zielring, Gegenstand, Bahn, Hinweis mit Winkel zur Haut), +/− für das Tempo
+- [x] Marke an der Trefferstelle mit Ergebnis (Stichtiefe, Kraft, neue Verletzungen; „nicht eingedrungen“, „verfehlt“), wandert mit dem Körperteil
+- [ ] In Unity prüfen: Lage des Zielrings auf der Haut, Größe/Lage des Hinweises bei verschiedenen Fenstergrößen, Bildrate beim Zielen (60 000 Dreiecke), Marken während der Wiedergabe
+- [ ] Offen: Stichrichtung frei wählen (z. B. mit gedrückter rechter Maustaste ziehen); Organ unter der Zielstelle in der Vorschau anzeigen (Anatomiemodell)
+
 ## Nächste Schritte (Vorschlag, nach Nutzen)
 
 1. In Unity nachmessen (Liste oben) — vieles seit dem 14.11. ist nur offline geprüft.

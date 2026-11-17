@@ -244,6 +244,12 @@ den Schockraum (Schockraum-Szene muss erzeugt sein).
   durch Klick auf den Boden aufgestellt; dann den Körper dagegen schleudern. Ziehen läuft live; der Aufprall wird mit
   nachgiebigem Kontakt berechnet (0,1 ms während jedes Kontakts, sonst 1 ms) und abgespielt. Verletzungen sammeln sich
   über alle Einwirkungen und gehen samt Prellmarken und Stichwunden in den Schockraum. „Neuer Körper“ beginnt von vorn
+  - Zielen und Rückmeldung — `ImpactSandbox.Aim.cs`, `MeshPick.cs`: Ziel ist die sichtbare Haut (Strahl gegen die
+    gebackene Haut, nicht gegen die Kapseln des Ragdolls). Unter der Maus: Zielring, der Gegenstand halb durchsichtig
+    in der Ausgangslage, Bahn (beim Wurf die Flugkurve) und ein Hinweis mit Art, Körperteil, Tempo und beim Stich dem
+    Winkel zur Haut (über ca. 45° gleitet die Spitze ab). +/− ändert das Tempo. Nach jeder Einwirkung steht an der
+    getroffenen Stelle eine Marke mit Stichtiefe, Schnitt, Kraft und neuen Verletzungen (rot ≥ 50 %, orange ≥ 10 %);
+    „nicht eingedrungen“ bzw. „verfehlt“, wenn nichts passiert ist.
   - Kontakt — `SoftContact.cs`: Kontaktmodifikation von PhysX; je Kontaktpunkt höchstens F·dt mit
     F = k(δ)·δ + c·δ̇ aus `impact_model.json` (Kopf nach Fläche, Thorax nach Melvin/Kroell, Bauch nach Hardy); Kontaktfläche aus der Geometrie
     (Fläche, Kante, Ecke, Kugelkappe); Schnittweg einer Schneide unter Andruck; HIC15 aus der Kopfbewegung

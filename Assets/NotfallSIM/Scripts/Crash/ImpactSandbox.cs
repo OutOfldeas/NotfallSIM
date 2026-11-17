@@ -19,7 +19,7 @@ namespace NotfallSIM.Crash
     /// wird der Aufprall mit nachgiebigem Kontakt und 10 kHz berechnet und abgespielt (<see cref="CrashRig.RunImpact"/>).
     /// Verletzungen sammeln sich über alle Würfe (<see cref="ImpactModel.Evaluate"/>) und gehen in den Schockraum.
     /// </summary>
-    public class ImpactSandbox : MonoBehaviour
+    public partial class ImpactSandbox : MonoBehaviour
     {
         CrashRig _rig;
         CrashSandbox _host;
@@ -82,6 +82,8 @@ namespace NotfallSIM.Crash
             if (!Active) return;
             Release(false);
             Active = false;
+            HidePreview();
+            ClearMarkers();
             _rig.EndGewalt();
             if (_panel) _panel.gameObject.SetActive(false);
             if (_savedFixedDt > 0) { Time.fixedDeltaTime = _savedFixedDt; _savedFixedDt = -1; }
@@ -96,6 +98,8 @@ namespace NotfallSIM.Crash
             Release(false);
             _p.Seed = UnityEngine.Random.Range(1, 100000);
             _rig.BuildGewalt(_p, _model);
+            SkinChanged();
+            ClearMarkers();
             _blunt.Clear(); _cuts.Clear(); _maxHic = 0; _maxMeasure.Clear(); _actions.Clear(); _marks.Clear(); _allPenetrations.Clear(); _run = 0; _stabMarks = 0; _lastSummary = "";
             _host.SetGewaltResult(null, null, "Körper liegt bereit.\n\n" + Help());
         }
@@ -111,7 +115,8 @@ namespace NotfallSIM.Crash
         static string Help() =>
             "<size=85%><b>Bedienung</b>\n" +
             "· Werkzeug „Körper ziehen“: Körperteil mit der linken Maus packen, ziehen, schwungvoll loslassen.\n" +
-            "· Gegenstand wählen, dann auf ein Körperteil klicken: werfen, schlagen oder stechen (Geschwindigkeit mit –/+).\n" +
+            "· Gegenstand wählen und mit der Maus auf die Haut zielen: Zielring, Bahn und Hinweis zeigen, was passiert. Klick führt aus (Tempo mit +/− oder den Knöpfen).\n" +
+            "· Nach jeder Einwirkung steht eine Marke an der getroffenen Stelle: Stichtiefe, Kraft, neue Verletzungen.\n" +
             "· Messer, Glasscherbe: mit gedrückter Umschalttaste klicken = Schnitt (Klinge wird mit Andruck über die Haut gezogen).\n" +
             "· Wand, Tischkante, Bordstein, Bewehrungsstab: auf den Boden klicken zum Aufstellen, dann den Körper dagegen schleudern.\n" +
             "· Verletzungen sammeln sich über alle Würfe. „Neuer Körper“ beginnt von vorn.</size>";
@@ -134,6 +139,7 @@ namespace NotfallSIM.Crash
         void SelectTool(SandboxObject o)
         {
             _tool = o;
+            if (o == null) HidePreview();
             foreach (var kv in _toolButtons)
                 kv.Value.color = kv.Key == (o != null ? o.id : "") ? ToolSelected : (_objects.objects.FirstOrDefault(x => x.id == kv.Key)?.Sharp == true ? SharpColor : ToolColor);
         }
@@ -196,18 +202,23 @@ namespace NotfallSIM.Crash
         void Update()
         {
             if (!Active || _rig == null || _rig.Ragdoll == null || _cam == null) return;
-            if (_rig.Running || _rig.Playing) return;
-            bool down, held, up, shift; Vector2 mouse;
+            if (_rig.Running || _rig.Playing) { HidePreview(); return; }
+            bool down, held, up, shift, faster, slower; Vector2 mouse;
 #if ENABLE_INPUT_SYSTEM
             var m = UnityEngine.InputSystem.Mouse.current;
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (m == null) return;
             down = m.leftButton.wasPressedThisFrame; held = m.leftButton.isPressed; up = !held && _grabbed != null; mouse = m.position.ReadValue();
             shift = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
+            faster = kb != null && (kb.equalsKey.wasPressedThisFrame || kb.numpadPlusKey.wasPressedThisFrame || kb.rightBracketKey.wasPressedThisFrame);
+            slower = kb != null && (kb.minusKey.wasPressedThisFrame || kb.numpadMinusKey.wasPressedThisFrame || kb.slashKey.wasPressedThisFrame);
 #else
             down = Input.GetMouseButtonDown(0); held = Input.GetMouseButton(0); up = !held && _grabbed != null; mouse = Input.mousePosition;
             shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            faster = Input.GetKeyDown(KeyCode.Plus) || Input.GetKeyDown(KeyCode.Equals) || Input.GetKeyDown(KeyCode.KeypadPlus);
+            slower = Input.GetKeyDown(KeyCode.Minus) || Input.GetKeyDown(KeyCode.KeypadMinus);
 #endif
+            if (faster || slower) { ChangeSpeed(faster ? 1 : -1); _host.RefreshSettings(); }
             var ray = _cam.ScreenPointToRay(mouse);
             if (_grabbed != null)
             {
@@ -215,11 +226,13 @@ namespace NotfallSIM.Crash
                 _handTarget = ray.origin + ray.direction * _grabDepth;
                 return;
             }
-            if (!down || OverUi()) return;
-            if (!Physics.Raycast(ray, out var hit, 200f, ~0)) return;
-            if (_tool == null) Grab(hit, ray);
-            else if (shift && _tool.HasEdge) Slash(_tool, hit);
-            else Use(_tool, hit, ray);
+            bool overUi = OverUi();
+            AimHit aim = overUi ? null : AimAt(ray);
+            if (_tool != null && !overUi) ShowPreview(aim, shift, mouse); else HidePreview();
+            if (!down || overUi || aim == null) return;
+            if (_tool == null) Grab(aim, ray);
+            else if (shift && _tool.HasEdge) Slash(_tool, aim);
+            else Use(_tool, aim);
         }
 
         /// <summary>
@@ -227,19 +240,15 @@ namespace NotfallSIM.Crash
         /// Andruck entlang ihrer Länge 20 cm über den Klickpunkt gezogen. Andruck 40 N (Annahme: deutlich über der
         /// Schnittschwelle glatter Klingen von ca. 19 N, Bolliger 2020).
         /// </summary>
-        void Slash(SandboxObject o, RaycastHit hit)
+        void Slash(SandboxObject o, AimHit aim)
         {
             const float press_N = 40f, stroke_m = 0.2f;
+            var plan = MakePlan(o, aim, true);
             float s = Mathf.Clamp(_speed[o.id], 0.5f, 3f);   // Schnitte sind langsamer als Stiche
-            var seg = Segment(hit.collider);
-            string where = seg != null ? SegmentName(seg) : "Boden";
-            Vector3 dir = -(_cam.transform.position - hit.point).normalized;   // in den Körper
-            Vector3 tan = Vector3.Cross(dir, Vector3.up);
-            if (tan.sqrMagnitude < 1e-4f) tan = Vector3.Cross(dir, Vector3.forward);
-            tan = tan.normalized;
-            var rot = Quaternion.LookRotation(tan, Vector3.Cross(tan, dir));   // z = Zugrichtung, x = Schneide in den Körper
-            Vector3 start = hit.point - tan * (stroke_m / 2) - dir * 0.01f;
-            var info = _rig.SpawnObject(o, start, rot, tan * s + dir * 0.3f, false, 1e9);   // 1e9: beim Schneiden kein Durchstich
+            string where = aim.Segment != null ? SegmentName(aim.Segment) : "Boden";
+            Vector3 dir = plan.Dir, tan = plan.Tangent;
+            ExpectHit(aim, o, true);
+            var info = _rig.SpawnObject(o, plan.Start, plan.Rot, plan.Velocity, false, 1e9);   // 1e9: beim Schneiden kein Durchstich
             bool released = false;
             Action<float, float> perStep = (t, dt) =>
             {
@@ -272,24 +281,24 @@ namespace NotfallSIM.Crash
             return rb != null && _rig.Ragdoll.Segments.ContainsValue(rb) ? rb : null;
         }
 
-        void Grab(RaycastHit hit, Ray ray)
+        void Grab(AimHit hit, Ray ray)
         {
-            var seg = Segment(hit.collider);
+            var seg = hit.Segment;
             if (seg == null) return;
             var handGo = new GameObject("Hand");
-            handGo.transform.position = hit.point;
+            handGo.transform.position = hit.Point;
             _hand = handGo.AddComponent<Rigidbody>();
             _hand.isKinematic = true;
             _grabbed = seg;
             _grabJoint = seg.gameObject.AddComponent<ConfigurableJoint>();
             _grabJoint.connectedBody = _hand;
             _grabJoint.autoConfigureConnectedAnchor = false;
-            _grabJoint.anchor = seg.transform.InverseTransformPoint(hit.point);
+            _grabJoint.anchor = seg.transform.InverseTransformPoint(hit.Point);
             _grabJoint.connectedAnchor = Vector3.zero;
             _grabJoint.xMotion = _grabJoint.yMotion = _grabJoint.zMotion = ConfigurableJointMotion.Locked;
             _grabJoint.angularXMotion = _grabJoint.angularYMotion = _grabJoint.angularZMotion = ConfigurableJointMotion.Free;
-            _grabDepth = Vector3.Dot(hit.point - ray.origin, ray.direction);
-            _handTarget = hit.point;
+            _grabDepth = Vector3.Dot(hit.Point - ray.origin, ray.direction);
+            _handTarget = hit.Point;
             _handVel = Vector3.zero;
             foreach (var rb in _rig.Ragdoll.Segments.Values) rb.WakeUp();
         }
@@ -316,6 +325,7 @@ namespace NotfallSIM.Crash
             if (_hand != null) Destroy(_hand.gameObject);
             var seg = _grabbed;
             _grabJoint = null; _hand = null; _grabbed = null;
+            SkinChanged();
             if (!compute || seg == null) return;
             float speed = CrashPhysics.Velocity(seg).magnitude;
             float height = _rig.Ragdoll.Segments.Values.Min(rb => rb.position.y);
@@ -330,49 +340,34 @@ namespace NotfallSIM.Crash
             return s != null ? (s.ModelSegment ?? s.Region) : rb != null ? rb.name : "?";
         }
 
-        void Use(SandboxObject o, RaycastHit hit, Ray ray)
+        void Use(SandboxObject o, AimHit aim)
         {
             float s = _speed[o.id];
             double skin = o.Sharp ? ImpactModel.SkinPenetrationForce(_model, o, true) : 0;
-            var seg = Segment(hit.collider);
+            var seg = aim.Segment;
             string where = seg != null ? SegmentName(seg) : "Boden";
-            Vector3 toCam = (_cam.transform.position - hit.point).normalized;
+            var plan = MakePlan(o, aim, false);
             switch (o.mode)
             {
                 case "statisch":
                 {
-                    // auf den Boden stellen, neben den Körper, wenn er getroffen wurde
-                    Vector3 p = new Vector3(hit.point.x, 0, hit.point.z);
-                    if (seg != null) p += Vector3.ProjectOnPlane(toCam, Vector3.up).normalized * 0.6f;
-                    var size = new Vector3(o.size_m[0], o.size_m[1], o.size_m[2]);
-                    Quaternion yaw = Quaternion.LookRotation(Vector3.ProjectOnPlane(-toCam, Vector3.up).normalized + new Vector3(0, 0, 1e-4f));
-                    if (o.supportHeight_m > 0) p.y = (float)o.supportHeight_m - size.y / 2;   // Platte auf Beinen (Tisch)
-                    else if (size.y > size.z && size.y >= size.x) { p.y = size.y / 2; yaw = Quaternion.LookRotation(Vector3.up, Vector3.forward); }   // Pfahl: Spitze nach oben
-                    else p.y = size.y / 2;
-                    _rig.SpawnObject(o, p, yaw, Vector3.zero, false, skin);
+                    _rig.SpawnObject(o, plan.Start, plan.Rot, Vector3.zero, false, skin);
                     _actions.Add($"{o.label} aufgestellt");
                     SelectTool(null);
                     return;
                 }
                 case "werfen":
                 {
-                    Vector3 start = hit.point + toCam * 2.2f + Vector3.up * 0.4f;
-                    float T = Vector3.Distance(start, hit.point) / Mathf.Max(1, s);
-                    Vector3 v = (hit.point - start) / T + 0.5f * 9.81f * T * Vector3.up;   // ballistisch auf den Klickpunkt
-                    v = v.normalized * Mathf.Max(s, v.magnitude * 0.98f);
-                    _rig.SpawnObject(o, start, Quaternion.LookRotation(v), v, true, skin);
+                    ExpectHit(aim, o);
+                    _rig.SpawnObject(o, plan.Start, plan.Rot, plan.Velocity, true, skin);
                     StartImpact($"{o.label} mit {s:0.#} m/s auf {where} geworfen", null);
                     return;
                 }
                 default: // gefuehrt: Schlag bzw. Stich aus 35 cm, wirksame Masse von Arm und Gegenstand
                 {
-                    // Stich: überwiegend senkrecht in die Haut (Flächennormale), etwas aus Blickrichtung — aus reiner
-                    // Blickrichtung traf die Klinge den liegenden Körper flach, glitt ab und gab einen Schnitt statt eines Stichs
-                    Vector3 dir = o.Sharp && seg != null ? -(hit.normal * 0.75f + toCam * 0.25f).normalized : -toCam;
-                    Vector3 start = hit.point - dir * 0.35f;
-                    Quaternion rot = o.Sharp || o.shape != "capsule" ? Quaternion.LookRotation(dir)
-                                   : Quaternion.LookRotation(Vector3.Cross(dir, Vector3.up).sqrMagnitude > 1e-4f ? Vector3.Cross(dir, Vector3.up) : Vector3.right, -dir); // Schläger quer
-                    var info = _rig.SpawnObject(o, start, rot, dir * s, false, skin);
+                    Vector3 dir = plan.Dir;
+                    ExpectHit(aim, o);
+                    var info = _rig.SpawnObject(o, plan.Start, plan.Rot, plan.Velocity, false, skin);
                     float contactAt = -1;
                     bool released = false;
                     Action<float, float> perStep = (t, dt) =>
@@ -440,6 +435,7 @@ namespace NotfallSIM.Crash
             // sichtbare Zeichen: Prellmarken/Platzwunden aus den Kontakten dieses Wurfs, Stichwunden aus neuen Stichkanälen
             var marks = _host.GenerateContactMarks();
             foreach (var m in marks) { m.Mark.id = $"g{_run}_{m.Mark.id}"; _marks.Add(m); }
+            var newPens = pens.Skip(_stabMarks).ToList();
             for (int i = _stabMarks; i < pens.Count; i++)
             {
                 var pr = pens[i];
@@ -518,6 +514,8 @@ namespace NotfallSIM.Crash
             sb.AppendLine();
             sb.AppendLine("<size=80%>Kontaktkraft aus nachgiebigem Gewebe (Allsop, Melvin, Hardy); Kontaktfläche aus der Geometrie; Frakturen nach Kraft/Fläche bzw. Biegemoment; Stiche nach Ní Annaidh, O'Callaghan, Bolliger; Schnitte nach Bolliger 2020; HIC nach SAE J211. Qualitativ — siehe docs/LITERATUR.md.</size>");
             _lastSummary = sb.ToString();
+            PlaceMarker(rec, newPens, direct, db);
+            SkinChanged();
             _host.SetGewaltResult(result, _marks.ToList(), _lastSummary);
         }
 

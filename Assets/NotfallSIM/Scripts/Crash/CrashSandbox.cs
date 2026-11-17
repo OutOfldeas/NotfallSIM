@@ -60,6 +60,8 @@ namespace NotfallSIM.Crash
         ImpactSandbox _impact;
         bool Gewalt => _p.MechanismId == "gewalt";
         public float SlowMotion => _slowMo;
+        /// <summary>Einstellungstext neu anzeigen (z. B. nach Tempo-Taste in der Gewalt-Sandbox).</summary>
+        public void RefreshSettings() => ShowSettings();
 
         public void Configure(CrashRig crashRig, TMP_Text settings, TMP_Text results, GameObject toTraumaRoom, Camera camera)
         {
