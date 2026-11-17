@@ -229,7 +229,13 @@ namespace NotfallSIM.Crash
                 }
                 else if (a.Depth > 0.005f && Mathf.Abs(vRel) < 0.05f)
                 {
-                    // zur Ruhe gekommen: steckt
+                    // zur Ruhe gekommen: steckt. Vorher den Gegenanker auf die jetzige Lage setzen — sonst zieht das gesperrte
+                    // Gelenk die Klinge in einem Schritt auf den Einstichpunkt zurück (in Unity gesehen: HIC 4 000–6 000 beim
+                    // steckenden Messer, Rumpf und Kopf ruckartig beschleunigt)
+                    var jt = a.Joint.transform;
+                    Vector3 anchorWorld = jt.TransformPoint(a.Joint.anchor);
+                    a.Joint.autoConfigureConnectedAnchor = false;
+                    a.Joint.connectedAnchor = a.Joint.connectedBody != null ? a.Joint.connectedBody.transform.InverseTransformPoint(anchorWorld) : anchorWorld;
                     a.Joint.xMotion = ConfigurableJointMotion.Locked;
                     a.Embedded = true;
                     a.Result.Embedded = true;
