@@ -40,7 +40,7 @@ Häkchen = erledigt; *kursiv* = Stand der Prüfung. „In Unity nachgemessen“ 
 
 1. In Unity nachmessen (Liste oben) — vieles seit dem 14.11. ist nur offline geprüft.
 2. ~~Organmodell: Eindrückung statt statischer Steifigkeit, Grenzwert 2,5 kN nicht frontal~~ — erledigt 17.11. (in Unity nachmessen: Milz/Leber im Seitenaufprall vorher 88–99 %).
-3. Weiche Gelenkanschläge als Verletzung auswerten (Luxation, Bandriss) statt nur zu bremsen.
+3. ~~Weiche Gelenkanschläge als Verletzung auswerten~~ — 17.11.: Knie (Biegung, Überstreckung) und Schulter; in Unity prüfen.
 4. Gekoppelter Seitenaufprall zweier Gerüste abgleichen (Rückprall, Reifen quer).
 5. Dezelerationsverletzungen (Aortenisthmus, Leberbänder, Nierenstiel).
 
@@ -207,7 +207,9 @@ Messwerte danach (50 km/h, Gurt, Airbag, entspannt):
 - [ ] Seitenaufprall: Endlage ansehen — der Insasse sackt stark zur Beifahrerseite (kein seitlicher Gurthalt mehr, weiche Anschläge)
 - [ ] PKW seitlich und Szenario: Milzruptur 88–99 %, Leber 100 % bei Δv 35 km/h — Organmodell rechnet jede Kontaktkraft am Bauch als örtliche Eindrückung; Grenzwert „Kontaktkraft Abdomen 2,5 kN“ gilt für den Seitenaufprall, wird aber auch frontal angewendet
 - [ ] Verformbares Fahrzeug: Brustbeschleunigung 75 g (fester Verlauf 42 g) — Verlauf der Zellenverzögerung gegen Messkurve prüfen
-- [ ] Weiche Gelenkanschläge: Überschreiten des Bewegungsumfangs als Verletzung auswerten (Bandriss, Luxation) statt nur zu bremsen; Steifigkeit mit Literatur belegen
+- [x] Weiche Gelenkanschläge als Verletzung (17.11., nur offline): Gelenkwinkel aus der relativen Drehung (`JointStops.cs`); Knie seitliche Biegung (EEVC-Grenzwert 15°) und Überstreckung → **Kapsel-Band-Verletzung Knie**, Schulter über den Bewegungsumfang → **Schulterluxation** (Kurven Annahmen)
+- [ ] In Unity prüfen: Vorzeichen der Kniebeugung (Protokoll „Knie rechts: Beugung …“ — Überstreckung muss bei gestrecktem Bein ≈ 0 sein), Fußgänger 40 km/h → Knieband, Seitenaufprall/Motorrad → Schulter; Größenordnung der Winkel
+- [ ] Offen: Hüftluxation (Dashboard: Knieanprall bei gebeugter, adduzierter Hüfte), Ellbogen (Anschlag ist nicht anatomisch: ±130°), Sprunggelenk; Reposition als Maßnahme; Steifigkeit der Anschläge mit Literatur belegen
 - [ ] Schockraum bei kleinem Fenster: „Menü“, „Ansicht & Ton“ und Hinweistext überlappen die Maßnahmenliste; Warnung „crash_13_s: kein sichtbarer Hautort“
 - [ ] Wiedergabe läuft schneller als die eingestellte Zeitlupe (×0,05 zeigte ca. 100 ms in 1,3 s)
 

@@ -263,6 +263,36 @@
         "^left (common carotid artery|internal jugular vein)$"
       ],
       "note": "Halsgefäße"
+    },
+    {
+      "injuryId": "kniebandverletzung_rechts",
+      "meshes": [
+        "^right (tibia|patella)$"
+      ],
+      "note": "Knie"
+    },
+    {
+      "injuryId": "schulterluxation_rechts",
+      "meshes": [
+        "^right humerus$",
+        "^right scapula$"
+      ],
+      "note": "Schulter"
+    },
+    {
+      "injuryId": "kniebandverletzung_links",
+      "meshes": [
+        "^left (tibia|patella)$"
+      ],
+      "note": "Knie"
+    },
+    {
+      "injuryId": "schulterluxation_links",
+      "meshes": [
+        "^left humerus$",
+        "^left scapula$"
+      ],
+      "note": "Schulter"
     }
   ]
 }

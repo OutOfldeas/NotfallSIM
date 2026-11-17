@@ -541,6 +541,166 @@
       ],
       "evidenceStatus": "draft",
       "reviewNotes": "50-%-Wert veröffentlicht, Formparameter angenommen. Gemessen wird die Kraft im Gelenk Becken–Abdomen längs des Rumpfes. Versuch in gestreckter Haltung; Beugung beim Aufprall senkt die Toleranz (keilförmige Fraktur) — nicht berücksichtigt."
+    },
+    {
+      "id": "Knie rechts.Biegung",
+      "label": "Seitliche Biegung Knie rechts (Valgus/Varus)",
+      "unit": "°",
+      "region": "Unterschenkel rechts",
+      "ais": "AIS2+",
+      "limit": 0,
+      "limitSource": "",
+      "curve": {
+        "type": "weibull",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 17,
+        "shape": 5
+      },
+      "sources": [
+        {
+          "citation": "EEVC Working Group 17. Improved test methods to evaluate pedestrian protection afforded by passenger cars. European Enhanced Vehicle-safety Committee; 1998, aktualisiert 2002.",
+          "url": "",
+          "note": "Beinimpaktor: Grenzwerte Kniebiegewinkel 15°, Scherweg 6 mm, Tibiabeschleunigung 150 g"
+        },
+        {
+          "citation": "Kajzer J, Schroeder G, Ishikawa H, Matsui Y, Bosch U. Shearing and bending effects at the knee joint at high speed lateral loading. SAE Technical Paper 973326. Stapp Car Crash Conference; 1997.",
+          "url": "https://doi.org/10.4271/973326",
+          "note": "Leichenversuche, seitlicher Anprall am Unterschenkel: Bandverletzungen am Knie durch Biegung bzw. Scherung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Größter Winkel des Unterschenkels gegen den Oberschenkel um die Längsachse des Körpers (Ragdoll: weicher Anschlag bei 5°). 50 % bei 17° und Formparameter 5 sind Annahmen, angelehnt an den EEVC-Grenzwert 15° (dort ca. 30 %). Starres Ragdoll ohne Bänder: qualitativ."
+    },
+    {
+      "id": "Knie rechts.Überstreckung",
+      "label": "Überstreckung Knie rechts",
+      "unit": "°",
+      "region": "Unterschenkel rechts",
+      "ais": "AIS2+",
+      "limit": 0,
+      "limitSource": "",
+      "curve": {
+        "type": "weibull",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 25,
+        "shape": 4
+      },
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Knieluxation bzw. Kreuzbandverletzung durch Überstreckung; Gefahr der Verletzung der A. poplitea"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Streckung über die Nullstellung hinaus (Ragdoll: weicher Anschlag bei 5°). 50 % bei 25° ist eine Annahme — keine Toleranzmessung gefunden."
+    },
+    {
+      "id": "Schulter rechts.Überdehnung",
+      "label": "Überdehnung Schulter rechts über den Bewegungsumfang",
+      "unit": "°",
+      "region": "Arm rechts",
+      "ais": "AIS2",
+      "limit": 0,
+      "limitSource": "",
+      "curve": {
+        "type": "weibull",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 25,
+        "shape": 3
+      },
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Schulterluxation: meist vordere Luxation durch Abduktion und Außenrotation; N. axillaris prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Wie weit der Oberarm über den Anschlag des Ragdolls (Beugung ±100°, seitlich 80°) hinaus gedrückt wird. 50 % bei 25° und Form 3 sind Annahmen."
+    },
+    {
+      "id": "Knie links.Biegung",
+      "label": "Seitliche Biegung Knie links (Valgus/Varus)",
+      "unit": "°",
+      "region": "Unterschenkel links",
+      "ais": "AIS2+",
+      "limit": 0,
+      "limitSource": "",
+      "curve": {
+        "type": "weibull",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 17,
+        "shape": 5
+      },
+      "sources": [
+        {
+          "citation": "EEVC Working Group 17. Improved test methods to evaluate pedestrian protection afforded by passenger cars. European Enhanced Vehicle-safety Committee; 1998, aktualisiert 2002.",
+          "url": "",
+          "note": "Beinimpaktor: Grenzwerte Kniebiegewinkel 15°, Scherweg 6 mm, Tibiabeschleunigung 150 g"
+        },
+        {
+          "citation": "Kajzer J, Schroeder G, Ishikawa H, Matsui Y, Bosch U. Shearing and bending effects at the knee joint at high speed lateral loading. SAE Technical Paper 973326. Stapp Car Crash Conference; 1997.",
+          "url": "https://doi.org/10.4271/973326",
+          "note": "Leichenversuche, seitlicher Anprall am Unterschenkel: Bandverletzungen am Knie durch Biegung bzw. Scherung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Größter Winkel des Unterschenkels gegen den Oberschenkel um die Längsachse des Körpers (Ragdoll: weicher Anschlag bei 5°). 50 % bei 17° und Formparameter 5 sind Annahmen, angelehnt an den EEVC-Grenzwert 15° (dort ca. 30 %). Starres Ragdoll ohne Bänder: qualitativ."
+    },
+    {
+      "id": "Knie links.Überstreckung",
+      "label": "Überstreckung Knie links",
+      "unit": "°",
+      "region": "Unterschenkel links",
+      "ais": "AIS2+",
+      "limit": 0,
+      "limitSource": "",
+      "curve": {
+        "type": "weibull",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 25,
+        "shape": 4
+      },
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Knieluxation bzw. Kreuzbandverletzung durch Überstreckung; Gefahr der Verletzung der A. poplitea"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Streckung über die Nullstellung hinaus (Ragdoll: weicher Anschlag bei 5°). 50 % bei 25° ist eine Annahme — keine Toleranzmessung gefunden."
+    },
+    {
+      "id": "Schulter links.Überdehnung",
+      "label": "Überdehnung Schulter links über den Bewegungsumfang",
+      "unit": "°",
+      "region": "Arm links",
+      "ais": "AIS2",
+      "limit": 0,
+      "limitSource": "",
+      "curve": {
+        "type": "weibull",
+        "mu": 0,
+        "sigma": 0,
+        "x50": 25,
+        "shape": 3
+      },
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Schulterluxation: meist vordere Luxation durch Abduktion und Außenrotation; N. axillaris prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Wie weit der Oberarm über den Anschlag des Ragdolls (Beugung ±100°, seitlich 80°) hinaus gedrückt wird. 50 % bei 25° und Form 3 sind Annahmen."
     }
   ],
   "injuries": [
@@ -742,6 +902,78 @@
       "share": 0.6,
       "severityMin": 0.4,
       "severityMax": 0.8,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "kniebandverletzung_rechts",
+      "metric": "Knie rechts.Biegung",
+      "share": 1.0,
+      "severityMin": 0.3,
+      "severityMax": 0.6,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "kniebandverletzung_rechts",
+      "metric": "Knie rechts.Überstreckung",
+      "share": 1.0,
+      "severityMin": 0.4,
+      "severityMax": 0.8,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "schulterluxation_rechts",
+      "metric": "Schulter rechts.Überdehnung",
+      "share": 1.0,
+      "severityMin": 0.3,
+      "severityMax": 0.6,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "kniebandverletzung_links",
+      "metric": "Knie links.Biegung",
+      "share": 1.0,
+      "severityMin": 0.3,
+      "severityMax": 0.6,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "kniebandverletzung_links",
+      "metric": "Knie links.Überstreckung",
+      "share": 1.0,
+      "severityMin": 0.4,
+      "severityMax": 0.8,
+      "onsetMin_s": 0,
+      "onsetMax_s": 0,
+      "conditionMetric": "",
+      "conditionMin": 0,
+      "conditionMax": 0
+    },
+    {
+      "injuryId": "schulterluxation_links",
+      "metric": "Schulter links.Überdehnung",
+      "share": 1.0,
+      "severityMin": 0.3,
+      "severityMax": 0.6,
       "onsetMin_s": 0,
       "onsetMax_s": 0,
       "conditionMetric": "",

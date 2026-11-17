@@ -200,6 +200,15 @@ Die Sandbox misst am Ragdoll wie an einem Crashtest-Dummy und übersetzt die Wer
 | Stauchung Leber / Milz, Querdehnung Nieren | Versagensdehnung des Gewebes | Normalverteilung der Versagensdehnung (Organmodell, siehe unten) | aus Gewebedaten hergeleitet |
 | Axiale Femurkraft | 10 kN (FMVSS 208) | log-logistisch, x50 11 kN | didaktisch |
 | Kontaktkraft Ober-/Unterschenkel, 3 ms | – | log-logistisch | didaktisch |
+| Seitliche Biegung Knie (Valgus/Varus) | 15° (EEVC WG17, Beinimpaktor) | Weibull, x50 17°, Form 5 (≈ 30 % bei 15°) → Kapsel-Band-Verletzung | Grenzwert veröffentlicht (Kajzer 1997: Biegung/Scherung), Kurve Annahme |
+| Überstreckung Knie | – | Weibull, x50 25°, Form 4 → Kapsel-Band-Verletzung | Annahme, keine Toleranz gefunden |
+| Überdehnung Schulter über den Bewegungsumfang | – | Weibull, x50 25°, Form 3 → Schulterluxation | Annahme |
+
+**Gelenkwinkel (`JointStops.cs`):** relative Drehung des Kind- gegen das Elternsegment gegenüber der Lage beim Anlegen des
+Gelenks (darauf beziehen sich die Grenzen des ConfigurableJoint), als Drehvektor zerlegt in Beugung (axis), Drehung um die
+zweite Achse (Knie: seitliche Biegung) und um die dritte. Die weichen Anschläge (Knie seitlich 5°, Schulter ±100°/80°)
+bremsen weiter nur; wie weit sie überschritten werden, geht in die Risikokurven. Vorzeichen der Beugung (welche Seite
+Überstreckung ist) in Unity prüfen: Minimum und Maximum am rechten Knie stehen im Protokoll.
 
 ### Muskeltonus und Abstützen (`muscle_tone.json`)
 

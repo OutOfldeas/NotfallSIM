@@ -951,6 +951,12 @@ namespace NotfallSIM.Crash
             if (g.TibiaAxialR_N.Count > 10) add("Unterschenkel rechts.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialR_N, dt, 600)) / 1000);
             if (g.TibiaAxialL_N.Count > 10) add("Unterschenkel links.Fax", Biomechanics.MaxAbs(Biomechanics.Cfc(g.TibiaAxialL_N, dt, 600)) / 1000);
             if (g.LumbarFz_N.Count > 10) add("LWS.Fz", Biomechanics.MaxAbs(Biomechanics.Cfc(g.LumbarFz_N, dt, 600)) / 1000);
+            // Gelenkanschläge (JointStops): seitliche Biegung und Überstreckung des Knies, Überdehnung der Schulter
+            if (rd.KneeJointRight) { add("Knie rechts.Biegung", g.KneeBendR_deg); add("Knie rechts.Überstreckung", g.KneeHyperR_deg); }
+            if (rd.KneeJointLeft) { add("Knie links.Biegung", g.KneeBendL_deg); add("Knie links.Überstreckung", g.KneeHyperL_deg); }
+            if (rd.ShoulderJointRight) add("Schulter rechts.Überdehnung", g.ShoulderExceedR_deg);
+            if (rd.ShoulderJointLeft) add("Schulter links.Überdehnung", g.ShoulderExceedL_deg);
+            if (rd.KneeJointRight) Debug.Log($"[Crash] Knie rechts: Beugung {g.KneeTwistMinR_deg:0}…{g.KneeTwistMaxR_deg:0}° (Grenzen {rd.KneeJointRight.lowAngularXLimit.limit:0}/{rd.KneeJointRight.highAngularXLimit.limit:0}°), seitlich {g.KneeBendR_deg:0}°, Überstreckung {g.KneeHyperR_deg:0}°");
 
             foreach (var region in new[] { "Thorax", "Abdomen", "Becken", "Oberschenkel rechts", "Unterschenkel rechts" })
                 add(region + ".F", byRegion[region].Max(s => Biomechanics.Clip(Biomechanics.Cfc(s.Force_kN, dt, 600), dt)));

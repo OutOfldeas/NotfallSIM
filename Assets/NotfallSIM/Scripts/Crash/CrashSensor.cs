@@ -191,6 +191,10 @@ namespace NotfallSIM.Crash
         public readonly System.Collections.Generic.List<double> TibiaAxialL_N = new System.Collections.Generic.List<double>();
         public readonly System.Collections.Generic.List<double> LumbarFz_N = new System.Collections.Generic.List<double>();
 
+        /// <summary>Größte Gelenkwinkel (Grad): Knie seitlich gebogen (Valgus/Varus) und überstreckt, Schulter über den Anschlag.</summary>
+        public double KneeBendR_deg, KneeBendL_deg, KneeHyperR_deg, KneeHyperL_deg, ShoulderExceedR_deg, ShoulderExceedL_deg;
+        /// <summary>Beugung des rechten Knies in beide Richtungen (Grad) — zum Prüfen des Vorzeichens in Unity (Protokoll).</summary>
+        public double KneeTwistMinR_deg, KneeTwistMaxR_deg;
         Ragdoll _rd;
         bool _recording;
 
@@ -199,6 +203,8 @@ namespace NotfallSIM.Crash
             _rd = ragdoll;
             ChestDeflection_m.Clear(); NeckFz_N.Clear(); NeckMy_Nm.Clear(); FemurAxialR_N.Clear();
             TibiaAxialR_N.Clear(); TibiaAxialL_N.Clear(); LumbarFz_N.Clear();
+            KneeBendR_deg = KneeBendL_deg = KneeHyperR_deg = KneeHyperL_deg = ShoulderExceedR_deg = ShoulderExceedL_deg = 0;
+            KneeTwistMinR_deg = KneeTwistMaxR_deg = 0;
             _recording = true;
         }
 
@@ -224,6 +230,41 @@ namespace NotfallSIM.Crash
             if (_rd.KneeJointRight) TibiaAxialR_N.Add(Vector3.Dot(_rd.KneeJointRight.currentForce, _rd.Segments["Unterschenkel rechts"].transform.up));
             if (_rd.KneeJointLeft) TibiaAxialL_N.Add(Vector3.Dot(_rd.KneeJointLeft.currentForce, _rd.Segments["Unterschenkel links"].transform.up));
             if (_rd.LumbarJoint) LumbarFz_N.Add(Vector3.Dot(_rd.LumbarJoint.currentForce, _rd.Segments["Abdomen"].transform.up));
+
+            // Gelenkwinkel gegenüber der Lage beim Anlegen des Gelenks (darauf beziehen sich die Grenzen) im Gelenkrahmen. VERIFY in Unity: Vorzeichen der Beugung
+            // (welche Seite ist Überstreckung) — ins Protokoll gehen Minimum und Maximum am rechten Knie.
+            double tw, sy, sz;
+            if (Angles(_rd.KneeJointRight, out tw, out sy, out sz))
+            {
+                KneeBendR_deg = System.Math.Max(KneeBendR_deg, System.Math.Abs(sy));
+                KneeHyperR_deg = System.Math.Max(KneeHyperR_deg, JointStops.Hyperextension(tw, -_rd.KneeJointRight.lowAngularXLimit.limit, _rd.KneeJointRight.highAngularXLimit.limit));
+                KneeTwistMinR_deg = System.Math.Min(KneeTwistMinR_deg, tw); KneeTwistMaxR_deg = System.Math.Max(KneeTwistMaxR_deg, tw);
+            }
+            if (Angles(_rd.KneeJointLeft, out tw, out sy, out sz))
+            {
+                KneeBendL_deg = System.Math.Max(KneeBendL_deg, System.Math.Abs(sy));
+                KneeHyperL_deg = System.Math.Max(KneeHyperL_deg, JointStops.Hyperextension(tw, -_rd.KneeJointLeft.lowAngularXLimit.limit, _rd.KneeJointLeft.highAngularXLimit.limit));
+            }
+            if (Angles(_rd.ShoulderJointRight, out tw, out sy, out sz)) ShoulderExceedR_deg = System.Math.Max(ShoulderExceedR_deg, Exceed(_rd.ShoulderJointRight, tw, sy, sz));
+            if (Angles(_rd.ShoulderJointLeft, out tw, out sy, out sz)) ShoulderExceedL_deg = System.Math.Max(ShoulderExceedL_deg, Exceed(_rd.ShoulderJointLeft, tw, sy, sz));
+        }
+
+        static double Exceed(ConfigurableJoint j, double tw, double sy, double sz) =>
+            JointStops.Exceedance(tw, sy, sz, -j.lowAngularXLimit.limit, j.highAngularXLimit.limit, j.angularYLimit.limit, j.angularZLimit.limit);
+
+        /// <summary>Beugung und Seitendrehungen (Grad) des Gelenks gegenüber seiner Bezugslage (<see cref="JointRest"/>).</summary>
+        bool Angles(ConfigurableJoint j, out double twist, out double swingY, out double swingZ)
+        {
+            twist = swingY = swingZ = 0;
+            if (j == null || j.connectedBody == null) return false;
+            var rest = j.GetComponent<JointRest>();
+            if (rest == null) return false;
+            var q = Quaternion.Inverse(j.connectedBody.rotation) * j.transform.rotation;
+            var dq = Quaternion.Inverse(rest.Rest) * q;   // Drehung im Rahmen des Kindkörpers (Bezugslage), wie axis/secondaryAxis
+            JointStops.RotationVector(dq.x, dq.y, dq.z, dq.w, out double rx, out double ry, out double rz);
+            JointStops.Components(rx, ry, rz, new double[] { j.axis.x, j.axis.y, j.axis.z }, new double[] { j.secondaryAxis.x, j.secondaryAxis.y, j.secondaryAxis.z },
+                                  out twist, out swingY, out swingZ);
+            return true;
         }
     }
 }

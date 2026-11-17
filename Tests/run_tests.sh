@@ -38,6 +38,7 @@ mcs -nologo -warnaserror- \
     $SCRIPTS/Crash/MotorcycleSim.cs \
     $SCRIPTS/Crash/FractureSpecs.cs \
     $SCRIPTS/Crash/SoftBody.cs \
+    $SCRIPTS/Crash/JointStops.cs \
     $SCRIPTS/Crash/SoftImpact.cs \
     $SCRIPTS/Crash/MeshPick.cs \
     Tests/NotfallSimTests.cs

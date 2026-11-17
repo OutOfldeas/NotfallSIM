@@ -23,6 +23,7 @@ namespace NotfallSIM.Crash
         /// <summary>Knie (Unterschenkel am Oberschenkel) und Lendenwirbelsäule (Abdomen am Becken): axiale Kräfte für
         /// Kalkaneus/Pilon- und Wirbelkörperbrüche.</summary>
         public ConfigurableJoint KneeJointRight, KneeJointLeft, LumbarJoint;
+        public ConfigurableJoint ShoulderJointRight, ShoulderJointLeft;   // Überdehnung → Luxation (JointStops)
         public Transform Body => Root.transform;
         /// <summary>Für die Risiko-Heatmap: je Segment ein einfärbbarer Körper (beim anatomischen Ragdoll anfangs unsichtbar).</summary>
         public readonly Dictionary<string, Renderer> Heat = new Dictionary<string, Renderer>();
@@ -238,6 +239,8 @@ namespace NotfallSIM.Crash
                 if (s.name == "Unterschenkel rechts") rd.KneeJointRight = j;
                 if (s.name == "Unterschenkel links") rd.KneeJointLeft = j;
                 if (s.name == "Abdomen") rd.LumbarJoint = j;
+                if (s.name == "Oberarm rechts") rd.ShoulderJointRight = j;
+                if (s.name == "Oberarm links") rd.ShoulderJointLeft = j;
             }
 
             // Brustbein vor dem Thorax (Brustkorbdeflexion)
@@ -350,8 +353,8 @@ namespace NotfallSIM.Crash
             rd.LumbarJoint = Joint(abdomen, becken, P(new Vector3(0, pelvisTop, 0)), T, 25, 25, 20, 20, 300);
             Joint(thorax, abdomen, P(new Vector3(0, abdomenTop, 0)), T, 25, 25, 20, 20, 300);
             rd.NeckJoint = Joint(kopf, thorax, P(new Vector3(0, shoulderY + 0.02f * H, 0)), T, 45, 45, 40, 30, 60);
-            Joint(oaR, thorax, P(shR), T, 100, 100, 80, 80, 20);
-            Joint(oaL, thorax, P(shL), T, 100, 100, 80, 80, 20);
+            rd.ShoulderJointRight = Joint(oaR, thorax, P(shR), T, 100, 100, 80, 80, 20);
+            rd.ShoulderJointLeft = Joint(oaL, thorax, P(shL), T, 100, 100, 80, 80, 20);
             Joint(uaR, oaR, P(elbowR), T, 130, 130, 10, 10, 10);
             Joint(uaL, oaL, P(elbowL), T, 130, 130, 10, 10, 10);
             rd.HipJointRight = Joint(osR, becken, P(hipR), T, 100, 100, 30, 40, 40);
@@ -481,6 +484,8 @@ namespace NotfallSIM.Crash
             j.projectionDistance = 0.02f;
             j.projectionAngle = 180;   // Winkel nicht zurücksetzen: der weiche Anschlag darf überschritten werden
             j.enablePreprocessing = false;
+            // Bezugslage der Grenzen (wie Unity: Lage beim Anlegen des Gelenks) für die Winkelmessung (CrashGauges)
+            child.gameObject.AddComponent<JointRest>().Rest = Quaternion.Inverse(parent.rotation) * child.rotation;
             return j;
         }
     }

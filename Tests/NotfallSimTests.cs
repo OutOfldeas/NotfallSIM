@@ -97,6 +97,7 @@ static class Tests
         Run("Verformbares Fahrzeug (Punkte und Balken): Fließen, Energie, Kennlinie, Zelle, versetzter Anprall, Haut", SoftBodyChecks);
         Run("Zielen auf die Haut (Strahl gegen Dreiecksnetz)", MeshPickChecks);
         Run("Stichkanal: getroffene Strukturen aus dem Anatomiemodell", StabChannelChecks);
+        Run("Gelenkanschläge: Winkel aus der Drehung, Überschreitung, Überstreckung; Risiko Knie/Schulter", JointStopChecks);
         Run("Verformbares Fahrzeug in allen Modi: Dellen aus dem Knautschweg (Seite, Front, Haube), Seitenaufprall zweier Gerüste", SoftImpactChecks);
         Run("Motorrad: Gabel, Nicken über das Vorderrad, PKW-Delle in Reihe; ISO-13232-Konfigurationen", MotorcycleChecks);
         Run("Verkehrsunfall: Fahrdynamik, Bremsen, Ausweichen, Fahrzeug-Kollision mit Kennlinien (TrafficSim)", TrafficChecks);
@@ -2007,6 +2008,35 @@ static class Tests
                 foreach (var id in new[] { r.injury, r.injuryRight, r.injuryLeft }.Where(x => !string.IsNullOrEmpty(x)).DefaultIfEmpty(""))
                     Check(injIds.Contains(id), $"Strukturregel {r.pattern}: unbekannte Verletzung '{id}'");
         }
+    }
+
+    static void JointStopChecks()
+    {
+        // 20° um die zweite Achse (Knie: seitliche Biegung), Gelenkrahmen X = (1,0,0), Y = (0,0,1)
+        double h = 10 * Math.PI / 180;   // halber Winkel
+        NotfallSIM.Crash.JointStops.RotationVector(0, 0, Math.Sin(h), Math.Cos(h), out double rx, out double ry, out double rz);
+        NotfallSIM.Crash.JointStops.Components(rx, ry, rz, new double[] { 1, 0, 0 }, new double[] { 0, 0, 1 }, out double tw, out double sy, out double sz);
+        Check(Math.Abs(tw) < 1e-6 && Math.Abs(sy - 20) < 1e-6 && Math.Abs(sz) < 1e-6, $"Biegung 20°: Beugung {tw:0.0}, Y {sy:0.0}, Z {sz:0.0}");
+        // −q ist dieselbe Drehung
+        NotfallSIM.Crash.JointStops.RotationVector(0, 0, -Math.Sin(h), -Math.Cos(h), out rx, out ry, out rz);
+        Check(Math.Abs(rz - 20) < 1e-6, $"Vorzeichen der Quaternion egal: {rz:0.0}");
+        // Beugung 30° und schiefe zweite Achse (wird senkrecht gemacht)
+        h = 15 * Math.PI / 180;
+        NotfallSIM.Crash.JointStops.RotationVector(Math.Sin(h), 0, 0, Math.Cos(h), out rx, out ry, out rz);
+        NotfallSIM.Crash.JointStops.Components(rx, ry, rz, new double[] { 2, 0, 0 }, new double[] { 0.3, 1, 0 }, out tw, out sy, out sz);
+        Check(Math.Abs(tw - 30) < 1e-6 && Math.Abs(sy) < 1e-6, $"Beugung 30°: {tw:0.0}/{sy:0.0}");
+        // Überschreitung und Überstreckung (Knie: Streckung 5°, Beugung 140°)
+        Check(NotfallSIM.Crash.JointStops.Exceedance(-12, 0, 0, 5, 140, 5, 5) == 7, "Überstreckung 12° bei Anschlag 5°: 7° darüber");
+        Check(NotfallSIM.Crash.JointStops.Exceedance(60, 9, -2, 5, 140, 5, 5) == 4, "seitlich 9° bei Anschlag 5°: 4° darüber");
+        Check(NotfallSIM.Crash.JointStops.Hyperextension(-12, 5, 140) == 12 && NotfallSIM.Crash.JointStops.Hyperextension(-12, 140, 5) == 0
+              && NotfallSIM.Crash.JointStops.Hyperextension(12, 140, 5) == 12, "Überstreckung auf der Seite des kleineren Anschlags");
+        // Risiko: EEVC-Grenzwert 15° ≈ 30 %, 10° gering
+        var risk = Risk;
+        var knee = risk.metrics.First(m => m.id == "Knie rechts.Biegung");
+        double p15 = InjuryRisk.Probability(knee.curve, 15), p10 = InjuryRisk.Probability(knee.curve, 10);
+        Check(p15 > 0.2 && p15 < 0.4 && p10 < 0.06, $"Knie seitlich 10°/15°: {p10:P0}/{p15:P0}");
+        var ids = new HashSet<string>(Injuries.injuries.Select(i => i.id));
+        foreach (var m in risk.injuries) Check(ids.Contains(m.injuryId) && risk.metrics.Any(x => x.id == m.metric), $"Zuordnung {m.metric} → {m.injuryId}");
     }
 
     static void MeshPickChecks()

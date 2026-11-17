@@ -4499,6 +4499,256 @@
           "untilTagDelay_s": 0
         }
       ]
+    },
+    {
+      "id": "kniebandverletzung_rechts",
+      "name": "Kapsel-Band-Verletzung Knie rechts",
+      "region": "Unterschenkel rechts",
+      "icd10": "S83.7",
+      "aisSeverity": 2,
+      "effects": [],
+      "clinicalFindings": [
+        "Knie rechts geschwollen, tastbarer Gelenkerguss",
+        "Knie rechts bei Valgus-/Varusstress bzw. Schubladentest schmerzhaft aufklappbar"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Musculoskeletal Trauma: Bandverletzungen des Knies; bei Knieluxation Durchblutung (A. poplitea) prüfen, Knöchel-Arm-Index"
+        },
+        {
+          "citation": "Kajzer J, Schroeder G, Ishikawa H, Matsui Y, Bosch U. Shearing and bending effects at the knee joint at high speed lateral loading. SAE Technical Paper 973326. Stapp Car Crash Conference; 1997.",
+          "url": "https://doi.org/10.4271/973326",
+          "note": "Leichenversuche, seitlicher Anprall am Unterschenkel: Bandverletzungen am Knie durch Biegung bzw. Scherung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Entsteht in der Unfall-Sandbox, wenn das Knie des Ragdolls seitlich stark gebogen oder überstreckt wird (injury_risk.json › Knie.Biegung/Überstreckung). Ohne physiologischen Effekt; eine Verletzung der A. poplitea (Knieluxation) ist nicht modelliert. Nicht gleich behandeln: Fußpulse und DMS sind der Leitbefund im Schockraum.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Gelenkerguss (Hämarthros) Knie rechts, kleiner knöcherner Ausriss am Tibiaplateau; Bänder im CT nicht beurteilbar (MRT im Verlauf). Kein Hinweis auf Luxation, A. poplitea kontrastiert.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "dms",
+          "description": "Knie rechts untersucht (Durchblutung, Motorik, Sensibilität)",
+          "type": "deadline",
+          "tags": [
+            "exam:Unterschenkel rechts"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Sekundäruntersuchung: Gelenke und DMS distal; Knieluxation gefährdet die A. poplitea (ATLS). Zeitziel didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Fußpulse tastbar, Sensibilität und Motorik am Fuß erhalten",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "schulterluxation_rechts",
+      "name": "Schulterluxation rechts",
+      "region": "Arm rechts",
+      "icd10": "S43.0",
+      "aisSeverity": 2,
+      "effects": [],
+      "clinicalFindings": [
+        "Schulterkontur rechts eckig (Epaulettenzeichen), Humeruskopf vor der Pfanne tastbar",
+        "Arm rechts federnd fixiert, aktive Bewegung schmerzbedingt aufgehoben"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Schulterluxation: meist vordere Luxation; vor und nach Reposition N. axillaris (Sensibilität über dem M. deltoideus) und Durchblutung prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Entsteht in der Unfall-Sandbox, wenn der Oberarm des Ragdolls deutlich über den Bewegungsumfang hinaus gedrückt wird (injury_risk.json › Schulter.Überdehnung). Ohne physiologischen Effekt; Reposition als Maßnahme fehlt noch.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Vordere Luxation des Humeruskopfes rechts aus dem Glenoid, Impression am dorsolateralen Humeruskopf (Hill-Sachs-Delle).",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "dms",
+          "description": "Arm rechts untersucht (Durchblutung, Motorik, Sensibilität)",
+          "type": "deadline",
+          "tags": [
+            "exam:Arm rechts"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "N. axillaris und Durchblutung vor einer Reposition dokumentieren (ATLS). Zeitziel didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Sensibilität über dem M. deltoideus rechts erhalten (N. axillaris), Radialispuls tastbar",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "kniebandverletzung_links",
+      "name": "Kapsel-Band-Verletzung Knie links",
+      "region": "Unterschenkel links",
+      "icd10": "S83.7",
+      "aisSeverity": 2,
+      "effects": [],
+      "clinicalFindings": [
+        "Knie links geschwollen, tastbarer Gelenkerguss",
+        "Knie links bei Valgus-/Varusstress bzw. Schubladentest schmerzhaft aufklappbar"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Musculoskeletal Trauma: Bandverletzungen des Knies; bei Knieluxation Durchblutung (A. poplitea) prüfen, Knöchel-Arm-Index"
+        },
+        {
+          "citation": "Kajzer J, Schroeder G, Ishikawa H, Matsui Y, Bosch U. Shearing and bending effects at the knee joint at high speed lateral loading. SAE Technical Paper 973326. Stapp Car Crash Conference; 1997.",
+          "url": "https://doi.org/10.4271/973326",
+          "note": "Leichenversuche, seitlicher Anprall am Unterschenkel: Bandverletzungen am Knie durch Biegung bzw. Scherung"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Entsteht in der Unfall-Sandbox, wenn das Knie des Ragdolls seitlich stark gebogen oder überstreckt wird (injury_risk.json › Knie.Biegung/Überstreckung). Ohne physiologischen Effekt; eine Verletzung der A. poplitea (Knieluxation) ist nicht modelliert. Nicht gleich behandeln: Fußpulse und DMS sind der Leitbefund im Schockraum.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Gelenkerguss (Hämarthros) Knie links, kleiner knöcherner Ausriss am Tibiaplateau; Bänder im CT nicht beurteilbar (MRT im Verlauf). Kein Hinweis auf Luxation, A. poplitea kontrastiert.",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "dms",
+          "description": "Knie links untersucht (Durchblutung, Motorik, Sensibilität)",
+          "type": "deadline",
+          "tags": [
+            "exam:Unterschenkel links"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "Sekundäruntersuchung: Gelenke und DMS distal; Knieluxation gefährdet die A. poplitea (ATLS). Zeitziel didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Fußpulse tastbar, Sensibilität und Motorik am Fuß erhalten",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
+    },
+    {
+      "id": "schulterluxation_links",
+      "name": "Schulterluxation links",
+      "region": "Arm links",
+      "icd10": "S43.0",
+      "aisSeverity": 2,
+      "effects": [],
+      "clinicalFindings": [
+        "Schulterkontur links eckig (Epaulettenzeichen), Humeruskopf vor der Pfanne tastbar",
+        "Arm links federnd fixiert, aktive Bewegung schmerzbedingt aufgehoben"
+      ],
+      "sources": [
+        {
+          "citation": "American College of Surgeons. Advanced Trauma Life Support (ATLS) Student Course Manual, 10th ed. Chicago: ACS; 2018.",
+          "url": "",
+          "note": "Schulterluxation: meist vordere Luxation; vor und nach Reposition N. axillaris (Sensibilität über dem M. deltoideus) und Durchblutung prüfen"
+        }
+      ],
+      "evidenceStatus": "draft",
+      "reviewNotes": "Entsteht in der Unfall-Sandbox, wenn der Oberarm des Ragdolls deutlich über den Bewegungsumfang hinaus gedrückt wird (injury_risk.json › Schulter.Überdehnung). Ohne physiologischen Effekt; Reposition als Maßnahme fehlt noch.",
+      "imaging": [
+        {
+          "modality": "CTBody",
+          "finding": "Vordere Luxation des Humeruskopfes links aus dem Glenoid, Impression am dorsolateralen Humeruskopf (Hill-Sachs-Delle).",
+          "resolvedByTag": "",
+          "resolvedFinding": "",
+          "image": "",
+          "imageCredit": ""
+        }
+      ],
+      "criteria": [
+        {
+          "id": "dms",
+          "description": "Arm links untersucht (Durchblutung, Motorik, Sensibilität)",
+          "type": "deadline",
+          "tags": [
+            "exam:Arm links"
+          ],
+          "limit": 900,
+          "relativeTo": "",
+          "onlyAfterReference": false,
+          "critical": false,
+          "rationale": "N. axillaris und Durchblutung vor einer Reposition dokumentieren (ATLS). Zeitziel didaktisch."
+        }
+      ],
+      "dynamicFindings": [
+        {
+          "text": "Sensibilität über dem M. deltoideus links erhalten (N. axillaris), Radialispuls tastbar",
+          "minLevel": 0,
+          "maxLevel": 1,
+          "minLost_mL": 0,
+          "minBodyLoss": 0,
+          "maxBodyLoss": 1,
+          "requiresTag": "",
+          "requiresTagDelay_s": 0,
+          "untilTag": "",
+          "untilTagDelay_s": 0
+        }
+      ]
     }
   ]
 }
