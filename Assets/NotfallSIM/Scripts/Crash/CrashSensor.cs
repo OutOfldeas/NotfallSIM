@@ -237,16 +237,22 @@ namespace NotfallSIM.Crash
             if (Angles(_rd.KneeJointRight, out tw, out sy, out sz))
             {
                 KneeBendR_deg = System.Math.Max(KneeBendR_deg, System.Math.Abs(sy));
-                KneeHyperR_deg = System.Math.Max(KneeHyperR_deg, JointStops.Hyperextension(tw, -_rd.KneeJointRight.lowAngularXLimit.limit, _rd.KneeJointRight.highAngularXLimit.limit));
+                KneeHyperR_deg = System.Math.Max(KneeHyperR_deg, Hyper(_rd.KneeJointRight, tw));
                 KneeTwistMinR_deg = System.Math.Min(KneeTwistMinR_deg, tw); KneeTwistMaxR_deg = System.Math.Max(KneeTwistMaxR_deg, tw);
             }
             if (Angles(_rd.KneeJointLeft, out tw, out sy, out sz))
             {
                 KneeBendL_deg = System.Math.Max(KneeBendL_deg, System.Math.Abs(sy));
-                KneeHyperL_deg = System.Math.Max(KneeHyperL_deg, JointStops.Hyperextension(tw, -_rd.KneeJointLeft.lowAngularXLimit.limit, _rd.KneeJointLeft.highAngularXLimit.limit));
+                KneeHyperL_deg = System.Math.Max(KneeHyperL_deg, Hyper(_rd.KneeJointLeft, tw));
             }
             if (Angles(_rd.ShoulderJointRight, out tw, out sy, out sz)) ShoulderExceedR_deg = System.Math.Max(ShoulderExceedR_deg, Exceed(_rd.ShoulderJointRight, tw, sy, sz));
             if (Angles(_rd.ShoulderJointLeft, out tw, out sy, out sz)) ShoulderExceedL_deg = System.Math.Max(ShoulderExceedL_deg, Exceed(_rd.ShoulderJointLeft, tw, sy, sz));
+        }
+
+        static double Hyper(ConfigurableJoint j, double tw)
+        {
+            var r = j.GetComponent<JointRest>();
+            return r == null ? 0 : JointStops.Hyperextension(tw, r.ExtensionSign, r.FlexAtRest_deg);
         }
 
         static double Exceed(ConfigurableJoint j, double tw, double sy, double sz) =>

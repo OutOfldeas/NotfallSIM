@@ -234,7 +234,7 @@ namespace NotfallSIM.Crash
                 else if (s.name.StartsWith("Oberarm")) j = Joint(rbs[i], parent, rbs[i].position, T, 100, 100, 80, 80, 20);
                 else if (s.name.StartsWith("Unterarm")) j = Joint(rbs[i], parent, rbs[i].position, T, 130, 130, 10, 10, 10);
                 else if (s.name.StartsWith("Oberschenkel")) j = Joint(rbs[i], parent, rbs[i].position, T, 100, 100, 30, 40, 40);
-                else j = Joint(rbs[i], parent, rbs[i].position, T, invertKneeFlexion ? 140 : 5, invertKneeFlexion ? 5 : 140, 5, 5, 30);
+                else j = Joint(rbs[i], parent, rbs[i].position, T, invertKneeFlexion ? 140 : 5, invertKneeFlexion ? 5 : 140, 5, 5, 30, hingeFromStraight: true);
                 if (s.name == "Oberschenkel rechts") rd.HipJointRight = j;
                 if (s.name == "Unterschenkel rechts") rd.KneeJointRight = j;
                 if (s.name == "Unterschenkel links") rd.KneeJointLeft = j;
@@ -360,8 +360,8 @@ namespace NotfallSIM.Crash
             rd.HipJointRight = Joint(osR, becken, P(hipR), T, 100, 100, 30, 40, 40);
             Joint(osL, becken, P(hipL), T, 100, 100, 30, 40, 40);
             float kneeLow = invertKneeFlexion ? 140 : 5, kneeHigh = invertKneeFlexion ? 5 : 140;
-            rd.KneeJointRight = Joint(usR, osR, P(kneeR), T, kneeLow, kneeHigh, 5, 5, 30);
-            rd.KneeJointLeft = Joint(usL, osL, P(kneeL), T, kneeLow, kneeHigh, 5, 5, 30);
+            rd.KneeJointRight = Joint(usR, osR, P(kneeR), T, kneeLow, kneeHigh, 5, 5, 30, hingeFromStraight: true);
+            rd.KneeJointLeft = Joint(usL, osL, P(kneeL), T, kneeLow, kneeHigh, 5, 5, 30, hingeFromStraight: true);
             AddSternum(rd, thorax, T, H, (shoulderY + 0.015f * H - abdomenTop));
             return rd;
         }
@@ -454,9 +454,26 @@ namespace NotfallSIM.Crash
         /// <summary>Eigenfrequenz des weichen Gelenkanschlags (rad/s), siehe <see cref="Joint"/>.</summary>
         public const float StopFrequency_rad_s = 100f;
 
+        /// <param name="hingeFromStraight">Knie: Grenzen gelten ab gestrecktem Bein, nicht ab der Haltung beim Anlegen. Das
+        /// Anatomie-Ragdoll wird gestreckt angelegt und danach gesetzt (Beugung beim Anlegen ≈ 0, nichts ändert sich); das
+        /// Ersatz-Ragdoll aus Kapseln wird sitzend gebaut — dort konnte das Knie sonst nur 5° aus 90° Beugung strecken.</param>
         static ConfigurableJoint Joint(Rigidbody child, Rigidbody parent, Vector3 worldAnchor, Transform body,
-                          float lowX, float highX, float swingY, float swingZ, float tone)
+                          float lowX, float highX, float swingY, float swingZ, float tone, bool hingeFromStraight = false)
         {
+            // Beugung beim Anlegen: Winkel zwischen Eltern- und Kindachse (0 = gestreckt), Vorzeichen um die Beugeachse
+            float flexAtRest = 0; int extensionSign = lowX < highX ? -1 : 1;
+            if (hingeFromStraight)
+            {
+                Vector3 pa = worldAnchor - parent.worldCenterOfMass, ca = child.worldCenterOfMass - worldAnchor;
+                float f = Vector3.Angle(pa, ca);
+                if (f > 10f)
+                {
+                    // Beugung liegt auf der Seite der großen Grenze (wie beim stehend angelegten Knie)
+                    if (lowX < highX) { lowX += f; highX = Mathf.Max(5f, highX - f); }
+                    else { highX += f; lowX = Mathf.Max(5f, lowX - f); }
+                    flexAtRest = f;
+                }
+            }
             var j = child.gameObject.AddComponent<ConfigurableJoint>();
             j.connectedBody = parent;
             j.autoConfigureConnectedAnchor = true;
@@ -485,7 +502,9 @@ namespace NotfallSIM.Crash
             j.projectionAngle = 180;   // Winkel nicht zurücksetzen: der weiche Anschlag darf überschritten werden
             j.enablePreprocessing = false;
             // Bezugslage der Grenzen (wie Unity: Lage beim Anlegen des Gelenks) für die Winkelmessung (CrashGauges)
-            child.gameObject.AddComponent<JointRest>().Rest = Quaternion.Inverse(parent.rotation) * child.rotation;
+            var jr = child.gameObject.AddComponent<JointRest>();
+            jr.Rest = Quaternion.Inverse(parent.rotation) * child.rotation;
+            jr.FlexAtRest_deg = flexAtRest; jr.ExtensionSign = extensionSign;
             return j;
         }
     }

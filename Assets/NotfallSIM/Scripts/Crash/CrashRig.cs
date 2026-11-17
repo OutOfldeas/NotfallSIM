@@ -960,7 +960,7 @@ namespace NotfallSIM.Crash
             if (rd.KneeJointLeft) { add("Knie links.Biegung", g.KneeBendL_deg); add("Knie links.Überstreckung", g.KneeHyperL_deg); }
             if (rd.ShoulderJointRight) add("Schulter rechts.Überdehnung", g.ShoulderExceedR_deg);
             if (rd.ShoulderJointLeft) add("Schulter links.Überdehnung", g.ShoulderExceedL_deg);
-            if (rd.KneeJointRight) Debug.Log($"[Crash] Knie rechts: Beugung {g.KneeTwistMinR_deg:0}…{g.KneeTwistMaxR_deg:0}° (Grenzen {rd.KneeJointRight.lowAngularXLimit.limit:0}/{rd.KneeJointRight.highAngularXLimit.limit:0}°), seitlich {g.KneeBendR_deg:0}°, Überstreckung {g.KneeHyperR_deg:0}°");
+            if (rd.KneeJointRight) Debug.Log($"[Crash] Knie rechts: Beugung {g.KneeTwistMinR_deg:0}…{g.KneeTwistMaxR_deg:0}° (Grenzen {rd.KneeJointRight.lowAngularXLimit.limit:0}/{rd.KneeJointRight.highAngularXLimit.limit:0}°), seitlich {g.KneeBendR_deg:0}°, Überstreckung {g.KneeHyperR_deg:0}°, Beugung beim Anlegen {rd.KneeJointRight.GetComponent<JointRest>()?.FlexAtRest_deg:0}°");
 
             foreach (var region in new[] { "Thorax", "Abdomen", "Becken", "Oberschenkel rechts", "Unterschenkel rechts" })
                 add(region + ".F", byRegion[region].Max(s => Biomechanics.Clip(Biomechanics.Cfc(s.Force_kN, dt, 600), dt)));

@@ -2034,6 +2034,7 @@ static class Tests
         NotfallSIM.Crash.JointStops.RotationVector(0, 0, Math.Sin(h), Math.Cos(h), out double rx, out double ry, out double rz);
         NotfallSIM.Crash.JointStops.Components(rx, ry, rz, new double[] { 1, 0, 0 }, new double[] { 0, 0, 1 }, out double tw, out double sy, out double sz);
         Check(Math.Abs(tw) < 1e-6 && Math.Abs(sy - 20) < 1e-6 && Math.Abs(sz) < 1e-6, $"Biegung 20°: Beugung {tw:0.0}, Y {sy:0.0}, Z {sz:0.0}");
+        // Beugung mit dem Vorzeichen der Unity-Gelenkgrenzen: entgegen dem Drehvektor
         // −q ist dieselbe Drehung
         NotfallSIM.Crash.JointStops.RotationVector(0, 0, -Math.Sin(h), -Math.Cos(h), out rx, out ry, out rz);
         Check(Math.Abs(rz - 20) < 1e-6, $"Vorzeichen der Quaternion egal: {rz:0.0}");
@@ -2041,12 +2042,15 @@ static class Tests
         h = 15 * Math.PI / 180;
         NotfallSIM.Crash.JointStops.RotationVector(Math.Sin(h), 0, 0, Math.Cos(h), out rx, out ry, out rz);
         NotfallSIM.Crash.JointStops.Components(rx, ry, rz, new double[] { 2, 0, 0 }, new double[] { 0.3, 1, 0 }, out tw, out sy, out sz);
-        Check(Math.Abs(tw - 30) < 1e-6 && Math.Abs(sy) < 1e-6, $"Beugung 30°: {tw:0.0}/{sy:0.0}");
+        Check(Math.Abs(tw + 30) < 1e-6 && Math.Abs(sy) < 1e-6, $"Drehung +30° um die Beugeachse = Beugung −30° (Unity): {tw:0.0}/{sy:0.0}");
         // Überschreitung und Überstreckung (Knie: Streckung 5°, Beugung 140°)
         Check(NotfallSIM.Crash.JointStops.Exceedance(-12, 0, 0, 5, 140, 5, 5) == 7, "Überstreckung 12° bei Anschlag 5°: 7° darüber");
         Check(NotfallSIM.Crash.JointStops.Exceedance(60, 9, -2, 5, 140, 5, 5) == 4, "seitlich 9° bei Anschlag 5°: 4° darüber");
-        Check(NotfallSIM.Crash.JointStops.Hyperextension(-12, 5, 140) == 12 && NotfallSIM.Crash.JointStops.Hyperextension(-12, 140, 5) == 0
-              && NotfallSIM.Crash.JointStops.Hyperextension(12, 140, 5) == 12, "Überstreckung auf der Seite des kleineren Anschlags");
+        Check(NotfallSIM.Crash.JointStops.Hyperextension(-12, -1, 0) == 12 && NotfallSIM.Crash.JointStops.Hyperextension(-12, 1, 0) == 0
+              && NotfallSIM.Crash.JointStops.Hyperextension(12, 1, 0) == 12, "Überstreckung in Streckrichtung, gestreckt angelegt");
+        // Sitzend (90° gebeugt angelegt): 70° gestreckt ist noch keine Überstreckung, 100° sind 10° darüber
+        Check(NotfallSIM.Crash.JointStops.Hyperextension(-70, -1, 90) == 0 && NotfallSIM.Crash.JointStops.Hyperextension(-100, -1, 90) == 10,
+              "Überstreckung ab gestrecktem Bein, nicht ab der Sitzhaltung");
         // Risiko: EEVC-Grenzwert 15° ≈ 30 %, 10° gering
         var risk = Risk;
         var knee = risk.metrics.First(m => m.id == "Knie rechts.Biegung");

@@ -29,7 +29,9 @@ namespace NotfallSIM.Crash
             double d = secondary[0] * a[0] + secondary[1] * a[1] + secondary[2] * a[2];
             var b = Unit(new[] { secondary[0] - d * a[0], secondary[1] - d * a[1], secondary[2] - d * a[2] });
             var c = new[] { a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] };
-            twist = rx * a[0] + ry * a[1] + rz * a[2];
+            // Vorzeichen wie die Grenzen des ConfigurableJoint: Unity misst die Beugung entgegen dem Drehvektor (in Unity gesehen:
+            // sitzender Fahrer −108° nach dieser Rechnung, innerhalb der Grenze +140°; stehendes Knie −5…+3°)
+            twist = -(rx * a[0] + ry * a[1] + rz * a[2]);
             swingY = rx * b[0] + ry * b[1] + rz * b[2];
             swingZ = rx * c[0] + ry * c[1] + rz * c[2];
         }
@@ -38,9 +40,10 @@ namespace NotfallSIM.Crash
         public static double Exceedance(double twist, double swingY, double swingZ, double low, double high, double limY, double limZ) =>
             Math.Max(0, Math.Max(Math.Max(twist - high, -low - twist), Math.Max(Math.Abs(swingY) - limY, Math.Abs(swingZ) - limZ)));
 
-        /// <summary>Überstreckung über die Nullstellung hinaus (Grad, ≥ 0): Seite mit dem kleineren Anschlag (Knie: 5° gegen 140°).</summary>
-        public static double Hyperextension(double twist, double low, double high) =>
-            low < high ? Math.Max(0, -twist) : Math.Max(0, twist);
+        /// <summary>Überstreckung über die gestreckte Stellung hinaus (Grad, ≥ 0). twist: Beugung seit dem Anlegen des Gelenks,
+        /// extensionSign: Richtung der Streckung (−1/+1), flexAtRest: Beugung beim Anlegen (sitzend ≈ 90°, stehend 0).</summary>
+        public static double Hyperextension(double twist, int extensionSign, double flexAtRest) =>
+            Math.Max(0, extensionSign * twist - flexAtRest);
 
         static double[] Unit(double[] v)
         {
